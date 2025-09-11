@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fast Interactive Spectrogram</title>
+<style>
+body { background:#111; color:#eee; font-family:sans-serif; margin:0; padding:1em; }
+.controls { margin-bottom:1em; }
+label { margin-right:1em; }
+canvas { display:block; width:100%; height:500px; background:#000; cursor:crosshair; }
+</style>
+</head>
+<body>
+<div class="controls">
+<input id="file" type="file" accept=".wav"/>
+<label>Pitch quality:
+<input id="fftSize" type="number" value="12" step="2"></label>
+<label>Horizontal resolution:
+<input id="hopSize" type="number" value="512" step="1" min="1"></label>
+<label>Color map:
+<select id="colormap">
+<option value="grayscale" selected>Grayscale</option>
+<option value="heat">Heat</option>
+<option value="rainbow">Rainbow</option>
+</select>
+</label>
+<label><input type="checkbox" id="logScale" > Band-scaled frequency axis</label>
+</div>
+<canvas id="canvas"></canvas>
+<div id="status"></div>
+
+<script>
+// --- FFT (SIMD-style interleaved) ---
+function fftSIMD(buf, twiddles) {
+    const n = buf.length>>1;
+    const levels = Math.log2(n);
+    // Bit reversal
+    for (let i=0;i<n;i++){
+        let j=0;
+        for(let bit=0;bit<levels;bit++) j=(j<<1)|((i>>bit)&1);
+        if(j>i){
+            let ri=i<<1, ii=ri+1;
+            let rj=j<<1, ij=rj+1;
+            [buf[ri], buf[rj]]=[buf[rj], buf[ri]];
+            [buf[ii], buf[ij]]=[buf[ij], buf[ii]];
+        }
+    }
+    // FFT
+    for(let size=2;size<=n;size<<=1){
+        const half=size>>1;
+        const tw=twiddles[size];
+        for(let i=0;i<n;i+=size){
+            let wRe=1, wIm=0;
+            for(let j=0;j<half;j++){
+                let idx=(i+j)<<1, idxH=(i+j+half)<<1;
+                let re=buf[idx], im=buf[idx+1];
+                let reH=buf[idxH], imH=buf[idxH+1];
+                let tRe=wRe*reH-wIm*imH;
+                let tIm=wRe*imH+wIm*reH;
+                buf[idxH]=re-tRe; buf[idxH+1]=im-tIm;
+                buf[idx]+=tRe; buf[idx+1]+=tIm;
+                let tmp=wRe*tw.cos-wIm*tw.sin;
+                wIm=wRe*tw.sin+wIm*tw.cos;
+                wRe=tmp;
+            }
+        }
+    }
+}
+
+function precomputeTwiddles(maxSize){
+    const tw={};
+    for(let size=2;size<=maxSize;size<<=1){
+        const ang=-2*Math.PI/size;
+        tw[size]={cos:Math.cos(ang), sin:Math.sin(ang)};
+    }
+    return tw;
+}
+
+function hann(N){ const w=new Float32Array(N); for(let i=0;i<N;i++) w[i]=0.5*(1-Math.cos(2*Math.PI*i/(N-1))); return w; }
+
+// Color maps
+function mapColorGrayscale(v){ const c=Math.floor(v*255); return [c,c,c]; }
+function mapColorHeat(v){ return [Math.min(255,v*512), Math.min(255,v*512-128), Math.min(255,v*256-64)]; }
+function mapColorRainbow(v){
+    const i=Math.floor(v*5), f=v*5-i, q=1-f;
+    switch(i){ case 0: return [255*f,0,255*q]; case 1: return [255,255*f,0]; case 2: return [255*q,255,255*f]; case 3: return [0,255*q,255]; default:return [255*f,0,255]; }
+}
+function getColor(v,map){ if(map==="grayscale") return mapColorGrayscale(v); if(map==="rainbow") return mapColorRainbow(v); return mapColorHeat(v); }
+
+// DOM
+const fileEl=document.getElementById("file");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const status=document.getElementById("status");
+const fftSizeEl=document.getElementById("fftSize");
+const hopSizeEl=document.getElementById("hopSize");
+const colormapEl=document.getElementById("colormap");
+const logScaleEl=document.getElementById("logScale");
+
+let pcm=null, pos=0, fftSize=1024, hop=512, win=hann(1024);
+let framesTotal=0, x=0, rendering=false;
+let twiddles=null;
+
+// Base bands
+const baseBands=[0,4,8,12,16,20,24,28,32,36,40,48,56,64,72,80,88,96,108,120,132,144,160,176,196,216,240,264,292,320,352,384,416,448,480,512,544,576,608,640,672,704,736,768,800,832,864,896,928];
+let scaledBands=[];
+
+// --- Load WAV ---
+fileEl.addEventListener("change", async e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const buf=await f.arrayBuffer();
+    const ac=new AudioContext();
+    const ab=await ac.decodeAudioData(buf);
+    pcm=new Float32Array(ab.getChannelData(0));
+    status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${ab.sampleRate} Hz`;
+    restartRender();
+});
+
+// Params change
+fftSizeEl.addEventListener("change", restartRender);
+hopSizeEl.addEventListener("change", restartRender);
+colormapEl.addEventListener("change", restartRender);
+logScaleEl.addEventListener("change", restartRender);
+
+let startTime=0; // new
+let audioProcessed=0; // total audio samples processed
+
+function restartRender(){
+    if(!pcm)return;
+    fftSize=Math.pow(2,parseInt(fftSizeEl.value))||1024;
+    hop=Math.max(1,parseInt(hopSizeEl.value)||512);
+    win=hann(fftSize);
+    twiddles=precomputeTwiddles(fftSize);
+
+    const scale=(fftSize/2)/1024/0.9;
+    scaledBands=baseBands.map(v=>v*scale);
+
+    framesTotal=Math.ceil((pcm.length-fftSize)/hop);
+    canvas.width=framesTotal;
+    canvas.height=fftSize/2;
+    imageBuffer=ctx.createImageData(canvas.width,canvas.height);
+
+    pos=0; x=0; rendering=true;
+
+    // --- initialize timing ---
+    startTime = performance.now();
+    audioProcessed = 0;
+
+    requestAnimationFrame(drawLoop);
+}
+
+function drawLoop(){
+    if(!rendering) return;
+    const framesPerTick=100;
+    const cmap=colormapEl.value;
+    const logScale=logScaleEl.checked;
+    const buf=new Float32Array(fftSize*2);
+
+    for(let f=0;f<framesPerTick;f++){
+        if(pos+fftSize>pcm.length){ 
+            rendering=false; 
+            break; 
+        }
+
+        for(let i=0;i<fftSize;i++){ buf[i*2]=pcm[pos+i]*win[i]; buf[i*2+1]=0; }
+        fftSIMD(buf,twiddles);
+        const mags=new Float32Array(fftSize/2);
+        let max=0;
+        for(let i=0;i<mags.length;i++){
+            mags[i]=Math.hypot(buf[i*2],buf[i*2+1]);
+            if(mags[i]>max) max=mags[i];
+        }
+
+        const h=canvas.height;
+        for(let y=0;y<h;y++){
+            let bin;
+            if(logScale){
+                const i=y*mags.length/h;
+                let b=scaledBands.findIndex((v,j)=>i>=v && i<scaledBands[j+1]);
+                if(b<0)b=scaledBands.length-2;
+                let t=(i-scaledBands[b])/(scaledBands[b+1]-scaledBands[b]);
+                let frac=(b+t)/(scaledBands.length-1);
+                bin=Math.floor((1-frac)*(mags.length-1));
+            }else bin=h-1-y;
+            let v=Math.log10(1+mags[bin])/Math.log10(1+max);
+            const [r,g,b]=getColor(v,cmap);
+            const idx=(y*canvas.width + x)*4;
+            imageBuffer.data[idx]=r;
+            imageBuffer.data[idx+1]=g;
+            imageBuffer.data[idx+2]=b;
+            imageBuffer.data[idx+3]=255;
+        }
+
+        pos+=hop; x++;
+        audioProcessed += hop;
+    }
+
+    ctx.putImageData(imageBuffer,0,0);
+
+    // --- timing info ---
+    const elapsedMS = performance.now() - startTime;
+    const elapsedSec = elapsedMS / 1000;
+    const speed = audioProcessed / elapsedSec; // samples/sec
+    const audioSec = pcm.length / 44100; // total audio duration approx
+    const processedSec = audioProcessed / 44100;
+
+    status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | `
+        + `Elapsed: ${elapsedSec.toFixed(2)}s | `
+        + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
+        + `Speed: ${(speed/44100).toFixed(2)}x realtime`;
+
+    if(rendering) requestAnimationFrame(drawLoop);
+    else status.textContent += " | Done";
+}
+
+// Example for later interactive drawing
+canvas.addEventListener("mousedown", e=>{
+    const rect=canvas.getBoundingClientRect();
+    const cx=Math.floor(e.clientX-rect.left);
+    const cy=Math.floor(e.clientY-rect.top);
+    const idx=(cy*canvas.width + cx)*4;
+    imageBuffer.data[idx]=255; // red
+    imageBuffer.data[idx+1]=255; // green
+    imageBuffer.data[idx+2]=255; // blue
+    imageBuffer.data[idx+3]=255;
+    ctx.putImageData(imageBuffer,0,0);
+});
+</script>
+</body>
+</html>

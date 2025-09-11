@@ -2,91 +2,133 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Fast Interactive Spectrogram</title>
+<title>Phase-aware Spectrogram Editor — Fixed</title>
 <style>
 body { background:#111; color:#eee; font-family:sans-serif; margin:0; padding:1em; }
 .controls { margin-bottom:1em; }
-label { margin-right:1em; }
+label { margin-right:1em; display:inline-block; margin-top:0.5em; }
 canvas { display:block; width:100%; height:500px; background:#000; cursor:crosshair; }
 </style>
 </head>
 <body>
 <div class="controls">
-<input id="file" type="file" accept=".wav"/>
-<label>Pitch quality:
-<input id="fftSize" type="number" value="12" step="2"></label>
-<label>Horizontal resolution:
-<input id="hopSize" type="number" value="512" step="1" min="1"></label>
-<label>Color map:
-<select id="colormap">
-<option value="grayscale" selected>Grayscale</option>
-<option value="heat">Heat</option>
-<option value="rainbow">Rainbow</option>
-</select>
-</label>
-<label><input type="checkbox" id="logScale" > Band-scaled frequency axis</label>
+  <input id="file" type="file" accept=".wav"/>
+  <label>FFT exponent (2^exp):
+    <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
+  </label>
+  <label>Hop size:
+    <input id="hopSize" type="number" value="1024" step="1" min="1">
+  </label>
+  <label>Brush size:
+    <input id="brushSize" type="range" min="1" max="200" value="40">
+  </label>
+  <label>Brush brightness:
+    <input id="brushColor" type="range" min="0" max="255" value="255">
+  </label>
+  <label>Brush phase:
+    <input id="penPhase" type="range" min="0" max="31415" value="0">
+  </label>
+  <label>Brightness opacity:
+    <input id="brushOpacity" type="range" min="0" max="100" value="100">
+  </label>
+  <label>Phase opacity:
+    <input id="phaseOpacity" type="range" min="0" max="100" value="70">
+  </label>
+  <label><input type="checkbox" id="logScale" checked> Band-scaled frequency axis</label>
+  <button id="downloadWav">Download WAV</button>
 </div>
 <canvas id="canvas"></canvas>
 <div id="status"></div>
 
 <script>
-// --- FFT (SIMD-style interleaved) ---
-function fftSIMD(buf, twiddles) {
-    const n = buf.length>>1;
-    const levels = Math.log2(n);
-    // Bit reversal
-    for (let i=0;i<n;i++){
-        let j=0;
-        for(let bit=0;bit<levels;bit++) j=(j<<1)|((i>>bit)&1);
-        if(j>i){
-            let ri=i<<1, ii=ri+1;
-            let rj=j<<1, ij=rj+1;
-            [buf[ri], buf[rj]]=[buf[rj], buf[ri]];
-            [buf[ii], buf[ij]]=[buf[ij], buf[ii]];
-        }
+// --- Provided FFT / IFFT helpers ---
+function nextPow2(v) { return 1 << Math.ceil(Math.log2(v)); }
+
+function fft_inplace(re, im) {
+  const n = re.length;
+  if (n !== im.length) throw new Error('Mismatched lengths');
+  const levels = Math.floor(Math.log2(n));
+  if ((1 << levels) !== n) throw new Error('Length must be power of 2');
+
+  // bit-reversed addressing
+  for (let i = 0; i < n; i++) {
+    let j = 0;
+    for (let k = 0; k < levels; k++) j = (j << 1) | ((i >>> k) & 1);
+    if (j > i) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
     }
-    // FFT
-    for(let size=2;size<=n;size<<=1){
-        const half=size>>1;
-        const tw=twiddles[size];
-        for(let i=0;i<n;i+=size){
-            let wRe=1, wIm=0;
-            for(let j=0;j<half;j++){
-                let idx=(i+j)<<1, idxH=(i+j+half)<<1;
-                let re=buf[idx], im=buf[idx+1];
-                let reH=buf[idxH], imH=buf[idxH+1];
-                let tRe=wRe*reH-wIm*imH;
-                let tIm=wRe*imH+wIm*reH;
-                buf[idxH]=re-tRe; buf[idxH+1]=im-tIm;
-                buf[idx]+=tRe; buf[idx+1]+=tIm;
-                let tmp=wRe*tw.cos-wIm*tw.sin;
-                wIm=wRe*tw.sin+wIm*tw.cos;
-                wRe=tmp;
-            }
-        }
+  }
+
+  for (let size = 2; size <= n; size <<= 1) {
+    const half = size >>> 1;
+    const theta = -2 * Math.PI / size;
+    const wpr = Math.cos(theta);
+    const wpi = Math.sin(theta);
+    for (let i = 0; i < n; i += size) {
+      let wr = 1, wi = 0;
+      for (let j = 0; j < half; j++) {
+        const k = i + j;
+        const l = k + half;
+        const tr = wr * re[l] - wi * im[l];
+        const ti = wr * im[l] + wi * re[l];
+        re[l] = re[k] - tr;
+        im[l] = im[k] - ti;
+        re[k] += tr;
+        im[k] += ti;
+        const tmp = wr;
+        wr = tmp * wpr - wi * wpi;
+        wi = tmp * wpi + wi * wpr;
+      }
     }
+  }
 }
 
-function precomputeTwiddles(maxSize){
-    const tw={};
-    for(let size=2;size<=maxSize;size<<=1){
-        const ang=-2*Math.PI/size;
-        tw[size]={cos:Math.cos(ang), sin:Math.sin(ang)};
+function ifft_inplace(re, im) {
+  for (let i = 0; i < re.length; i++) im[i] = -im[i];
+  fft_inplace(re, im);
+  for (let i = 0; i < re.length; i++) { re[i] /= re.length; im[i] = -im[i] / re.length; }
+}
+
+function hann(N) {
+  const w = new Float32Array(N);
+  for (let i = 0; i < N; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+  return w;
+}
+
+/**
+ * Perform FFT/IFFT on a signal using 50% overlap-add.
+ * @param {Float32Array} signal - input signal
+ * @param {number} N - FFT size
+ * @returns Float32Array - reconstructed signal
+ */
+function overlapAdd(signal, N) {
+  const hop = N / 2; // 50% overlap
+  const window = hann(N);
+  const out = new Float32Array(signal.length + N); // extra space for overlap
+  const re = new Float32Array(N);
+  const im = new Float32Array(N);
+
+  for (let pos = 0; pos < signal.length; pos += hop) {
+    // copy frame and apply window
+    for (let i = 0; i < N; i++) {
+      re[i] = (pos + i < signal.length ? signal[pos + i] : 0) * window[i];
+      im[i] = 0;
     }
-    return tw;
+
+    // FFT -> (optional processing) -> IFFT
+    fft_inplace(re, im);
+    // Example: no modification
+    ifft_inplace(re, im);
+
+    // overlap-add
+    for (let i = 0; i < N; i++) {
+      out[pos + i] += re[i] * window[i]; // apply window again for synthesis
+    }
+  }
+
+  return out.subarray(0, signal.length); // trim extra tail
 }
-
-function hann(N){ const w=new Float32Array(N); for(let i=0;i<N;i++) w[i]=0.5*(1-Math.cos(2*Math.PI*i/(N-1))); return w; }
-
-// Color maps
-function mapColorGrayscale(v){ const c=Math.floor(v*255); return [c,c,c]; }
-function mapColorHeat(v){ return [Math.min(255,v*512), Math.min(255,v*512-128), Math.min(255,v*256-64)]; }
-function mapColorRainbow(v){
-    const i=Math.floor(v*5), f=v*5-i, q=1-f;
-    switch(i){ case 0: return [255*f,0,255*q]; case 1: return [255,255*f,0]; case 2: return [255*q,255,255*f]; case 3: return [0,255*q,255]; default:return [255*f,0,255]; }
-}
-function getColor(v,map){ if(map==="grayscale") return mapColorGrayscale(v); if(map==="rainbow") return mapColorRainbow(v); return mapColorHeat(v); }
-
 // DOM
 const fileEl=document.getElementById("file");
 const canvas=document.getElementById("canvas");
@@ -94,110 +136,205 @@ const ctx=canvas.getContext("2d");
 const status=document.getElementById("status");
 const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
-const colormapEl=document.getElementById("colormap");
+const brushSizeEl=document.getElementById("brushSize");
+const brushOpacityEl=document.getElementById("brushOpacity");
+const phaseOpacityEl=document.getElementById("phaseOpacity");
+const brushColorEl=document.getElementById("brushColor");
+const penPhaseEl=document.getElementById("penPhase");
 const logScaleEl=document.getElementById("logScale");
 
-let pcm=null, pos=0, fftSize=1024, hop=512, win=hann(1024);
+let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
-let twiddles=null;
+let imageBuffer=null;
 
-// Base bands
+// spectrogram numeric storage
+let mags = null;     // Float32Array(width * height) column-major: idx = x * height + y
+let phases = null;   // Float32Array(width * height)
+let specWidth = 0;
+let specHeight = 0;
+
+// --- Bands ---
 const baseBands=[0,4,8,12,16,20,24,28,32,36,40,48,56,64,72,80,88,96,108,120,132,144,160,176,196,216,240,264,292,320,352,384,416,448,480,512,544,576,608,640,672,704,736,768,800,832,864,896,928];
 let scaledBands=[];
 
-// --- Load WAV ---
-fileEl.addEventListener("change", async e=>{
-    const f=e.target.files[0]; if(!f)return;
-    const buf=await f.arrayBuffer();
-    const ac=new AudioContext();
-    const ab=await ac.decodeAudioData(buf);
-    pcm=new Float32Array(ab.getChannelData(0));
-    status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${ab.sampleRate} Hz`;
-    restartRender();
-});
+// Brush
+let brushSize=parseInt(brushSizeEl.value);
+let brushOpacity=parseInt(brushOpacityEl.value)/100;
+let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
+let brushColor=parseInt(brushColorEl.value); // 0..255 (display)
+let penPhase=parseInt(penPhaseEl.value)/10000;
+brushSizeEl.addEventListener("input",()=>brushSize=parseInt(brushSizeEl.value));
+brushOpacityEl.addEventListener("input",()=>brushOpacity=parseInt(brushOpacityEl.value)/100);
+phaseOpacityEl.addEventListener("input",()=>phaseOpacity=parseInt(phaseOpacityEl.value)/100);
+brushColorEl.addEventListener("input",()=>brushColor=parseInt(brushColorEl.value));
+penPhaseEl.addEventListener("input", ()=>penPhase = parseInt(penPhaseEl.value) / 10000);
 
-// Params change
-fftSizeEl.addEventListener("change", restartRender);
-hopSizeEl.addEventListener("change", restartRender);
-colormapEl.addEventListener("change", restartRender);
-logScaleEl.addEventListener("change", restartRender);
+// Audio context: create on first user gesture to avoid browser autoplay block
+let audioCtx = null;
+function ensureAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
 
 let startTime=0; // new
 let audioProcessed=0; // total audio samples processed
+// Load WAV
+fileEl.addEventListener("change", async e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const buf=await f.arrayBuffer();
+    // decode with OfflineAudioContext if necessary, but simplest: use AudioContext decodeAudioData
+    ensureAudioCtx();
+    const ab = await audioCtx.decodeAudioData(buf.slice(0));
+    pcm = new Float32Array(ab.getChannelData(0));
+    sampleRate = ab.sampleRate || 44100;
+    
+    status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
+    restartRender();
+});
+
+fftSizeEl.addEventListener("change",restartRender);
+hopSizeEl.addEventListener("change",restartRender);
+logScaleEl.addEventListener("change",restartRender);
 
 function restartRender(){
-    if(!pcm)return;
-    fftSize=Math.pow(2,parseInt(fftSizeEl.value))||1024;
-    hop=Math.max(1,parseInt(hopSizeEl.value)||512);
-    win=hann(fftSize);
-    twiddles=precomputeTwiddles(fftSize);
+    if(!pcm) return;
+    // fftSize input is exponent (like 10 -> 1024) in existing UI - preserve that behavior
+    const exponent = Math.max(6, Math.min(14, parseInt(fftSizeEl.value)||10));
+    fftSize = 1 << exponent;
+    hop = Math.max(1, parseInt(hopSizeEl.value) || 512);
+    win = hann(fftSize);
 
-    const scale=(fftSize/2)/1024/0.9;
-    scaledBands=baseBands.map(v=>v*scale);
+    // compute scaledBands relative to FFT bins (0..fftSize/2)
+    const scale = (fftSize/2) / 1024 / 0.9;
+    scaledBands = baseBands.map(v => v * scale);
 
-    framesTotal=Math.ceil((pcm.length-fftSize)/hop);
-    canvas.width=framesTotal;
-    canvas.height=fftSize/2;
-    imageBuffer=ctx.createImageData(canvas.width,canvas.height);
+    // framesTotal includes final partial (we use floor+1)
+    framesTotal = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
+    // set canvas pixel dimensions to frame x freqBins
+    canvas.width = framesTotal;
+    canvas.height = Math.floor(fftSize / 2);
 
-    pos=0; x=0; rendering=true;
+    specWidth = canvas.width;
+    specHeight = canvas.height;
 
-    // --- initialize timing ---
+    // allocate image buffer and numeric arrays
+    imageBuffer = ctx.createImageData(canvas.width, canvas.height);
+    mags = new Float32Array(specWidth * specHeight);
+    phases = new Float32Array(specWidth * specHeight);
+    for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
+
+    pos = 0; x = 0; rendering = true;
+    // clear visual canvas
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    
     startTime = performance.now();
     audioProcessed = 0;
-
+    stopSource();
+    if (!painting) playPCM(true);
     requestAnimationFrame(drawLoop);
 }
 
-function drawLoop(){
-    if(!rendering) return;
-    const framesPerTick=100;
-    const cmap=colormapEl.value;
-    const logScale=logScaleEl.checked;
-    const buf=new Float32Array(fftSize*2);
+// --- Convert mag+phase to RGB (HSV-like) ---
+function magPhaseToRGB(mag, phase){
+    // phase -> hue, mag scaled by 60 (v = mag/60 clipped)
+    const h = (phase / (2*Math.PI) + 1) % 1; // normalize 0..1
+    const s = 1;
+    const v = Math.min(mag/60,1);
+    const c = v*s;
+    const m = v - c;
+    const hp = h*6;
+    const x = c*(1-Math.abs(hp%2-1));
+    let r=0,g=0,b=0;
+    if(hp < 1){ r=c; g=x; b=0; }
+    else if(hp < 2){ r=x; g=c; b=0; }
+    else if(hp < 3){ r=0; g=c; b=x; }
+    else if(hp < 4){ r=0; g=x; b=c; }
+    else if(hp < 5){ r=x; g=0; b=c; }
+    else { r=c; g=0; b=x; }
+    return [Math.floor((r+m)*255), Math.floor((g+m)*255), Math.floor((b+m)*255)];
+}
 
-    for(let f=0;f<framesPerTick;f++){
-        if(pos+fftSize>pcm.length){ 
-            rendering=false; 
-            break; 
-        }
+// Convert displayed RGB back to numeric mag/phase (kept for completeness)
+function rgbToMagPhase(r, g, b) {
+    let rf=r/255,gf=g/255,bf=b/255;
+    const mx=Math.max(rf,gf,bf), mn=Math.min(rf,gf,bf);
+    const d=mx-mn;
+    let h=0,s=0,v=mx;
+    s=mx===0?0:d/mx;
+    if(d!==0){
+        if(mx===rf) h=((gf-bf)/d)%6;
+        else if(mx===gf) h=(bf-rf)/d+2;
+        else h=(rf-gf)/d+4;
+        h/=6; if(h<0) h+=1;
+    }
+    const phase=h*2*Math.PI;
+    const mag=v*60;
+    return [mag, phase];
+}
 
-        for(let i=0;i<fftSize;i++){ buf[i*2]=pcm[pos+i]*win[i]; buf[i*2+1]=0; }
-        fftSIMD(buf,twiddles);
-        const mags=new Float32Array(fftSize/2);
-        let max=0;
-        for(let i=0;i<mags.length;i++){
-            mags[i]=Math.hypot(buf[i*2],buf[i*2+1]);
-            if(mags[i]>max) max=mags[i];
-        }
+// --- Draw spectrogram (compute FFT frames and store numeric spectrogram) ---
+function drawLoop() {
+    if (!rendering) return;
+    // cap per-tick to avoid blocking—adaptive based on canvas width
+    const framesPerTick = Math.min(200, Math.max(4, Math.floor(specWidth/8)));
 
-        const h=canvas.height;
-        for(let y=0;y<h;y++){
+    const h = specHeight;
+    const w = specWidth;
+
+    for (let f = 0; f < framesPerTick; f++) {
+        if (pos + fftSize > pcm.length) { rendering = false; break; }
+
+        // prepare re/im arrays for fft_inplace
+        const re = new Float32Array(fftSize);
+        const im = new Float32Array(fftSize);
+        for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
+        fft_inplace(re, im);
+
+        // fill column x
+        for (let y = 0; y < h; y++) {
             let bin;
-            if(logScale){
-                const i=y*mags.length/h;
-                let b=scaledBands.findIndex((v,j)=>i>=v && i<scaledBands[j+1]);
-                if(b<0)b=scaledBands.length-2;
-                let t=(i-scaledBands[b])/(scaledBands[b+1]-scaledBands[b]);
-                let frac=(b+t)/(scaledBands.length-1);
-                bin=Math.floor((1-frac)*(mags.length-1));
-            }else bin=h-1-y;
-            let v=Math.log10(1+mags[bin])/Math.log10(1+max);
-            const [r,g,b]=getColor(v,cmap);
-            const idx=(y*canvas.width + x)*4;
-            imageBuffer.data[idx]=r;
-            imageBuffer.data[idx+1]=g;
-            imageBuffer.data[idx+2]=b;
-            imageBuffer.data[idx+3]=255;
+            if (logScaleEl.checked) {
+                // Map y (0..h-1) to a fractional bin number between 0..(fftSize/2-1)
+                // build a smooth mapping using scaledBands — fallback to linear if something is off
+                const i = y * (fftSize / 2) / h;
+                // find band interval containing i
+                let b = scaledBands.findIndex((v,j) => (j+1<scaledBands.length) && i >= v && i < scaledBands[j+1]);
+                if (b === -1) {
+                    // clamp to ends
+                    if (i < scaledBands[0]) b = 0;
+                    else b = scaledBands.length - 2;
+                }
+                const denom = Math.max(1e-6, (scaledBands[b+1] - scaledBands[b]));
+                const t = (i - scaledBands[b]) / denom;
+                const frac = (b + t) / (scaledBands.length - 1);
+                bin = Math.floor((1 - frac) * (fftSize / 2 - 1));
+                bin = Math.max(0, Math.min(Math.floor(fftSize/2)-1, bin));
+            } else {
+                bin = h - 1 - y; // linear mapping: top->high freq, bottom->low
+            }
+
+            const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
+            const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
+
+            const idx = x * h + y; // column-major
+            mags[idx] = mag;
+            phases[idx] = phase;
+
+            // imageBuffer is row-major (y * w + x) * 4
+            const [r, g, b] = magPhaseToRGB(mag, phase);
+            const pix = (y * w + x) * 4;
+            imageBuffer.data[pix]     = r;
+            imageBuffer.data[pix + 1] = g;
+            imageBuffer.data[pix + 2] = b;
+            imageBuffer.data[pix + 3] = 255;
         }
 
-        pos+=hop; x++;
+        pos += hop; x++;
         audioProcessed += hop;
+        if (x >= w) { rendering = false; break; }
     }
 
-    ctx.putImageData(imageBuffer,0,0);
-
-    // --- timing info ---
+    ctx.putImageData(imageBuffer, 0, 0);
     const elapsedMS = performance.now() - startTime;
     const elapsedSec = elapsedMS / 1000;
     const speed = audioProcessed / elapsedSec; // samples/sec
@@ -208,22 +345,309 @@ function drawLoop(){
         + `Elapsed: ${elapsedSec.toFixed(2)}s | `
         + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
         + `Speed: ${(speed/44100).toFixed(2)}x realtime`;
-
-    if(rendering) requestAnimationFrame(drawLoop);
-    else status.textContent += " | Done";
+    if (rendering) requestAnimationFrame(drawLoop);
 }
 
-// Example for later interactive drawing
-canvas.addEventListener("mousedown", e=>{
+// --- Painting ---
+let painting=false;
+let paintedPixels=null;
+
+function getCanvasCoords(e){
     const rect=canvas.getBoundingClientRect();
-    const cx=Math.floor(e.clientX-rect.left);
-    const cy=Math.floor(e.clientY-rect.top);
-    const idx=(cy*canvas.width + cx)*4;
-    imageBuffer.data[idx]=255; // red
-    imageBuffer.data[idx+1]=255; // green
-    imageBuffer.data[idx+2]=255; // blue
-    imageBuffer.data[idx+3]=255;
+    const scaleX=canvas.width/rect.width;
+    const scaleY=canvas.height/rect.height;
+    return {cx:(e.clientX-rect.left)*scaleX, cy:(e.clientY-rect.top)*scaleY, scaleX, scaleY};
+}
+
+function paint(cx, cy, scaleX, scaleY){
+    if (!mags || !phases) return;
+    // account for aspect/scale typically not required, but preserve your ellipse brush formula
+    const radiusX = brushSize / (scaleY/scaleX || 1);
+    const radiusY = brushSize;
+    const minX = Math.max(0, Math.floor(cx - radiusX));
+    const maxX = Math.min(canvas.width-1, Math.ceil(cx + radiusX));
+    const minY = Math.max(0, Math.floor(cy - radiusY));
+    const maxY = Math.min(canvas.height-1, Math.ceil(cy + radiusY));
+
+    // brushColor (0..255) -> mag units using same mapping as rgbToMagPhase (v*60)
+    const brushMag = (brushColor / 255) * 128;
+
+    for(let yy=minY;yy<=maxY;yy++){
+        for(let xx=minX;xx<=maxX;xx++){
+            const dx=xx-cx, dy=yy-cy;
+            if((dx*dx)/(radiusX*radiusX)+(dy*dy)/(radiusY*radiusY)>1) continue;
+            const key = yy * canvas.width + xx;
+            if(paintedPixels.has(key)) continue;
+            paintedPixels.add(key);
+
+            const idx = xx * specHeight + yy; // column-major idx into mags/phases
+            // guard
+            if (idx < 0 || idx >= mags.length) continue;
+            const oldMag = mags[idx] || 0;
+            const oldPhase = phases[idx] || 0;
+
+            // Modify magnitude in numeric space (no clamping)
+            const newMag = oldMag * (1 - brushOpacity) + brushMag * brushOpacity;
+            let newPhase = oldPhase + phaseOpacity*(penPhase-oldPhase);
+            
+            // newPhase = oldPhase;
+            mags[idx] = newMag;
+            phases[idx] = newPhase;
+
+            // Render this pixel in imageBuffer (row-major)
+            const [r,g,b] = magPhaseToRGB(newMag, newPhase);
+            const pix = (yy * canvas.width + xx) * 4;
+            imageBuffer.data[pix]   = r;
+            imageBuffer.data[pix+1] = g;
+            imageBuffer.data[pix+2] = b;
+            imageBuffer.data[pix+3] = 255;
+        }
+    }
     ctx.putImageData(imageBuffer,0,0);
+}
+
+// Merge painting and audio/frame handlers so we don't duplicate mousedown/mouseup logic
+canvas.addEventListener("mousedown", e=>{
+    if (!mags || !phases) return;
+    painting=true;
+    stopSource();
+    paintedPixels=new Set();
+    const {cx,cy,scaleX,scaleY}=getCanvasCoords(e);
+    paint(cx,cy,scaleX,scaleY);
+
+    // audio: play current frame while mouse is down
+    ensureAudioCtx();
+    mouseDown = true;
+    currentFrame = Math.floor(cx);
+    playFrame(currentFrame);
+});
+canvas.addEventListener("mousemove", e=>{
+    if(!painting) return;
+    const {cx,cy,scaleX,scaleY}=getCanvasCoords(e);
+    paint(cx,cy,scaleX,scaleY);
+
+    currentFrame = Math.floor(cx);
+    if (mouseDown) playFrame(currentFrame);
+});
+canvas.addEventListener("mouseup", e => {
+    if (!mags || !phases) return;
+
+    painting = false;
+    paintedPixels = null;
+    mouseDown = false;
+    stopSource();
+
+    if (!pcm) { 
+        playPCM(); 
+        return; 
+    }
+
+    const newPCM = new Float32Array(pcm.length);
+    const overlapCount = new Float32Array(pcm.length);
+    const window = new Float32Array(fftSize);
+    for (let i = 0; i < fftSize; i++) window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+
+    const h = specHeight;
+    const w = specWidth;
+
+    for (let xCol = 0; xCol < w; xCol++) {
+        const re = new Float32Array(fftSize);
+        const im = new Float32Array(fftSize);
+
+        for (let y = 0; y < h; y++) {
+            let bin;
+            let bandIndex = 0;
+            if (logScaleEl.checked) {
+                // Map canvas row y to fractional FFT bin
+                const scaleY = (fftSize / 2) / h;
+                const iBin = y * scaleY;
+                // Find interval in scaledBands
+                let b = scaledBands.findIndex((v, j) => j + 1 < scaledBands.length && iBin >= v && iBin < scaledBands[j + 1]);
+                if (b === -1) b = iBin < scaledBands[0] ? 0 : scaledBands.length - 2;
+                bandIndex = b;
+                
+                const denom = Math.max(1e-6, scaledBands[b + 1] - scaledBands[b]);
+                const t = (iBin - scaledBands[b]) / denom;
+                const frac = (b + t) / (scaledBands.length - 1);
+
+                bin = Math.floor((1 - frac) * (fftSize / 2 - 1));
+                bin = Math.max(0, Math.min(fftSize / 2 - 1, bin));
+            } else {
+                bin = h - 1 - y;
+                bandIndex = y;
+            }
+
+            const idx = xCol * h + y;
+            let mag = mags[idx] || 0;
+            const phase = phases[idx] || 0;
+            // let bS = scaledBands[bandIndex+1]-scaledBands[bandIndex];
+            // if (bandIndex == scaledBands.length) bS = (parseInt(hopSizeEl.value)/0.9)-scaledBands[bandIndex];
+            // const scaleFactor = (logScaleEl.checked)?(bS / scaledBands[1]):1;
+            // console.log(bS / scaledBands[1]);
+            // mag *= scaleFactor;
+
+            re[bin] = mag * Math.cos(phase);
+            im[bin] = mag * Math.sin(phase);
+
+            // symmetric conjugate for real signal
+            if (bin > 0 && bin < fftSize / 2) {
+                const sym = fftSize - bin;
+                re[sym] = re[bin];
+                im[sym] = -im[bin];
+            }
+        }
+
+        ifft_inplace(re, im);
+
+        for (let i = 0; i < fftSize; i++) {
+            const posPCM = xCol * hop + i;
+            if (posPCM >= pcm.length) break;
+
+            newPCM[posPCM] += re[i] * window[i];
+            overlapCount[posPCM] += window[i] * window[i];
+        }
+    }
+
+    // Normalize overlap-add
+    for (let i = 0; i < pcm.length; i++) {
+        if (overlapCount[i] > 0) newPCM[i] /= overlapCount[i];
+    }
+
+    pcm.set(newPCM);
+    pos = 0;
+    x = 0;
+    rendering = true;
+    requestAnimationFrame(drawLoop);
+
+    playPCM();
+    console.log("PCM updated from phase-aware spectrogram!");
+});
+
+// Audio playback
+let sourceNode = null;
+let playing = false;
+let mouseDown = false;
+let currentFrame = 0; // frame under mouse when painting
+
+function stopSource(){
+    if(sourceNode){
+        try { sourceNode.stop(); } catch(e) { /*ignore*/ }
+        try { sourceNode.disconnect(); } catch(e) { /*ignore*/ }
+        sourceNode = null;
+    }
+    playing = false;
+}
+
+// Function to play entire PCM
+function playPCM(loop = true) {
+    if (!pcm) return;
+    ensureAudioCtx();
+    stopSource();
+    sourceNode = audioCtx.createBufferSource();
+    const buffer = audioCtx.createBuffer(1, pcm.length, sampleRate);
+    buffer.copyToChannel(pcm, 0);
+    sourceNode.buffer = buffer;
+    sourceNode.loop = loop;   // <--- enable looping
+    sourceNode.connect(audioCtx.destination);
+    sourceNode.start();
+    playing = true;
+}
+
+// Function to play only a single frame
+function playFrame(frameX) {
+    if (!pcm) return;
+    ensureAudioCtx();
+    stopSource();
+    const start = frameX * hop;
+    const end = Math.min(start + fftSize, pcm.length);
+    if (end <= start) return;
+    const frameLen = end - start;
+
+    const buffer = audioCtx.createBuffer(1, frameLen, sampleRate);
+    buffer.copyToChannel(pcm.subarray(start, end), 0);
+
+    sourceNode = audioCtx.createBufferSource();
+    sourceNode.buffer = buffer;
+    sourceNode.loop = true; // loop the frame while mouse is down
+    sourceNode.connect(audioCtx.destination);
+    sourceNode.start();
+    playing = true;
+}
+
+// Utility: convert current entire spectrogram to imageBuffer
+function renderFullSpectrogramToImage() {
+    if (!imageBuffer || !mags || !phases) return;
+    const w = specWidth, h = specHeight;
+    for(let xx=0; xx<w; xx++){
+        for(let yy=0; yy<h; yy++){
+            const idx = xx * h + yy;
+            const mag = mags[idx] || 0;
+            const phase = phases[idx] || 0;
+            const [r,g,b] = magPhaseToRGB(mag, phase);
+            const pix = (yy * w + xx) * 4;
+            imageBuffer.data[pix] = r;
+            imageBuffer.data[pix+1] = g;
+            imageBuffer.data[pix+2] = b;
+            imageBuffer.data[pix+3] = 255;
+        }
+    }
+    ctx.putImageData(imageBuffer, 0, 0);
+}
+
+// Float -> 16-bit helpers and WAV download
+function floatTo16BitPCM(float32Array) {
+    const buffer = new ArrayBuffer(float32Array.length * 2);
+    const view = new DataView(buffer);
+    for (let i = 0; i < float32Array.length; i++) {
+        let s = Math.max(-1, Math.min(1, float32Array[i]));
+        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return view;
+}
+
+function writeWavHeader(view, sampleRate, numSamples) {
+    const blockAlign = 2; // 16-bit mono
+    const byteRate = sampleRate * blockAlign;
+
+    function writeString(view, offset, str) {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);       // PCM chunk size
+    view.setUint16(20, 1, true);        // PCM format
+    view.setUint16(22, 1, true);        // channels
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);       // bits per sample
+    writeString(view, 36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+}
+
+document.getElementById('downloadWav').addEventListener('click', () => {
+    if (!pcm) return alert('No PCM loaded!');
+    const numSamples = pcm.length;
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    writeWavHeader(view, sampleRate, numSamples);
+
+    const pcm16 = floatTo16BitPCM(pcm);
+    for (let i = 0; i < pcm16.byteLength; i++) {
+        view.setUint8(44 + i, pcm16.getUint8(i));
+    }
+
+    const blob = new Blob([view], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'output.wav';
+    a.click();
+    URL.revokeObjectURL(url);
 });
 </script>
 </body>

@@ -1144,12 +1144,7 @@ function drawTimeline() {
 // Convert mouse X (clientX-left) to frame
 function timelineXToFrame(clientXLeft) {
     const rect = timeline.getBoundingClientRect();
-    const xRel = clientXLeft; // expected to already be (clientX - rect.left)
-    // scale from CSS pixels to canvas pixels
-    const scaleX = timeline.width / rect.width;
-    const canvasX = xRel * scaleX;
-    const frame = Math.floor(canvasX);
-    return Math.max(0, Math.min(Math.max(0, framesTotal - 1), frame));
+    return clientXLeft/rect.width*framesTotal;
 }
 
 // Drag handling

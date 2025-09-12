@@ -17,7 +17,7 @@ canvas { display:block; width:100%; height:500px; background:#000; cursor:crossh
     <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
   </label>
   <label>Hop size:
-    <input id="hopSize" type="number" value="1024" step="1" min="1">
+    <input id="hopSize" type="number" value="512" step="1" min="1">
   </label>
   <label>Brush size:
     <input id="brushSize" type="range" min="1" max="200" value="40">
@@ -34,7 +34,13 @@ canvas { display:block; width:100%; height:500px; background:#000; cursor:crossh
   <label>Phase opacity:
     <input id="phaseOpacity" type="range" min="0" max="100" value="70">
   </label>
-  <label><input type="checkbox" id="logScale" checked> Band-scaled frequency axis</label>
+
+  <!-- LOGSCALE slider: 1 (linear) -> 2 (stronger compression). Step 0.01 -->
+  <label>Logscale:
+    <input id="logscale" type="range" min="1" max="2" step="0.01" value="1">
+    <span id="logscaleValue">1.00</span>
+  </label>
+
   <button id="downloadWav">Download WAV</button>
 </div>
 <canvas id="canvas"></canvas>
@@ -129,6 +135,7 @@ function overlapAdd(signal, N) {
 
   return out.subarray(0, signal.length); // trim extra tail
 }
+
 // DOM
 const fileEl=document.getElementById("file");
 const canvas=document.getElementById("canvas");
@@ -141,19 +148,20 @@ const brushOpacityEl=document.getElementById("brushOpacity");
 const phaseOpacityEl=document.getElementById("phaseOpacity");
 const brushColorEl=document.getElementById("brushColor");
 const penPhaseEl=document.getElementById("penPhase");
-const logScaleEl=document.getElementById("logScale");
+const logscaleEl = document.getElementById("logscale");
+const logscaleValueEl = document.getElementById("logscaleValue");
 
 let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
 let imageBuffer=null;
 
 // spectrogram numeric storage
-let mags = null;     // Float32Array(width * height) column-major: idx = x * height + y
+let mags = null;     // Float32Array(width * height) column-major: idx = x * height + bin
 let phases = null;   // Float32Array(width * height)
 let specWidth = 0;
 let specHeight = 0;
 
-// --- Bands ---
+// --- Bands (kept from your code but not required for mapping) ---
 const baseBands=[0,4,8,12,16,20,24,28,32,36,40,48,56,64,72,80,88,96,108,120,132,144,160,176,196,216,240,264,292,320,352,384,416,448,480,512,544,576,608,640,672,704,736,768,800,832,864,896,928];
 let scaledBands=[];
 
@@ -169,6 +177,13 @@ phaseOpacityEl.addEventListener("input",()=>phaseOpacity=parseInt(phaseOpacityEl
 brushColorEl.addEventListener("input",()=>brushColor=parseInt(brushColorEl.value));
 penPhaseEl.addEventListener("input", ()=>penPhase = parseInt(penPhaseEl.value) / 10000);
 
+// update displayed slider value
+logscaleValueEl.textContent = parseFloat(logscaleEl.value).toFixed(2);
+logscaleEl.addEventListener("input", ()=> {
+  logscaleValueEl.textContent = parseFloat(logscaleEl.value).toFixed(2);
+  renderFullSpectrogramToImage();
+});
+
 // Audio context: create on first user gesture to avoid browser autoplay block
 let audioCtx = null;
 function ensureAudioCtx(){
@@ -181,7 +196,6 @@ let audioProcessed=0; // total audio samples processed
 fileEl.addEventListener("change", async e=>{
     const f=e.target.files[0]; if(!f)return;
     const buf=await f.arrayBuffer();
-    // decode with OfflineAudioContext if necessary, but simplest: use AudioContext decodeAudioData
     ensureAudioCtx();
     const ab = await audioCtx.decodeAudioData(buf.slice(0));
     pcm = new Float32Array(ab.getChannelData(0));
@@ -193,14 +207,13 @@ fileEl.addEventListener("change", async e=>{
 
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);
-logScaleEl.addEventListener("change",restartRender);
 
 function restartRender(){
     if(!pcm) return;
     // fftSize input is exponent (like 10 -> 1024) in existing UI - preserve that behavior
     const exponent = Math.max(6, Math.min(14, parseInt(fftSizeEl.value)||10));
     fftSize = 1 << exponent;
-    hop = Math.max(1, parseInt(hopSizeEl.value) || 512);
+    hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
     win = hann(fftSize);
 
     // compute scaledBands relative to FFT bins (0..fftSize/2)
@@ -210,8 +223,9 @@ function restartRender(){
     // framesTotal includes final partial (we use floor+1)
     framesTotal = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
     // set canvas pixel dimensions to frame x freqBins
+    const freqBins = Math.floor(fftSize / 2);
     canvas.width = framesTotal;
-    canvas.height = Math.floor(fftSize / 2);
+    canvas.height = freqBins;
 
     specWidth = canvas.width;
     specHeight = canvas.height;
@@ -230,7 +244,6 @@ function restartRender(){
     startTime = performance.now();
     audioProcessed = 0;
     stopSource();
-    if (!painting) playPCM(true);
     requestAnimationFrame(drawLoop);
 }
 
@@ -272,7 +285,53 @@ function rgbToMagPhase(r, g, b) {
     return [mag, phase];
 }
 
-// --- Draw spectrogram (compute FFT frames and store numeric spectrogram) ---
+// ---------- Log-scale mapping helpers ----------
+// Expects bins in range 0 .. specHeight-1.
+// Display Y coordinate 'y' runs 0..specHeight-1, with y=0 at top, y=specHeight-1 at bottom.
+// Original linear mapping used: bin -> y = h-1 - bin  (so bin 0 is bottom).
+// We'll preserve bin 0 = bottom, bin max = top, but apply a parameterized log-like compression.
+
+// Return current slider value (float >=1)
+function getLogScaleSlider() { return Math.max(1, parseFloat(logscaleEl.value) || 1); }
+
+// Mapping: parameterized so slider s=1 -> linear, s>1 -> compressed high frequencies.
+// Use a = s - 1, and transform t = ln(1 + a * bin) / ln(1 + a * (h - 1))
+// This ensures numerical stability and a continuous interpolation from linear->log-like.
+function binToDisplayY(bin, h) {
+    if (!h) return 0;
+    const s = getLogScaleSlider();
+    if (s <= 1.0000001) {
+        return Math.round(h - 1 - bin); // linear invert so bin 0 -> bottom
+    } else {
+        const a = s - 1;
+        // denominator:
+        const denom = Math.log(1 + a * (h - 1));
+        // if denom is zero fallback to linear
+        if (!isFinite(denom) || denom === 0) return Math.round(h - 1 - bin);
+        const t = Math.log(1 + a * bin) / denom; // 0..1 where 0 => bin=0 bottom, 1 => bin=h-1 top
+        const y = (1 - t) * (h - 1);
+        return Math.round(y);
+    }
+}
+
+function displayYToBin(y, h) {
+    if (!h) return 0;
+    const s = getLogScaleSlider();
+    if (s <= 1.0000001) {
+        return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
+    } else {
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        if (!isFinite(denom) || denom === 0) return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
+        // t: 0->bottom, 1->top
+        const t = 1 - (y / (h - 1));
+        const raw = (Math.exp(t * denom) - 1) / a;
+        const clamped = Math.max(0, Math.min(h - 1, Math.round(raw)));
+        return clamped;
+    }
+}
+
+// ---------- Draw spectrogram (compute FFT frames and store numeric spectrogram) ----------
 function drawLoop() {
     if (!rendering) return;
     // cap per-tick to avoid blocking—adaptive based on canvas width
@@ -290,39 +349,24 @@ function drawLoop() {
         for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
         fft_inplace(re, im);
 
-        // fill column x
-        for (let y = 0; y < h; y++) {
-            let bin;
-            if (logScaleEl.checked) {
-                // Map y (0..h-1) to a fractional bin number between 0..(fftSize/2-1)
-                // build a smooth mapping using scaledBands — fallback to linear if something is off
-                const i = y * (fftSize / 2) / h;
-                // find band interval containing i
-                let b = scaledBands.findIndex((v,j) => (j+1<scaledBands.length) && i >= v && i < scaledBands[j+1]);
-                if (b === -1) {
-                    // clamp to ends
-                    if (i < scaledBands[0]) b = 0;
-                    else b = scaledBands.length - 2;
-                }
-                const denom = Math.max(1e-6, (scaledBands[b+1] - scaledBands[b]));
-                const t = (i - scaledBands[b]) / denom;
-                const frac = (b + t) / (scaledBands.length - 1);
-                bin = Math.floor((1 - frac) * (fftSize / 2 - 1));
-                bin = Math.max(0, Math.min(Math.floor(fftSize/2)-1, bin));
-            } else {
-                bin = h - 1 - y; // linear mapping: top->high freq, bottom->low
-            }
-
+        // fill numeric mags/phases for every FFT bin (0..h-1)
+        for (let bin = 0; bin < h; bin++) {
             const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
             const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
-
-            const idx = x * h + y; // column-major
+            const idx = x * h + bin; // column-major
             mags[idx] = mag;
             phases[idx] = phase;
+        }
 
-            // imageBuffer is row-major (y * w + x) * 4
+        // now map numeric bins to display rows using the mapping functions
+        // This ensures the imageBuffer rows reflect the current logscale slider
+        for (let yy = 0; yy < h; yy++) {
+            const mappedBin = displayYToBin(yy, h);
+            const idx = x * h + mappedBin;
+            const mag = mags[idx] || 0;
+            const phase = phases[idx] || 0;
             const [r, g, b] = magPhaseToRGB(mag, phase);
-            const pix = (y * w + x) * 4;
+            const pix = (yy * w + x) * 4; // row-major imageBuffer
             imageBuffer.data[pix]     = r;
             imageBuffer.data[pix + 1] = g;
             imageBuffer.data[pix + 2] = b;
@@ -331,17 +375,20 @@ function drawLoop() {
 
         pos += hop; x++;
         audioProcessed += hop;
-        if (x >= w) { rendering = false; break; }
+        if (x >= w) { rendering = false; 
+            if (!painting) playPCM(true);
+            break;
+        }
     }
 
     ctx.putImageData(imageBuffer, 0, 0);
     const elapsedMS = performance.now() - startTime;
     const elapsedSec = elapsedMS / 1000;
-    const speed = audioProcessed / elapsedSec; // samples/sec
+    const speed = audioProcessed / Math.max(1e-6, elapsedSec); // samples/sec
     const audioSec = pcm.length / 44100; // total audio duration approx
     const processedSec = audioProcessed / 44100;
 
-    status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | `
+    status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
         + `Elapsed: ${elapsedSec.toFixed(2)}s | `
         + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
         + `Speed: ${(speed/44100).toFixed(2)}x realtime`;
@@ -362,6 +409,7 @@ function getCanvasCoords(e){
 function paint(cx, cy, scaleX, scaleY){
     if (!mags || !phases) return;
     // account for aspect/scale typically not required, but preserve your ellipse brush formula
+    // Note: the canvas display Y is non-linear with logscale, so mapping from display Y to bin is used below.
     const radiusX = brushSize / (scaleY/scaleX || 1);
     const radiusY = brushSize;
     const minX = Math.max(0, Math.floor(cx - radiusX));
@@ -380,7 +428,9 @@ function paint(cx, cy, scaleX, scaleY){
             if(paintedPixels.has(key)) continue;
             paintedPixels.add(key);
 
-            const idx = xx * specHeight + yy; // column-major idx into mags/phases
+            // map display Y to underlying FFT bin (accounts for logscale)
+            const bin = displayYToBin(yy, specHeight);
+            const idx = xx * specHeight + bin; // column-major idx into mags/phases
             // guard
             if (idx < 0 || idx >= mags.length) continue;
             const oldMag = mags[idx] || 0;
@@ -390,13 +440,14 @@ function paint(cx, cy, scaleX, scaleY){
             const newMag = oldMag * (1 - brushOpacity) + brushMag * brushOpacity;
             let newPhase = oldPhase + phaseOpacity*(penPhase-oldPhase);
             
-            // newPhase = oldPhase;
             mags[idx] = newMag;
             phases[idx] = newPhase;
 
-            // Render this pixel in imageBuffer (row-major)
+            // Render this pixel in imageBuffer (row-major) at the display row corresponding to this bin
+            // Find display Y for this bin (so edits show exactly where the bin appears visually)
+            const displayY = binToDisplayY(bin, specHeight);
+            const pix = (displayY * canvas.width + xx) * 4;
             const [r,g,b] = magPhaseToRGB(newMag, newPhase);
-            const pix = (yy * canvas.width + xx) * 4;
             imageBuffer.data[pix]   = r;
             imageBuffer.data[pix+1] = g;
             imageBuffer.data[pix+2] = b;
@@ -450,41 +501,15 @@ canvas.addEventListener("mouseup", e => {
     const h = specHeight;
     const w = specWidth;
 
+    // For reconstruction we must iterate each FFT bin (0..h-1) and use mags at that bin.
     for (let xCol = 0; xCol < w; xCol++) {
         const re = new Float32Array(fftSize);
         const im = new Float32Array(fftSize);
 
-        for (let y = 0; y < h; y++) {
-            let bin;
-            let bandIndex = 0;
-            if (logScaleEl.checked) {
-                // Map canvas row y to fractional FFT bin
-                const scaleY = (fftSize / 2) / h;
-                const iBin = y * scaleY;
-                // Find interval in scaledBands
-                let b = scaledBands.findIndex((v, j) => j + 1 < scaledBands.length && iBin >= v && iBin < scaledBands[j + 1]);
-                if (b === -1) b = iBin < scaledBands[0] ? 0 : scaledBands.length - 2;
-                bandIndex = b;
-                
-                const denom = Math.max(1e-6, scaledBands[b + 1] - scaledBands[b]);
-                const t = (iBin - scaledBands[b]) / denom;
-                const frac = (b + t) / (scaledBands.length - 1);
-
-                bin = Math.floor((1 - frac) * (fftSize / 2 - 1));
-                bin = Math.max(0, Math.min(fftSize / 2 - 1, bin));
-            } else {
-                bin = h - 1 - y;
-                bandIndex = y;
-            }
-
-            const idx = xCol * h + y;
+        for (let bin = 0; bin < h; bin++) {
+            const idx = xCol * h + bin;
             let mag = mags[idx] || 0;
             const phase = phases[idx] || 0;
-            // let bS = scaledBands[bandIndex+1]-scaledBands[bandIndex];
-            // if (bandIndex == scaledBands.length) bS = (parseInt(hopSizeEl.value)/0.9)-scaledBands[bandIndex];
-            // const scaleFactor = (logScaleEl.checked)?(bS / scaledBands[1]):1;
-            // console.log(bS / scaledBands[1]);
-            // mag *= scaleFactor;
 
             re[bin] = mag * Math.cos(phase);
             im[bin] = mag * Math.sin(phase);
@@ -579,8 +604,11 @@ function renderFullSpectrogramToImage() {
     if (!imageBuffer || !mags || !phases) return;
     const w = specWidth, h = specHeight;
     for(let xx=0; xx<w; xx++){
+        // numeric bins 0..h-1 are stored in mags for each column
         for(let yy=0; yy<h; yy++){
-            const idx = xx * h + yy;
+            // map display row yy -> numeric bin (so visual arrangement respects logscale)
+            const bin = displayYToBin(yy, h);
+            const idx = xx * h + bin;
             const mag = mags[idx] || 0;
             const phase = phases[idx] || 0;
             const [r,g,b] = magPhaseToRGB(mag, phase);

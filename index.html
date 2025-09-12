@@ -56,6 +56,11 @@ canvas { display:block; background:#000; cursor:crosshair; }
   <button id="downloadWav">Download WAV</button>
   <button id="downloadButton">Download Spectrogram</button>
   <button id="resetButton" onClick="initEmptyPCM()">Reset audio</button>
+  
+  <label>Empty audio length:
+    <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
+    <span id="emptyAudioLengthValue">10</span>
+  </label>
 </div>
 <div class="controls">
   <button id="playPause">Play</button>
@@ -197,6 +202,8 @@ const brushColorEl=document.getElementById("brushColor");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
 const logscaleValueEl = document.getElementById("logscaleValue");
+const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
+const emptyAudioLengthValueEl = document.getElementById("emptyAudioLengthValue");
 let trueScale = document.getElementById("trueScale").checked;
 
 let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
@@ -225,7 +232,7 @@ penPhaseEl.addEventListener("input", ()=>penPhase = parseInt(penPhaseEl.value) /
 // Default: 20s of silence (882000 samples @ 44100Hz)
 function initEmptyPCM() {
     const sampleRateLocal = 44100;
-    const duration = 10; // seconds
+    const duration = emptyAudioLengthEl.value; // seconds
     const length = sampleRateLocal * duration; // 882000 samples
     const tinyNoiseAmplitude = 0.0001; // adjust how "tiny" the samples are
 
@@ -245,6 +252,13 @@ function initEmptyPCM() {
 logscaleValueEl.textContent = parseFloat(logscaleEl.value).toFixed(2);
 logscaleEl.addEventListener("input", ()=> {
   logscaleValueEl.textContent = parseFloat(logscaleEl.value).toFixed(2);
+  renderFullSpectrogramToImage();
+});
+
+
+emptyAudioLengthValueEl.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
+emptyAudioLengthEl.addEventListener("input", ()=> {
+  emptyAudioLengthValueEl.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
   renderFullSpectrogramToImage();
 });
 

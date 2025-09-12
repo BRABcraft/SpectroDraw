@@ -7,7 +7,7 @@
 body { background:#111; color:#eee; font-family:sans-serif; margin:0; padding:1em; }
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.5em; }
-canvas { display:block; width:100%; height:500px; background:#000; cursor:crosshair; }
+canvas { display:block; background:#000; cursor:crosshair; }
 #timeline { display:block; height:40px; }
 #status { margin-top:0.5em; font-size:13px; }
 </style>
@@ -40,6 +40,9 @@ canvas { display:block; width:100%; height:500px; background:#000; cursor:crossh
     <input id="logscale" type="range" min="1" max="2" step="0.01" value="1.12">
     <span id="logscaleValue">1.00</span>
   </label>
+  <label title="Displays the spectrogram like how it looks when it's downloaded">True scale 
+    <input id="trueScale" type="checkbox">
+  </label>
   <div class="controls">
     <button class="tool-btn" data-tool="brush">Brush</button>
     <button class="tool-btn" data-tool="rectangle">Rectangle</button>
@@ -51,6 +54,7 @@ canvas { display:block; width:100%; height:500px; background:#000; cursor:crossh
   </div>
 
   <button id="downloadWav">Download WAV</button>
+  <button id="downloadButton">Download Spectrogram</button>
 </div>
 <div class="controls">
   <button id="playPause">Play</button>
@@ -58,7 +62,7 @@ canvas { display:block; width:100%; height:500px; background:#000; cursor:crossh
 </div>
 
 <!-- Timeline canvas -->
-<canvas id="timeline" style="width:100%; height:20px; background:#222;"></canvas>
+<canvas id="timeline" style="height:20px; background:#222;"></canvas>
 <div id="canvasWrapper" style="position:relative; display:inline-block; width:100%">
   <canvas id="canvas"></canvas>
   <canvas id="overlay" style="background: transparent; position:absolute; left:0; top:0; pointer-events:none; z-index:10;"></canvas>
@@ -192,6 +196,7 @@ const brushColorEl=document.getElementById("brushColor");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
 const logscaleValueEl = document.getElementById("logscaleValue");
+let trueScale = document.getElementById("trueScale").checked;
 
 let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
@@ -221,9 +226,16 @@ function initEmptyPCM() {
     const sampleRateLocal = 44100;
     const duration = 10; // seconds
     const length = sampleRateLocal * duration; // 882000 samples
-    const empty = new Float32Array(length); // filled with zeros
-    pcm = empty;
+    const tinyNoiseAmplitude = 0.0001; // adjust how "tiny" the samples are
+
+    const pcmArray = new Float32Array(length);
+    for (let i = 0; i < length; i++) {
+        pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude; // tiny random values between -0.001 and 0.001
+    }
+
+    pcm = pcmArray;
     sampleRate = sampleRateLocal;
+
     // Run the same init pipeline as if a file was loaded
     restartRender();
 }
@@ -258,11 +270,14 @@ fileEl.addEventListener("change", async e=>{
 
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);
+document.getElementById("trueScale").addEventListener("change",restartRender);
 
 
 function restartRender(){
     if(!pcm) return;
     // fftSize input is exponent (like 10 -> 1024) in existing UI - preserve that behavior
+    
+    trueScale = document.getElementById("trueScale").checked;
     const exponent = Math.max(6, Math.min(14, parseInt(fftSizeEl.value)||10));
     fftSize = 1 << exponent;
     hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
@@ -274,6 +289,23 @@ function restartRender(){
     const freqBins = Math.floor(fftSize / 2);
     canvas.width = framesTotal;
     canvas.height = freqBins;
+    console.log(trueScale);
+    if (trueScale) {
+      const maxHeight = 600;
+      const containerWidth = canvas.parentElement.clientWidth;
+      const scaleX = containerWidth / framesTotal;
+      const scaleY = maxHeight / freqBins;
+      const scale = Math.min(scaleX, scaleY, 1);
+      
+      canvas.style.width = (canvas.width * scale) + "px";
+      canvas.style.height = (canvas.height * scale) + "px";
+    } else {
+      canvas.style.width = "100%";
+      canvas.style.height = "500px";
+    }
+    
+    overlayCanvas.style.width = canvas.style.width;
+    overlayCanvas.style.height = canvas.style.height;
 
     specWidth = canvas.width;
     specHeight = canvas.height;
@@ -282,7 +314,8 @@ function restartRender(){
 
     // update timeline canvas pixel width so coordinates match
     const timeline = document.getElementById('timeline');
-    timeline.width = 1024;
+    timeline.width = window.innerWidth*1.2;
+    timeline.style.width = canvas.style.width;
     timeline.height = 20;
 
     // allocate image buffer and numeric arrays
@@ -441,13 +474,13 @@ function drawLoop() {
 
 function drawCursor(){
     // Draw green cursor line on top of current spectrogram image
-    ctx.putImageData(imageBuffer, 0, 0);
-    ctx.strokeStyle = "#0f0";
-    ctx.lineWidth = Math.max(1, Math.min(4, framesTotal/500));
-    ctx.beginPath();
-    ctx.moveTo(currentCursorX + 0.5, 0);
-    ctx.lineTo(currentCursorX + 0.5, specHeight);
-    ctx.stroke();
+    overlayCtx.putImageData(imageBuffer, 0, 0);
+    overlayCtx.strokeStyle = "#0f0";
+    overlayCtx.lineWidth = Math.max(1, Math.min(4, framesTotal/500));
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(currentCursorX + 0.5, 0);
+    overlayCtx.lineTo(currentCursorX + 0.5, specHeight);
+    overlayCtx.stroke();
 }
 
 // --- Painting ---
@@ -466,9 +499,10 @@ function getCanvasCoords(e){
 // helper to keep overlay sized when spectrogram sizes change
 function syncOverlaySize() {
   overlayCanvas.width = canvas.width;
+  overlayCanvas.style.width = canvas.style.width;
   overlayCanvas.height = canvas.height;
   // ensure CSS height still matches the visible canvas height
-  overlayCanvas.style.height = canvas.style.height || '500px';
+  overlayCanvas.style.height = canvas.style.height;
 }
 
 // rAF-throttled overlay preview
@@ -507,7 +541,6 @@ function commitShape(cx, cy) {
     const po = phaseOpacity;
     const brushMag = (brushColor / 255) * 128;
     const brushPhase = penPhase;
-    console.log("comm shape", startX, startY);
 
     function drawPixelInt(xx, yy, mag, phase, bo, po) {
         const xI = Math.round(xx);
@@ -627,23 +660,31 @@ function paint(cx, cy, scaleX, scaleY, startX, startY) {
             }
         }
     } else if(currentTool === "image" && overlayImage) {
-        const ox = Math.floor(cx - overlayImage.width/2);
-        const oy = Math.floor(cy - overlayImage.height/2);
+        // scale overlay to brush size
+        const scale = brushSize / Math.max(overlayImage.width, overlayImage.height) * 5; // largest dimension = brushSize
+        const overlayW = Math.max(1, Math.round(overlayImage.width * scale));
+        const overlayH = Math.max(1, Math.round(overlayImage.height * scale));
+        const ox = Math.floor(cx - overlayW / 2);
+        const oy = Math.floor(cy - overlayH / 2);
+    
         const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = overlayImage.width;
-        tempCanvas.height = overlayImage.height;
+        tempCanvas.width = overlayW;
+        tempCanvas.height = overlayH;
         const tctx = tempCanvas.getContext("2d");
-        tctx.drawImage(overlayImage,0,0);
-        const imgData = tctx.getImageData(0,0,overlayImage.width,overlayImage.height);
-        for(let yy=0; yy<overlayImage.height; yy++){
-            for(let xx=0; xx<overlayImage.width; xx++){
-                const pix = (yy*overlayImage.width + xx)*4;
+        tctx.drawImage(overlayImage, 0, 0, overlayW, overlayH);
+        const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
+    
+        for (let yy = 0; yy < overlayH; yy++) {
+            for (let xx = 0; xx < overlayW; xx++) {
+                const pix = (yy * overlayW + xx) * 4;
                 const r = imgData.data[pix];
-                const g = imgData.data[pix+1];
-                const b = imgData.data[pix+2];
-                const [mag, phase] = rgbToMagPhase(r,g,b);
-                const cxPix = ox+xx, cyPix = oy+yy;
-                if(cxPix>=0&&cyPix>=0&&cxPix<w&&cyPix<h){
+                const g = imgData.data[pix + 1];
+                const b = imgData.data[pix + 2];
+                const [mag, phase] = rgbToMagPhase(r, g, b);
+    
+                const cxPix = ox + xx;
+                const cyPix = oy + yy;
+                if (cxPix >= 0 && cyPix >= 0 && cxPix < w && cyPix < h) {
                     drawPixel(cxPix, cyPix, mag, phase, brushOpacity, phaseOpacity);
                 }
             }
@@ -691,7 +732,6 @@ canvas.addEventListener("mousedown", e=>{
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
     startX = cx; startY = cy;
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
-    console.log(startX, startY)
      
     if (!(currentTool === "rectangle" || currentTool === "line")) {
         paint(cx,cy,scaleX,scaleY,startX,startY);
@@ -757,7 +797,6 @@ document.addEventListener("mouseup", e => {
     }
     const { cx, cy } = getCanvasCoords(e);
     if (currentTool === "rectangle" || currentTool === "line") {
-        console.log('hi');
         commitShape(cx, cy); // write to mags/phases
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
     }
@@ -1016,6 +1055,23 @@ document.getElementById('downloadWav').addEventListener('click', () => {
     a.click();
     URL.revokeObjectURL(url);
 });
+document.getElementById('downloadButton').addEventListener('click', function() {
+            // Convert canvas to data URL (PNG format)
+            let canvasUrl = canvas.toDataURL('image/png');
+
+            // Create a temporary anchor element
+            const downloadLink = document.createElement('a');
+
+            // Set href and download attributes
+            downloadLink.href = canvasUrl;
+            downloadLink.download = 'my-drawing.png';
+
+            // Simulate a click to trigger download
+            downloadLink.click();
+
+            // Clean up the temporary anchor element
+            downloadLink.remove();
+        });
 
 // TIMELINE
 const timeline = document.getElementById('timeline');
@@ -1041,8 +1097,8 @@ function drawTimeline() {
     tctx.fillStyle = "#0f0";
     tctx.beginPath();
     tctx.moveTo(tx, ts);
-    tctx.lineTo(tx - ts, 0);
-    tctx.lineTo(tx + ts, 0);
+    tctx.lineTo(tx - ts/4, 0);
+    tctx.lineTo(tx + ts/4, 0);
     tctx.closePath();
     tctx.fill();
 
@@ -1066,7 +1122,6 @@ function drawTimeline() {
 
     for (let t = 0; t <= totalSeconds; t += interval) {
         const markerX = t / totalSeconds * timeline.width;
-        tctx.fillRect(markerX, ts + 1, 1, 4); // small tick
         tctx.fillText(t.toFixed(interval < 1 ? 2 : interval < 10 ? 1 : 0), markerX, 1);
     }
 }

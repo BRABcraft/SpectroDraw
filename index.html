@@ -55,6 +55,7 @@ canvas { display:block; background:#000; cursor:crosshair; }
 
   <button id="downloadWav">Download WAV</button>
   <button id="downloadButton">Download Spectrogram</button>
+  <button id="resetButton" onClick="initEmptyPCM()">Reset audio</button>
 </div>
 <div class="controls">
   <button id="playPause">Play</button>
@@ -661,7 +662,7 @@ function paint(cx, cy, scaleX, scaleY, startX, startY) {
         }
     } else if(currentTool === "image" && overlayImage) {
         // scale overlay to brush size
-        const scale = brushSize / Math.max(overlayImage.width, overlayImage.height) * 5; // largest dimension = brushSize
+        const scale = brushSize / Math.max(overlayImage.width, overlayImage.height) * fftSize/400; // largest dimension = brushSize
         const overlayW = Math.max(1, Math.round(overlayImage.width * scale));
         const overlayH = Math.max(1, Math.round(overlayImage.height * scale));
         const ox = Math.floor(cx - overlayW / 2);

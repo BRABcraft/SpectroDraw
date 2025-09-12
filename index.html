@@ -8,6 +8,8 @@ body { background:#111; color:#eee; font-family:sans-serif; margin:0; padding:1e
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.5em; }
 canvas { display:block; width:100%; height:500px; background:#000; cursor:crosshair; }
+#timeline { display:block; height:40px; }
+#status { margin-top:0.5em; font-size:13px; }
 </style>
 </head>
 <body>
@@ -32,12 +34,21 @@ canvas { display:block; width:100%; height:500px; background:#000; cursor:crossh
     <input id="brushOpacity" type="range" min="0" max="100" value="100">
   </label>
   <label>Phase opacity:
-    <input id="phaseOpacity" type="range" min="0" max="100" value="70">
+    <input id="phaseOpacity" type="range" min="0" max="100" value="0">
   </label>
   <label>Logscale:
-    <input id="logscale" type="range" min="1" max="2" step="0.01" value="1">
+    <input id="logscale" type="range" min="1" max="2" step="0.01" value="1.12">
     <span id="logscaleValue">1.00</span>
   </label>
+  <div class="controls">
+    <button class="tool-btn" data-tool="brush">Brush</button>
+    <button class="tool-btn" data-tool="rectangle">Rectangle</button>
+    <button class="tool-btn" data-tool="line">Line</button>
+    <button class="tool-btn" data-tool="blur">Blur</button>
+    <button class="tool-btn" data-tool="eraser">Eraser</button>
+    <button class="tool-btn" data-tool="image">Image Overlay</button>
+    <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+  </div>
 
   <button id="downloadWav">Download WAV</button>
 </div>
@@ -48,10 +59,40 @@ canvas { display:block; width:100%; height:500px; background:#000; cursor:crossh
 
 <!-- Timeline canvas -->
 <canvas id="timeline" style="width:100%; height:20px; background:#222;"></canvas>
-<canvas id="canvas"></canvas>
+<div id="canvasWrapper" style="position:relative; display:inline-block; width:100%">
+  <canvas id="canvas"></canvas>
+  <canvas id="overlay" style="background: transparent; position:absolute; left:0; top:0; pointer-events:none; z-index:10;"></canvas>
+</div>
+
 <div id="status"></div>
 
 <script>
+let currentTool = "brush";
+const toolButtons = document.querySelectorAll(".tool-btn");
+toolButtons.forEach(btn => {
+  if(btn.dataset.tool === currentTool) {
+    btn.style.background = "#444"; // highlight color
+  }
+});
+toolButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentTool = btn.dataset.tool;
+    toolButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#444"; // highlight selected
+    if(currentTool === "image") overlayFile.click();
+  });
+});
+
+const overlayFile = document.getElementById("overlayFile");
+let overlayImage = null;
+overlayFile.addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.onload = () => overlayImage = img;
+  img.src = URL.createObjectURL(f);
+});
+
 // --- Provided FFT / IFFT helpers ---
 function nextPow2(v) { return 1 << Math.ceil(Math.log2(v)); }
 
@@ -139,6 +180,8 @@ function overlapAdd(signal, N) {
 const fileEl=document.getElementById("file");
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
+const overlayCanvas = document.getElementById("overlay");
+const overlayCtx = overlayCanvas.getContext("2d");
 const status=document.getElementById("status");
 const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
@@ -175,11 +218,12 @@ penPhaseEl.addEventListener("input", ()=>penPhase = parseInt(penPhaseEl.value) /
 
 // Default: 20s of silence (882000 samples @ 44100Hz)
 function initEmptyPCM() {
-    const sampleRate = 44100;
-    const duration = 20; // seconds
-    const length = sampleRate * duration; // 882000 samples
+    const sampleRateLocal = 44100;
+    const duration = 10; // seconds
+    const length = sampleRateLocal * duration; // 882000 samples
     const empty = new Float32Array(length); // filled with zeros
     pcm = empty;
+    sampleRate = sampleRateLocal;
     // Run the same init pipeline as if a file was loaded
     restartRender();
 }
@@ -233,6 +277,13 @@ function restartRender(){
 
     specWidth = canvas.width;
     specHeight = canvas.height;
+    
+    syncOverlaySize();
+
+    // update timeline canvas pixel width so coordinates match
+    const timeline = document.getElementById('timeline');
+    timeline.width = 1024;
+    timeline.height = 20;
 
     // allocate image buffer and numeric arrays
     imageBuffer = ctx.createImageData(canvas.width, canvas.height);
@@ -247,7 +298,8 @@ function restartRender(){
     
     startTime = performance.now();
     audioProcessed = 0;
-    stopSource();
+    // stop any playing audio but keep pausedAtSample as-is
+    stopSource(true);
     requestAnimationFrame(drawLoop);
 }
 
@@ -290,17 +342,8 @@ function rgbToMagPhase(r, g, b) {
 }
 
 // ---------- Log-scale mapping helpers ----------
-// Expects bins in range 0 .. specHeight-1.
-// Display Y coordinate 'y' runs 0..specHeight-1, with y=0 at top, y=specHeight-1 at bottom.
-// Original linear mapping used: bin -> y = h-1 - bin  (so bin 0 is bottom).
-// We'll preserve bin 0 = bottom, bin max = top, but apply a parameterized log-like compression.
-
-// Return current slider value (float >=1)
 function getLogScaleSlider() { return Math.max(1, parseFloat(logscaleEl.value) || 1); }
 
-// Mapping: parameterized so slider s=1 -> linear, s>1 -> compressed high frequencies.
-// Use a = s - 1, and transform t = ln(1 + a * bin) / ln(1 + a * (h - 1))
-// This ensures numerical stability and a continuous interpolation from linear->log-like.
 function binToDisplayY(bin, h) {
     if (!h) return 0;
     const s = getLogScaleSlider();
@@ -308,9 +351,7 @@ function binToDisplayY(bin, h) {
         return Math.round(h - 1 - bin); // linear invert so bin 0 -> bottom
     } else {
         const a = s - 1;
-        // denominator:
         const denom = Math.log(1 + a * (h - 1));
-        // if denom is zero fallback to linear
         if (!isFinite(denom) || denom === 0) return Math.round(h - 1 - bin);
         const t = Math.log(1 + a * bin) / denom; // 0..1 where 0 => bin=0 bottom, 1 => bin=h-1 top
         const y = (1 - t) * (h - 1);
@@ -327,7 +368,6 @@ function displayYToBin(y, h) {
         const a = s - 1;
         const denom = Math.log(1 + a * (h - 1));
         if (!isFinite(denom) || denom === 0) return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
-        // t: 0->bottom, 1->top
         const t = 1 - (y / (h - 1));
         const raw = (Math.exp(t * denom) - 1) / a;
         const clamped = Math.max(0, Math.min(h - 1, Math.round(raw)));
@@ -363,7 +403,6 @@ function drawLoop() {
         }
 
         // now map numeric bins to display rows using the mapping functions
-        // This ensures the imageBuffer rows reflect the current logscale slider
         for (let yy = 0; yy < h; yy++) {
             const mappedBin = displayYToBin(yy, h);
             const idx = x * h + mappedBin;
@@ -401,9 +440,10 @@ function drawLoop() {
 }
 
 function drawCursor(){
-    // Draw red cursor line
+    // Draw green cursor line on top of current spectrogram image
+    ctx.putImageData(imageBuffer, 0, 0);
     ctx.strokeStyle = "#0f0";
-    ctx.lineWidth = framesTotal/500;
+    ctx.lineWidth = Math.max(1, Math.min(4, framesTotal/500));
     ctx.beginPath();
     ctx.moveTo(currentCursorX + 0.5, 0);
     ctx.lineTo(currentCursorX + 0.5, specHeight);
@@ -414,6 +454,8 @@ function drawCursor(){
 let painting=false;
 let paintedPixels=null;
 
+let startX = 0; startY = 0;
+
 function getCanvasCoords(e){
     const rect=canvas.getBoundingClientRect();
     const scaleX=canvas.width/rect.width;
@@ -421,83 +463,281 @@ function getCanvasCoords(e){
     return {cx:(e.clientX-rect.left)*scaleX, cy:(e.clientY-rect.top)*scaleY, scaleX, scaleY};
 }
 
-function paint(cx, cy, scaleX, scaleY){
-    if (!mags || !phases) return;
-    // account for aspect/scale typically not required, but preserve your ellipse brush formula
-    // Note: the canvas display Y is non-linear with logscale, so mapping from display Y to bin is used below.
-    const radiusX = brushSize / (scaleY/scaleX || 1);
-    const radiusY = brushSize;
-    const minX = Math.max(0, Math.floor(cx - radiusX));
-    const maxX = Math.min(canvas.width-1, Math.ceil(cx + radiusX));
-    const minY = Math.max(0, Math.floor(cy - radiusY));
-    const maxY = Math.min(canvas.height-1, Math.ceil(cy + radiusY));
+// helper to keep overlay sized when spectrogram sizes change
+function syncOverlaySize() {
+  overlayCanvas.width = canvas.width;
+  overlayCanvas.height = canvas.height;
+  // ensure CSS height still matches the visible canvas height
+  overlayCanvas.style.height = canvas.style.height || '500px';
+}
 
-    // brushColor (0..255) -> mag units using same mapping as rgbToMagPhase (v*60)
+// rAF-throttled overlay preview
+let pendingPreview = false;
+let lastPreviewCoords = null;
+
+function previewShape(cx, cy) {
+  // store last coords and schedule a single rAF draw
+  lastPreviewCoords = { cx, cy };
+  if (pendingPreview) return;
+  pendingPreview = true;
+  requestAnimationFrame(() => {
+    pendingPreview = false;
+    const coords = lastPreviewCoords;
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    // visible stroke style
+    overlayCtx.strokeStyle = "#fff";
+    overlayCtx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
+
+    if (currentTool === "rectangle" && startX !== null && startY !== null) {
+      overlayCtx.strokeRect(startX + 0.5, startY + 0.5, coords.cx - startX, coords.cy - startY);
+    } else if (currentTool === "line" && startX !== null && startY !== null) {
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(startX + 0.5, startY + 0.5);
+      overlayCtx.lineTo(coords.cx + 0.5, coords.cy + 0.5);
+      overlayCtx.stroke();
+    }
+  });
+}
+
+// commit rectangle/line to spectrogram data (fixed: integer indices + Bresenham for line)
+function commitShape(cx, cy) {
+    const w = canvas.width, h = canvas.height;
+    const bo = brushOpacity;
+    const po = phaseOpacity;
     const brushMag = (brushColor / 255) * 128;
-    
-    for(let yy=minY;yy<=maxY;yy++){
-        for(let xx=minX;xx<=maxX;xx++){
-            const dx=xx-cx, dy=yy-cy;
-            if((dx*dx)/(radiusX*radiusX)+(dy*dy)/(radiusY*radiusY)>1) continue;
-            const key = yy * canvas.width + xx;
-            if(paintedPixels.has(key)) continue;
-            paintedPixels.add(key);
+    const brushPhase = penPhase;
+    console.log("comm shape", startX, startY);
 
-            // map display Y to underlying FFT bin (accounts for logscale)
-            const bin = displayYToBin(yy, specHeight);
-            const idx = xx * specHeight + bin; // column-major idx into mags/phases
-            // guard
-            if (idx < 0 || idx >= mags.length) continue;
-            const oldMag = mags[idx] || 0;
-            const oldPhase = phases[idx] || 0;
+    function drawPixelInt(xx, yy, mag, phase, bo, po) {
+        const xI = Math.round(xx);
+        const yI = Math.round(yy);
+        if (xI < 0 || xI >= w || yI < 0 || yI >= h) return;
+        const bin = displayYToBin(yI, specHeight);
+        const idx = xI * specHeight + bin;
+        if (idx < 0 || idx >= mags.length) return;
+        const oldMag = mags[idx] || 0;
+        const oldPhase = phases[idx] || 0;
+        const newMag = oldMag * (1 - bo) + mag * bo;
+        const newPhase = oldPhase + po * (phase - oldPhase);
+        mags[idx] = newMag;
+        phases[idx] = newPhase;
+        const displayY = binToDisplayY(bin, specHeight);
+        const pix = (displayY * w + xI) * 4;
+        const [r, g, b] = magPhaseToRGB(newMag, newPhase);
+        imageBuffer.data[pix] = r;
+        imageBuffer.data[pix + 1] = g;
+        imageBuffer.data[pix + 2] = b;
+        imageBuffer.data[pix + 3] = 255;
+    }
 
-            // Modify magnitude in numeric space (no clamping)
-            const newMag = oldMag * (1 - brushOpacity) + brushMag * brushOpacity;
-            let newPhase = oldPhase + phaseOpacity*(penPhase-oldPhase);
-            
-            mags[idx] = newMag;
-            phases[idx] = newPhase;
-
-            // Render this pixel in imageBuffer (row-major) at the display row corresponding to this bin
-            // Find display Y for this bin (so edits show exactly where the bin appears visually)
-            const displayY = binToDisplayY(bin, specHeight);
-            const pix = (displayY * canvas.width + xx) * 4;
-            const [r,g,b] = magPhaseToRGB(newMag, newPhase);
-            imageBuffer.data[pix]   = r;
-            imageBuffer.data[pix+1] = g;
-            imageBuffer.data[pix+2] = b;
-            imageBuffer.data[pix+3] = 255;
+    if (currentTool === "rectangle") {
+        const minX = Math.max(0, Math.floor(Math.min(startX, cx)));
+        const maxX = Math.min(w - 1, Math.ceil(Math.max(startX, cx)));
+        const minY = Math.max(0, Math.floor(Math.min(startY, cy)));
+        const maxY = Math.min(h - 1, Math.ceil(Math.max(startY, cy)));
+        for (let yy = minY; yy <= maxY; yy++) {
+            for (let xx = minX; xx <= maxX; xx++) {
+                drawPixelInt(xx, yy, brushMag, brushPhase, bo, po);
+            }
+        }
+    } else if (currentTool === "line") {
+        // Bresenham integer line so we visit exact pixel coords
+        let x0 = Math.round(startX), y0 = Math.round(startY);
+        const x1 = Math.round(cx), y1 = Math.round(cy);
+        const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        let err = (dx > dy ? dx : -dy) / 2;
+        while (true) {
+            drawPixelInt(x0, y0, brushMag, brushPhase, bo, po);
+            if (x0 === x1 && y0 === y1) break;
+            const e2 = err;
+            if (e2 > -dx) { err -= dy; x0 += sx; }
+            if (e2 < dy)  { err += dx; y0 += sy; }
         }
     }
-    
+
+    ctx.putImageData(imageBuffer, 0, 0);
+}
+
+function paint(cx, cy, scaleX, scaleY, startX, startY) {
+    if (!mags || !phases) return;
+    const w = canvas.width, h = canvas.height;
+    const po = currentTool === "eraser" ? 1 : phaseOpacity;
+    const bo = currentTool === "eraser" ? 1 : brushOpacity;
+
+    function drawPixel(xx, yy, mag, phase, bo, po, save) {
+        const bin = displayYToBin(yy, specHeight);
+        const idx = xx * specHeight + bin;
+        if(idx < 0 || idx >= mags.length) return;
+        const oldMag = mags[idx] || 0;
+        const oldPhase = phases[idx] || 0;
+        const newMag = oldMag * (1 - bo) + mag * bo;
+        let newPhase = oldPhase + po*(phase-oldPhase);
+        mags[idx] = newMag;
+        phases[idx] = newPhase;
+        const displayY = binToDisplayY(bin, specHeight);
+        const pix = (displayY * w + xx) * 4;
+        const [r,g,b] = magPhaseToRGB(newMag, newPhase);
+        imageBuffer.data[pix] = r;
+        imageBuffer.data[pix+1] = g;
+        imageBuffer.data[pix+2] = b;
+        imageBuffer.data[pix+3] = 255;
+    }
+
+    if(currentTool === "brush" || currentTool === "eraser") {
+        const radiusX = brushSize / (scaleY/scaleX || 1);
+        const radiusY = brushSize;
+        const minX = Math.max(0, Math.floor(cx - radiusX));
+        const maxX = Math.min(w-1, Math.ceil(cx + radiusX));
+        const minY = Math.max(0, Math.floor(cy - radiusY));
+        const maxY = Math.min(h-1, Math.ceil(cy + radiusY));
+        const brushMag = currentTool === "eraser" ? 0 : (brushColor/255)*128;
+        const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+        for(let yy=minY; yy<=maxY; yy++){
+            for(let xx=minX; xx<=maxX; xx++){
+                const dx=xx-cx, dy=yy-cy;
+                if((dx*dx)/(radiusX*radiusX)+(dy*dy)/(radiusY*radiusY)>1) continue;
+                drawPixel(xx, yy, brushMag, brushPhase, bo, po, true);
+            }
+        }
+    } else if(currentTool === "blur") {
+        const radius = brushSize;
+        const minX = Math.max(0, Math.floor(cx - radius));
+        const maxX = Math.min(w-1, Math.ceil(cx + radius));
+        const minY = Math.max(0, Math.floor(cy - radius));
+        const maxY = Math.min(h-1, Math.ceil(cy + radius));
+        for(let yy=minY; yy<=maxY; yy++){
+            for(let xx=minX; xx<=maxX; xx++){
+                const idx = xx*specHeight+displayYToBin(yy, specHeight);
+                if(idx<0||idx>=mags.length) continue;
+                // simple 3x3 blur
+                let sumMag=0, sumPhase=0, count=0;
+                for(let oy=-1;oy<=1;oy++){
+                    for(let ox=-1;ox<=1;ox++){
+                        const nx=xx+ox, ny=yy+oy;
+                        if(nx<0||ny<0||nx>=w||ny>=h) continue;
+                        const nidx = nx*specHeight+displayYToBin(ny,specHeight);
+                        sumMag += mags[nidx]||0;
+                        sumPhase += phases[nidx]||0;
+                        count++;
+                    }
+                }
+                drawPixel(xx, yy, sumMag/count, sumPhase/count, bo, po, true);
+            }
+        }
+    } else if(currentTool === "image" && overlayImage) {
+        const ox = Math.floor(cx - overlayImage.width/2);
+        const oy = Math.floor(cy - overlayImage.height/2);
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = overlayImage.width;
+        tempCanvas.height = overlayImage.height;
+        const tctx = tempCanvas.getContext("2d");
+        tctx.drawImage(overlayImage,0,0);
+        const imgData = tctx.getImageData(0,0,overlayImage.width,overlayImage.height);
+        for(let yy=0; yy<overlayImage.height; yy++){
+            for(let xx=0; xx<overlayImage.width; xx++){
+                const pix = (yy*overlayImage.width + xx)*4;
+                const r = imgData.data[pix];
+                const g = imgData.data[pix+1];
+                const b = imgData.data[pix+2];
+                const [mag, phase] = rgbToMagPhase(r,g,b);
+                const cxPix = ox+xx, cyPix = oy+yy;
+                if(cxPix>=0&&cyPix>=0&&cxPix<w&&cyPix<h){
+                    drawPixel(cxPix, cyPix, mag, phase, brushOpacity, phaseOpacity);
+                }
+            }
+        }
+    }
+
     ctx.putImageData(imageBuffer,0,0);
 }
+
+
 // Merge painting and audio/frame handlers so we don't duplicate mousedown/mouseup logic
+let sineOsc = null;
+let sineGain = null;
+function setSineFreq(cy) {
+    const h = specHeight;
+    const s = parseFloat(logscaleEl.value); // 1..2 slider
+
+    let bin;
+    if (s <= 1.0000001) {
+        // linear mapping
+        bin = h - 1 - cy;
+    } else {
+        // non-linear logscale mapping (invert of binToDisplayY)
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        const t = 1 - cy / (h - 1);
+        bin = (Math.exp(t * denom) - 1) / a;
+    }
+
+    // clamp bin
+    bin = Math.max(0, Math.min(h - 1, bin));
+
+    // convert bin to frequency
+    const freq = bin * sampleRate / fftSize;
+
+    // set sine oscillator frequency
+    sineOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.01);
+}
+
 canvas.addEventListener("mousedown", e=>{
     if (!mags || !phases) return;
-    painting=true;
+    painting = true;
     stopSource();
-    paintedPixels=new Set();
-    const {cx,cy,scaleX,scaleY}=getCanvasCoords(e);
-    paint(cx,cy,scaleX,scaleY);
+    paintedPixels = new Set();
+    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
+    startX = cx; startY = cy;
+    overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
+    console.log(startX, startY)
+     
+    if (!(currentTool === "rectangle" || currentTool === "line")) {
+        paint(cx,cy,scaleX,scaleY,startX,startY);
+    }
     
     // audio: play current frame while mouse is down
     ensureAudioCtx();
     mouseDown = true;
     currentFrame = Math.floor(cx);
     playFrame(currentFrame);
+
+    // also start sine oscillator
+    if (!sineOsc) {
+        sineOsc = audioCtx.createOscillator();
+        sineOsc.type = "sine";
+        sineGain = audioCtx.createGain();
+        sineGain.gain.value = 0.2;
+        sineOsc.connect(sineGain).connect(audioCtx.destination);
+        setSineFreq(cy);
+        sineOsc.start();
+    }
 });
+
 canvas.addEventListener("mousemove", e=>{
     if(!painting) return;
-    const {cx,cy,scaleX,scaleY}=getCanvasCoords(e);
-    paint(cx,cy,scaleX,scaleY);
+    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
+    
+    if (currentTool === "rectangle" || currentTool === "line") {
+      previewShape(cx, cy);
+    } else {
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      paint(cx,cy,scaleX,scaleY,startX,startY);
+    }
 
     currentFrame = Math.floor(cx);
-    if (mouseDown) playFrame(currentFrame);
+    if (mouseDown) {
+        playFrame(currentFrame);
+
+        // update sine frequency based on Y
+        if (sineOsc) setSineFreq(cy);
+    }
     
     currentCursorX = currentFrame;
     drawCursor();
 });
+
 document.addEventListener("mouseup", e => {
     if (!mags || !phases || !painting) return;
 
@@ -505,11 +745,24 @@ document.addEventListener("mouseup", e => {
     paintedPixels = null;
     mouseDown = false;
     stopSource();
-
+    if (sineOsc) {
+        sineOsc.stop();
+        sineOsc.disconnect();
+        sineOsc = null;
+        sineGain = null;
+    }
     if (!pcm) { 
         playPCM(); 
         return; 
     }
+    const { cx, cy } = getCanvasCoords(e);
+    if (currentTool === "rectangle" || currentTool === "line") {
+        console.log('hi');
+        commitShape(cx, cy); // write to mags/phases
+        overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    }
+    
+    startX=startY=null;
 
     const newPCM = new Float32Array(pcm.length);
     const overlapCount = new Float32Array(pcm.length);
@@ -561,6 +814,9 @@ document.addEventListener("mouseup", e => {
     x = 0;
     rendering = true;
     requestAnimationFrame(drawLoop);
+    
+    startTime = performance.now();
+    audioProcessed = 0;
 
     playPCM();
     console.log("PCM updated from phase-aware spectrogram!");
@@ -571,11 +827,15 @@ let sourceNode = null;
 let playing = false;
 let mouseDown = false;
 let currentFrame = 0; // frame under mouse when painting
+let pausedAtSample = null; // sample index where playback is paused (null = not paused / play from start)
+let sourceStartTime = 0; // audioCtx time when current source started adjusted to account for offset
+let wasPlayingDuringDrag = false;
+
 initEmptyPCM();
 
 function updateCursorLoop() {
     if (playing && !painting && pcm && sourceNode) {
-        const elapsed = audioCtx.currentTime - sourceStartTime; // seconds since sourceNode started
+        const elapsed = audioCtx.currentTime - sourceStartTime; // seconds since conceptual 'zero' of source
         let samplePos = elapsed * sampleRate;
 
         if (sourceNode.loop) {
@@ -593,39 +853,73 @@ function updateCursorLoop() {
 }
 updateCursorLoop();
 
-function stopSource(){
-    currentCursorX = 0;
+function stopSource(preservePaused=false){
     if(sourceNode){
         try { sourceNode.stop(); } catch(e) { /*ignore*/ }
         try { sourceNode.disconnect(); } catch(e) { /*ignore*/ }
         sourceNode = null;
     }
+    // If preservePaused==false we clear pausedAtSample (stop -> reset)
+    if (!preservePaused) pausedAtSample = null;
     playing = false;
 }
 
-// Function to play entire PCM
-let sourceStartTime = 0;
-function playPCM(loop = true) {
+// Play entire PCM from optional startFrame (frame index). If startFrame omitted and pausedAtSample exists, resume from it.
+function playPCM(loop = true, startFrame = null) {
     if (!pcm) return;
     ensureAudioCtx();
-    stopSource();
+    stopSource(true);
+
+    // decide start sample
+    let startSample = 0;
+    if (startFrame !== null && !isNaN(startFrame)) {
+        startSample = Math.max(0, Math.min(pcm.length - 1, startFrame * hop));
+    } else if (pausedAtSample !== null) {
+        startSample = Math.max(0, Math.min(pcm.length - 1, pausedAtSample));
+    } else {
+        startSample = 0;
+    }
+
     sourceNode = audioCtx.createBufferSource();
     const buffer = audioCtx.createBuffer(1, pcm.length, sampleRate);
     buffer.copyToChannel(pcm, 0);
     sourceNode.buffer = buffer;
-    sourceNode.loop = loop;   // <--- enable looping
+    sourceNode.loop = !!loop;
     sourceNode.connect(audioCtx.destination);
-    sourceStartTime = audioCtx.currentTime;
-    sourceNode.start();
+
+    // Start playback from offset (in seconds). Use start(when, offset).
+    const offsetSec = startSample / sampleRate;
+    // For correct position calculations we treat sourceStartTime as the conceptual "time zero" meaning:
+    // audioCtx.currentTime - sourceStartTime = elapsedSecondsFromBufferStart
+    // So set sourceStartTime = audioCtx.currentTime - offsetSec
+    sourceStartTime = audioCtx.currentTime - offsetSec;
+    try {
+        sourceNode.start(0, offsetSec);
+    } catch (e) {
+        // fallback: if requested offset too close to end, create a truncated buffer
+        const remaining = pcm.length - startSample;
+        const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
+        shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
+        sourceNode.stop();
+        sourceNode.disconnect();
+        sourceNode = audioCtx.createBufferSource();
+        sourceNode.buffer = shortBuf;
+        sourceNode.loop = !!loop;
+        sourceNode.connect(audioCtx.destination);
+        sourceStartTime = audioCtx.currentTime;
+        sourceNode.start();
+    }
+
     playing = true;
+    pausedAtSample = null; // we are playing now
 }
 
-// Function to play only a single frame
+// Function to play only a single frame (used during painting preview)
 function playFrame(frameX) {
-    currentCursorX = currentFrame;
+    currentCursorX = frameX;
     if (!pcm) return;
     ensureAudioCtx();
-    stopSource();
+    stopSource(true);
     const start = frameX * hop;
     const end = Math.min(start + fftSize, pcm.length);
     if (end <= start) return;
@@ -638,11 +932,10 @@ function playFrame(frameX) {
     sourceNode.buffer = buffer;
     sourceNode.loop = true; // loop the frame while mouse is down
     sourceNode.connect(audioCtx.destination);
+    sourceStartTime = audioCtx.currentTime - (start / sampleRate);
     sourceNode.start();
     playing = true;
-    // const elapsedSamples = audioCtx.currentTime * sampleRate;
-    // const frame = Math.floor(elapsedSamples / hop);
-    // currentCursorX = Math.min(frame, specWidth - 1);
+    pausedAtSample = null;
 }
 
 // Utility: convert current entire spectrogram to imageBuffer
@@ -723,10 +1016,12 @@ document.getElementById('downloadWav').addEventListener('click', () => {
     a.click();
     URL.revokeObjectURL(url);
 });
+
+// TIMELINE
 const timeline = document.getElementById('timeline');
 const tctx = timeline.getContext('2d');
 
-let timelineWidth = timeline.width = specWidth; // match main canvas width
+let timelineWidth = timeline.width; // match main canvas width
 let timelineHeight = timeline.height = 20;
 let timelineCursorX = 0;
 let draggingTimeline = false;
@@ -776,32 +1071,55 @@ function drawTimeline() {
     }
 }
 
-// Convert mouse X to PCM sample/frame
-function timelineXToFrame(x) {
+// Convert mouse X (clientX-left) to frame
+function timelineXToFrame(clientXLeft) {
     const rect = timeline.getBoundingClientRect();
-    const scaleX = specWidth / rect.width;
-    const frame = Math.floor(x * scaleX);
-    return Math.max(0, Math.min(specWidth-1, frame));
+    const xRel = clientXLeft; // expected to already be (clientX - rect.left)
+    // scale from CSS pixels to canvas pixels
+    const scaleX = timeline.width / rect.width;
+    const canvasX = xRel * scaleX;
+    const frame = Math.floor(canvasX);
+    return Math.max(0, Math.min(Math.max(0, framesTotal - 1), frame));
 }
 
 // Drag handling
 timeline.addEventListener("mousedown", e => {
+    const rect = timeline.getBoundingClientRect();
     draggingTimeline = true;
-    timelineCursorX = timelineXToFrame(e.clientX - timeline.getBoundingClientRect().left);
-    stopSource(); // stop playback while dragging
+    wasPlayingDuringDrag = playing;
+    // stop audio while dragging but preserve paused offset
+    stopSource(true);
+    timelineCursorX = timelineXToFrame(e.clientX - rect.left);
+    // reflect immediate visual change
+    currentCursorX = timelineCursorX;
     drawTimeline();
+    drawCursor();
 });
 window.addEventListener("mousemove", e => {
     if (!draggingTimeline) return;
-    timelineCursorX = timelineXToFrame(e.clientX - timeline.getBoundingClientRect().left);
+    const rect = timeline.getBoundingClientRect();
+    timelineCursorX = timelineXToFrame(e.clientX - rect.left);
+    currentCursorX = timelineCursorX;
     drawTimeline();
+    drawCursor();
 });
 window.addEventListener("mouseup", e => {
     if (!draggingTimeline) return;
     draggingTimeline = false;
     const frame = timelineCursorX;
-    // jump playback to this frame
-    playFrame(frame);
+    // set pausedAtSample to this frame's sample index so position is tracked
+    pausedAtSample = frame * hop;
+
+    // if playback was running before drag, resume from selected frame
+    if (wasPlayingDuringDrag) {
+        playPCM(true, frame);
+        document.getElementById("playPause").textContent = "Pause";
+    } else {
+        // not playing: just update visuals (do not auto-play)
+        ctx.putImageData(imageBuffer, 0, 0);
+        drawCursor();
+    }
+    drawTimeline();
 });
 
 // Play/pause buttons
@@ -809,19 +1127,32 @@ const playPauseBtn = document.getElementById("playPause");
 const stopBtn = document.getElementById("stop");
 
 playPauseBtn.addEventListener("click", () => {
+    ensureAudioCtx();
     if (playing) {
-        stopSource();
+        // Pause: calculate current sample position and stop source but keep pausedAtSample
+        const elapsed = audioCtx.currentTime - sourceStartTime;
+        let samplePos = Math.floor(elapsed * sampleRate);
+        if (sourceNode && sourceNode.loop) {
+            samplePos = samplePos % pcm.length;
+        }
+        pausedAtSample = Math.max(0, Math.min(pcm.length - 1, samplePos));
+        stopSource(true);
         playPauseBtn.textContent = "Play";
     } else {
-        playPCM();
+        // Start/resume: start from pausedAtSample if present, else start at 0
+        const startFrame = (pausedAtSample !== null) ? Math.floor(pausedAtSample / hop) : 0;
+        playPCM(true, startFrame);
         playPauseBtn.textContent = "Pause";
     }
 });
 
 stopBtn.addEventListener("click", () => {
-    stopSource();
+    stopSource(false); // clear pausedAtSample (reset)
     timelineCursorX = 0;
+    currentCursorX = 0;
     drawTimeline();
+    ctx.putImageData(imageBuffer, 0, 0);
+    drawCursor();
     playPauseBtn.textContent = "Play";
 });
 
@@ -837,11 +1168,17 @@ function updateTimelineCursor() {
 
         const frame = Math.floor(samplePos / hop);
         timelineCursorX = Math.min(frame, specWidth-1);
+        currentCursorX = timelineCursorX;
         drawTimeline();
+        drawCursor();
     }
     requestAnimationFrame(updateTimelineCursor);
 }
 updateTimelineCursor();
+
+// initial draw
+drawTimeline();
+renderFullSpectrogramToImage();
 </script>
 </body>
 </html>

@@ -289,7 +289,7 @@ canvas { display:block; background:#000;}
       </svg>
 
     </button>
-    <input id="file" type="file" accept=".wav" style="display:none;"/>
+    <input id="file" type="file" accept="audio/*" style="display:none;"/>
     <button id="playPause" title="play" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>
     </button>
@@ -413,6 +413,9 @@ toolButtons.forEach(btn => {
     btn.style.background = "#4af"; 
     if(currentTool === "image") overlayFile.click();
   });
+});
+fileB.addEventListener("click", () => {
+  file.click();
 });
 const trueScale = document.getElementById("trueScale");
 let trueScaleVal=false;

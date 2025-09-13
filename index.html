@@ -8,7 +8,7 @@ body { background:#111; color:#eee; font-family:sans-serif; margin:0;}
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.5em; }
 canvas { display:block; background:#000;}
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop {
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -32,20 +32,20 @@ canvas { display:block; background:#000;}
 #status { margin-top:0.5em; font-size:13px; }
 .controls {
   display: flex;
-  flex-wrap: wrap; /* allows multiple controls to flow to the next line if needed */
-  gap: 5px;       /* spacing between controls */
-  align-items: flex-start; /* aligns controls at the top */
+  flex-wrap: wrap; 
+  gap: 5px;       
+  align-items: flex-start; 
 }
 
 .controls label {
   display: flex;
-  flex-direction: column; /* stack text above input */
+  flex-direction: column; 
   font-size: 0.9em;
 }
 
 .controls input[type="range"],
 .controls input[type="number"] {
-  margin-top: 4px; /* space between label text and input */
+  margin-top: 4px; 
 }
 </style>
 </head>
@@ -72,13 +72,6 @@ canvas { display:block; background:#000;}
   </label>
   <label>Phase opacity:
     <input id="phaseOpacity" type="range" min="0" max="100" value="0">
-  </label>
-  <label>Logscale:
-    <input id="logscale" type="range" min="1" max="2" step="0.01" value="1.12">
-    <span id="logscaleValue">1.00</span>
-  </label>
-  <label title="Displays the spectrogram like how it looks when it's downloaded">True scale 
-    <input id="trueScale" type="checkbox">
   </label>
   <div class="controls">
     <button id="playPause" title="play">
@@ -135,6 +128,18 @@ canvas { display:block; background:#000;}
       </svg>
     </button>
     <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+    <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
+        <title>Enter fullscreen</title>
+        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9V3h6" />
+          <path d="M15 3h6v6" />
+          <path d="M3 15v6h6" />
+          <path d="M21 15v6h-6" />
+        </g>
+      </svg>
+
+    </button>
      <button id="downloadWav" style="margin-left:20px" title="Download audio">
       <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
@@ -163,23 +168,26 @@ canvas { display:block; background:#000;}
         <rect x="8" y="1" width="8" height="2" rx="2" ry="2" stroke-width="1"/>
       </svg>
     </button>
-    <label>Empty audio length:
+    <label id="es" style="position: relative; top:-6px">
+      <span class="label-line">
+        <span class="label-text">Empty audio seconds:</span>
+        <span class="label-value" id="ev">10</span>
+      </span>
       <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
-      <span id="emptyAudioLengthValue">10</span>
     </label>
   </div>
 </div>
 
 <!-- Timeline canvas -->
-<canvas id="timeline" style="height:40px; background:#222; position: absolute;align:left;left:40px;z-index: 9999;"></canvas>
-<div id="canvasWrapper" style="position:relative; display:inline-block; width:100%">
-  <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px;"></canvas>
-  <canvas id="overlay" style="background: transparent; position:absolute; left:40px; top:40px; pointer-events:none; z-index:10;"></canvas>
-  <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; top: 40px;"></canvas>
-  <div class="spacer" id="spacer" style="height:540px"></div>
-</div>
+<div id="canvasWrapper" style="position:absolute; display:inline-block; width:100%; top:150px;">
+  <canvas id="timeline" style="height:40px; background:#222; position: absolute;align:left;left:40px;z-index: 9998; top:0px"></canvas>
+  <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
+  <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>
+  <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; ; top:40px"></canvas>
+  <canvas id="logscale" width=40 height = 40 style="position:absolute; top:0px; background: #111;z-index: 99999; top:0px"></canvas>
 
-<div id="status"></div>
+</div>
+<div id="status" style="position:absolute;bottom:0px;"></div>
 
 <script>
 let currentTool = "brush";
@@ -197,6 +205,13 @@ toolButtons.forEach(btn => {
     if(currentTool === "image") overlayFile.click();
   });
 });
+const trueScale = document.getElementById("trueScale");
+let trueScaleVal=false;
+trueScale.addEventListener("click", () => {
+    trueScaleVal = !trueScaleVal;
+    trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3";
+    restartRender();
+  });
 
 const overlayFile = document.getElementById("overlayFile");
 let overlayImage = null;
@@ -226,10 +241,8 @@ const phaseOpacityEl=document.getElementById("phaseOpacity");
 const brushColorEl=document.getElementById("brushColor");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
-const logscaleValueEl = document.getElementById("logscaleValue");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
-const emptyAudioLengthValueEl = document.getElementById("emptyAudioLengthValue");
-let trueScale = document.getElementById("trueScale").checked;
+const ev = document.getElementById("ev");
 const yAxis=document.getElementById("freq");
 const yctx=yAxis.getContext("2d");
 
@@ -243,11 +256,14 @@ let fLow = null;
 let fHigh = null;
 let specCanvas = document.createElement("canvas");
 let specCtx = specCanvas.getContext("2d");
+let logScaleVal = 1.12;
 
 let mags = null;     
 let phases = null;   
 let specWidth = 0;
 let specHeight = 0;
+
+let startX = null, startY = null;
 
 let brushSize=parseInt(brushSizeEl.value);
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
@@ -274,19 +290,64 @@ function initEmptyPCM() {
     pcm = pcmArray;
     sampleRate = sampleRateLocal;
 
+    es.style.display = "";
     restartRender();
 }
-
-logscaleValueEl.textContent = parseFloat(logscaleEl.value).toFixed(2);
-logscaleEl.addEventListener("input", ()=> {
-  logscaleValueEl.textContent = parseFloat(logscaleEl.value).toFixed(2);
+let changingLogScale = false;
+logscaleEl.addEventListener("mousedown", e=> {
+  const rect= logscaleEl.getBoundingClientRect();
+  changingLogScale = true;
+  startY = e.clientY;
+  startX = e.clientX;
   renderFullSpectrogramToImage();
+  drawLogScale();
 });
 
-emptyAudioLengthValueEl.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
-emptyAudioLengthEl.addEventListener("input", ()=> {
-  emptyAudioLengthValueEl.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
+function drawLogScale() {
+  const lctx = logscaleEl.getContext("2d");
+
+  const w = 40, h = 40;
+  lctx.clearRect(0, 0, w, h);
+
+  lctx.beginPath();
+  const steps = 40;
+  for (let i = 0; i <= steps; i++) {
+    const x = i / steps;              
+    const y = 1-Math.pow(0-(x-1), Math.pow(logScaleVal,2)); 
+    const px = x * w;                 
+    const py = h - y * h;             
+    if (i === 0) lctx.moveTo(px, py);
+    else lctx.lineTo(px, py);
+  }
+  lctx.strokeStyle = "white";
+  lctx.lineWidth = 3;
+  lctx.stroke();
+}
+
+document.addEventListener("mousemove", e=> {
+  logscaleEl.style.cursor = "n-resize";
+  if (!changingLogScale) return;
+  const rect= logscaleEl.getBoundingClientRect();
+  logScaleVal -= (e.clientY - startY - (e.clientX - startX))/400;
+  if (logScaleVal < 1) logScaleVal = 1;
+  if (logScaleVal > 2) logScaleVal = 2;
+  startY = e.clientY;
+  startX = e.clientX;
   renderFullSpectrogramToImage();
+  drawLogScale();
+});
+
+document.addEventListener("mouseup", e=>{changingLogScale=false;})
+
+emptyAudioLengthEl.addEventListener("input", ()=> {
+  ev.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
+  initEmptyPCM();
+  drawTimeline();
+  drawLogScale();
+  drawYAxis();
+  iLow = 0;
+  iHigh = framesTotal;
+
 });
 
 let audioCtx = null;
@@ -306,18 +367,19 @@ fileEl.addEventListener("change", async e=>{
     sampleRate = ab.sampleRate || 44100;
 
     status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
+    status.style.display = "block";
     restartRender();
+    iLow = 0;
+    iHigh = framesTotal;
+
+    es.style.display = "none";
 });
 
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);
-document.getElementById("trueScale").addEventListener("change",restartRender);
-const spacer = document.getElementById("spacer");
 
 function restartRender(){
     if(!pcm) return;
-
-    trueScale = document.getElementById("trueScale").checked;
     const exponent = Math.max(6, Math.min(14, parseInt(fftSizeEl.value)||10));
     fftSize = 1 << exponent;
     hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
@@ -332,7 +394,7 @@ function restartRender(){
     const freqBins = Math.floor(fftSize / 2);
     canvas.width = framesTotal;
     canvas.height = freqBins;
-    if (trueScale) {
+    if (trueScaleVal) {
       const maxHeight = 600;
       const containerWidth = canvas.parentElement.clientWidth;
       const scaleX = containerWidth / framesTotal;
@@ -345,7 +407,6 @@ function restartRender(){
       canvas.style.width = "calc(100% - 40px)";
       canvas.style.height = "500px";
     }
-    spacer.style.height = canvas.style.height + 50;
 
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
@@ -427,7 +488,7 @@ function rgbToMagPhase(r, g, b) {
     return [mag, phase];
 }
 
-function getLogScaleSlider() { return Math.max(1, parseFloat(logscaleEl.value) || 1); }
+function getLogScaleSlider() { return Math.max(1, parseFloat(logScaleVal) || 1); }
 
 function binToDisplayY(bin, h) {
     if (!h) return 0;
@@ -469,7 +530,7 @@ function drawLoop() {
     const w = specWidth;
 
     for (let f = 0; f < framesPerTick; f++) {
-        if (pos + fftSize > pcm.length) { rendering = false; break; }
+        if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; break; }
 
         const re = new Float32Array(fftSize);
         const im = new Float32Array(fftSize);
@@ -501,6 +562,7 @@ function drawLoop() {
         audioProcessed += hop;
         if (x >= w) { rendering = false; 
             if (!painting) playPCM(true);
+            status.style.display = "none";
             break;
         }
     }
@@ -513,12 +575,14 @@ function drawLoop() {
     const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
     const audioSec = pcm.length / 44100; 
     const processedSec = audioProcessed / 44100;
-
     status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
         + `Elapsed: ${elapsedSec.toFixed(2)}s | `
         + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
         + `Speed: ${(speed/44100).toFixed(2)}x realtime`;
-    if (rendering) requestAnimationFrame(drawLoop);
+    if (rendering) {
+      status.style.display = "block";
+      requestAnimationFrame(drawLoop);
+    }
 }
 
 function drawCursor(){
@@ -526,7 +590,7 @@ function drawCursor(){
     const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow)
     overlayCtx.clearRect(0,0, canvas.width, canvas.height);
     overlayCtx.strokeStyle = "#0f0";
-    overlayCtx.lineWidth = Math.max(1, Math.min(4, framesTotal/500));
+    overlayCtx.lineWidth = framesTotal/500;
     overlayCtx.beginPath();
     overlayCtx.moveTo(x + 0.5, 0);
     overlayCtx.lineTo(x + 0.5, specHeight);
@@ -536,27 +600,23 @@ function drawCursor(){
 function updateCanvasScroll() {
     if (!imageBuffer || !specCanvas) return;
 
-    // Visible width & height in pixels
     const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
     const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
     const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
     const viewHeight = Math.max(1, fEnd - fStart);
 
-    // Set canvas size
     canvas.width = viewWidth;
     canvas.height = viewHeight;
 
-    // Draw visible portion from specCanvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
         specCanvas,
-        Math.max(0, Math.floor(iLow)), fStart, // source x,y
-        viewWidth, viewHeight,                 // source width,height
-        0, 0,                                  // dest x,y
-        canvas.width, canvas.height            // dest width,height
+        Math.max(0, Math.floor(iLow)), fStart, 
+        viewWidth, viewHeight,                 
+        0, 0,                                  
+        canvas.width, canvas.height            
     );
 
-    // Update overlay canvas to match
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -578,10 +638,10 @@ function renderView() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
         specCanvas,
-        Math.max(0, Math.floor(iLow)), fStart, // source x,y
-        viewWidth, viewHeight,                 // source width,height
-        0, 0,                                  // dest x,y
-        canvas.width, canvas.height            // dest width,height
+        Math.max(0, Math.floor(iLow)), fStart, 
+        viewWidth, viewHeight,                 
+        0, 0,                                  
+        canvas.width, canvas.height            
     );
 
     overlayCanvas.width = canvas.width;
@@ -592,8 +652,6 @@ function renderView() {
 
 let painting=false;
 let paintedPixels=null;
-
-let startX = null, startY = null;
 
 function getCanvasCoords(e){
     const rect=canvas.getBoundingClientRect();
@@ -632,10 +690,43 @@ function previewShape(cx, cy) {
       overlayCtx.lineTo(coords.cx + 0.5, coords.cy + 0.5);
       overlayCtx.stroke();
     } else if (currentTool === "image"  && overlayImage) {
-      const scale = brushSize / Math.max(overlayImage.width, overlayImage.height) * fftSize / 400;
-      const w = overlayImage.width * scale;
-      const h = overlayImage.height * scale;
-      overlayCtx.strokeRect(coords.cx-w/2, coords.cy-h/2, w, h);
+
+      const screenSpace = true; 
+
+      const rect = canvas.getBoundingClientRect();
+      const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
+      const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
+
+      const desiredScreenMax = brushSize*4;
+
+      const imgW = overlayImage.width;
+      const imgH = overlayImage.height;
+      const imgAspect = imgW / imgH;
+
+      let screenW, screenH;
+      if (imgW >= imgH) {
+        screenW = desiredScreenMax;
+        screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
+      } else {
+        screenH = desiredScreenMax;
+        screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
+      }
+
+      let overlayW, overlayH;
+      if (screenSpace) {
+        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+      } else {
+        overlayH = Math.max(1, Math.round(brushSize));
+        overlayW = Math.max(1, Math.round(overlayH * imgAspect));
+      }
+
+      overlayCtx.strokeRect(
+        coords.cx - overlayW / 2,
+        coords.cy - overlayH / 2,
+        overlayW,
+        overlayH
+      );
     }
   });
 }
@@ -757,12 +848,12 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
     if (currentTool === "brush" || currentTool === "eraser") {
         const radiusY = brushSize;
         const rect = canvas.getBoundingClientRect();
-        const radiusXFrames = radiusY * (rect.height/(rect.width/iWidth*framesTotal)) * hopSizeEl.value/600;
+        const radiusXFrames = Math.floor(radiusY * iWidth / hopSizeEl.value/2/(rect.width/rect.height));
 
         const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
         const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
-        const minY = Math.max(0, Math.floor(cy - radiusY));
-        const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY));
+        const minY = Math.max(0, Math.floor(cy - radiusY*(fWidth/(sampleRate/2))));
+        const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fWidth/(sampleRate/2))));
 
         const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
         const brushPhase = currentTool === "eraser" ? 0 : penPhase;
@@ -802,33 +893,70 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
         }
     } else if (currentTool === "image" && overlayImage) {
 
-        const scale = brushSize / Math.max(overlayImage.width, overlayImage.height) * fftSize / 400;
-        const overlayW = Math.max(1, Math.round(overlayImage.width * scale));
-        const overlayH = Math.max(1, Math.round(overlayImage.height * scale));
-        const ox = Math.floor(cx - overlayW / 2);
-        const oy = Math.floor(cy - overlayH / 2);
+      const screenSpace = true;
 
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = overlayW;
-        tempCanvas.height = overlayH;
-        const tctx = tempCanvas.getContext("2d");
-        tctx.drawImage(overlayImage, 0, 0, overlayW, overlayH);
-        const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
+      const rect = canvas.getBoundingClientRect();
 
-        for (let yy = 0; yy < overlayH; yy++) {
-            for (let xx = 0; xx < overlayW; xx++) {
-                const pix = (yy * overlayW + xx) * 4;
-                const r = imgData.data[pix];
-                const g = imgData.data[pix + 1];
-                const b = imgData.data[pix + 2];
-                const [mag, phase] = rgbToMagPhase(r, g, b);
-                const cxPix = ox + xx;
-                const cyPix = oy + yy;
-                if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
-                    drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity, phaseOpacity);
-                }
-            }
+      const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
+      const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
+
+      const desiredScreenMax = brushSize * 4;
+
+      const imgW = overlayImage.width;
+      const imgH = overlayImage.height;
+      const imgAspect = imgW / imgH;
+
+      let screenW, screenH;
+      if (imgW >= imgH) {
+        screenW = desiredScreenMax;
+        screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
+      } else {
+        screenH = desiredScreenMax;
+        screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
+      }
+
+      let overlayW, overlayH;
+      if (screenSpace) {
+
+        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+      } else {
+
+        overlayH = Math.max(1, Math.round(brushSize));
+        overlayW = Math.max(1, Math.round(overlayH * imgAspect));
+      }
+
+      const ox = Math.floor(cx - overlayW / 2);
+      const oy = Math.floor(cy - overlayH / 2);
+
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = overlayW;
+      tempCanvas.height = overlayH;
+      const tctx = tempCanvas.getContext("2d");
+
+      tctx.imageSmoothingEnabled = false;
+      tctx.drawImage(overlayImage, 0, 0, overlayW, overlayH);
+
+      const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
+
+      for (let yy = 0; yy < overlayH; yy++) {
+        for (let xx = 0; xx < overlayW; xx++) {
+          const pix = (yy * overlayW + xx) * 4;
+          const r = imgData.data[pix];
+          const g = imgData.data[pix + 1];
+          const b = imgData.data[pix + 2];
+          const a = imgData.data[pix + 3] / 255;
+          if (a <= 0) continue; 
+          const [mag, phase] = rgbToMagPhase(r, g, b);
+          const cxPix = ox + xx;
+          const cyPix = oy + yy;
+          if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
+
+            drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a, phaseOpacity * a);
+          }
         }
+      }
+
     }
 
     specCtx.putImageData(imageBuffer, 0, 0);
@@ -839,7 +967,7 @@ let sineOsc = null;
 let sineGain = null;
 function setSineFreq(cy) {
     const h = specHeight;
-    const s = parseFloat(logscaleEl.value); 
+    const s = parseFloat(logScaleVal); 
 
     let bin;
     if (s <= 1.0000001) {
@@ -873,11 +1001,10 @@ canvas.addEventListener("mousedown", e=>{
     startX = cx; startY = cy;
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
 
-    // Convert the visible cy to the full-spec display Y
     const realY = visibleToSpecY(cy);
 
     if (!(currentTool === "rectangle" || currentTool === "line")) {
-        // cx is a visible-frame index; add iLow to get a full-frame index
+
         paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
     }
 
@@ -892,7 +1019,7 @@ canvas.addEventListener("mousedown", e=>{
         sineGain = audioCtx.createGain();
         sineGain.gain.value = 0.2;
         sineOsc.connect(sineGain).connect(audioCtx.destination);
-        setSineFreq(realY); // pass full-spec display Y
+        setSineFreq(realY); 
         sineOsc.start();
     }
 });
@@ -913,7 +1040,7 @@ canvas.addEventListener("mousemove", e=>{
     if (mouseDown) {
         playFrame(currentFrame);
 
-        if (sineOsc) setSineFreq( visibleToSpecY(cy) ); // full-spec Y
+        if (sineOsc) setSineFreq( visibleToSpecY(cy) ); 
     }
 
     currentCursorX = currentFrame;
@@ -923,6 +1050,7 @@ canvas.addEventListener("mousemove", e=>{
 document.addEventListener("mouseup", e => {
     if (!mags || !phases || !painting) return;
 
+    es.style.display = "none";
     painting = false;
     paintedPixels = null;
     mouseDown = false;
@@ -1229,6 +1357,7 @@ timeline.addEventListener("mousedown", e => {
       currentCursorX = timelineCursorX;
       drawTimeline();
       drawYAxis();
+      drawLogScale();
       drawCursor();
     } else {
       draggingBounds = true;
@@ -1247,6 +1376,7 @@ window.addEventListener("mousemove", e => {
       currentCursorX = timelineCursorX;
       drawTimeline();
       drawYAxis();
+      drawLogScale();
       drawCursor();
     } else {
       const sLow = iLow * rect.width/framesTotal;
@@ -1306,13 +1436,14 @@ window.addEventListener("mouseup", e => {
         <rect x="2" y="0" width="5" height="18" rx="2" ry="2"/>
         <rect x="12" y="0" width="5" height="18" rx="2" ry="2"/>
       </svg>
-        `;//pause
+        `;
     } else {
         specCtx.putImageData(imageBuffer, 0, 0);
         renderView();
         drawCursor();
     }
     drawTimeline();
+    drawLogScale();
     drawYAxis();
 });
 
@@ -1488,6 +1619,7 @@ stopBtn.addEventListener("click", () => {
     currentCursorX = 0;
     drawTimeline();
     drawYAxis();
+    drawLogScale();
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
     drawCursor();
@@ -1516,6 +1648,7 @@ updateTimelineCursor();
 
 drawTimeline();
 drawYAxis();
+drawLogScale();
 renderFullSpectrogramToImage();
 </script>
 </body>

@@ -282,11 +282,12 @@ canvas { display:block; background:#000;}
   </label>
   <div class="controls" style="position:absolute; top:60px">
     <button id="fileB" title="Upload Audio" style="margin-left: 10px">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
-        <polygon points="1,20 8,10 15,20" fill="#333"/>
-        <polygon points="8,20 15,12 23,20" fill="#333"/>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="10" y1="16" x2="10" y2="6" />
+        <polyline points="6 10 10 6 14 10" />
+        <line x1="4" y1="16" x2="16" y2="16" />
       </svg>
+
     </button>
     <input id="file" type="file" accept=".wav" style="display:none;"/>
     <button id="playPause" title="play" style="margin-left: 20px">
@@ -501,16 +502,6 @@ function initEmptyPCM() {
     es.style.display = "";
     restartRender();
 }
-let changingLogScale = false;
-logscaleEl.addEventListener("mousedown", e=> {
-  const rect= logscaleEl.getBoundingClientRect();
-  changingLogScale = true;
-  startY = e.clientY;
-  startX = e.clientX;
-  renderFullSpectrogramToImage();
-  drawLogScale();
-});
-
 function drawLogScale() {
   const lctx = logscaleEl.getContext("2d");
 
@@ -531,8 +522,23 @@ function drawLogScale() {
   lctx.lineWidth = 3;
   lctx.stroke();
 }
+let changingLogScale = false;
+function logScaleMouseDown(e) {
+  const rect= logscaleEl.getBoundingClientRect();
+  changingLogScale = true;
+  startY = e.clientY;
+  startX = e.clientX;
+  renderFullSpectrogramToImage();
+  drawLogScale();
+}
+logscaleEl.addEventListener("mousedown", e=> {
+  logScaleMouseDown(e);
+});
+logscaleEl.addEventListener("touchstart", e=> {
+  logScaleMouseDown(e);
+});
 
-document.addEventListener("mousemove", e=> {
+function logScaleMouseMove(e) {
   logscaleEl.style.cursor = "n-resize";
   if (!changingLogScale) return;
   const rect= logscaleEl.getBoundingClientRect();
@@ -543,6 +549,13 @@ document.addEventListener("mousemove", e=> {
   startX = e.clientX;
   renderFullSpectrogramToImage();
   drawLogScale();
+}
+
+document.addEventListener("mousemove", e=> {
+  logScaleMouseMove(e);
+});
+document.addEventListener("touchmove", e=> {
+  logScaleMouseMove(e);
 });
 
 logscaleEl.addEventListener("mousemove", e=> {
@@ -1204,8 +1217,8 @@ function visibleToSpecY(visY) {
     const fullY = Math.round(visY + fStart);
     return Math.max(0, Math.min(specHeight - 1, fullY));
 }
-canvas.addEventListener("mousedown", e=>{
-    if (!mags || !phases) return;
+function canvasMouseDown(e) {
+  if (!mags || !phases) return;
     painting = true;
     stopSource();
     paintedPixels = new Set();
@@ -1234,10 +1247,15 @@ canvas.addEventListener("mousedown", e=>{
         setSineFreq(realY); 
         sineOsc.start();
     }
+}
+canvas.addEventListener("mousedown", e=>{
+    canvasMouseDown(e);
 });
-
-canvas.addEventListener("mousemove", e=>{
-    if(!painting && currentTool != "image") return;
+canvas.addEventListener("touchStart", e=>{
+    canvasMouseDown(e);
+});
+function canvasMouseMove(e) {
+  if(!painting && currentTool != "image") return;
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
 
     if (currentTool === "rectangle" || currentTool === "line" || currentTool === "image") {
@@ -1257,10 +1275,16 @@ canvas.addEventListener("mousemove", e=>{
 
     currentCursorX = currentFrame;
     drawCursor();
+}
+canvas.addEventListener("mousemove", e=>{
+    canvasMouseMove(e);
+});
+canvas.addEventListener("touchmove", e=>{
+    canvasMouseMove(e);
 });
 
-document.addEventListener("mouseup", e => {
-    if (!mags || !phases || !painting) return;
+function canvasMouseUp(e) {
+  if (!mags || !phases || !painting) return;
 
     es.style.display = "none";
     painting = false;
@@ -1329,17 +1353,23 @@ document.addEventListener("mouseup", e => {
 
     pcm.set(newPCM);
 
-const startFrame = Math.max(0, Math.floor(iLow || 0));
-pos = startFrame * hop;
-x = startFrame;
-rendering = true;
+    const startFrame = Math.max(0, Math.floor(iLow || 0));
+    pos = startFrame * hop;
+    x = startFrame;
+    rendering = true;
     requestAnimationFrame(drawLoop);
 
     startTime = performance.now();
     audioProcessed = 0;
 
     playPCM();
-    console.log("PCM updated from phase-aware spectrogram!");
+}
+
+document.addEventListener("mouseup", e => {
+    canvasMouseUp(e);
+});
+document.addEventListener("touchend", e => {
+    canvasMouseUp(e);
 });
 
 let sourceNode = null;
@@ -1556,9 +1586,8 @@ function drawTimeline() {
 function timelineXToFrame(clientXLeft) {
     return iLow + clientXLeft/timeline.getBoundingClientRect().width*iWidth;
 }
-
-timeline.addEventListener("mousedown", e => {
-    const rect = timeline.getBoundingClientRect();
+function timelineMousedown(e) {
+  const rect = timeline.getBoundingClientRect();
     if (e.clientY- rect.top>20) {
       draggingTimeline = true;
       wasPlayingDuringDrag = playing;
@@ -1576,9 +1605,15 @@ timeline.addEventListener("mousedown", e => {
       oldX = e.clientX- rect.left;
       iWidth = iHigh-iLow;
     }
+}
+timeline.addEventListener("mousedown", e => {
+    timelineMousedown(e);
 });
-window.addEventListener("mousemove", e => {
-    const rect = timeline.getBoundingClientRect();
+timeline.addEventListener("touchstart", e => {
+    timelineMousedown(e);
+});
+function timelineMousemove(e) {
+  const rect = timeline.getBoundingClientRect();
     const mouseY = e.clientY- rect.top;
     const mouseX = e.clientX- rect.left;
     if (mouseY > 20 && tDmode == -1) {
@@ -1631,9 +1666,15 @@ window.addEventListener("mousemove", e => {
         oldX = mouseX;
       }
     }
+}
+window.addEventListener("mousemove", e => {
+    timelineMouseMove(e);
 });
-window.addEventListener("mouseup", e => {
-    tDmode = -1;
+window.addEventListener("touchmove", e => {
+    timelineMouseMove(e);
+});
+function timelineMouseup(e) {
+  tDmode = -1;
     draggingBounds = false;
     if (!draggingTimeline) return;
     draggingTimeline = false;
@@ -1657,6 +1698,12 @@ window.addEventListener("mouseup", e => {
     drawTimeline();
     drawLogScale();
     drawYAxis();
+}
+window.addEventListener("mouseup", e => {
+    timelineMouseup(e);
+});
+window.addEventListener("touchend", e => {
+    timelineMouseup(e);
 });
 
 fLow = 0;
@@ -1747,17 +1794,20 @@ function drawYAxis() {
     yctx.strokeRect(0, topVisible, 15, Math.max(1, fhVisible));
 }
 
-yAxis.addEventListener("mousedown", e => {
-    const rect = yAxis.getBoundingClientRect();
+function yAxisMousedown(e) {
+  const rect = yAxis.getBoundingClientRect();
     if (e.clientX - rect.left < 15) {
         draggingFreq = true;
         oldY = e.clientY - rect.top;
         fWidth = fHigh - fLow;
     }
-});
+}
 
-window.addEventListener("mousemove", e => {
-    const rect = yAxis.getBoundingClientRect();
+yAxis.addEventListener("mousedown", e => {yAxisMousedown(e);});
+yAxis.addEventListener("touchstart", e => {yAxisMousedown(e);});
+
+function yAxisMousemove(e) {
+  const rect = yAxis.getBoundingClientRect();
     const mouseY = e.clientY - rect.top;
     const mouseX = e.clientX - rect.left;
 
@@ -1795,12 +1845,12 @@ window.addEventListener("mousemove", e => {
             oldY = mouseY;
         }
     }
-});
+}
+window.addEventListener("mousemove", e => {yAxisMousemove(e);});
+window.addEventListener("touchmove", e => {yAxisMousemove(e);});
 
-window.addEventListener("mouseup", e => {
-    fDmode = -1;
-    draggingFreq = false;
-});
+window.addEventListener("mouseup", e => {fDmode = -1;draggingFreq = false;});
+window.addEventListener("touchend", e => {fDmode = -1;draggingFreq = false;});
 
 const playPauseBtn = document.getElementById("playPause");
 const stopBtn = document.getElementById("stop");

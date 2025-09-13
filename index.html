@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Phase-aware Spectrogram Editor — Fixed</title>
 <style>
-body { background:#111; color:#eee; font-family:sans-serif; margin:0; padding:1em; }
+body { background:#111; color:#eee; font-family:sans-serif; margin:0;}
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.5em; }
 canvas { display:block; background:#000;}
@@ -68,10 +68,12 @@ canvas { display:block; background:#000;}
 </div>
 
 <!-- Timeline canvas -->
-<canvas id="timeline" style="height:40px; background:#222;"></canvas>
+<canvas id="timeline" style="height:40px; background:#222; position: absolute;align:left;left:40px;z-index: 9999;"></canvas>
 <div id="canvasWrapper" style="position:relative; display:inline-block; width:100%">
-  <canvas id="canvas" style="cursor:crosshair"></canvas>
-  <canvas id="overlay" style="background: transparent; position:absolute; left:0; top:0; pointer-events:none; z-index:10;"></canvas>
+  <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px;"></canvas>
+  <canvas id="overlay" style="background: transparent; position:absolute; left:40px; top:40px; pointer-events:none; z-index:10;"></canvas>
+  <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; top: 40px;"></canvas>
+  <div class="spacer" id="spacer" style="height:540px"></div>
 </div>
 
 <div id="status"></div>
@@ -103,84 +105,9 @@ overlayFile.addEventListener("change", e => {
   img.src = URL.createObjectURL(f);
 });
 
-function nextPow2(v) { return 1 << Math.ceil(Math.log2(v)); }
-
-function fft_inplace(re, im) {
-  const n = re.length;
-  if (n !== im.length) throw new Error('Mismatched lengths');
-  const levels = Math.floor(Math.log2(n));
-  if ((1 << levels) !== n) throw new Error('Length must be power of 2');
-
-  for (let i = 0; i < n; i++) {
-    let j = 0;
-    for (let k = 0; k < levels; k++) j = (j << 1) | ((i >>> k) & 1);
-    if (j > i) {
-      [re[i], re[j]] = [re[j], re[i]];
-      [im[i], im[j]] = [im[j], im[i]];
-    }
-  }
-
-  for (let size = 2; size <= n; size <<= 1) {
-    const half = size >>> 1;
-    const theta = -2 * Math.PI / size;
-    const wpr = Math.cos(theta);
-    const wpi = Math.sin(theta);
-    for (let i = 0; i < n; i += size) {
-      let wr = 1, wi = 0;
-      for (let j = 0; j < half; j++) {
-        const k = i + j;
-        const l = k + half;
-        const tr = wr * re[l] - wi * im[l];
-        const ti = wr * im[l] + wi * re[l];
-        re[l] = re[k] - tr;
-        im[l] = im[k] - ti;
-        re[k] += tr;
-        im[k] += ti;
-        const tmp = wr;
-        wr = tmp * wpr - wi * wpi;
-        wi = tmp * wpi + wi * wpr;
-      }
-    }
-  }
-}
-
-function ifft_inplace(re, im) {
-  for (let i = 0; i < re.length; i++) im[i] = -im[i];
-  fft_inplace(re, im);
-  for (let i = 0; i < re.length; i++) { re[i] /= re.length; im[i] = -im[i] / re.length; }
-}
-
-function hann(N) {
-  const w = new Float32Array(N);
-  for (let i = 0; i < N; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
-  return w;
-}
-
-function overlapAdd(signal, N) {
-  const hop = N / 2; 
-  const window = hann(N);
-  const out = new Float32Array(signal.length + N); 
-  const re = new Float32Array(N);
-  const im = new Float32Array(N);
-
-  for (let pos = 0; pos < signal.length; pos += hop) {
-
-    for (let i = 0; i < N; i++) {
-      re[i] = (pos + i < signal.length ? signal[pos + i] : 0) * window[i];
-      im[i] = 0;
-    }
-
-    fft_inplace(re, im);
-
-    ifft_inplace(re, im);
-
-    for (let i = 0; i < N; i++) {
-      out[pos + i] += re[i] * window[i]; 
-    }
-  }
-
-  return out.subarray(0, signal.length); 
-}
+</script>
+<script src="fft.js"></script>
+<script>
 
 const fileEl=document.getElementById("file");
 const canvas=document.getElementById("canvas");
@@ -200,6 +127,8 @@ const logscaleValueEl = document.getElementById("logscaleValue");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
 const emptyAudioLengthValueEl = document.getElementById("emptyAudioLengthValue");
 let trueScale = document.getElementById("trueScale").checked;
+const yAxis=document.getElementById("freq");
+const yctx=yAxis.getContext("2d");
 
 let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
@@ -278,10 +207,10 @@ fileEl.addEventListener("change", async e=>{
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);
 document.getElementById("trueScale").addEventListener("change",restartRender);
+const spacer = document.getElementById("spacer");
 
 function restartRender(){
     if(!pcm) return;
-    console.log('hi')
 
     trueScale = document.getElementById("trueScale").checked;
     const exponent = Math.max(6, Math.min(14, parseInt(fftSizeEl.value)||10));
@@ -294,7 +223,6 @@ function restartRender(){
       iLow = 0;
       iHigh = framesTotal;
     }
-    console.log(iLow);
 
     const freqBins = Math.floor(fftSize / 2);
     canvas.width = framesTotal;
@@ -309,12 +237,16 @@ function restartRender(){
       canvas.style.width = (canvas.width * scale) + "px";
       canvas.style.height = (canvas.height * scale) + "px";
     } else {
-      canvas.style.width = "100%";
+      canvas.style.width = "calc(100% - 40px)";
       canvas.style.height = "500px";
     }
+    spacer.style.height = canvas.style.height + 50;
 
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
+    yAxis.height = parseInt(canvas.style.height);
+    yAxis.width = 40;
+    yAxis.style.height = canvas.style.height;
 
     specWidth = canvas.width;
     specHeight = canvas.height;
@@ -326,7 +258,6 @@ function restartRender(){
     timeline.style.width = canvas.style.width;
     timeline.height = 40;
 
-        // full-size image buffer and offscreen canvas (full spectrogram)
     imageBuffer = new ImageData(canvas.width, canvas.height);
     specWidth = canvas.width;
     specHeight = canvas.height;
@@ -336,12 +267,10 @@ function restartRender(){
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
     specCtx.putImageData(imageBuffer, 0, 0);
 
-    // keep your mags/phases in sync
     mags = new Float32Array(specWidth * specHeight);
     phases = new Float32Array(specWidth * specHeight);
     for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
 
-    // start rendering at the current left view frame (iLow)
     const startFrame = Math.max(0, Math.floor(iLow || 0));
     pos = startFrame * hop;
     x = startFrame;
@@ -488,7 +417,7 @@ function drawLoop() {
 }
 
 function drawCursor(){
-    
+
     const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow)
     overlayCtx.clearRect(0,0, canvas.width, canvas.height);
     overlayCtx.strokeStyle = "#0f0";
@@ -502,14 +431,12 @@ function drawCursor(){
 function updateCanvasScroll() {
     if (!imageBuffer) return;
 
-    const viewWidth = iHigh - iLow;      // number of frames in view
-    const viewHeight = specHeight;       // full frequency range
+    const viewWidth = iHigh - iLow;      
+    const viewHeight = specHeight;       
 
-    // Keep canvas full-resolution
     canvas.width = viewWidth;
     canvas.height = viewHeight;
 
-    // Put full spectrogram into an offscreen canvas
     const off = document.createElement("canvas");
     off.width = specWidth;
     off.height = specHeight;
@@ -517,17 +444,15 @@ function updateCanvasScroll() {
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
 
-    // Crop the correct slice from iLow→iHigh
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
         off,
-        iLow, 0,                // source x, y
-        viewWidth, viewHeight,  // source w, h
-        0, 0,                   // dest x, y
-        canvas.width, canvas.height // dest w, h
+        iLow, 0,                
+        viewWidth, viewHeight,  
+        0, 0,                   
+        canvas.width, canvas.height 
     );
 
-    // Overlay must match canvas dimensions
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -538,25 +463,21 @@ function updateCanvasScroll() {
 function renderView() {
     if (!specCanvas || !imageBuffer) return;
 
-    // number of frames shown
     const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
     const viewHeight = specHeight;
 
-    // set visible canvas pixel size to viewWidth x viewHeight
     canvas.width = viewWidth;
     canvas.height = viewHeight;
 
-    // draw the slice [iLow..iHigh) from the offscreen full spec into visible canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
         specCanvas,
-        Math.max(0, Math.floor(iLow)), 0,   // src x, y (integer)
-        viewWidth, viewHeight,              // src w, h
-        0, 0,                                // dst x, y
-        canvas.width, canvas.height         // dst w, h
+        Math.max(0, Math.floor(iLow)), 0,   
+        viewWidth, viewHeight,              
+        0, 0,                                
+        canvas.width, canvas.height         
     );
 
-    // sync overlay to same pixel size
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     overlayCanvas.style.width = canvas.style.width;
@@ -595,10 +516,8 @@ function previewShape(cx, cy) {
     pendingPreview = false;
     const coords = lastPreviewCoords;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
     overlayCtx.strokeStyle = "#fff";
     overlayCtx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
-
     if (currentTool === "rectangle" && startX !== null && startY !== null) {
       overlayCtx.strokeRect(startX + 0.5, startY + 0.5, coords.cx - startX, coords.cy - startY);
     } else if (currentTool === "line" && startX !== null && startY !== null) {
@@ -606,12 +525,17 @@ function previewShape(cx, cy) {
       overlayCtx.moveTo(startX + 0.5, startY + 0.5);
       overlayCtx.lineTo(coords.cx + 0.5, coords.cy + 0.5);
       overlayCtx.stroke();
+    } else if (currentTool === "image"  && overlayImage) {
+      const scale = brushSize / Math.max(overlayImage.width, overlayImage.height) * fftSize / 400;
+      const w = overlayImage.width * scale;
+      const h = overlayImage.height * scale;
+      overlayCtx.strokeRect(coords.cx-w/2, coords.cy-h/2, w, h);
     }
   });
 }
 
 function commitShape(cx, cy) {
-    // Full spec dimensions (for indexing imageBuffer/mags/phases)
+
     const fullW = specWidth;
     const fullH = specHeight;
     const bo = brushOpacity;
@@ -641,15 +565,12 @@ function commitShape(cx, cy) {
         imageBuffer.data[pix + 3] = 255;
     }
 
-    // visible X coordinates (canvas-space) for start and end
     const visStartX = startX == null ? cx : startX;
     const visEndX = cx;
-    // visible Y coordinates
+
     const visStartY = startY == null ? cy : startY;
     const visEndY = cy;
 
-    // Convert visible X -> global frame indices by adding iLow (left offset)
-    // Keep the (x,y) pairing intact when possibly swapping endpoints.
     let x0Frame, y0Vis, x1Frame, y1Vis;
     const leftFrame = Math.round(visStartX + (iLow || 0));
     const rightFrame = Math.round(visEndX + (iLow || 0));
@@ -658,12 +579,11 @@ function commitShape(cx, cy) {
         x0Frame = leftFrame;  y0Vis = visStartX <= visEndX ? visStartY : visEndY;
         x1Frame = rightFrame; y1Vis = visStartX <= visEndX ? visEndY   : visStartY;
     } else {
-        // when the "start" was to the right visually, maintain correct pairing
+
         x0Frame = rightFrame; y0Vis = visStartX <= visEndX ? visEndY   : visStartY;
         x1Frame = leftFrame;  y1Vis = visStartX <= visEndX ? visStartY : visEndY;
     }
 
-    // clamp
     x0Frame = Math.max(0, Math.min(fullW - 1, x0Frame));
     x1Frame = Math.max(0, Math.min(fullW - 1, x1Frame));
     y0Vis = Math.max(0, Math.min(fullH - 1, Math.round(y0Vis)));
@@ -680,22 +600,21 @@ function commitShape(cx, cy) {
             }
         }
     } else if (currentTool === "line") {
-        // convert visible startX/startY → globals (frame indices for X, display Y unchanged)
+
         let visStartX = (startX == null ? cx : startX);
         let visStartY = (startY == null ? cy : startY);
-        
-        // x in global frame coordinates (so indexing into mags/phases/imageBuffer works)
+
         let x0 = Math.round(visStartX + (iLow || 0));
         let y0 = Math.round(visStartY);
         const x1 = Math.round(cx + (iLow || 0));
         const y1 = Math.round(cy);
-        
+
         const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = (dx > dy ? dx : -dy) / 2;
-        
+
         while (true) {
-            // drawPixelInt must accept X as a global frame index (0..specWidth-1)
+
             drawPixelIntFrame(x0, y0, brushMag, brushPhase, bo, po);
             if (x0 === x1 && y0 === y1) break;
             const e2 = err;
@@ -708,13 +627,9 @@ function commitShape(cx, cy) {
     renderView();
 }
 
-
-// Replace existing paint(...) with this:
 function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
     if (!mags || !phases) return;
 
-    // IMPORTANT: cx is expected to be a global frame index (i.e. caller must pass cx + iLow).
-    // In your mouse handlers you already do that, except for commitShape which we fixed above.
     const fullW = specWidth;
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
@@ -743,20 +658,9 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
     }
 
     if (currentTool === "brush" || currentTool === "eraser") {
-        // cx is global frame index; cy is display Y (0..canvas.height-1)
-        // Turn brush radii into frame/display coordinates:
-        // radiusY is in display pixels, radiusX should be in frames. We approximate by scaling using scale values.
-        // scaleX = canvas.width / rect.width ; scaleY = canvas.height / rect.height
         const radiusY = brushSize;
-        // radius in frames: brushSize in display px -> convert using scaleX (frames per display pixel)
-        // compute framesPerDisplayPixel = (specWidth / canvas.getBoundingClientRect().width)
-        // but we don't want to access DOM heavily here; use scaleX to approximate:
-        // scaleX provided was canvas.width/rect.width; when canvas.width==viewWidth, frames per display pixel =
-        // (specWidth / viewWidth). So:
         const rect = canvas.getBoundingClientRect();
-        const viewWidth = canvas.width; // visible frames
-        const framesPerDisplayPixel = (fullW / Math.max(1, viewWidth));
-        const radiusXFrames = Math.max(1, Math.round((brushSize) * framesPerDisplayPixel));
+        const radiusXFrames = radiusY * (rect.height/(rect.width/iWidth*framesTotal)) * hopSizeEl.value/600;
 
         const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
         const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
@@ -770,14 +674,14 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
             for (let xx = minXFrame; xx <= maxXFrame; xx++) {
                 const dx = xx - cx;
                 const dy = yy - cy;
-                // elliptical mask (approx)
+
                 if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / (radiusY * radiusY) > 1) continue;
                 drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
             }
         }
     } else if (currentTool === "blur") {
         const radius = brushSize;
-        // blur operates in display coords; but we map neighbors into frames/bin correctly
+
         const minXFrame = Math.max(0, Math.floor(cx - radius));
         const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radius));
         const minY = Math.max(0, Math.floor(cy - radius));
@@ -800,7 +704,7 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
             }
         }
     } else if (currentTool === "image" && overlayImage) {
-        // draw overlay image into full-frame coords: cx is center frame index, cy is display Y
+
         const scale = brushSize / Math.max(overlayImage.width, overlayImage.height) * fftSize / 400;
         const overlayW = Math.max(1, Math.round(overlayImage.width * scale));
         const overlayH = Math.max(1, Math.round(overlayImage.height * scale));
@@ -833,7 +737,6 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
 }
-
 
 let sineOsc = null;
 let sineGain = null;
@@ -890,10 +793,10 @@ canvas.addEventListener("mousedown", e=>{
 });
 
 canvas.addEventListener("mousemove", e=>{
-    if(!painting) return;
+    if(!painting && currentTool != "image") return;
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
 
-    if (currentTool === "rectangle" || currentTool === "line") {
+    if (currentTool === "rectangle" || currentTool === "line" || currentTool === "image") {
       previewShape(cx, cy);
     } else {
       overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -979,7 +882,7 @@ document.addEventListener("mouseup", e => {
     }
 
     pcm.set(newPCM);
-    // start rendering at the current left view frame (iLow)
+
 const startFrame = Math.max(0, Math.floor(iLow || 0));
 pos = startFrame * hop;
 x = startFrame;
@@ -1124,73 +1027,9 @@ function renderFullSpectrogramToImage() {
     renderView();
 }
 
-function floatTo16BitPCM(float32Array) {
-    const buffer = new ArrayBuffer(float32Array.length * 2);
-    const view = new DataView(buffer);
-    for (let i = 0; i < float32Array.length; i++) {
-        let s = Math.max(-1, Math.min(1, float32Array[i]));
-        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    }
-    return view;
-}
-
-function writeWavHeader(view, sampleRate, numSamples) {
-    const blockAlign = 2; 
-    const byteRate = sampleRate * blockAlign;
-
-    function writeString(view, offset, str) {
-        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-    }
-
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + numSamples * 2, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);       
-    view.setUint16(20, 1, true);        
-    view.setUint16(22, 1, true);        
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true);       
-    writeString(view, 36, 'data');
-    view.setUint32(40, numSamples * 2, true);
-}
-
-document.getElementById('downloadWav').addEventListener('click', () => {
-    if (!pcm) return alert('No PCM loaded!');
-    const numSamples = pcm.length;
-    const buffer = new ArrayBuffer(44 + numSamples * 2);
-    const view = new DataView(buffer);
-
-    writeWavHeader(view, sampleRate, numSamples);
-
-    const pcm16 = floatTo16BitPCM(pcm);
-    for (let i = 0; i < pcm16.byteLength; i++) {
-        view.setUint8(44 + i, pcm16.getUint8(i));
-    }
-
-    const blob = new Blob([view], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'output.wav';
-    a.click();
-    URL.revokeObjectURL(url);
-});
-document.getElementById('downloadButton').addEventListener('click', function() {
-
-            let canvasUrl = canvas.toDataURL('image/png');
-
-            const downloadLink = document.createElement('a');
-
-            downloadLink.href = canvasUrl;
-            downloadLink.download = 'my-drawing.png';
-
-            downloadLink.click();
-
-            downloadLink.remove();
-        });
+</script>
+<script src="downloads.js"></script>
+<script>
 
 const timeline = document.getElementById('timeline');
 const tctx = timeline.getContext('2d');
@@ -1241,25 +1080,23 @@ function drawTimeline() {
     const factor = timeline.width / framesTotal;
     const visibleFrames = iHigh - iLow;
     const secondsPerFrame = hopSizeEl.value / sampleRate;
-    
-    // visible time range
+
     const sLow = iLow * secondsPerFrame;
     const sHigh = iHigh * secondsPerFrame;
-    
-    // round up start to nearest interval
+
     let tStart = Math.ceil(sLow / interval) * interval;
-    
+
     for (let t = tStart; t <= sHigh; t += interval) {
-        const frame = t / secondsPerFrame; // convert seconds → frame index
+        const frame = t / secondsPerFrame; 
         const markerX = (frame - iLow) / visibleFrames * timeline.width;
-    
+
         tctx.fillText(
             t.toFixed(interval < 1 ? 2 : interval < 10 ? 1 : 0),
             markerX,
             25
         );
     }
-    
+
     tctx.fillStyle = "#222";
     tctx.fillRect(0, 0, timeline.width, 20);
     tctx.fillStyle = "#555";
@@ -1268,6 +1105,43 @@ function drawTimeline() {
     tctx.strokeRect(iLow*factor, 0, (iHigh-iLow)*factor, 20);
     tctx.fillStyle = "#af0";
     tctx.fillRect(tx2-1,0,2,20);
+}
+let fLow = 0;
+let fHigh = sampleRate/2;
+let fWidth = fHigh-fLow;
+function drawYAxis() {
+    yctx.clearRect(0, 0, yAxis.width, yAxis.height);
+    yctx.fillStyle = "#333";
+    yctx.fillRect(0, 0, yAxis.width, yAxis.height);
+
+    // Determine interval based on fWidth
+    let interval = 1000; // default 1k
+    if (fWidth <= 500) interval = 100;      
+    else if (fWidth <= 2000) interval = 250; 
+    else if (fWidth <= 5000) interval = 500; 
+
+    yctx.fillStyle = "#eee";
+    yctx.font = "10px sans-serif";
+    yctx.textAlign = "right";
+    yctx.textBaseline = "middle";
+
+    const visibleFreqs = fHigh - fLow;
+    let fStart = Math.ceil(fLow / interval) * interval;
+
+    for (let f = fStart; f <= fHigh; f += interval) {
+        // Invert Y position: 0k at bottom
+        const posY = yAxis.height - (f - fLow) / visibleFreqs * yAxis.height;
+        const label = (f / 1000).toFixed(1) + "k";
+        yctx.fillText(label, 40, posY);
+    }
+    const factor = yAxis.height/(sampleRate/2);
+    yctx.fillStyle = "#222";
+    yctx.fillRect(0, 0, 15, yAxis.height);
+    yctx.fillStyle = "#555";
+    const fh = (fHigh-fLow)*factor;
+    yctx.fillRect(0, yAxis.height-fh-fLow*factor, 15, fh);
+    yctx.strokeStyle = "#777";
+    yctx.strokeRect(0, yAxis.height-fh-fLow*factor, 15, fh);
 }
 
 function timelineXToFrame(clientXLeft) {
@@ -1279,12 +1153,13 @@ timeline.addEventListener("mousedown", e => {
     if (e.clientY- rect.top>20) {
       draggingTimeline = true;
       wasPlayingDuringDrag = playing;
-  
+
       stopSource(true);
       timelineCursorX = timelineXToFrame(e.clientX - rect.left);
-  
+
       currentCursorX = timelineCursorX;
       drawTimeline();
+      drawYAxis();
       drawCursor();
     } else {
       draggingBounds = true;
@@ -1302,6 +1177,7 @@ window.addEventListener("mousemove", e => {
       timelineCursorX = timelineXToFrame(mouseX);
       currentCursorX = timelineCursorX;
       drawTimeline();
+      drawYAxis();
       drawCursor();
     } else {
       const sLow = iLow * rect.width/framesTotal;
@@ -1365,6 +1241,7 @@ window.addEventListener("mouseup", e => {
         drawCursor();
     }
     drawTimeline();
+    drawYAxis();
 });
 
 const playPauseBtn = document.getElementById("playPause");
@@ -1395,6 +1272,7 @@ stopBtn.addEventListener("click", () => {
     timelineCursorX = 0;
     currentCursorX = 0;
     drawTimeline();
+    drawYAxis();
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
     drawCursor();
@@ -1414,6 +1292,7 @@ function updateTimelineCursor() {
         timelineCursorX = Math.min(frame, specWidth-1);
         currentCursorX = timelineCursorX;
         drawTimeline();
+        drawYAxis();
         drawCursor();
     }
     requestAnimationFrame(updateTimelineCursor);
@@ -1421,6 +1300,7 @@ function updateTimelineCursor() {
 updateTimelineCursor();
 
 drawTimeline();
+drawYAxis();
 renderFullSpectrogramToImage();
 </script>
 </body>

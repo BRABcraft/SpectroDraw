@@ -538,6 +538,7 @@ function previewShape(cx, cy) {
 }
 
 function commitShape(cx, cy) {
+    if (!mags || !phases) return;
 
     const fullW = specWidth;
     const fullH = specHeight;
@@ -568,56 +569,46 @@ function commitShape(cx, cy) {
         imageBuffer.data[pix + 3] = 255;
     }
 
-    const visStartX = startX == null ? cx : startX;
-    const visEndX = cx;
+    const startVisX = (startX == null ? cx : startX);
+    const startVisY = (startY == null ? cy : startY);
 
-    const visStartY = startY == null ? cy : startY;
-    const visEndY = cy;
+    const startFrame = Math.round(startVisX + (iLow || 0));
+    const endFrame   = Math.round(cx + (iLow || 0));
+    let x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
+    let x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
 
-    let x0Frame, y0Vis, x1Frame, y1Vis;
-    const leftFrame = Math.round(visStartX + (iLow || 0));
-    const rightFrame = Math.round(visEndX + (iLow || 0));
-
-    if (leftFrame <= rightFrame) {
-        x0Frame = leftFrame;  y0Vis = visStartX <= visEndX ? visStartY : visEndY;
-        x1Frame = rightFrame; y1Vis = visStartX <= visEndX ? visEndY   : visStartY;
-    } else {
-
-        x0Frame = rightFrame; y0Vis = visStartX <= visEndX ? visEndY   : visStartY;
-        x1Frame = leftFrame;  y1Vis = visStartX <= visEndX ? visStartY : visEndY;
-    }
-
-    x0Frame = Math.max(0, Math.min(fullW - 1, x0Frame));
-    x1Frame = Math.max(0, Math.min(fullW - 1, x1Frame));
-    y0Vis = Math.max(0, Math.min(fullH - 1, Math.round(y0Vis)));
-    y1Vis = Math.max(0, Math.min(fullH - 1, Math.round(y1Vis)));
+    const startSpecY = visibleToSpecY(startVisY);
+    const endSpecY   = visibleToSpecY(cy);
+    let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
+    let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
 
     if (currentTool === "rectangle") {
-        const minX = Math.min(x0Frame, x1Frame);
-        const maxX = Math.max(x0Frame, x1Frame);
-        const minY = Math.min(y0Vis, y1Vis);
-        const maxY = Math.max(y0Vis, y1Vis);
+        const minX = x0Frame;
+        const maxX = x1Frame;
+        const minY = y0Spec;
+        const maxY = y1Spec;
         for (let yy = minY; yy <= maxY; yy++) {
             for (let xx = minX; xx <= maxX; xx++) {
                 drawPixelIntFrame(xx, yy, brushMag, brushPhase, bo, po);
             }
         }
     } else if (currentTool === "line") {
+        let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
+        let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
+        const startWasLeft = (startFrame <= endFrame);
+        let yStartSpec = startWasLeft ? startSpecY : endSpecY;
+        let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
 
-        let visStartX = (startX == null ? cx : startX);
-        let visStartY = (startY == null ? cy : startY);
-
-        let x0 = Math.round(visStartX + (iLow || 0));
-        let y0 = Math.round(visStartY);
-        const x1 = Math.round(cx + (iLow || 0));
-        const y1 = Math.round(cy);
+        x0 = Math.max(0, Math.min(fullW - 1, Math.round(x0)));
+        x1 = Math.max(0, Math.min(fullW - 1, Math.round(x1)));
+        let y0 = Math.max(0, Math.min(fullH - 1, Math.round(yStartSpec)));
+        let y1 = Math.max(0, Math.min(fullH - 1, Math.round(yEndSpec)));
 
         const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = (dx > dy ? dx : -dy) / 2;
 
         while (true) {
-
             drawPixelIntFrame(x0, y0, brushMag, brushPhase, bo, po);
             if (x0 === x1 && y0 === y1) break;
             const e2 = err;
@@ -765,7 +756,11 @@ function setSineFreq(cy) {
 
     sineOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.01);
 }
-
+function visibleToSpecY(visY) {
+    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+    const fullY = Math.round(visY + fStart);
+    return Math.max(0, Math.min(specHeight - 1, fullY));
+}
 canvas.addEventListener("mousedown", e=>{
     if (!mags || !phases) return;
     painting = true;
@@ -775,8 +770,12 @@ canvas.addEventListener("mousedown", e=>{
     startX = cx; startY = cy;
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
 
+    // Convert the visible cy to the full-spec display Y
+    const realY = visibleToSpecY(cy);
+
     if (!(currentTool === "rectangle" || currentTool === "line")) {
-        paint(cx+iLow,cy,scaleX,scaleY,startX,startY);
+        // cx is a visible-frame index; add iLow to get a full-frame index
+        paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
     }
 
     ensureAudioCtx();
@@ -790,7 +789,7 @@ canvas.addEventListener("mousedown", e=>{
         sineGain = audioCtx.createGain();
         sineGain.gain.value = 0.2;
         sineOsc.connect(sineGain).connect(audioCtx.destination);
-        setSineFreq(cy);
+        setSineFreq(realY); // pass full-spec display Y
         sineOsc.start();
     }
 });
@@ -803,14 +802,15 @@ canvas.addEventListener("mousemove", e=>{
       previewShape(cx, cy);
     } else {
       overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-      paint(cx+iLow,cy,scaleX,scaleY,startX,startY);
+      const realY = visibleToSpecY(cy);
+      paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
     }
 
     currentFrame = Math.floor(cx);
     if (mouseDown) {
         playFrame(currentFrame);
 
-        if (sineOsc) setSineFreq(cy);
+        if (sineOsc) setSineFreq( visibleToSpecY(cy) ); // full-spec Y
     }
 
     currentCursorX = currentFrame;
@@ -1235,8 +1235,9 @@ function drawYAxis() {
     if (yAxis.height <= 0 || yAxis.width <= 0) return;
 
     const temp = document.createElement("canvas");
+    const resolution = (sampleRate/2)/fWidth;
     temp.width = yAxis.width;   
-    temp.height = specHeight;   
+    temp.height = specHeight*resolution;   
     const tctx = temp.getContext("2d");
 
     tctx.clearRect(0, 0, temp.width, temp.height);
@@ -1248,7 +1249,7 @@ function drawYAxis() {
     else if (fWidth <= 2000) interval = 250;
     else if (fWidth <= 5000) interval = 500;
 
-    const scaleToTemp = specHeight / yAxis.height;
+    const scaleToTemp = specHeight*resolution / yAxis.height;
     tctx.fillStyle = "#eee";
     tctx.font = "10px sans-serif";
     tctx.textAlign = "right";
@@ -1262,7 +1263,7 @@ function drawYAxis() {
         const posY_temp = Math.round(posY_visible * scaleToTemp);
         const label = (f / 1000).toFixed(1) + "k";
         tctx.save();
-        const yFactor = fWidth/(sampleRate/4);
+        const yFactor = fWidth/(sampleRate/4/resolution);
         tctx.scale(1.0, yFactor);
         tctx.fillText(label, labelX, posY_temp/yFactor);
         tctx.restore();
@@ -1278,8 +1279,8 @@ function drawYAxis() {
     yctx.clearRect(0, 0, yAxis.width, yAxis.height);
     yctx.drawImage(
         temp,
-        0, fStart,                  
-        temp.width, viewHeightSpec, 
+        0, fStart*resolution,                  
+        temp.width, viewHeightSpec*resolution, 
         0, 0,                       
         yAxis.width, yAxis.height   
     );

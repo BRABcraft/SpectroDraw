@@ -8,6 +8,26 @@ body { background:#111; color:#eee; font-family:sans-serif; margin:0;}
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.5em; }
 canvas { display:block; background:#000;}
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  border: none;
+  background: #f3f3f3;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tool-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  preserveAspectRatio: 'xMidYMid meet';
+  transform: translateX(-0.5px); 
+}
 #timeline { display:block; height:40px; }
 #status { margin-top:0.5em; font-size:13px; }
 </style>
@@ -44,12 +64,53 @@ canvas { display:block; background:#000;}
     <input id="trueScale" type="checkbox">
   </label>
   <div class="controls">
-    <button class="tool-btn" data-tool="brush">Brush</button>
-    <button class="tool-btn" data-tool="rectangle">Rectangle</button>
-    <button class="tool-btn" data-tool="line">Line</button>
-    <button class="tool-btn" data-tool="blur">Blur</button>
-    <button class="tool-btn" data-tool="eraser">Eraser</button>
-    <button class="tool-btn" data-tool="image">Image Overlay</button>
+    <button class="tool-btn" data-tool="brush" title="Brush">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="20" height="20" 
+           viewBox="5 4 18 18" 
+           fill="currentColor">
+        <path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="rectangle" title="Rectangle">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="20" height="20" viewBox="0 0 20 20" 
+           fill="none"
+           stroke = "black" stroke-width = "5">
+        <path d="M0 0 H 20 V 20 H 0 V -20"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="line" title="Line">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="20" height="20" viewBox="0 0 20 20" 
+           fill="none"
+           stroke = "black" stroke-width = "3">
+        <path d="M20 0 L 0 20"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="blur" title="Blur">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="24" height="24" 
+           viewBox="0 0 24 24" 
+           fill="currentColor">
+        <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="eraser" title="Eraser">
+      <svg width="20" height="20" viewBox="-1 -1 16 16">
+        <path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/>
+        <path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="image" title="Image Overlay">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Sun -->
+        <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
+        <!-- Mountains -->
+        <polygon points="1,20 8,10 15,20" fill="#333"/>
+        <polygon points="8,20 15,12 23,20" fill="#333"/>
+      </svg>
+    </button>
     <input type="file" id="overlayFile" accept="image/*" style="display:none;">
   </div>
 
@@ -1235,9 +1296,10 @@ function drawYAxis() {
     if (yAxis.height <= 0 || yAxis.width <= 0) return;
 
     const temp = document.createElement("canvas");
-    const resolution = (sampleRate/2)/fWidth;
+    let resolution = (sampleRate/2)/fWidth;
+    if (resolution > 15) resolution = 15;
     temp.width = yAxis.width;   
-    temp.height = specHeight*resolution;   
+    temp.height = 2048*resolution;   
     const tctx = temp.getContext("2d");
 
     tctx.clearRect(0, 0, temp.width, temp.height);
@@ -1258,12 +1320,12 @@ function drawYAxis() {
 
     for (let f = 0; f <= sampleRate / 2; f += interval) {
 
-        const posY_visible = freqToDisplayY((f) / (sampleRate * 2) * fftSize, yAxis.height);
+        const posY_visible = freqToDisplayY((f) / (sampleRate * 2) * 2048, yAxis.height);
 
         const posY_temp = Math.round(posY_visible * scaleToTemp);
         const label = (f / 1000).toFixed(1) + "k";
         tctx.save();
-        const yFactor = fWidth/(sampleRate/4/resolution);
+        const yFactor = fWidth/(sampleRate/4/resolution)*(fftSize/2048);
         tctx.scale(1.0, yFactor);
         tctx.fillText(label, labelX, posY_temp/yFactor);
         tctx.restore();

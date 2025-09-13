@@ -53,15 +53,13 @@ document.getElementById('downloadWav').addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 document.getElementById('downloadButton').addEventListener('click', function() {
-
-            let canvasUrl = canvas.toDataURL('image/png');
-
-            const downloadLink = document.createElement('a');
-
-            downloadLink.href = canvasUrl;
-            downloadLink.download = 'my-drawing.png';
-
-            downloadLink.click();
-
-            downloadLink.remove();
-        });
+    let oil = iLow; oih = iHigh; ofl = fLow; ofh = fHigh;
+    iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2; updateCanvasScroll();
+    let canvasUrl = canvas.toDataURL('image/png');
+    const downloadLink = document.createElement('a');
+    downloadLink.href = canvasUrl;
+    downloadLink.download = 'my-drawing.png';
+    downloadLink.click();
+    downloadLink.remove();
+    iLow = oil; iHigh = oih; fLow = ofl; fHigh = ofh;
+});

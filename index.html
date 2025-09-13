@@ -4,11 +4,119 @@
 <meta charset="utf-8">
 <title>Phase-aware Spectrogram Editor — Fixed</title>
 <style>
-body { background:#111; color:#eee; font-family:sans-serif; margin:0;}
+/* ---------- improved vertical slider styles (replace previous block) ---------- */
+:root{
+  --slider-length: 60px;    /* vertical length in screen px */
+  --slider-thickness: 12px;  /* visual thickness (smaller = less wide) */
+  --track-color: #444;
+  --thumb-color: #fff;
+  --thumb-size: 12px;
+}
+
+/* ensure controls sit above the canvas and won't be hidden */
+.controls {
+  position: relative;
+  z-index: 5000;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:flex-start;
+}
+
+/* each control label gets reserved horizontal space so the rotated input won't overlap siblings */
+.controls label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap:6px;
+  font-size: 0.9em;
+  min-width: 15px;    /* reserve space horizontally for the rotated element */
+  padding: 2px 2px;
+  box-sizing: border-box;
+}
+
+/* put the rotated input inside a small container so the rotated bounding-box is constrained */
+label .vertical-wrap {
+  width: var(--slider-thickness);
+  height: var(--slider-length);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow: visible; /* allow thumb to render outside if needed */
+  pointer-events: auto;
+}
+
+/* the actual rotated range */
+.controls input[type="range"].vertical {
+  -webkit-appearance: none;
+  appearance: none;
+
+  /* keep the logical element small (thickness x length), then rotate so it looks vertical */
+  width: var(--slider-length);
+  height: var(--slider-thickness);
+
+  transform: rotate(-90deg);        /* visually vertical */
+  transform-origin: 50% 50%;
+  display: block;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* track & thumb: WebKit */
+.controls input[type="range"].vertical::-webkit-slider-runnable-track {
+  height: 4px;                        /* thin track */
+  background: var(--track-color);
+  border-radius: 999px;
+}
+
+.controls input[type="range"].vertical::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 50%;
+  background: var(--thumb-color);
+  margin-top: -(var(--thumb-size) / 2); /* try to center thumb */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+/* Firefox */
+.controls input[type="range"].vertical::-moz-range-track {
+  height: 4px;
+  background: var(--track-color);
+  border-radius: 999px;
+}
+.controls input[type="range"].vertical::-moz-range-thumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius:50%;
+  background: var(--thumb-color);
+  border: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+/* small tweaks so the label text doesn't shift when slider rotates */
+.controls label > input[type="range"],
+.controls label > .vertical-wrap {
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+/* ensure canvases sit below controls and buttons remain visible */
+#canvasWrapper { z-index: 1; position: absolute; }
+canvas#overlay { z-index: 10; pointer-events: none; }
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB {
+  position: relative;
+  z-index: 6000;           /* keep UI buttons above rotated inputs and canvas */
+}
+
+body { background:#111; color:#eee; font-family:sans-serif; margin:0px;}
 .controls { margin-bottom:1em; }
-label { margin-right:1em; display:inline-block; margin-top:0.5em; }
+label { margin-right:1em; display:inline-block; margin-top:0.2em; }
 canvas { display:block; background:#000;}
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale {
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale, #fileB {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -45,36 +153,74 @@ canvas { display:block; background:#000;}
 
 .controls input[type="range"],
 .controls input[type="number"] {
-  margin-top: 4px; 
+  margin-top: 2px; 
+}
+/* make all number inputs compact */
+.controls input[type="number"] {
+  width: 5ch;            /* try 4ch..8ch to taste */
+  min-width: 10ch;
+  max-width: 10ch;
+  box-sizing: border-box;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.95rem;
+  background-color: #333;
+  border-radius: 10px;
+  border-color: #aaa;
+  color: #fff;
 }
 </style>
 </head>
 <body>
 <div class="controls">
-  <input id="file" type="file" accept=".wav"/>
-  <label>FFT exponent (2^exp):
+  <label title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:
     <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
   </label>
-  <label>Hop size:
+  <label title="Number of audio samples given to each frame (x pixel).">Time resolution:
     <input id="hopSize" type="number" value="512" step="1" min="1">
   </label>
-  <label>Brush size:
-    <input id="brushSize" type="range" min="1" max="200" value="40">
+  
+  <label id="es">
+    <span class="label-line">
+      <span class="label-text">Empty audio seconds:</span>
+      <span class="label-value" id="ev">10</span>
+    </span>
+    <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
   </label>
-  <label>Brush brightness:
-    <input id="brushColor" type="range" min="0" max="255" value="255">
+  <label style="position: absolute; right: 160px">S
+  <div class="vertical-wrap">
+    <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
+    </div>
   </label>
-  <label>Brush phase:
-    <input id="penPhase" type="range" min="0" max="31415" value="0">
+  <label style="position: absolute; right: 125px">B
+  <div class="vertical-wrap">
+    <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
+  </div>
   </label>
-  <label>Brightness opacity:
-    <input id="brushOpacity" type="range" min="0" max="100" value="100">
+  <label style="position: absolute; right: 90px">P
+  <div class="vertical-wrap">
+    <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
+  </div>
   </label>
-  <label>Phase opacity:
-    <input id="phaseOpacity" type="range" min="0" max="100" value="0">
+  <label style="position: absolute; right: 55px">BO
+  <div class="vertical-wrap">
+    <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
+  </div>
   </label>
-  <div class="controls">
-    <button id="playPause" title="play">
+  <label style="position: absolute; right: 20px">PO
+  <div class="vertical-wrap">
+    <input id="phaseOpacity" class="vertical" type="range" min="0" max="100" value="0">
+  </div>
+  </label>
+  <div class="controls" style="position:absolute; top:60px">
+    <button id="fileB" title="Upload Audio" style="margin-left: 10px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
+        <polygon points="1,20 8,10 15,20" fill="#333"/>
+        <polygon points="8,20 15,12 23,20" fill="#333"/>
+      </svg>
+    </button>
+    <input id="file" type="file" accept=".wav" style="display:none;"/>
+    <button id="playPause" title="play" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>
     </button>
     <button id="stop" title="pause">
@@ -168,18 +314,11 @@ canvas { display:block; background:#000;}
         <rect x="8" y="1" width="8" height="2" rx="2" ry="2" stroke-width="1"/>
       </svg>
     </button>
-    <label id="es" style="position: relative; top:-6px">
-      <span class="label-line">
-        <span class="label-text">Empty audio seconds:</span>
-        <span class="label-value" id="ev">10</span>
-      </span>
-      <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
-    </label>
   </div>
 </div>
 
 <!-- Timeline canvas -->
-<div id="canvasWrapper" style="position:absolute; display:inline-block; width:100%; top:150px;">
+<div id="canvasWrapper" style="position:absolute; display:inline-block; width:100%; top:100px;">
   <canvas id="timeline" style="height:40px; background:#222; position: absolute;align:left;left:40px;z-index: 9998; top:0px"></canvas>
   <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
   <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>

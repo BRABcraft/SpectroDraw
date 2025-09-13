@@ -136,6 +136,8 @@ let imageBuffer=null;
 let currentCursorX = 0;
 let iLow = null;
 let iHigh = null;
+let fLow = null;
+let fHigh = null;
 let specCanvas = document.createElement("canvas");
 let specCtx = specCanvas.getContext("2d");
 
@@ -429,30 +431,29 @@ function drawCursor(){
 }
 
 function updateCanvasScroll() {
-    if (!imageBuffer) return;
+    if (!imageBuffer || !specCanvas) return;
 
-    const viewWidth = iHigh - iLow;      
-    const viewHeight = specHeight;       
+    // Visible width & height in pixels
+    const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
+    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
+    const viewHeight = Math.max(1, fEnd - fStart);
 
+    // Set canvas size
     canvas.width = viewWidth;
     canvas.height = viewHeight;
 
-    const off = document.createElement("canvas");
-    off.width = specWidth;
-    off.height = specHeight;
-    const offCtx = off.getContext("2d");
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
-
+    // Draw visible portion from specCanvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
-        off,
-        iLow, 0,                
-        viewWidth, viewHeight,  
-        0, 0,                   
-        canvas.width, canvas.height 
+        specCanvas,
+        Math.max(0, Math.floor(iLow)), fStart, // source x,y
+        viewWidth, viewHeight,                 // source width,height
+        0, 0,                                  // dest x,y
+        canvas.width, canvas.height            // dest width,height
     );
 
+    // Update overlay canvas to match
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -464,7 +465,9 @@ function renderView() {
     if (!specCanvas || !imageBuffer) return;
 
     const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
-    const viewHeight = specHeight;
+    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
+    const viewHeight = Math.max(1, fEnd - fStart);
 
     canvas.width = viewWidth;
     canvas.height = viewHeight;
@@ -472,10 +475,10 @@ function renderView() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
         specCanvas,
-        Math.max(0, Math.floor(iLow)), 0,   
-        viewWidth, viewHeight,              
-        0, 0,                                
-        canvas.width, canvas.height         
+        Math.max(0, Math.floor(iLow)), fStart, // source x,y
+        viewWidth, viewHeight,                 // source width,height
+        0, 0,                                  // dest x,y
+        canvas.width, canvas.height            // dest width,height
     );
 
     overlayCanvas.width = canvas.width;
@@ -1106,43 +1109,6 @@ function drawTimeline() {
     tctx.fillStyle = "#af0";
     tctx.fillRect(tx2-1,0,2,20);
 }
-let fLow = 0;
-let fHigh = sampleRate/2;
-let fWidth = fHigh-fLow;
-function drawYAxis() {
-    yctx.clearRect(0, 0, yAxis.width, yAxis.height);
-    yctx.fillStyle = "#333";
-    yctx.fillRect(0, 0, yAxis.width, yAxis.height);
-
-    // Determine interval based on fWidth
-    let interval = 1000; // default 1k
-    if (fWidth <= 500) interval = 100;      
-    else if (fWidth <= 2000) interval = 250; 
-    else if (fWidth <= 5000) interval = 500; 
-
-    yctx.fillStyle = "#eee";
-    yctx.font = "10px sans-serif";
-    yctx.textAlign = "right";
-    yctx.textBaseline = "middle";
-
-    const visibleFreqs = fHigh - fLow;
-    let fStart = Math.ceil(fLow / interval) * interval;
-
-    for (let f = fStart; f <= fHigh; f += interval) {
-        // Invert Y position: 0k at bottom
-        const posY = yAxis.height - (f - fLow) / visibleFreqs * yAxis.height;
-        const label = (f / 1000).toFixed(1) + "k";
-        yctx.fillText(label, 40, posY);
-    }
-    const factor = yAxis.height/(sampleRate/2);
-    yctx.fillStyle = "#222";
-    yctx.fillRect(0, 0, 15, yAxis.height);
-    yctx.fillStyle = "#555";
-    const fh = (fHigh-fLow)*factor;
-    yctx.fillRect(0, yAxis.height-fh-fLow*factor, 15, fh);
-    yctx.strokeStyle = "#777";
-    yctx.strokeRect(0, yAxis.height-fh-fLow*factor, 15, fh);
-}
 
 function timelineXToFrame(clientXLeft) {
     return iLow + clientXLeft/timeline.getBoundingClientRect().width*iWidth;
@@ -1224,7 +1190,6 @@ window.addEventListener("mousemove", e => {
 window.addEventListener("mouseup", e => {
     tDmode = -1;
     draggingBounds = false;
-    clickX = null;
     if (!draggingTimeline) return;
     draggingTimeline = false;
     const frame = timelineCursorX;
@@ -1242,6 +1207,118 @@ window.addEventListener("mouseup", e => {
     }
     drawTimeline();
     drawYAxis();
+});
+
+fLow = 0;
+fHigh = sampleRate/2;
+let fWidth = fHigh-fLow;
+let draggingFreq = false;
+let fDmode = -1;
+let oldY = null;
+
+function freqToDisplayY(bin, h) {
+    if (!h) return 0;
+    const s = getLogScaleSlider();
+    if (s <= 1.0000001) {
+        return Math.round(h - 1 - bin); 
+    } else {
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        if (!isFinite(denom) || denom === 0) return Math.round(h - 1 - bin);
+        const t = Math.log(1 + a * bin) / denom; 
+        const y = (1 - t) * (h - 1);
+        return Math.round(y);
+    }
+}
+
+function drawYAxis() {
+    yctx.clearRect(0, 0, yAxis.width, yAxis.height);
+    yctx.fillStyle = "#333";
+    yctx.fillRect(0, 0, yAxis.width, yAxis.height);
+
+    // Determine interval based on fWidth
+    let interval = 1000; // default 1k
+    if (fWidth <= 500) interval = 100;      
+    else if (fWidth <= 2000) interval = 250; 
+    else if (fWidth <= 5000) interval = 500; 
+
+    yctx.fillStyle = "#eee";
+    yctx.font = "10px sans-serif";
+    yctx.textAlign = "right";
+    yctx.textBaseline = "middle";
+    for (let f = 0; f <= sampleRate/2; f += interval) {
+        let posY = freqToDisplayY((f)/(sampleRate*2)*fftSize, yAxis.height);
+        posY -= ((sampleRate/2)-fHigh)/(sampleRate/2)*yAxis.height
+        posY *= ((sampleRate/2)/fWidth)
+        posY += ((sampleRate/2)-fHigh)/(sampleRate/2)*yAxis.height
+        const label = (f / 1000).toFixed(1) + "k";
+        yctx.fillText(label, 40, posY);
+    }
+
+    // Draw sidebar rectangle
+    const factor = yAxis.height / (sampleRate / 2);
+    yctx.fillStyle = "#222";
+    yctx.fillRect(0, 0, 15, yAxis.height);
+    yctx.fillStyle = "#555";
+    const fh = (fHigh - fLow) * factor;
+    yctx.fillRect(0, yAxis.height - fh - fLow * factor, 15, fh);
+    yctx.strokeStyle = "#777";
+    yctx.strokeRect(0, yAxis.height - fh - fLow * factor, 15, fh);
+}
+
+yAxis.addEventListener("mousedown", e => {
+    const rect = yAxis.getBoundingClientRect();
+    if (e.clientX - rect.left < 15) {
+        draggingFreq = true;
+        oldY = e.clientY - rect.top;
+        fWidth = fHigh - fLow;
+    }
+});
+
+window.addEventListener("mousemove", e => {
+    const rect = yAxis.getBoundingClientRect();
+    const mouseY = e.clientY - rect.top;
+    const mouseX = e.clientX - rect.left;
+
+    if (mouseX < 15) {
+        const sLow = (fLow / (sampleRate/2)) * rect.height;
+        const sHigh = (fHigh / (sampleRate/2)) * rect.height;
+        fWidth = fHigh - fLow;
+
+        if ((Math.abs(mouseY - (rect.height - sLow)) < 15 && fDmode == -1) || fDmode == 0) {
+            yAxis.style.cursor = "s-resize";
+            if (!draggingFreq) return;
+            updateCanvasScroll();
+            fDmode = 0;
+            fLow = (1 - mouseY / rect.height) * (sampleRate/2);
+            if (fLow < 0) fLow = 0;
+            if (fLow > fHigh) fLow = fHigh - 1;
+        } else if ((Math.abs(mouseY - (rect.height - sHigh)) < 15 && fDmode == -1) || fDmode == 1) {
+            yAxis.style.cursor = "n-resize";
+            if (!draggingFreq) return;
+            updateCanvasScroll();
+            fDmode = 1;
+            fHigh = (1 - mouseY / rect.height) * (sampleRate/2);
+            if (fHigh > sampleRate/2) fHigh = sampleRate/2;
+            if (fHigh < fLow) fHigh = fLow + 1;
+        } else {
+            yAxis.style.cursor = "move";
+            if (!draggingFreq) return;
+            updateCanvasScroll();
+            fDmode = 2;
+            const inc = (oldY - mouseY) / rect.height * (sampleRate/2);
+            fLow += inc;
+            if (fLow < 0) fLow = 0;
+            if (fHigh > sampleRate/2) fLow = sampleRate/2 - fWidth;
+            fHigh = fLow + fWidth;
+            oldY = mouseY;
+        }
+    }
+});
+
+window.addEventListener("mouseup", e => {
+    fDmode = -1;
+    draggingFreq = false;
 });
 
 const playPauseBtn = document.getElementById("playPause");

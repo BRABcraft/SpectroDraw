@@ -8,7 +8,7 @@ body { background:#111; color:#eee; font-family:sans-serif; margin:0;}
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.5em; }
 canvas { display:block; background:#000;}
-.tool-btn {
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -64,7 +64,15 @@ canvas { display:block; background:#000;}
     <input id="trueScale" type="checkbox">
   </label>
   <div class="controls">
-    <button class="tool-btn" data-tool="brush" title="Brush">
+    <button id="playPause" title="play">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>
+    </button>
+    <button id="stop" title="pause">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+        <rect x="0" y="0" width="18" height="18" rx="2" ry="2"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="brush" style="margin-left: 20px" title="Brush">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" 
            viewBox="5 4 18 18" 
@@ -104,28 +112,45 @@ canvas { display:block; background:#000;}
     </button>
     <button class="tool-btn" data-tool="image" title="Image Overlay">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <!-- Sun -->
         <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
-        <!-- Mountains -->
         <polygon points="1,20 8,10 15,20" fill="#333"/>
         <polygon points="8,20 15,12 23,20" fill="#333"/>
       </svg>
     </button>
     <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+     <button id="downloadWav" style="margin-left:20px" title="Download audio">
+      <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+        <path d="M5 14v4h2v-4H6z" />
+        <path d="M17 14v4h2v-4h-2z" />
+        <path d="M12 12v10" />
+        <path d="M9 19l3 3 3 -3" />
+      </svg>
+    </button>
+    <button id="downloadButton" title="Download spectrogram">
+      <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="14" rx="2" ry="2" />
+        <circle cx="17" cy="7" r="2" />
+        <polyline points="3 17 10 10 14 14 21 7" />
+        <path d="M12 12v10" />
+        <path d="M9 19l3 3 3 -3" />
+      </svg>
+    </button>
+    <button id="resetButton" onClick="initEmptyPCM()" title="Reset audio">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="7" width="14" height="14" rx="2" ry="2" />
+        <line x1="8" x2="8" y1="11" y2 = "17" stroke-width="1"/>
+        <line x1="12" x2="12" y1="11" y2 = "17" stroke-width="1"/>
+        <line x1="16" x2="16" y1="11" y2 = "17" stroke-width="1"/>
+        <rect x="3" y="4" width="18" height="3" rx="2" ry="2" />
+        <rect x="8" y="1" width="8" height="2" rx="2" ry="2" stroke-width="1"/>
+      </svg>
+    </button>
   </div>
-
-  <button id="downloadWav">Download WAV</button>
-  <button id="downloadButton">Download Spectrogram</button>
-  <button id="resetButton" onClick="initEmptyPCM()">Reset audio</button>
-
   <label>Empty audio length:
     <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
     <span id="emptyAudioLengthValue">10</span>
   </label>
-</div>
-<div class="controls">
-  <button id="playPause">Play</button>
-  <button id="stop">Stop</button>
 </div>
 
 <!-- Timeline canvas -->
@@ -144,14 +169,14 @@ let currentTool = "brush";
 const toolButtons = document.querySelectorAll(".tool-btn");
 toolButtons.forEach(btn => {
   if(btn.dataset.tool === currentTool) {
-    btn.style.background = "#444"; 
+    btn.style.background = "#4af"; 
   }
 });
 toolButtons.forEach(btn => {
   btn.addEventListener("click", () => {
     currentTool = btn.dataset.tool;
     toolButtons.forEach(b => b.style.background = "");
-    btn.style.background = "#444"; 
+    btn.style.background = "#4af"; 
     if(currentTool === "image") overlayFile.click();
   });
 });
@@ -1259,9 +1284,13 @@ window.addEventListener("mouseup", e => {
 
     if (wasPlayingDuringDrag) {
         playPCM(true, frame);
-        document.getElementById("playPause").textContent = "Pause";
+        document.getElementById("playPause").innerHtml = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+        <rect x="2" y="0" width="5" height="18" rx="2" ry="2"/>
+        <rect x="12" y="0" width="5" height="18" rx="2" ry="2"/>
+      </svg>
+        `;//pause
     } else {
-
         specCtx.putImageData(imageBuffer, 0, 0);
         renderView();
         drawCursor();
@@ -1415,11 +1444,12 @@ window.addEventListener("mouseup", e => {
 
 const playPauseBtn = document.getElementById("playPause");
 const stopBtn = document.getElementById("stop");
+const playHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>`;
+const pauseHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>`;
 
 playPauseBtn.addEventListener("click", () => {
     ensureAudioCtx();
     if (playing) {
-
         const elapsed = audioCtx.currentTime - sourceStartTime;
         let samplePos = Math.floor(elapsed * sampleRate);
         if (sourceNode && sourceNode.loop) {
@@ -1427,12 +1457,11 @@ playPauseBtn.addEventListener("click", () => {
         }
         pausedAtSample = Math.max(0, Math.min(pcm.length - 1, samplePos));
         stopSource(true);
-        playPauseBtn.textContent = "Play";
+        playPauseBtn.innerHTML = playHtml;
     } else {
-
         const startFrame = (pausedAtSample !== null) ? Math.floor(pausedAtSample / hop) : 0;
         playPCM(true, startFrame);
-        playPauseBtn.textContent = "Pause";
+        playPauseBtn.innerHTML = pauseHtml;
     }
 });
 
@@ -1445,7 +1474,7 @@ stopBtn.addEventListener("click", () => {
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
     drawCursor();
-    playPauseBtn.textContent = "Play";
+    playPauseBtn.innerHTML = playHtml;
 });
 
 function updateTimelineCursor() {

@@ -1616,7 +1616,7 @@ timeline.addEventListener("touchstart", e => {
     timelineMousedown(e);
 });
 function timelineMousemove(e) {
-  const rect = timeline.getBoundingClientRect();
+    const rect = timeline.getBoundingClientRect();
     const mouseY = e.clientY- rect.top;
     const mouseX = e.clientX- rect.left;
     if (mouseY > 20 && tDmode == -1) {
@@ -1671,10 +1671,10 @@ function timelineMousemove(e) {
     }
 }
 window.addEventListener("mousemove", e => {
-    timelineMouseMove(e);
+    timelineMousemove(e);
 });
 window.addEventListener("touchmove", e => {
-    timelineMouseMove(e);
+    timelineMousemove(e);
 });
 function timelineMouseup(e) {
   tDmode = -1;

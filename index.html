@@ -30,6 +30,23 @@ canvas { display:block; background:#000;}
 }
 #timeline { display:block; height:40px; }
 #status { margin-top:0.5em; font-size:13px; }
+.controls {
+  display: flex;
+  flex-wrap: wrap; /* allows multiple controls to flow to the next line if needed */
+  gap: 5px;       /* spacing between controls */
+  align-items: flex-start; /* aligns controls at the top */
+}
+
+.controls label {
+  display: flex;
+  flex-direction: column; /* stack text above input */
+  font-size: 0.9em;
+}
+
+.controls input[type="range"],
+.controls input[type="number"] {
+  margin-top: 4px; /* space between label text and input */
+}
 </style>
 </head>
 <body>
@@ -146,11 +163,11 @@ canvas { display:block; background:#000;}
         <rect x="8" y="1" width="8" height="2" rx="2" ry="2" stroke-width="1"/>
       </svg>
     </button>
+    <label>Empty audio length:
+      <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
+      <span id="emptyAudioLengthValue">10</span>
+    </label>
   </div>
-  <label>Empty audio length:
-    <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
-    <span id="emptyAudioLengthValue">10</span>
-  </label>
 </div>
 
 <!-- Timeline canvas -->

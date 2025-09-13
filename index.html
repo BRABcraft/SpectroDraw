@@ -545,6 +545,10 @@ document.addEventListener("mousemove", e=> {
   drawLogScale();
 });
 
+logscaleEl.addEventListener("mousemove", e=> {
+  logscaleEl.title = "Log scale: " + logScaleVal;
+});
+
 document.addEventListener("mouseup", e=>{changingLogScale=false;})
 
 emptyAudioLengthEl.addEventListener("input", ()=> {

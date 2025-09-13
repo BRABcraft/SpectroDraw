@@ -289,7 +289,7 @@ canvas { display:block; background:#000;}
       </svg>
 
     </button>
-    <input id="file" type="file" accept="audio/*" style="display:none;"/>
+    <input id="file" type="file" accept="audio/*,video/*" style="display:none;"/>
     <button id="playPause" title="play" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>
     </button>
@@ -586,22 +586,49 @@ function ensureAudioCtx(){
 let startTime=0; 
 let audioProcessed=0; 
 
-fileEl.addEventListener("change", async e=>{
-    const f=e.target.files[0]; if(!f)return;
-    const buf=await f.arrayBuffer();
-    ensureAudioCtx();
-    const ab = await audioCtx.decodeAudioData(buf.slice(0));
-    pcm = new Float32Array(ab.getChannelData(0));
-    sampleRate = ab.sampleRate || 44100;
+fileEl.addEventListener("change", async e => {
+    const f = e.target.files[0];
+    if (!f) return;
 
-    status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
+    const ext = f.name.split('.').pop().toLowerCase();
+    let pcm, sampleRate;
+
+    if (["mp3", "m4a", "wav"].includes(ext)) {
+        const buf = await f.arrayBuffer();
+        ensureAudioCtx();
+        const ab = await audioCtx.decodeAudioData(buf.slice(0));
+        pcm = new Float32Array(ab.getChannelData(0));
+        sampleRate = ab.sampleRate || 44100;
+    } else {
+        // Video file path
+        const url = URL.createObjectURL(f);
+        const video = document.createElement("video");
+        video.src = url;
+        video.muted = true;
+        video.preload = "auto";
+
+        await new Promise(resolve => video.onloadedmetadata = resolve);
+
+        const duration = video.duration;
+        const offlineCtx = new OfflineAudioContext(1, Math.ceil(duration * 44100), 44100);
+
+        const source = offlineCtx.createMediaElementSource(video);
+        source.connect(offlineCtx.destination);
+
+        const renderedBuffer = await offlineCtx.startRendering();
+        pcm = new Float32Array(renderedBuffer.getChannelData(0));
+        sampleRate = offlineCtx.sampleRate;
+    }
+
+    status.textContent = `Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
     status.style.display = "block";
+
     restartRender();
     iLow = 0;
     iHigh = framesTotal;
-
     es.style.display = "none";
 });
+
 
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);

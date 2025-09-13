@@ -80,6 +80,7 @@ label .vertical-wrap {
   background: var(--thumb-color);
   margin-top: -(var(--thumb-size) / 2); /* try to center thumb */
   box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  margin-top: -4px;
 }
 
 /* Firefox */
@@ -95,6 +96,7 @@ label .vertical-wrap {
   background: var(--thumb-color);
   border: none;
   box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  margin-top: -4px;
 }
 
 /* small tweaks so the label text doesn't shift when slider rotates */
@@ -186,30 +188,97 @@ canvas { display:block; background:#000;}
     </span>
     <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
   </label>
-  <label style="position: absolute; right: 160px">S
-  <div class="vertical-wrap">
-    <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
+  <label style="position: absolute; right: 160px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <!-- axes -->
+      <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
+      <line x1="5" y1="19" x2="5"  y2="5"  />   <!-- Y axis -->
+    
+      <!-- little filled origin box at bottom-left (origin) -->
+      <rect x="4.5" y="12.5" width="6" height="6" fill="currentColor" stroke="none" rx="0.5" ry="0.5" />
+    
+      <!-- small axis arrows -->
+      <path d="M19 19 L17.5 17.5" />
+      <path d="M5 5 L3.5 6.5" />
+    </svg>
+
+
+    <div class="vertical-wrap">
+      <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
     </div>
   </label>
-  <label style="position: absolute; right: 125px">B
-  <div class="vertical-wrap">
-    <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
-  </div>
+  <label style="position: absolute; right: 125px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 24 24" width="20" height="20">
+      <defs>
+        <linearGradient id="brightnessGrad" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stop-color="black"/>
+          <stop offset="100%" stop-color="white"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="20" height="20" fill="url(#brightnessGrad)" stroke="currentColor"/>
+    </svg>
+
+    <div class="vertical-wrap">
+      <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
+    </div>
   </label>
-  <label style="position: absolute; right: 90px">P
-  <div class="vertical-wrap">
-    <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
-  </div>
+  <label style="position: absolute; right: 90px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+      <defs>
+        <linearGradient id="rainbow" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="red"/>
+          <stop offset="17%" stop-color="orange"/>
+          <stop offset="33%" stop-color="yellow"/>
+          <stop offset="50%" stop-color="green"/>
+          <stop offset="67%" stop-color="blue"/>
+          <stop offset="83%" stop-color="indigo"/>
+          <stop offset="100%" stop-color="violet"/>
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12" r="10" fill="url(#rainbow)" stroke="currentColor"/>
+    </svg>
+
+    <div class="vertical-wrap">
+      <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
+    </div>
   </label>
-  <label style="position: absolute; right: 55px">BO
-  <div class="vertical-wrap">
-    <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
-  </div>
+  <label style="position: absolute; right: 55px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+      <defs>
+        <pattern id="checker" width="4" height="4" patternUnits="userSpaceOnUse">
+          <rect width="4" height="4" fill="white"/>
+          <rect width="2" height="2" fill="#ccc"/>
+          <rect x="2" y="2" width="2" height="2" fill="#ccc"/>
+        </pattern>
+        <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="white" stop-opacity="1"/>
+          <stop offset="100%" stop-color="white" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <rect x="4" y="4" width="20" height="20" fill="url(#checker)"/>
+      <rect x="4" y="4" width="20" height="20" fill="url(#fade)"/>
+      <rect x="4" y="4" width="20" height="20" stroke="currentColor" fill="none"/>
+    </svg>
+
+    <div class="vertical-wrap">
+      <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
+    </div>
   </label>
-  <label style="position: absolute; right: 20px">PO
-  <div class="vertical-wrap">
-    <input id="phaseOpacity" class="vertical" type="range" min="0" max="100" value="0">
-  </div>
+  <label style="position: absolute; right: 20px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+      <defs>
+        <linearGradient id="saturation" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="red"/>
+          <stop offset="50%" stop-color="gray"/>
+          <stop offset="100%" stop-color="gray"/>
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12" r="10" fill="url(#saturation)" stroke="currentColor"/>
+    </svg>
+
+    <div class="vertical-wrap">
+      <input id="phaseOpacity" class="vertical" type="range" min="0" max="100" value="0">
+    </div>
   </label>
   <div class="controls" style="position:absolute; top:60px">
     <button id="fileB" title="Upload Audio" style="margin-left: 10px">
@@ -1734,8 +1803,8 @@ const stopBtn = document.getElementById("stop");
 const playHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>`;
 const pauseHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>`;
 
-playPauseBtn.addEventListener("click", () => {
-    ensureAudioCtx();
+function playPause() {
+  ensureAudioCtx();
     if (playing) {
         const elapsed = audioCtx.currentTime - sourceStartTime;
         let samplePos = Math.floor(elapsed * sampleRate);
@@ -1750,6 +1819,17 @@ playPauseBtn.addEventListener("click", () => {
         playPCM(true, startFrame);
         playPauseBtn.innerHTML = pauseHtml;
     }
+}
+
+playPauseBtn.addEventListener("click", () => {
+    playPause();
+});
+
+document.addEventListener('keydown', function(event) {
+  if (event.key === ' ') {
+    playPause();
+    event.preventDefault();
+  }
 });
 
 stopBtn.addEventListener("click", () => {

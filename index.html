@@ -586,50 +586,27 @@ function ensureAudioCtx(){
 let startTime=0; 
 let audioProcessed=0; 
 
-fileEl.addEventListener("change", async e => {
-    const f = e.target.files[0];
-    if (!f) return;
-
-    const ext = f.name.split('.').pop().toLowerCase();
-    let pcm, sampleRate;
-
-    if (["mp3", "m4a", "wav"].includes(ext)) {
-        const buf = await f.arrayBuffer();
-        ensureAudioCtx();
-        const ab = await audioCtx.decodeAudioData(buf.slice(0));
-        pcm = new Float32Array(ab.getChannelData(0));
-        sampleRate = ab.sampleRate || 44100;
-    } else {
-        // Video file path
-        const url = URL.createObjectURL(f);
-        const video = document.createElement("video");
-        video.src = url;
-        video.muted = true;
-        video.preload = "auto";
-
-        await new Promise(resolve => video.onloadedmetadata = resolve);
-
-        const duration = video.duration;
-        const offlineCtx = new OfflineAudioContext(1, Math.ceil(duration * 44100), 44100);
-
-        const source = offlineCtx.createMediaElementSource(video);
-        source.connect(offlineCtx.destination);
-
-        const renderedBuffer = await offlineCtx.startRendering();
-        pcm = new Float32Array(renderedBuffer.getChannelData(0));
-        sampleRate = offlineCtx.sampleRate;
+fileEl.addEventListener("change", async e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const buf=await f.arrayBuffer();
+    ensureAudioCtx();
+    let ab;
+    try {
+      ab = await audioCtx.decodeAudioData(buf.slice(0));
+      pcm = new Float32Array(ab.getChannelData(0));
+      sampleRate = ab.sampleRate || 44100;
+  
+      status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
+      status.style.display = "block";
+      restartRender();
+      iLow = 0;
+      iHigh = framesTotal;
+  
+      es.style.display = "none";
+    } catch (err){
+      alert("Error decoding video. Please try a different video.");
     }
-
-    status.textContent = `Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
-    status.style.display = "block";
-
-    restartRender();
-    iLow = 0;
-    iHigh = framesTotal;
-    es.style.display = "none";
 });
-
-
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);
 

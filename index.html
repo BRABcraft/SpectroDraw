@@ -28,7 +28,7 @@
     <option value="cherry">Cherry</option>
     <option value="date">Date</option>
   </select>
-  <label style="position:absolute; left:430px;" id="mouseInfo"></label>
+  <label style="position:absolute; left:520px;" id="mouseInfo"></label>
   <label style="position: absolute; left: 710px;" title="Brush size/image size" id="sliderStart">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <!-- axes -->
@@ -321,6 +321,7 @@ const preset = document.getElementById("presets");
 const ev = document.getElementById("ev");
 const yAxis=document.getElementById("freq");
 const yctx=yAxis.getContext("2d");
+const info = document.getElementById("mouseInfo");
 
 let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
@@ -435,15 +436,125 @@ document.addEventListener("touchend", e=>{changingLogScale=false;})
 emptyAudioLengthEl.addEventListener("input", ()=> {
   ev.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
   initEmptyPCM();
-  drawTimeline();
-  drawLogScale();
-  drawYAxis();
+  // drawTimeline and drawYAxis may be defined in axes.js which might not be loaded
+  if (typeof drawTimeline === 'function') drawTimeline();
+  else console.warn("drawTimeline not available yet");
+
+  if (typeof drawLogScale === 'function') drawLogScale();
+  else console.warn("drawLogScale not available yet");
+
+  if (typeof drawYAxis === 'function') drawYAxis();
+  else console.warn("drawYAxis not available yet");
+
   iLow = 0;
   iHigh = framesTotal;
 });
 
-recordBtn.addEventListener("click", ()=> {
-  
+let recording = false;
+let mediaStream = null;
+let mediaSource = null;
+let processor = null;
+
+// Countdown helper
+function countdown(seconds) {
+  return new Promise(resolve => {
+    let remaining = seconds;
+    function tick() {
+      status.textContent = `Recording starts in ${remaining}...`;
+      if (remaining === 0) {
+        resolve();
+      } else {
+        remaining--;
+        setTimeout(tick, 1000);
+      }
+    }
+    tick();
+  });
+}
+
+async function startRecording() {
+  ensureAudioCtx();
+
+  // Collect chunks while recording; do NOT call restartRender() here.
+  pcm = []; // array of Float32Array chunks while recording
+  pos = 0;
+  x = 0;
+  rendering = false;
+  stopSource();
+  info.textContent = "Recording in 3";
+  await countdown(1);
+  info.textContent = "Recording in 2";
+  await countdown(1);
+  info.textContent = "Recording in 1";
+  await countdown(1);
+  info.textContent = "Recording...";
+  status.textContent = "Recording...";
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaSource = audioCtx.createMediaStreamSource(mediaStream);
+
+    // ScriptProcessor collects chunks; do NOT try to FFT/render per chunk here.
+    processor = audioCtx.createScriptProcessor(1024, 1, 1);
+    processor.onaudioprocess = e => {
+      const input = e.inputBuffer.getChannelData(0);
+      // store a copy of the input chunk
+      pcm.push(new Float32Array(input));
+      // minimal UI feedback
+      status.textContent = `Recording... chunks: ${pcm.length}`;
+      // do not call drawFrame() here — wait until stopRecording() flattens pcm
+    };
+
+    mediaSource.connect(processor);
+    processor.connect(audioCtx.destination); // required so onaudioprocess fires in many browsers
+  } catch (err) {
+    console.error("Mic error:", err);
+    status.textContent = "Microphone access denied.";
+    stopRecording();
+  }
+}
+
+function stopRecording() {
+  recording = false;
+  status.textContent = "Recording stopped.";
+
+  if (processor) {
+    processor.disconnect();
+    processor.onaudioprocess = null;
+    processor = null;
+  }
+  if (mediaSource) {
+    mediaSource.disconnect();
+    mediaSource = null;
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+
+  // Flatten PCM into one Float32Array
+  if (pcm && Array.isArray(pcm)) {
+    let length = pcm.reduce((sum, arr) => sum + arr.length, 0);
+    let merged = new Float32Array(length);
+    let offset = 0;
+    for (let chunk of pcm) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    pcm = merged;
+  }
+  iLow = null;
+
+  restartRender();
+}
+
+recordBtn.addEventListener("click", async () => {
+  if (!recording) {
+    recording = true;
+    await startRecording();
+  } else {
+    stopRecording();
+  }
 });
 
 let audioCtx = null;
@@ -551,6 +662,15 @@ function restartRender(){
 
     stopSource(true);
     requestAnimationFrame(drawLoop);
+
+    if (typeof drawTimeline === 'function') drawTimeline();
+    else console.warn("drawTimeline() not defined yet — will run once axes.js loads");
+
+    if (typeof drawYAxis === 'function') drawYAxis();
+    else console.warn("drawYAxis() not defined yet — will run once axes.js loads");
+
+    // drawLogScale is defined in this file; call normally
+    if (typeof drawLogScale === 'function') drawLogScale();
 }
 
 function magPhaseToRGB(mag, phase){
@@ -621,6 +741,45 @@ function displayYToBin(y, h) {
     }
 }
 
+function drawFrame(w,h) {
+    if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
+
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+    for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
+    fft_inplace(re, im);
+
+    for (let bin = 0; bin < h; bin++) {
+        const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
+        const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
+        const idx = x * h + bin; 
+        mags[idx] = mag;
+        phases[idx] = phase;
+    }
+
+    for (let yy = 0; yy < h; yy++) {
+        const mappedBin = displayYToBin(yy, h);
+        const idx = x * h + mappedBin;
+        const mag = mags[idx] || 0;
+        const phase = phases[idx] || 0;
+        const [r, g, b] = magPhaseToRGB(mag, phase);
+        const pix = (yy * w + x) * 4; 
+        imageBuffer.data[pix]     = r;
+        imageBuffer.data[pix + 1] = g;
+        imageBuffer.data[pix + 2] = b;
+        imageBuffer.data[pix + 3] = 255;
+    }
+
+    pos += hop; x++;
+    audioProcessed += hop;
+    if (x >= w) { rendering = false; 
+        if (!painting) playPCM(true);
+        status.style.display = "none";
+        return false;
+    }
+    return true;
+}
+
 function drawLoop() {
     if (!rendering) return;
 
@@ -630,41 +789,7 @@ function drawLoop() {
     const w = specWidth;
 
     for (let f = 0; f < framesPerTick; f++) {
-        if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; break; }
-
-        const re = new Float32Array(fftSize);
-        const im = new Float32Array(fftSize);
-        for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
-        fft_inplace(re, im);
-
-        for (let bin = 0; bin < h; bin++) {
-            const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
-            const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
-            const idx = x * h + bin; 
-            mags[idx] = mag;
-            phases[idx] = phase;
-        }
-
-        for (let yy = 0; yy < h; yy++) {
-            const mappedBin = displayYToBin(yy, h);
-            const idx = x * h + mappedBin;
-            const mag = mags[idx] || 0;
-            const phase = phases[idx] || 0;
-            const [r, g, b] = magPhaseToRGB(mag, phase);
-            const pix = (yy * w + x) * 4; 
-            imageBuffer.data[pix]     = r;
-            imageBuffer.data[pix + 1] = g;
-            imageBuffer.data[pix + 2] = b;
-            imageBuffer.data[pix + 3] = 255;
-        }
-
-        pos += hop; x++;
-        audioProcessed += hop;
-        if (x >= w) { rendering = false; 
-            if (!painting) playPCM(true);
-            status.style.display = "none";
-            break;
-        }
+        if (!drawFrame(w,h)) break;
     }
 
     specCtx.putImageData(imageBuffer, 0, 0);
@@ -760,331 +885,38 @@ function getCanvasCoords(e){
     return {cx:(e.clientX-rect.left)*scaleX, cy:(e.clientY-rect.top)*scaleY, scaleX, scaleY};
 }
 
-function syncOverlaySize() {
-  overlayCanvas.width = canvas.width;
-  overlayCanvas.style.width = canvas.style.width;
-  overlayCanvas.height = canvas.height;
-
-  overlayCanvas.style.height = canvas.style.height;
+</script>
+<script src="drawTools.js"></script>
+<script>
+//utils.js
+function hzToNoteName(frequency) {
+  if (frequency <= 0) return "0";
+  const A4 = 440;
+  const A4_MIDI = 69;
+  const midi = Math.round(12 * Math.log2(frequency / A4) + A4_MIDI);
+  const noteNames = ["C", "C#", "D", "D#", "E", "F", 
+                     "F#", "G", "G#", "A", "A#", "B"];
+  const note = noteNames[midi % 12];
+  const octave = Math.floor(midi / 12) - 1;
+  const ret = note+octave;
+  return ret;
 }
-
-let pendingPreview = false;
-let lastPreviewCoords = null;
-
-function previewShape(cx, cy) {
-
-  lastPreviewCoords = { cx, cy };
-  if (pendingPreview) return;
-  pendingPreview = true;
-  requestAnimationFrame(() => {
-    pendingPreview = false;
-    const coords = lastPreviewCoords;
-    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    overlayCtx.strokeStyle = "#fff";
-    overlayCtx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
-    if (currentTool === "rectangle" && startX !== null && startY !== null) {
-      overlayCtx.strokeRect(startX + 0.5, startY + 0.5, coords.cx - startX, coords.cy - startY);
-    } else if (currentTool === "line" && startX !== null && startY !== null) {
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(startX + 0.5, startY + 0.5);
-      overlayCtx.lineTo(coords.cx + 0.5, coords.cy + 0.5);
-      overlayCtx.stroke();
-    } else if (currentTool === "image"  && overlayImage) {
-
-      const screenSpace = true; 
-
-      const rect = canvas.getBoundingClientRect();
-      const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
-      const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
-
-      const desiredScreenMax = brushSize*4;
-
-      const imgW = overlayImage.width;
-      const imgH = overlayImage.height;
-      const imgAspect = imgW / imgH;
-
-      let screenW, screenH;
-      if (imgW >= imgH) {
-        screenW = desiredScreenMax;
-        screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
-      } else {
-        screenH = desiredScreenMax;
-        screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
-      }
-
-      let overlayW, overlayH;
-      if (screenSpace) {
-        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
-      } else {
-        overlayH = Math.max(1, Math.round(brushSize));
-        overlayW = Math.max(1, Math.round(overlayH * imgAspect));
-      }
-
-      overlayCtx.strokeRect(
-        coords.cx - overlayW / 2,
-        coords.cy - overlayH / 2,
-        overlayW,
-        overlayH
-      );
-    }
-  });
-}
-
-function commitShape(cx, cy) {
-    if (!mags || !phases) return;
-
-    const fullW = specWidth;
-    const fullH = specHeight;
-    const bo = brushOpacity;
-    const po = phaseOpacity;
-    const brushMag = (brushColor / 255) * 128;
-    const brushPhase = penPhase;
-
-    function drawPixelIntFrame(xFrame, yDisplay, mag, phase, bo, po) {
-        const xI = Math.round(xFrame);
-        const yI = Math.round(yDisplay);
-        if (xI < 0 || xI >= fullW || yI < 0 || yI >= fullH) return;
-        const bin = displayYToBin(yI, fullH);
-        const idx = xI * fullH + bin;
-        if (idx < 0 || idx >= mags.length) return;
-        const oldMag = mags[idx] || 0;
-        const oldPhase = phases[idx] || 0;
-        const newMag = oldMag * (1 - bo) + mag * bo;
-        const newPhase = oldPhase + po * (phase - oldPhase);
-        mags[idx] = newMag;
-        phases[idx] = newPhase;
-        const displayY = binToDisplayY(bin, fullH);
-        const pix = (displayY * fullW + xI) * 4;
-        const [r, g, b] = magPhaseToRGB(newMag, newPhase);
-        imageBuffer.data[pix]     = r;
-        imageBuffer.data[pix + 1] = g;
-        imageBuffer.data[pix + 2] = b;
-        imageBuffer.data[pix + 3] = 255;
-    }
-
-    const startVisX = (startX == null ? cx : startX);
-    const startVisY = (startY == null ? cy : startY);
-
-    const startFrame = Math.round(startVisX + (iLow || 0));
-    const endFrame   = Math.round(cx + (iLow || 0));
-    let x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
-    let x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
-
-    const startSpecY = visibleToSpecY(startVisY);
-    const endSpecY   = visibleToSpecY(cy);
-    let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
-    let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
-
-    if (currentTool === "rectangle") {
-        const minX = x0Frame;
-        const maxX = x1Frame;
-        const minY = y0Spec;
-        const maxY = y1Spec;
-        for (let yy = minY; yy <= maxY; yy++) {
-            for (let xx = minX; xx <= maxX; xx++) {
-                drawPixelIntFrame(xx, yy, brushMag, brushPhase, bo, po);
-            }
-        }
-    } else if (currentTool === "line") {
-        let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
-        let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
-        const startWasLeft = (startFrame <= endFrame);
-        let yStartSpec = startWasLeft ? startSpecY : endSpecY;
-        let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
-
-        x0 = Math.max(0, Math.min(fullW - 1, Math.round(x0)));
-        x1 = Math.max(0, Math.min(fullW - 1, Math.round(x1)));
-        let y0 = Math.max(0, Math.min(fullH - 1, Math.round(yStartSpec)));
-        let y1 = Math.max(0, Math.min(fullH - 1, Math.round(yEndSpec)));
-
-        const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-        const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-        let err = (dx > dy ? dx : -dy) / 2;
-
-        while (true) {
-            drawPixelIntFrame(x0, y0, brushMag, brushPhase, bo, po);
-            if (x0 === x1 && y0 === y1) break;
-            const e2 = err;
-            if (e2 > -dx) { err -= dy; x0 += sx; }
-            if (e2 < dy)  { err += dx; y0 += sy; }
-        }
-    }
-
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
-}
-
-function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
-    if (!mags || !phases) return;
-
-    const fullW = specWidth;
-    const fullH = specHeight;
-    const po = currentTool === "eraser" ? 1 : phaseOpacity;
-    const bo = currentTool === "eraser" ? 1 : brushOpacity;
-
-    function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
-        const xI = Math.round(xFrame);
-        const yI = Math.round(yDisplay);
-        if (xI < 0 || xI >= fullW || yI < 0 || yI >= fullH) return;
-        const bin = displayYToBin(yI, fullH);
-        const idx = xI * fullH + bin;
-        if (idx < 0 || idx >= mags.length) return;
-        const oldMag = mags[idx] || 0;
-        const oldPhase = phases[idx] || 0;
-        const newMag = oldMag * (1 - bo) + mag * bo;
-        const newPhase = oldPhase + po * (phase - oldPhase);
-        mags[idx] = newMag;
-        phases[idx] = newPhase;
-        const displayY = binToDisplayY(bin, fullH);
-        const pix = (displayY * fullW + xI) * 4;
-        const [r, g, b] = magPhaseToRGB(newMag, newPhase);
-        imageBuffer.data[pix] = r;
-        imageBuffer.data[pix + 1] = g;
-        imageBuffer.data[pix + 2] = b;
-        imageBuffer.data[pix + 3] = 255;
-    }
-
-    if (currentTool === "brush" || currentTool === "eraser") {
-        const radiusY = brushSize;
-        const rect = canvas.getBoundingClientRect();
-        const radiusXFrames = Math.floor(radiusY * iWidth / hopSizeEl.value/2/(rect.width/rect.height));
-
-        const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
-        const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
-        const minY = Math.max(0, Math.floor(cy - radiusY*(fWidth/(sampleRate/2))));
-        const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fWidth/(sampleRate/2))));
-
-        const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-        const brushPhase = currentTool === "eraser" ? 0 : penPhase;
-
-        for (let yy = minY; yy <= maxY; yy++) {
-            for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-                const dx = xx - cx;
-                const dy = yy - cy;
-
-                if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / (radiusY * radiusY) > 1) continue;
-                drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
-            }
-        }
-    } else if (currentTool === "blur") {
-        const radius = brushSize;
-
-        const minXFrame = Math.max(0, Math.floor(cx - radius));
-        const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radius));
-        const minY = Math.max(0, Math.floor(cy - radius));
-        const maxY = Math.min(fullH - 1, Math.ceil(cy + radius));
-
-        for (let yy = minY; yy <= maxY; yy++) {
-            for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-                let sumMag = 0, sumPhase = 0, count = 0;
-                for (let oy = -1; oy <= 1; oy++) {
-                    for (let ox = -1; ox <= 1; ox++) {
-                        const nx = xx + ox, ny = yy + oy;
-                        if (nx < 0 || ny < 0 || nx >= fullW || ny >= fullH) continue;
-                        const nidx = nx * fullH + displayYToBin(ny, fullH);
-                        sumMag += mags[nidx] || 0;
-                        sumPhase += phases[nidx] || 0;
-                        count++;
-                    }
-                }
-                if (count > 0) drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po);
-            }
-        }
-    } else if (currentTool === "image" && overlayImage) {
-
-      const screenSpace = true;
-
-      const rect = canvas.getBoundingClientRect();
-
-      const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
-      const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
-
-      const desiredScreenMax = brushSize * 4;
-
-      const imgW = overlayImage.width;
-      const imgH = overlayImage.height;
-      const imgAspect = imgW / imgH;
-
-      let screenW, screenH;
-      if (imgW >= imgH) {
-        screenW = desiredScreenMax;
-        screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
-      } else {
-        screenH = desiredScreenMax;
-        screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
-      }
-
-      let overlayW, overlayH;
-      if (screenSpace) {
-
-        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
-      } else {
-
-        overlayH = Math.max(1, Math.round(brushSize));
-        overlayW = Math.max(1, Math.round(overlayH * imgAspect));
-      }
-
-      const ox = Math.floor(cx - overlayW / 2);
-      const oy = Math.floor(cy - overlayH / 2);
-
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = overlayW;
-      tempCanvas.height = overlayH;
-      const tctx = tempCanvas.getContext("2d");
-
-      tctx.imageSmoothingEnabled = false;
-      tctx.drawImage(overlayImage, 0, 0, overlayW, overlayH);
-
-      const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
-
-      for (let yy = 0; yy < overlayH; yy++) {
-        for (let xx = 0; xx < overlayW; xx++) {
-          const pix = (yy * overlayW + xx) * 4;
-          const r = imgData.data[pix];
-          const g = imgData.data[pix + 1];
-          const b = imgData.data[pix + 2];
-          const a = imgData.data[pix + 3] / 255;
-          if (a <= 0) continue; 
-          const [mag, phase] = rgbToMagPhase(r, g, b);
-          const cxPix = ox + xx;
-          const cyPix = oy + yy;
-          if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
-
-            drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a, phaseOpacity * a);
-          }
-        }
-      }
-
-    }
-
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
-}
-
 let sineOsc = null;
 let sineGain = null;
 function setSineFreq(cy) {
     const h = specHeight;
     const s = parseFloat(logScaleVal); 
-
     let bin;
     if (s <= 1.0000001) {
-
         bin = h - 1 - cy;
     } else {
-
         const a = s - 1;
         const denom = Math.log(1 + a * (h - 1));
         const t = 1 - cy / (h - 1);
         bin = (Math.exp(t * denom) - 1) / a;
     }
-
     bin = Math.max(0, Math.min(h - 1, bin));
-
     const freq = bin * sampleRate / fftSize;
-
     sineOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.01);
 }
 function visibleToSpecY(visY) {
@@ -1100,14 +932,10 @@ function canvasMouseDown(e) {
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
     startX = cx; startY = cy;
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
-
     const realY = visibleToSpecY(cy);
-
     if (!(currentTool === "rectangle" || currentTool === "line")) {
-
         paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
     }
-
     ensureAudioCtx();
     mouseDown = true;
     currentFrame = Math.floor(cx);
@@ -1130,8 +958,14 @@ canvas.addEventListener("touchStart", e=>{
     canvasMouseDown(e);
 });
 function canvasMouseMove(e) {
+  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
+  const hz = Math.floor(displayYToBin(cy,canvas.height)*(sampleRate/fftSize));
+  const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
+  const i = Math.floor(cx*specHeight+displayYToBin(cy,canvas.height));
+  let normalizedMag = Math.min(1, mags[i] / 256);
+  let db = (20 * Math.log10(normalizedMag + 1e-12)).toFixed(1);
+  info.innerHTML=`Pitch: ${hz}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db}db`
   if(!painting && currentTool != "image") return;
-    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
 
     if (currentTool === "rectangle" || currentTool === "line" || currentTool === "image") {
       previewShape(cx, cy);
@@ -1144,7 +978,6 @@ function canvasMouseMove(e) {
     currentFrame = Math.floor(cx);
     if (mouseDown) {
         playFrame(currentFrame);
-
         if (sineOsc) setSineFreq( visibleToSpecY(cy) ); 
     }
 

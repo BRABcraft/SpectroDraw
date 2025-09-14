@@ -204,21 +204,6 @@ let draggingFreq = false;
 let fDmode = -1;
 let oldY = null;
 
-function freqToDisplayY(bin, h) {
-    if (!h) return 0;
-    const s = getLogScaleSlider();
-    if (s <= 1.0000001) {
-        return Math.round(h - 1 - bin); 
-    } else {
-        const a = s - 1;
-        const denom = Math.log(1 + a * (h - 1));
-        if (!isFinite(denom) || denom === 0) return Math.round(h - 1 - bin);
-        const t = Math.log(1 + a * bin) / denom; 
-        const y = (1 - t) * (h - 1);
-        return Math.round(y);
-    }
-}
-
 function drawYAxis() {
     if (yAxis.height <= 0 || yAxis.width <= 0) return;
 
@@ -238,7 +223,7 @@ function drawYAxis() {
     else if (fWidth <= 2000) interval = 250;
     else if (fWidth <= 5000) interval = 500;
 
-    const scaleToTemp = specHeight*resolution / yAxis.height;
+    const scaleToTemp = specHeight*resolution / canvas.height;
     tctx.fillStyle = "#eee";
     tctx.font = "10px sans-serif";
     tctx.textAlign = "right";
@@ -247,7 +232,7 @@ function drawYAxis() {
 
     for (let f = 0; f <= sampleRate / 2; f += interval) {
 
-        const posY_visible = freqToDisplayY((f) / (sampleRate * 2) * 2048, yAxis.height);
+        const posY_visible = binToDisplayY(f/(sampleRate/2) * 1024, canvas.height);
 
         const posY_temp = Math.round(posY_visible * scaleToTemp);
         const label = (f / 1000).toFixed(1) + "k";

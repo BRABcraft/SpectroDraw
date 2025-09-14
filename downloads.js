@@ -58,7 +58,7 @@ document.getElementById('downloadButton').addEventListener('click', function() {
     let canvasUrl = canvas.toDataURL('image/png');
     const downloadLink = document.createElement('a');
     downloadLink.href = canvasUrl;
-    downloadLink.download = 'my-drawing.png';
+    downloadLink.download = 'spectrodraw.png';
     downloadLink.click();
     downloadLink.remove();
     iLow = oil; iHigh = oih; fLow = ofl; fHigh = ofh;

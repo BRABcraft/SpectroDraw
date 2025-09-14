@@ -3,173 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Phase-aware Spectrogram Editor — Fixed</title>
-<style>
-/* ---------- improved vertical slider styles (replace previous block) ---------- */
-:root{
-  --slider-length: 60px;    /* vertical length in screen px */
-  --slider-thickness: 12px;  /* visual thickness (smaller = less wide) */
-  --track-color: #444;
-  --thumb-color: #fff;
-  --thumb-size: 12px;
-}
-
-/* ensure controls sit above the canvas and won't be hidden */
-.controls {
-  position: relative;
-  z-index: 5000;
-  display:flex;
-  flex-wrap:nowrap;
-  gap:8px;
-  align-items:flex-start;
-}
-
-/* each control label gets reserved horizontal space so the rotated input won't overlap siblings */
-.controls label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 0.9em;
-  min-width: 15px;    /* reserve space horizontally for the rotated element */
-  padding: 2px 0px;
-  box-sizing: border-box;
-}
-
-/* put the rotated input inside a small container so the rotated bounding-box is constrained */
-label .vertical-wrap {
-  width: var(--slider-thickness);
-  height: var(--slider-length);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow: visible; /* allow thumb to render outside if needed */
-  pointer-events: auto;
-}
-
-/* the actual rotated range */
-.controls input[type="range"].vertical {
-  -webkit-appearance: none;
-  appearance: none;
-
-  /* keep the logical element small (thickness x length), then rotate so it looks vertical */
-  width: var(--slider-length);
-  height: var(--slider-thickness);
-
-  transform: rotate(-90deg);        /* visually vertical */
-  transform-origin: 50% 50%;
-  display: block;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-/* track & thumb: WebKit */
-.controls input[type="range"].vertical::-webkit-slider-runnable-track {
-  height: 4px;                        /* thin track */
-  background: var(--track-color);
-  border-radius: 999px;
-}
-
-.controls input[type="range"].vertical::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  border-radius: 50%;
-  background: var(--thumb-color);
-  margin-top: -(var(--thumb-size) / 2); /* try to center thumb */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  margin-top: -4px;
-}
-
-/* Firefox */
-.controls input[type="range"].vertical::-moz-range-track {
-  height: 4px;
-  background: var(--track-color);
-  border-radius: 999px;
-}
-.controls input[type="range"].vertical::-moz-range-thumb {
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  border-radius:50%;
-  background: var(--thumb-color);
-  border: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  margin-top: -4px;
-}
-
-/* small tweaks so the label text doesn't shift when slider rotates */
-.controls label > input[type="range"],
-.controls label > .vertical-wrap {
-  margin-top: 6px;
-  margin-bottom: 6px;
-}
-
-/* ensure canvases sit below controls and buttons remain visible */
-#canvasWrapper { z-index: 1; position: absolute; }
-canvas#overlay { z-index: 10; pointer-events: none; }
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB {
-  position: relative;
-  z-index: 6000;           /* keep UI buttons above rotated inputs and canvas */
-}
-
-body { background:#111; color:#eee; font-family:sans-serif; margin:0px;}
-.controls { margin-bottom:1em; }
-label { margin-right:1em; display:inline-block; margin-top:0.2em; }
-canvas { display:block; background:#000;}
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale, #fileB {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 6px;
-  border: none;
-  background: #f3f3f3;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.tool-btn svg {
-  width: 20px;
-  height: 20px;
-  display: block;
-  preserveAspectRatio: 'xMidYMid meet';
-  transform: translateX(-0.5px); 
-}
-#timeline { display:block; height:40px; }
-#status { margin-top:0.5em; font-size:13px; }
-.controls {
-  display: flex;
-  flex-wrap: nowrap; 
-  gap: 5px;       
-  align-items: flex-start; 
-}
-
-.controls label {
-  display: flex;
-  flex-direction: column; 
-  font-size: 0.9em;
-}
-
-.controls input[type="range"],
-.controls input[type="number"] {
-  margin-top: 2px; 
-}
-/* make all number inputs compact */
-.controls input[type="number"] {
-  width: 5ch;            /* try 4ch..8ch to taste */
-  min-width: 10ch;
-  max-width: 10ch;
-  box-sizing: border-box;
-  padding: 0.15rem 0.35rem;
-  font-size: 0.95rem;
-  background-color: #333;
-  border-radius: 10px;
-  border-color: #aaa;
-  color: #fff;
-}
-</style>
+  <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
 <div class="controls">
@@ -180,14 +14,22 @@ canvas { display:block; background:#000;}
     <input id="hopSize" type="number" value="512" step="1" min="1">
   </label>
   
-  <label id="es">
+  <label id="es" style="position:absolute; left:240px;">
     <span class="label-line">
       <span class="label-text">Empty audio seconds:</span>
       <span class="label-value" id="ev">10</span>
     </span>
     <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
   </label>
-  <label style="margin-left: min(calc(100% - 620px), 200px);;" title="Brush size/image size">
+  <label for="presets" style="position:absolute; left:425px;top:0">Use presets</label>
+  <select id="presets" style="position:absolute; left:425px; top:25px;">
+    <option value="apple">Apple</option>
+    <option value="banana">Banana</option>
+    <option value="cherry">Cherry</option>
+    <option value="date">Date</option>
+  </select>
+  <label style="position:absolute; left:430px;" id="mouseInfo"></label>
+  <label style="position: absolute; left: 710px;" title="Brush size/image size" id="sliderStart">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <!-- axes -->
       <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
@@ -206,7 +48,7 @@ canvas { display:block; background:#000;}
       <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
     </div>
   </label>
-  <label title="Brightness">
+  <label title="Brightness" style="position: absolute; left: 740px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 24 24" width="20" height="20">
       <defs>
         <linearGradient id="brightnessGrad" x1="0" x2="1" y1="0" y2="0">
@@ -221,7 +63,7 @@ canvas { display:block; background:#000;}
       <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
     </div>
   </label>
-  <label title="Phase">
+  <label title="Phase" style="position: absolute; left: 770px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <linearGradient id="rainbow" x1="1" y1="0" x2="0" y2="1">
@@ -241,7 +83,7 @@ canvas { display:block; background:#000;}
       <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
     </div>
   </label>
-  <label title="Brightness strength">
+  <label title="Brightness strength" style="position: absolute; left: 800px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <pattern id="checker" width="4" height="4" patternUnits="userSpaceOnUse">
@@ -263,7 +105,7 @@ canvas { display:block; background:#000;}
       <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
     </div>
   </label>
-  <label title="Phase strength">
+  <label title="Phase strength" style="position: absolute; left: 830px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <linearGradient id="saturation" x1="1" y1="0" x2="0" y2="1">
@@ -286,13 +128,20 @@ canvas { display:block; background:#000;}
         <polyline points="6 10 10 6 14 10" />
         <line x1="4" y1="16" x2="16" y2="16" />
       </svg>
-
+    </button>
+    <button id="rec" title="Record">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 15a4 4 0 0 0 8 0" />
+        <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="currentColor"/>
+        <line x1="12" y1="18" x2="12" y2="17"/>
+        <line x1="9" y1="21" x2="15" y2="21"/>
+      </svg>
     </button>
     <input id="file" type="file" accept="audio/*,video/*" style="display:none;"/>
     <button id="playPause" title="play" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>
     </button>
-    <button id="stop" title="pause">
+    <button id="stop" title="stop">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
         <rect x="0" y="0" width="18" height="18" rx="2" ry="2"/>
       </svg>
@@ -353,7 +202,21 @@ canvas { display:block; background:#000;}
           <path d="M21 15v6h-6" />
         </g>
       </svg>
-
+    </button>
+    <button id="yAxisMode" title="Toggle Y axis label mode">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+         width="28" height="28" viewBox="0 0 20 20" 
+         fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  
+      <!-- Left text -->
+      <text x="0" y="18" font-size="8" fill="currentColor" stroke-width="0.5">1.0k</text>
+  
+      <!-- Right text -->
+      <text x="10" y="6" font-size="8" fill="currentColor" stroke-width="0.5">a5</text>
+  
+      <!-- Diagonal slash -->
+      <line x1="4" y1="4" x2="18" y2="14" />
+    </svg>
     </button>
      <button id="downloadWav" style="margin-left:20px" title="Download audio">
       <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -453,6 +316,8 @@ const brushColorEl=document.getElementById("brushColor");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
+const recordBtn = document.getElementById("rec");
+const preset = document.getElementById("presets");
 const ev = document.getElementById("ev");
 const yAxis=document.getElementById("freq");
 const yctx=yAxis.getContext("2d");
@@ -565,6 +430,7 @@ logscaleEl.addEventListener("mousemove", e=> {
 });
 
 document.addEventListener("mouseup", e=>{changingLogScale=false;})
+document.addEventListener("touchend", e=>{changingLogScale=false;})
 
 emptyAudioLengthEl.addEventListener("input", ()=> {
   ev.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
@@ -574,7 +440,10 @@ emptyAudioLengthEl.addEventListener("input", ()=> {
   drawYAxis();
   iLow = 0;
   iHigh = framesTotal;
+});
 
+recordBtn.addEventListener("click", ()=> {
+  
 });
 
 let audioCtx = null;
@@ -636,7 +505,8 @@ function restartRender(){
       canvas.style.height = (canvas.height * scale) + "px";
     } else {
       canvas.style.width = "calc(100% - 40px)";
-      canvas.style.height = "500px";
+      let h = window.innerHeight - 155;
+      canvas.style.height = h+"px";
     }
 
     overlayCanvas.style.width = canvas.style.width;
@@ -684,7 +554,6 @@ function restartRender(){
 }
 
 function magPhaseToRGB(mag, phase){
-
     const h = (phase / (2*Math.PI) + 1) % 1; 
     const s = 1;
     const v = Math.min(mag/60,1);
@@ -1303,10 +1172,6 @@ function canvasMouseUp(e) {
         sineOsc = null;
         sineGain = null;
     }
-    if (!pcm) { 
-        playPCM(); 
-        return; 
-    }
     const { cx, cy } = getCanvasCoords(e);
     if (currentTool === "rectangle" || currentTool === "line") {
         commitShape(cx, cy); 
@@ -1369,6 +1234,7 @@ function canvasMouseUp(e) {
     audioProcessed = 0;
 
     playPCM();
+    document.getElementById("playPause").innerHTML=pauseHtml;
 }
 
 document.addEventListener("mouseup", e => {
@@ -1511,418 +1377,8 @@ function renderFullSpectrogramToImage() {
 
 </script>
 <script src="downloads.js"></script>
+<script src="axes.js"></script>
 <script>
-
-const timeline = document.getElementById('timeline');
-const tctx = timeline.getContext('2d');
-
-let timelineWidth = timeline.width; 
-let timelineHeight = 20;
-let timelineCursorX = 0;
-let draggingTimeline = false;
-let draggingBounds = false;
-let tDmode = -1;
-let oldX = null;
-let iWidth = iHigh - iLow;
-
-function drawTimeline() {
-    tctx.clearRect(0, 0, timeline.width, timeline.height);
-
-    tctx.fillStyle = "#333";
-    tctx.fillRect(0, 0, timeline.width, timeline.height);
-
-    const ts = 20; 
-    const tx = (timelineCursorX-iLow) * timeline.width / (iHigh-iLow);
-    const tx2 = timelineCursorX * timeline.width / framesTotal;
-
-    tctx.fillStyle = "#0f0";
-    tctx.beginPath();
-    tctx.moveTo(tx, ts+10);
-    tctx.lineTo(tx - ts, 10);
-    tctx.lineTo(tx + ts, 10);
-    tctx.closePath();
-    tctx.fill();
-
-    if (!pcm) return;
-    iWidth = iHigh - iLow;
-    const totalSeconds = iWidth*hopSizeEl.value / sampleRate;
-
-    let interval = 0.01; 
-    if (totalSeconds > 0.3) interval = 0.1;
-    if (totalSeconds > 1) interval = 0.3;
-    if (totalSeconds > 3) interval = 1;
-    if (totalSeconds > 10) interval = 3;
-    if (totalSeconds > 30) interval = 10;
-    if (totalSeconds > 100) interval = 30;
-
-    tctx.fillStyle = "#eee";
-    tctx.font = "15px sans-serif";
-    tctx.textAlign = "center";
-    tctx.textBaseline = "top";
-    const factor = timeline.width / framesTotal;
-    const visibleFrames = iHigh - iLow;
-    const secondsPerFrame = hopSizeEl.value / sampleRate;
-
-    const sLow = iLow * secondsPerFrame;
-    const sHigh = iHigh * secondsPerFrame;
-
-    let tStart = Math.ceil(sLow / interval) * interval;
-
-    for (let t = tStart; t <= sHigh; t += interval) {
-        const frame = t / secondsPerFrame; 
-        const markerX = (frame - iLow) / visibleFrames * timeline.width;
-
-        tctx.fillText(
-            t.toFixed(interval < 1 ? 2 : interval < 10 ? 1 : 0),
-            markerX,
-            25
-        );
-    }
-
-    tctx.fillStyle = "#222";
-    tctx.fillRect(0, 0, timeline.width, 20);
-    tctx.fillStyle = "#555";
-    tctx.fillRect(iLow*factor, 0, (iHigh-iLow)*factor, 20);
-    tctx.strokeStyle = "#777";
-    tctx.strokeRect(iLow*factor, 0, (iHigh-iLow)*factor, 20);
-    tctx.fillStyle = "#af0";
-    tctx.fillRect(tx2-1,0,2,20);
-}
-
-function timelineXToFrame(clientXLeft) {
-    return iLow + clientXLeft/timeline.getBoundingClientRect().width*iWidth;
-}
-function timelineMousedown(e) {
-  const rect = timeline.getBoundingClientRect();
-    if (e.clientY- rect.top>20) {
-      draggingTimeline = true;
-      wasPlayingDuringDrag = playing;
-
-      stopSource(true);
-      timelineCursorX = timelineXToFrame(e.clientX - rect.left);
-
-      currentCursorX = timelineCursorX;
-      drawTimeline();
-      drawYAxis();
-      drawLogScale();
-      drawCursor();
-    } else {
-      draggingBounds = true;
-      oldX = e.clientX- rect.left;
-      iWidth = iHigh-iLow;
-    }
-}
-timeline.addEventListener("mousedown", e => {
-    timelineMousedown(e);
-});
-timeline.addEventListener("touchstart", e => {
-    timelineMousedown(e);
-});
-function timelineMousemove(e) {
-    const rect = timeline.getBoundingClientRect();
-    const mouseY = e.clientY- rect.top;
-    const mouseX = e.clientX- rect.left;
-    if (mouseY > 20 && tDmode == -1) {
-      timeline.style.cursor = "pointer";
-      if (!draggingTimeline) return;
-      timelineCursorX = timelineXToFrame(mouseX);
-      currentCursorX = timelineCursorX;
-      drawTimeline();
-      drawYAxis();
-      drawLogScale();
-      drawCursor();
-    } else {
-      const sLow = iLow * rect.width/framesTotal;
-      const sHigh = iHigh * rect.width/framesTotal;
-      iWidth = iHigh-iLow;
-      if ((Math.abs(mouseX - sLow)<15 && tDmode == -1) || tDmode == 0) {
-        timeline.style.cursor = "e-resize";
-        if (!draggingBounds) return;
-        updateCanvasScroll();
-        tDmode = 0;
-        iLow = mouseX/rect.width*framesTotal;
-        if (iLow < 0) {
-          iLow = 0;
-        }
-        if (iLow > iHigh) iLow = iHigh - 1;
-      } else if ((Math.abs(mouseX - sHigh)<15 && tDmode == -1) || tDmode == 1) {
-        timeline.style.cursor = "w-resize";
-        if (!draggingBounds) return;
-        updateCanvasScroll();
-        tDmode = 1;
-        iHigh = mouseX/rect.width*framesTotal;
-        if (iHigh > framesTotal) {
-          iHigh = framesTotal;
-        }
-        if (iHigh < iLow) iHigh = iLow + 1;
-      } else {
-        timeline.style.cursor = "move";
-        if (!draggingBounds) return;
-        updateCanvasScroll();
-        tDmode = 2;
-        const inc = (mouseX-oldX)/rect.width*framesTotal
-        iLow += inc;
-        if (iLow < 0) {
-          iLow = 0;
-        }
-        if (iHigh > framesTotal) {
-          iLow = framesTotal - iWidth;
-        }
-        iHigh = iLow + iWidth;
-        oldX = mouseX;
-      }
-    }
-}
-window.addEventListener("mousemove", e => {
-    timelineMousemove(e);
-});
-window.addEventListener("touchmove", e => {
-    timelineMousemove(e);
-});
-function timelineMouseup(e) {
-  tDmode = -1;
-    draggingBounds = false;
-    if (!draggingTimeline) return;
-    draggingTimeline = false;
-    const frame = timelineCursorX;
-
-    pausedAtSample = frame * hop;
-
-    if (wasPlayingDuringDrag) {
-        playPCM(true, frame);
-        document.getElementById("playPause").innerHtml = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
-        <rect x="2" y="0" width="5" height="18" rx="2" ry="2"/>
-        <rect x="12" y="0" width="5" height="18" rx="2" ry="2"/>
-      </svg>
-        `;
-    } else {
-        specCtx.putImageData(imageBuffer, 0, 0);
-        renderView();
-        drawCursor();
-    }
-    drawTimeline();
-    drawLogScale();
-    drawYAxis();
-}
-window.addEventListener("mouseup", e => {
-    timelineMouseup(e);
-});
-window.addEventListener("touchend", e => {
-    timelineMouseup(e);
-});
-
-fLow = 0;
-fHigh = sampleRate/2;
-let fWidth = fHigh-fLow;
-let draggingFreq = false;
-let fDmode = -1;
-let oldY = null;
-
-function freqToDisplayY(bin, h) {
-    if (!h) return 0;
-    const s = getLogScaleSlider();
-    if (s <= 1.0000001) {
-        return Math.round(h - 1 - bin); 
-    } else {
-        const a = s - 1;
-        const denom = Math.log(1 + a * (h - 1));
-        if (!isFinite(denom) || denom === 0) return Math.round(h - 1 - bin);
-        const t = Math.log(1 + a * bin) / denom; 
-        const y = (1 - t) * (h - 1);
-        return Math.round(y);
-    }
-}
-
-function drawYAxis() {
-    if (yAxis.height <= 0 || yAxis.width <= 0) return;
-
-    const temp = document.createElement("canvas");
-    let resolution = (sampleRate/2)/fWidth;
-    if (resolution > 15) resolution = 15;
-    temp.width = yAxis.width;   
-    temp.height = 2048*resolution;   
-    const tctx = temp.getContext("2d");
-
-    tctx.clearRect(0, 0, temp.width, temp.height);
-    tctx.fillStyle = "#333";
-    tctx.fillRect(0, 0, temp.width, temp.height);
-
-    let interval = 1000;
-    if (fWidth <= 500) interval = 100;
-    else if (fWidth <= 2000) interval = 250;
-    else if (fWidth <= 5000) interval = 500;
-
-    const scaleToTemp = specHeight*resolution / yAxis.height;
-    tctx.fillStyle = "#eee";
-    tctx.font = "10px sans-serif";
-    tctx.textAlign = "right";
-    tctx.textBaseline = "middle";
-    const labelX = Math.max(40, temp.width - 4);
-
-    for (let f = 0; f <= sampleRate / 2; f += interval) {
-
-        const posY_visible = freqToDisplayY((f) / (sampleRate * 2) * 2048, yAxis.height);
-
-        const posY_temp = Math.round(posY_visible * scaleToTemp);
-        const label = (f / 1000).toFixed(1) + "k";
-        tctx.save();
-        const yFactor = fWidth/(sampleRate/4/resolution)*(fftSize/2048);
-        tctx.scale(1.0, yFactor);
-        tctx.fillText(label, labelX, posY_temp/yFactor);
-        tctx.restore();
-    }
-
-    tctx.fillStyle = "#222";
-    tctx.fillRect(0, 0, 15, temp.height);
-
-    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate / 2))));
-    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate / 2))));
-    const viewHeightSpec = Math.max(1, fEnd - fStart);
-
-    yctx.clearRect(0, 0, yAxis.width, yAxis.height);
-    yctx.drawImage(
-        temp,
-        0, fStart*resolution,                  
-        temp.width, viewHeightSpec*resolution, 
-        0, 0,                       
-        yAxis.width, yAxis.height   
-    );
-
-    const factorVisible = yAxis.height / (sampleRate / 2);
-    yctx.fillStyle = "#222";
-    yctx.fillRect(0, 0, 15, yAxis.height);
-    const fhVisible = (fHigh - fLow) * factorVisible;
-    const topVisible = Math.max(0, Math.min(yAxis.height, yAxis.height - fhVisible - fLow * factorVisible));
-    yctx.fillStyle = "#555";
-    yctx.fillRect(0, topVisible, 15, Math.max(1, fhVisible));
-    yctx.strokeStyle = "#777";
-    yctx.strokeRect(0, topVisible, 15, Math.max(1, fhVisible));
-}
-
-function yAxisMousedown(e) {
-  const rect = yAxis.getBoundingClientRect();
-    if (e.clientX - rect.left < 15) {
-        draggingFreq = true;
-        oldY = e.clientY - rect.top;
-        fWidth = fHigh - fLow;
-    }
-}
-
-yAxis.addEventListener("mousedown", e => {yAxisMousedown(e);});
-yAxis.addEventListener("touchstart", e => {yAxisMousedown(e);});
-
-function yAxisMousemove(e) {
-  const rect = yAxis.getBoundingClientRect();
-    const mouseY = e.clientY - rect.top;
-    const mouseX = e.clientX - rect.left;
-
-    if (mouseX < 15) {
-        const sLow = (fLow / (sampleRate/2)) * rect.height;
-        const sHigh = (fHigh / (sampleRate/2)) * rect.height;
-        fWidth = fHigh - fLow;
-
-        if ((Math.abs(mouseY - (rect.height - sLow)) < 15 && fDmode == -1) || fDmode == 0) {
-            yAxis.style.cursor = "s-resize";
-            if (!draggingFreq) return;
-            updateCanvasScroll();
-            fDmode = 0;
-            fLow = (1 - mouseY / rect.height) * (sampleRate/2);
-            if (fLow < 0) fLow = 0;
-            if (fLow > fHigh) fLow = fHigh - 1;
-        } else if ((Math.abs(mouseY - (rect.height - sHigh)) < 15 && fDmode == -1) || fDmode == 1) {
-            yAxis.style.cursor = "n-resize";
-            if (!draggingFreq) return;
-            updateCanvasScroll();
-            fDmode = 1;
-            fHigh = (1 - mouseY / rect.height) * (sampleRate/2);
-            if (fHigh > sampleRate/2) fHigh = sampleRate/2;
-            if (fHigh < fLow) fHigh = fLow + 1;
-        } else {
-            yAxis.style.cursor = "move";
-            if (!draggingFreq) return;
-            updateCanvasScroll();
-            fDmode = 2;
-            const inc = (oldY - mouseY) / rect.height * (sampleRate/2);
-            fLow += inc;
-            if (fLow < 0) fLow = 0;
-            if (fHigh > sampleRate/2) fLow = sampleRate/2 - fWidth;
-            fHigh = fLow + fWidth;
-            oldY = mouseY;
-        }
-    }
-}
-window.addEventListener("mousemove", e => {yAxisMousemove(e);});
-window.addEventListener("touchmove", e => {yAxisMousemove(e);});
-
-window.addEventListener("mouseup", e => {fDmode = -1;draggingFreq = false;});
-window.addEventListener("touchend", e => {fDmode = -1;draggingFreq = false;});
-
-const playPauseBtn = document.getElementById("playPause");
-const stopBtn = document.getElementById("stop");
-const playHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>`;
-const pauseHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>`;
-
-function playPause() {
-  ensureAudioCtx();
-    if (playing) {
-        const elapsed = audioCtx.currentTime - sourceStartTime;
-        let samplePos = Math.floor(elapsed * sampleRate);
-        if (sourceNode && sourceNode.loop) {
-            samplePos = samplePos % pcm.length;
-        }
-        pausedAtSample = Math.max(0, Math.min(pcm.length - 1, samplePos));
-        stopSource(true);
-        playPauseBtn.innerHTML = playHtml;
-    } else {
-        const startFrame = (pausedAtSample !== null) ? Math.floor(pausedAtSample / hop) : 0;
-        playPCM(true, startFrame);
-        playPauseBtn.innerHTML = pauseHtml;
-    }
-}
-
-playPauseBtn.addEventListener("click", () => {
-    playPause();
-});
-
-document.addEventListener('keydown', function(event) {
-  if (event.key === ' ') {
-    playPause();
-    event.preventDefault();
-  }
-});
-
-stopBtn.addEventListener("click", () => {
-    stopSource(false); 
-    timelineCursorX = 0;
-    currentCursorX = 0;
-    drawTimeline();
-    drawYAxis();
-    drawLogScale();
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
-    drawCursor();
-    playPauseBtn.innerHTML = playHtml;
-});
-
-function updateTimelineCursor() {
-    if (playing && !draggingTimeline && pcm && sourceNode) {
-        const elapsed = audioCtx.currentTime - sourceStartTime;
-        let samplePos = elapsed * sampleRate;
-
-        if (sourceNode.loop) {
-            samplePos = samplePos % pcm.length;
-        }
-
-        const frame = Math.floor(samplePos / hop);
-        timelineCursorX = Math.min(frame, specWidth-1);
-        currentCursorX = timelineCursorX;
-        drawTimeline();
-        drawYAxis();
-        drawCursor();
-    }
-    requestAnimationFrame(updateTimelineCursor);
-}
 updateTimelineCursor();
 
 drawTimeline();

@@ -18,7 +18,7 @@
   position: relative;
   z-index: 5000;
   display:flex;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
   gap:8px;
   align-items:flex-start;
 }
@@ -28,10 +28,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap:6px;
   font-size: 0.9em;
   min-width: 15px;    /* reserve space horizontally for the rotated element */
-  padding: 2px 2px;
+  padding: 2px 0px;
   box-sizing: border-box;
 }
 
@@ -142,7 +141,7 @@ canvas { display:block; background:#000;}
 #status { margin-top:0.5em; font-size:13px; }
 .controls {
   display: flex;
-  flex-wrap: wrap; 
+  flex-wrap: nowrap; 
   gap: 5px;       
   align-items: flex-start; 
 }
@@ -188,7 +187,7 @@ canvas { display:block; background:#000;}
     </span>
     <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
   </label>
-  <label style="position: absolute; right: 160px" title="Brush size/image size">
+  <label style="margin-left: min(calc(100% - 620px), 200px);;" title="Brush size/image size">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <!-- axes -->
       <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
@@ -207,7 +206,7 @@ canvas { display:block; background:#000;}
       <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
     </div>
   </label>
-  <label style="position: absolute; right: 125px" title="Brightness">
+  <label title="Brightness">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 24 24" width="20" height="20">
       <defs>
         <linearGradient id="brightnessGrad" x1="0" x2="1" y1="0" y2="0">
@@ -222,7 +221,7 @@ canvas { display:block; background:#000;}
       <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
     </div>
   </label>
-  <label style="position: absolute; right: 90px" title="Phase">
+  <label title="Phase">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <linearGradient id="rainbow" x1="1" y1="0" x2="0" y2="1">
@@ -242,7 +241,7 @@ canvas { display:block; background:#000;}
       <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
     </div>
   </label>
-  <label style="position: absolute; right: 55px" title="Brightness strength">
+  <label title="Brightness strength">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <pattern id="checker" width="4" height="4" patternUnits="userSpaceOnUse">
@@ -264,7 +263,7 @@ canvas { display:block; background:#000;}
       <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
     </div>
   </label>
-  <label style="position: absolute; right: 20px" title="Phase strength">
+  <label title="Phase strength">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <linearGradient id="saturation" x1="1" y1="0" x2="0" y2="1">

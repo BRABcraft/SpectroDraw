@@ -127,7 +127,6 @@ canvas { display:block; background:#000;}
   width: 20px;
   height: 20px;
   display: block;
-  preserveAspectRatio: 'xMidYMid meet';
   transform: translateX(-0.5px); 
 }
 #timeline { display:block; height:40px; }

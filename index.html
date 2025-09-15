@@ -250,7 +250,7 @@
 
 <!-- Timeline canvas -->
 <div id="canvasWrapper" style="position:absolute; display:inline-block; width:100%; top:100px;">
-  <canvas id="timeline" style="height:40px; background:#222; position: absolute;align:left;left:40px;z-index: 9998; top:0px"></canvas>
+  <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
   <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
   <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>
   <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; ; top:40px"></canvas>
@@ -259,44 +259,6 @@
 </div>
 <div id="status" style="position:absolute;bottom:0px;"></div>
 
-<script>
-let currentTool = "brush";
-const toolButtons = document.querySelectorAll(".tool-btn");
-toolButtons.forEach(btn => {
-  if(btn.dataset.tool === currentTool) {
-    btn.style.background = "#4af"; 
-  }
-});
-toolButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    currentTool = btn.dataset.tool;
-    toolButtons.forEach(b => b.style.background = "");
-    btn.style.background = "#4af"; 
-    if(currentTool === "image") overlayFile.click();
-  });
-});
-fileB.addEventListener("click", () => {
-  file.click();
-});
-const trueScale = document.getElementById("trueScale");
-let trueScaleVal=false;
-trueScale.addEventListener("click", () => {
-    trueScaleVal = !trueScaleVal;
-    trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3";
-    restartRender();
-  });
-
-const overlayFile = document.getElementById("overlayFile");
-let overlayImage = null;
-overlayFile.addEventListener("change", e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const img = new Image();
-  img.onload = () => overlayImage = img;
-  img.src = URL.createObjectURL(f);
-});
-
-</script>
 <script src="fft.js"></script>
 <script>
 
@@ -320,6 +282,7 @@ const preset = document.getElementById("presets");
 const ev = document.getElementById("ev");
 const yAxis=document.getElementById("freq");
 const yctx=yAxis.getContext("2d");
+const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {
@@ -336,8 +299,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
 }
 registerProcessor('recorder-processor', RecorderProcessor);
 `;
+const toolButtons = document.querySelectorAll(".tool-btn");
+const trueScale = document.getElementById("trueScale");
+const overlayFile = document.getElementById("overlayFile");
 
-let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
+let pcm=null, sampleRate=48000, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
 let imageBuffer=null;
 let currentCursorX = 0;
@@ -354,6 +320,9 @@ let phases = null;
 let specWidth = 0;
 let specHeight = 0;
 let pcmChunks = null;
+let trueScaleVal=false;
+let overlayImage = null;
+let useHz = false;
 
 let startX = null, startY = null;
 
@@ -362,14 +331,55 @@ let brushOpacity=parseInt(brushOpacityEl.value)/100;
 let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
 let brushColor=parseInt(brushColorEl.value); 
 let penPhase=parseInt(penPhaseEl.value)/10000;
+let currentTool = "brush";
 brushSizeEl.addEventListener("input",()=>brushSize=parseInt(brushSizeEl.value));
 brushOpacityEl.addEventListener("input",()=>brushOpacity=parseInt(brushOpacityEl.value)/100);
 phaseOpacityEl.addEventListener("input",()=>phaseOpacity=parseInt(phaseOpacityEl.value)/100);
 brushColorEl.addEventListener("input",()=>brushColor=parseInt(brushColorEl.value));
 penPhaseEl.addEventListener("input", ()=>penPhase = parseInt(penPhaseEl.value) / 10000);
 
+
+toolButtons.forEach(btn => {
+  if(btn.dataset.tool === currentTool) {
+    btn.style.background = "#4af"; 
+  }
+});
+toolButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentTool = btn.dataset.tool;
+    toolButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#4af"; 
+    if(currentTool === "image") overlayFile.click();
+  });
+});
+fileB.addEventListener("click", () => {
+  file.click();
+});
+trueScale.addEventListener("click", () => {
+    trueScaleVal = !trueScaleVal;
+    trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3";
+    restartRender();
+  });
+yAxisMode.addEventListener("click", () => {
+        useHz = !useHz;
+        yAxisMode.style.background = useHz ? "#4af" : "#f3f3f3";
+        restartRender();
+      });
+
+overlayFile.addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.onload = () => overlayImage = img;
+  img.src = URL.createObjectURL(f);
+});
+
+</script>
+<script src="axes.js"></script>
+<script>
+
 function initEmptyPCM() {
-    const sampleRateLocal = 44100;
+    const sampleRateLocal = 48000;
     const duration = emptyAudioLengthEl.value; 
     const length = sampleRateLocal * duration; 
     const tinyNoiseAmplitude = 0.0001; 
@@ -432,6 +442,7 @@ function logScaleMouseMove(e) {
   startX = e.clientX;
   renderFullSpectrogramToImage();
   drawLogScale();
+  drawYAxis();
 }
 
 document.addEventListener("mousemove", e=> {
@@ -489,6 +500,8 @@ function countdown(seconds) {
 
 async function startRecording() {
   ensureAudioCtx();
+  fHigh = sampleRate/2;
+  fWidth = fHigh;
 
   pcmChunks = [];        
   pcm = new Float32Array(0);
@@ -614,11 +627,13 @@ fileEl.addEventListener("change", async e=>{
     const f=e.target.files[0]; if(!f)return;
     const buf=await f.arrayBuffer();
     ensureAudioCtx();
+    fHigh = sampleRate/2;
+    fWidth = fHigh;
     let ab;
     try {
       ab = await audioCtx.decodeAudioData(buf.slice(0));
       pcm = new Float32Array(ab.getChannelData(0));
-      sampleRate = ab.sampleRate || 44100;
+      sampleRate = ab.sampleRate || 48000;
 
       status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
       status.style.display = "block";
@@ -667,7 +682,8 @@ function restartRender(){
 
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
-    yAxis.height = parseInt(canvas.style.height);
+    yAxis.height = parseInt(canvas.height);
+    yAxis.style.height = canvas.style.height;
     yAxis.width = 40;
     yAxis.style.height = canvas.style.height;
 
@@ -842,12 +858,12 @@ function drawLoop() {
     const elapsedMS = performance.now() - startTime;
     const elapsedSec = elapsedMS / 1000;
     const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
-    const audioSec = pcm.length / 44100; 
-    const processedSec = audioProcessed / 44100;
+    const audioSec = pcm.length / sampleRate; 
+    const processedSec = audioProcessed / sampleRate;
     status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
         + `Elapsed: ${elapsedSec.toFixed(2)}s | `
         + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
-        + `Speed: ${(speed/44100).toFixed(2)}x realtime`;
+        + `Speed: ${(speed/sampleRate).toFixed(2)}x realtime`;
     if (rendering) {
       status.style.display = "block";
       requestAnimationFrame(drawLoop);
@@ -947,7 +963,7 @@ function hzToNoteName(frequency) {
 }
 let sineOsc = null;
 let sineGain = null;
-function setSineFreq(cy) {
+function getSineFreq(cy) {
     const h = specHeight;
     const s = parseFloat(logScaleVal); 
     let bin;
@@ -960,8 +976,10 @@ function setSineFreq(cy) {
         bin = (Math.exp(t * denom) - 1) / a;
     }
     bin = Math.max(0, Math.min(h - 1, bin));
-    const freq = bin * sampleRate / fftSize;
-    sineOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.01);
+    return bin * sampleRate / fftSize;
+}
+function setSineFreq(cy) {
+    sineOsc.frequency.setTargetAtTime(getSineFreq(cy), audioCtx.currentTime, 0.01);
 }
 function visibleToSpecY(visY) {
     const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
@@ -1001,11 +1019,13 @@ canvas.addEventListener("mousedown", e=>{
 canvas.addEventListener("touchStart", e=>{
     canvasMouseDown(e);
 });
+
+
 function canvasMouseMove(e) {
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
-  const hz = Math.floor(displayYToBin(cy,canvas.height)*(sampleRate/fftSize));
+  const hz = getSineFreq(visibleToSpecY(cy)).toFixed(0);
   const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
-  const i = Math.floor(cx*specHeight+displayYToBin(cy,canvas.height));
+  const i = Math.floor(cx*specHeight+hz/(sampleRate/fftSize));
   let normalizedMag = Math.min(1, mags[i] / 256);
   let db = (20 * Math.log10(normalizedMag + 1e-12)).toFixed(1);
   info.innerHTML=`Pitch: ${hz}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db}db`
@@ -1254,7 +1274,6 @@ function renderFullSpectrogramToImage() {
 
 </script>
 <script src="downloads.js"></script>
-<script src="axes.js"></script>
 <script>
 
 function processPendingFramesLive(){

@@ -56,12 +56,17 @@ function drawTimeline() {
     for (let t = tStart; t <= sHigh; t += interval) {
         const frame = t / secondsPerFrame; 
         const markerX = (frame - iLow) / visibleFrames * timeline.width;
-
+        
+        const xFactor = timeline.width / timeline.getBoundingClientRect().width;
+        tctx.save();
+        tctx.scale(xFactor, 1.0);
         tctx.fillText(
             t.toFixed(interval < 1 ? 2 : interval < 10 ? 1 : 0),
-            markerX,
+            markerX/xFactor,
             25
         );
+        tctx.restore();
+        
     }
 
     tctx.fillStyle = "#222";
@@ -207,57 +212,85 @@ let oldY = null;
 function drawYAxis() {
     if (yAxis.height <= 0 || yAxis.width <= 0) return;
 
-    const temp = document.createElement("canvas");
-    let resolution = (sampleRate/2)/fWidth;
-    if (resolution > 15) resolution = 15;
-    temp.width = yAxis.width;   
-    temp.height = 2048*resolution;   
-    const tctx = temp.getContext("2d");
-
-    tctx.clearRect(0, 0, temp.width, temp.height);
-    tctx.fillStyle = "#333";
-    tctx.fillRect(0, 0, temp.width, temp.height);
+    yctx.clearRect(15, 0, 25, yAxis.height);
+    yctx.fillStyle = "#333";
+    yctx.fillRect(15, 0, 25, yAxis.height);
 
     let interval = 1000;
     if (fWidth <= 500) interval = 100;
     else if (fWidth <= 2000) interval = 250;
     else if (fWidth <= 5000) interval = 500;
 
-    const scaleToTemp = specHeight*resolution / canvas.height;
-    tctx.fillStyle = "#eee";
-    tctx.font = "10px sans-serif";
-    tctx.textAlign = "right";
-    tctx.textBaseline = "middle";
-    const labelX = Math.max(40, temp.width - 4);
+    yctx.fillStyle = "#eee";
+    yctx.font = "10px sans-serif";
+    yctx.textAlign = "right";
+    yctx.textBaseline = "middle";
 
-    for (let f = 0; f <= sampleRate / 2; f += interval) {
+    const labelX = Math.max(40, yAxis.width - 4);
+    const yFactor = specHeight/parseInt(yAxis.style.height); 
+    function fToVisY(f) {
+        const h = specHeight;
+        const s = parseFloat(logScaleVal);
+        let bin = f / (sampleRate / fftSize);
+        let cy;
+        if (s <= 1.0000001) {
+            cy = h - 1 - bin;
+        } else {
+            const a = s - 1;
+            const denom = Math.log(1 + a * (h - 1));
+            const t = Math.log(1 + a * bin) / denom;
+            cy = (1 - t) * (h - 1);
+        }
 
-        const posY_visible = binToDisplayY(f/(sampleRate/2) * 1024, canvas.height);
+        const fStart = Math.max(0, Math.floor(h * (1 - fHigh / (sampleRate / 2))));
+        const fEnd   = Math.min(h, Math.floor(h * (1 - fLow / (sampleRate / 2))));
+        const viewHeight = fEnd - fStart;
+        const visY = ((cy - fStart) / viewHeight) * h;
 
-        const posY_temp = Math.round(posY_visible * scaleToTemp);
-        const label = (f / 1000).toFixed(1) + "k";
-        tctx.save();
-        const yFactor = fWidth/(sampleRate/4/resolution)*(fftSize/2048);
-        tctx.scale(1.0, yFactor);
-        tctx.fillText(label, labelX, posY_temp/yFactor);
-        tctx.restore();
+        return visY/yFactor;
     }
-
-    tctx.fillStyle = "#222";
-    tctx.fillRect(0, 0, 15, temp.height);
-
-    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate / 2))));
-    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate / 2))));
-    const viewHeightSpec = Math.max(1, fEnd - fStart);
-
-    yctx.clearRect(0, 0, yAxis.width, yAxis.height);
-    yctx.drawImage(
-        temp,
-        0, fStart*resolution,                  
-        temp.width, viewHeightSpec*resolution, 
-        0, 0,                       
-        yAxis.width, yAxis.height   
-    );
+    if (useHz) {
+        let lastDrawPos = 9999999;
+        for (let f = 0.859375; f < sampleRate / 2; f *= (Math.pow(2, 1 / 12))) {
+            visY = fToVisY(f);
+            if (Math.abs(visY - lastDrawPos) < 12) continue;
+            const label = hzToNoteName(f);
+            yctx.save();
+            yctx.scale(1.0, yFactor);
+            yctx.fillText(label, labelX, visY);
+            yctx.restore();
+            lastDrawPos = visY;
+        }
+    } else {
+        function drawHz(f, visY) {
+            let label = (f / 1000).toFixed(1) + "k";
+            if (f < 1000) label = f.toFixed(0);
+            yctx.save();
+            yctx.scale(1.0, yFactor);
+            yctx.fillText(label, labelX, visY);
+            yctx.restore();
+        }
+        let f = 0;
+        let lastDrawPos = 9999999;
+        let visY = 0;
+        while (f < sampleRate/2) {
+            if (Math.abs(visY-lastDrawPos)>200) {
+                // console.log(Math.abs(visY-lastDrawPos), f)
+                let e = f + interval;
+                while (f<e) {
+                    visY = fToVisY(f);
+                    drawHz(f,visY);
+                    lastDrawPos=visY;
+                    f+=interval/8;
+                }
+            } else {
+                lastDrawPos=visY;
+                visY = fToVisY(f);
+                drawHz(f,visY);
+                f+=interval;
+            }
+        }
+    }
 
     const factorVisible = yAxis.height / (sampleRate / 2);
     yctx.fillStyle = "#222";
@@ -269,6 +302,7 @@ function drawYAxis() {
     yctx.strokeStyle = "#777";
     yctx.strokeRect(0, topVisible, 15, Math.max(1, fhVisible));
 }
+
 
 function yAxisMousedown(e) {
   const rect = yAxis.getBoundingClientRect();

@@ -13,7 +13,7 @@
   <label title="Number of audio samples given to each frame (x pixel).">Time resolution:
     <input id="hopSize" type="number" value="512" step="1" min="1">
   </label>
-  
+
   <label id="es" style="position:absolute; left:240px;">
     <span class="label-line">
       <span class="label-text">Empty audio seconds:</span>
@@ -34,15 +34,14 @@
       <!-- axes -->
       <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
       <line x1="5" y1="19" x2="5"  y2="5"  />   <!-- Y axis -->
-    
+
       <!-- little filled origin box at bottom-left (origin) -->
       <rect x="4.5" y="12.5" width="6" height="6" fill="currentColor" stroke="none" rx="0.5" ry="0.5" />
-    
+
       <!-- small axis arrows -->
       <path d="M19 19 L17.5 17.5" />
       <path d="M5 5 L3.5 6.5" />
     </svg>
-
 
     <div class="vertical-wrap">
       <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
@@ -207,13 +206,13 @@
       <svg xmlns="http://www.w3.org/2000/svg" 
          width="28" height="28" viewBox="0 0 20 20" 
          fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  
+
       <!-- Left text -->
       <text x="0" y="18" font-size="8" fill="currentColor" stroke-width="0.5">1.0k</text>
-  
+
       <!-- Right text -->
       <text x="10" y="6" font-size="8" fill="currentColor" stroke-width="0.5">a5</text>
-  
+
       <!-- Diagonal slash -->
       <line x1="4" y1="4" x2="18" y2="14" />
     </svg>
@@ -322,6 +321,21 @@ const ev = document.getElementById("ev");
 const yAxis=document.getElementById("freq");
 const yctx=yAxis.getContext("2d");
 const info = document.getElementById("mouseInfo");
+const WORKLET_CODE = `
+class RecorderProcessor extends AudioWorkletProcessor {
+  process(inputs) {
+    const input = inputs[0];
+    if (input && input[0] && input[0].length > 0) {
+      const chunk = new Float32Array(input[0].length);
+      chunk.set(input[0]);
+
+      this.port.postMessage(chunk, [chunk.buffer]);
+    }
+    return true;
+  }
+}
+registerProcessor('recorder-processor', RecorderProcessor);
+`;
 
 let pcm=null, sampleRate=44100, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
@@ -339,6 +353,7 @@ let mags = null;
 let phases = null;   
 let specWidth = 0;
 let specHeight = 0;
+let pcmChunks = null;
 
 let startX = null, startY = null;
 
@@ -436,7 +451,7 @@ document.addEventListener("touchend", e=>{changingLogScale=false;})
 emptyAudioLengthEl.addEventListener("input", ()=> {
   ev.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
   initEmptyPCM();
-  // drawTimeline and drawYAxis may be defined in axes.js which might not be loaded
+
   if (typeof drawTimeline === 'function') drawTimeline();
   else console.warn("drawTimeline not available yet");
 
@@ -454,8 +469,8 @@ let recording = false;
 let mediaStream = null;
 let mediaSource = null;
 let processor = null;
+let workletNode = null;
 
-// Countdown helper
 function countdown(seconds) {
   return new Promise(resolve => {
     let remaining = seconds;
@@ -475,8 +490,8 @@ function countdown(seconds) {
 async function startRecording() {
   ensureAudioCtx();
 
-  // Collect chunks while recording; do NOT call restartRender() here.
-  pcm = []; // array of Float32Array chunks while recording
+  pcmChunks = [];        
+  pcm = new Float32Array(0);
   pos = 0;
   x = 0;
   rendering = false;
@@ -494,19 +509,48 @@ async function startRecording() {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaSource = audioCtx.createMediaStreamSource(mediaStream);
 
-    // ScriptProcessor collects chunks; do NOT try to FFT/render per chunk here.
-    processor = audioCtx.createScriptProcessor(1024, 1, 1);
-    processor.onaudioprocess = e => {
-      const input = e.inputBuffer.getChannelData(0);
-      // store a copy of the input chunk
-      pcm.push(new Float32Array(input));
-      // minimal UI feedback
-      status.textContent = `Recording... chunks: ${pcm.length}`;
-      // do not call drawFrame() here — wait until stopRecording() flattens pcm
+    await audioCtx.resume();
+    sampleRate = audioCtx.sampleRate || sampleRate;
+
+    const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    await audioCtx.audioWorklet.addModule(url);
+
+    workletNode = new AudioWorkletNode(audioCtx, 'recorder-processor', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+      channelCount: 1
+    });
+
+    pcmChunks = [];
+    pcm = new Float32Array(0);
+
+    workletNode.port.onmessage = (ev) => {
+      const chunk = ev.data;
+      if (!(chunk instanceof Float32Array)) return;
+      pcmChunks.push(chunk);
+
+      let total = 0;
+      for (let c of pcmChunks) total += c.length;
+      const merged = new Float32Array(total);
+      let off = 0;
+      for (let c of pcmChunks) { merged.set(c, off); off += c.length; }
+      pcm = merged;
+
+      processPendingFramesLive();
+      iLow = 0;
+      const framesSoFar = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
+      iHigh = Math.max(1000, framesSoFar);
+      updateCanvasScroll();
     };
 
-    mediaSource.connect(processor);
-    processor.connect(audioCtx.destination); // required so onaudioprocess fires in many browsers
+    const silentGain = audioCtx.createGain();
+    silentGain.gain.value = 0.0;
+    mediaSource.connect(workletNode);
+    workletNode.connect(silentGain);
+    silentGain.connect(audioCtx.destination);
+
   } catch (err) {
     console.error("Mic error:", err);
     status.textContent = "Microphone access denied.";
@@ -532,7 +576,6 @@ function stopRecording() {
     mediaStream = null;
   }
 
-  // Flatten PCM into one Float32Array
   if (pcm && Array.isArray(pcm)) {
     let length = pcm.reduce((sum, arr) => sum + arr.length, 0);
     let merged = new Float32Array(length);
@@ -544,6 +587,7 @@ function stopRecording() {
     pcm = merged;
   }
   iLow = null;
+  pcmChunks = null;
 
   restartRender();
 }
@@ -560,6 +604,7 @@ recordBtn.addEventListener("click", async () => {
 let audioCtx = null;
 function ensureAudioCtx(){
   if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sampleRate = audioCtx.sampleRate || sampleRate;
 }
 
 let startTime=0; 
@@ -574,13 +619,13 @@ fileEl.addEventListener("change", async e=>{
       ab = await audioCtx.decodeAudioData(buf.slice(0));
       pcm = new Float32Array(ab.getChannelData(0));
       sampleRate = ab.sampleRate || 44100;
-  
+
       status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
       status.style.display = "block";
       restartRender();
       iLow = 0;
       iHigh = framesTotal;
-  
+
       es.style.display = "none";
     } catch (err){
       alert("Error decoding video. Please try a different video.");
@@ -669,7 +714,6 @@ function restartRender(){
     if (typeof drawYAxis === 'function') drawYAxis();
     else console.warn("drawYAxis() not defined yet — will run once axes.js loads");
 
-    // drawLogScale is defined in this file; call normally
     if (typeof drawLogScale === 'function') drawLogScale();
 }
 
@@ -888,7 +932,7 @@ function getCanvasCoords(e){
 </script>
 <script src="drawTools.js"></script>
 <script>
-//utils.js
+
 function hzToNoteName(frequency) {
   if (frequency <= 0) return "0";
   const A4 = 440;
@@ -1212,6 +1256,20 @@ function renderFullSpectrogramToImage() {
 <script src="downloads.js"></script>
 <script src="axes.js"></script>
 <script>
+
+function processPendingFramesLive(){
+
+  if (!pcm || !fftSize) return;
+
+  while (pos + fftSize <= pcm.length) {
+
+    if (!drawFrame(specWidth, specHeight)) break;
+  }
+
+  if (imageBuffer && specCtx) specCtx.putImageData(imageBuffer, 0, 0);
+  renderView();
+  drawCursor();
+}
 updateTimelineCursor();
 
 drawTimeline();

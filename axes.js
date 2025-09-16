@@ -400,6 +400,7 @@ document.addEventListener('keydown', function(event) {
 
 stopBtn.addEventListener("click", () => {
     stopSource(false); 
+    if (recording) stopRecording();
     timelineCursorX = 0;
     currentCursorX = 0;
     drawTimeline();

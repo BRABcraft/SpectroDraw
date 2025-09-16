@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>Phase-aware Spectrogram Editor — Fixed</title>
   <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="/favicon32x32.ico"/>
 </head>
 <body>
 <div class="controls">
@@ -138,7 +139,7 @@
     </button>
     <input id="file" type="file" accept="audio/*,video/*" style="display:none;"/>
     <button id="playPause" title="play" style="margin-left: 20px">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>
     </button>
     <button id="stop" title="stop">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
@@ -323,6 +324,7 @@ let pcmChunks = null;
 let trueScaleVal=false;
 let overlayImage = null;
 let useHz = false;
+let autoPlayOnFinish = true;
 
 let startX = null, startY = null;
 
@@ -358,12 +360,12 @@ fileB.addEventListener("click", () => {
 trueScale.addEventListener("click", () => {
     trueScaleVal = !trueScaleVal;
     trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3";
-    restartRender();
+    restartRender(false);
   });
 yAxisMode.addEventListener("click", () => {
         useHz = !useHz;
         yAxisMode.style.background = useHz ? "#4af" : "#f3f3f3";
-        restartRender();
+        restartRender(false);
       });
 
 overlayFile.addEventListener("change", e => {
@@ -393,7 +395,7 @@ function initEmptyPCM() {
     sampleRate = sampleRateLocal;
 
     es.style.display = "";
-    restartRender();
+    restartRender(true);
 }
 function drawLogScale() {
   const lctx = logscaleEl.getContext("2d");
@@ -498,7 +500,8 @@ function countdown(seconds) {
   });
 }
 
-async function startRecording() {
+async function startRecording() {  
+  es.style.display = "none";
   ensureAudioCtx();
   fHigh = sampleRate/2;
   fWidth = fHigh;
@@ -602,7 +605,7 @@ function stopRecording() {
   iLow = null;
   pcmChunks = null;
 
-  restartRender();
+  restartRender(true);
 }
 
 recordBtn.addEventListener("click", async () => {
@@ -637,7 +640,7 @@ fileEl.addEventListener("change", async e=>{
 
       status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
       status.style.display = "block";
-      restartRender();
+      restartRender(true);
       iLow = 0;
       iHigh = framesTotal;
 
@@ -649,8 +652,9 @@ fileEl.addEventListener("change", async e=>{
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);
 
-function restartRender(){
+function restartRender(autoPlay){
     if(!pcm) return;
+    autoPlayOnFinish = !!playing || !!autoPlay;
     const exponent = Math.max(6, Math.min(14, parseInt(fftSizeEl.value)||10));
     fftSize = 1 << exponent;
     hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
@@ -724,13 +728,15 @@ function restartRender(){
     stopSource(true);
     requestAnimationFrame(drawLoop);
 
-    if (typeof drawTimeline === 'function') drawTimeline();
-    else console.warn("drawTimeline() not defined yet — will run once axes.js loads");
+    if (recording) {
+        if (typeof drawTimeline === 'function') drawTimeline();
+        else console.warn("drawTimeline() not defined yet — will run once axes.js loads");
 
-    if (typeof drawYAxis === 'function') drawYAxis();
-    else console.warn("drawYAxis() not defined yet — will run once axes.js loads");
+        if (typeof drawYAxis === 'function') drawYAxis();
+        else console.warn("drawYAxis() not defined yet — will run once axes.js loads");
 
-    if (typeof drawLogScale === 'function') drawLogScale();
+        if (typeof drawLogScale === 'function') drawLogScale();
+    }
 }
 
 function magPhaseToRGB(mag, phase){
@@ -833,7 +839,10 @@ function drawFrame(w,h) {
     pos += hop; x++;
     audioProcessed += hop;
     if (x >= w) { rendering = false; 
-        if (!painting) playPCM(true);
+        if (!painting && autoPlayOnFinish) {
+            autoPlayOnFinish = false;
+            playPCM(true);
+        }
         status.style.display = "none";
         return false;
     }
@@ -1023,12 +1032,14 @@ canvas.addEventListener("touchStart", e=>{
 
 function canvasMouseMove(e) {
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
-  const hz = getSineFreq(visibleToSpecY(cy)).toFixed(0);
-  const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
-  const i = Math.floor(cx*specHeight+hz/(sampleRate/fftSize));
-  let normalizedMag = Math.min(1, mags[i] / 256);
-  let db = (20 * Math.log10(normalizedMag + 1e-12)).toFixed(1);
-  info.innerHTML=`Pitch: ${hz}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db}db`
+  if (!recording) {
+    const hz = getSineFreq(visibleToSpecY(cy)).toFixed(0);
+    const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
+    const i = Math.floor(cx*specHeight+hz/(sampleRate/fftSize));
+    let normalizedMag = Math.min(1, mags[i] / 256);
+    let db = (20 * Math.log10(normalizedMag + 1e-12)).toFixed(1);
+    info.innerHTML=`Pitch: ${hz}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db}db`
+    }
   if(!painting && currentTool != "image") return;
 
     if (currentTool === "rectangle" || currentTool === "line" || currentTool === "image") {
@@ -1182,9 +1193,15 @@ function stopSource(preservePaused=false){
     playing = false;
 }
 
-function playPCM(loop = true, startFrame = null) {
+async function playPCM(loop = true, startFrame = null) {
     if (!pcm) return;
     ensureAudioCtx();
+
+    // resume the context if suspended (required by browser autoplay policies)
+    if (audioCtx.state === 'suspended') {
+      try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
+    }
+
     stopSource(true);
 
     let startSample = 0;
@@ -1204,16 +1221,17 @@ function playPCM(loop = true, startFrame = null) {
     sourceNode.connect(audioCtx.destination);
 
     const offsetSec = startSample / sampleRate;
+    // set sourceStartTime relative to the (now-running) audioCtx clock
     sourceStartTime = audioCtx.currentTime - offsetSec;
     try {
         sourceNode.start(0, offsetSec);
     } catch (e) {
-
+        // fallback for very short remaining buffer
         const remaining = pcm.length - startSample;
         const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
         shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
-        sourceNode.stop();
-        sourceNode.disconnect();
+        try { sourceNode.stop(); } catch(_) {}
+        try { sourceNode.disconnect(); } catch(_) {}
         sourceNode = audioCtx.createBufferSource();
         sourceNode.buffer = shortBuf;
         sourceNode.loop = !!loop;
@@ -1223,13 +1241,19 @@ function playPCM(loop = true, startFrame = null) {
     }
 
     playing = true;
-    pausedAtSample = null; 
+    pausedAtSample = null;
 }
 
-function playFrame(frameX) {
+async function playFrame(frameX) {
     currentCursorX = frameX;
     if (!pcm) return;
     ensureAudioCtx();
+
+    // ensure resumed
+    if (audioCtx.state === 'suspended') {
+      try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
+    }
+
     stopSource(true);
     const start = frameX * hop;
     const end = Math.min(start + fftSize, pcm.length);

@@ -24,10 +24,11 @@
   </label>
   <label for="presets" style="position:absolute; left:425px;top:0">Use presets</label>
   <select id="presets" style="position:absolute; left:425px; top:25px;">
-    <option value="apple">Apple</option>
-    <option value="banana">Banana</option>
-    <option value="cherry">Cherry</option>
-    <option value="date">Date</option>
+    <option value="silence">Silence</option>
+    <option value="dog">Dog</option>
+    <option value="flute">Flute</option>
+    <option value="trumpet">Trumpet</option>
+    <option value="bomb">Bomb</option>
   </select>
   <label style="position:absolute; left:520px;" id="mouseInfo"></label>
   <label style="position: absolute; left: 710px;" title="Brush size/image size" id="sliderStart">
@@ -365,7 +366,6 @@ trueScale.addEventListener("click", () => {
 yAxisMode.addEventListener("click", () => {
         useHz = !useHz;
         yAxisMode.style.background = useHz ? "#4af" : "#f3f3f3";
-        restartRender(false);
       });
 
 overlayFile.addEventListener("change", e => {
@@ -395,7 +395,7 @@ function initEmptyPCM() {
     sampleRate = sampleRateLocal;
 
     es.style.display = "";
-    restartRender(true);
+    restartRender(false);
 }
 function drawLogScale() {
   const lctx = logscaleEl.getContext("2d");
@@ -649,6 +649,59 @@ fileEl.addEventListener("change", async e=>{
       alert("Error decoding video. Please try a different video.");
     }
 });
+preset.addEventListener("change", async (e) => {
+  const val = e.target.value;
+  // special-case silence
+  if (val === "silence") {
+    initEmptyPCM();
+    return;
+  }
+
+  // map preset names to file URLs (adjust paths to where you host the WAVs)
+  const presetMap = {
+    dog: "presets/dog.wav",
+    flute: "presets/flute.wav",
+    trumpet: "presets/trumpet.wav",
+    bomb: "presets/bomb.wav"
+  };
+
+  const url = presetMap[val];
+  if (!url) {
+    console.warn("No URL defined for preset:", val);
+    return;
+  }
+
+  try {
+    status.textContent = `Loading preset "${val}"…`;
+    ensureAudioCtx(); // make sure audioCtx exists and sampleRate is accurate
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
+
+    const ab = await resp.arrayBuffer();
+
+    // decodeAudioData returns a Promise in modern browsers; using await works
+    const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+    // use channel 0
+    pcm = new Float32Array(decoded.getChannelData(0));
+    sampleRate = decoded.sampleRate || sampleRate;
+
+    // clear UI state similar to file loader
+    status.textContent = `Loaded preset "${val}", ${pcm.length} samples @ ${sampleRate} Hz`;
+    es.style.display = "none";
+
+    // restart render (pass true like file loader so it behaves consistently)
+    restartRender(true);
+
+    // ensure view bounds include whole new audio
+    iLow = 0;
+    iHigh = framesTotal;
+
+  } catch (err) {
+    console.error("Preset load error:", err);
+    status.textContent = "Error loading preset: " + (err.message || err);
+  }
+});
 fftSizeEl.addEventListener("change",restartRender);
 hopSizeEl.addEventListener("change",restartRender);
 
@@ -728,7 +781,7 @@ function restartRender(autoPlay){
     stopSource(true);
     requestAnimationFrame(drawLoop);
 
-    if (recording) {
+    if (!autoPlay) {
         if (typeof drawTimeline === 'function') drawTimeline();
         else console.warn("drawTimeline() not defined yet — will run once axes.js loads");
 
@@ -835,7 +888,6 @@ function drawFrame(w,h) {
         imageBuffer.data[pix + 2] = b;
         imageBuffer.data[pix + 3] = 255;
     }
-
     pos += hop; x++;
     audioProcessed += hop;
     if (x >= w) { rendering = false; 

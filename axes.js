@@ -117,10 +117,6 @@ function timelineMousemove(e) {
       if (!draggingTimeline) return;
       timelineCursorX = timelineXToFrame(mouseX);
       currentCursorX = timelineCursorX;
-      drawTimeline();
-      drawYAxis();
-      drawLogScale();
-      drawCursor();
     } else {
       const sLow = iLow * rect.width/framesTotal;
       const sHigh = iHigh * rect.width/framesTotal;
@@ -162,6 +158,11 @@ function timelineMousemove(e) {
         oldX = mouseX;
       }
     }
+    
+      drawTimeline();
+      drawYAxis();
+      drawLogScale();
+      drawCursor();
 }
 window.addEventListener("mousemove", e => {
     timelineMousemove(e);
@@ -247,17 +248,17 @@ function drawYAxis() {
         const viewHeight = fEnd - fStart;
         const visY = ((cy - fStart) / viewHeight) * h;
 
-        return visY/yFactor;
+        return visY/yFactor/(fftSize/2048);
     }
     if (useHz) {
         let lastDrawPos = 9999999;
         for (let f = 0.859375; f < sampleRate / 2; f *= (Math.pow(2, 1 / 12))) {
             visY = fToVisY(f);
-            if (Math.abs(visY - lastDrawPos) < 12) continue;
+            if (Math.abs(visY - lastDrawPos) < (100/fftSize*246)) continue;
             const label = hzToNoteName(f);
             yctx.save();
-            yctx.scale(1.0, yFactor);
-            yctx.fillText(label, labelX, visY);
+            yctx.scale(1.0, yFactor/(fftSize/2048));
+            yctx.fillText(label, labelX, visY*(fftSize/2048));
             yctx.restore();
             lastDrawPos = visY;
         }
@@ -266,15 +267,15 @@ function drawYAxis() {
             let label = (f / 1000).toFixed(1) + "k";
             if (f < 1000) label = f.toFixed(0);
             yctx.save();
-            yctx.scale(1.0, yFactor);
-            yctx.fillText(label, labelX, visY);
+            yctx.scale(1.0, yFactor/(fftSize/2048));
+            yctx.fillText(label, labelX, visY*(fftSize/2048));
             yctx.restore();
         }
         let f = 0;
         let lastDrawPos = 9999999;
         let visY = 0;
         while (f < sampleRate/2) {
-            if (Math.abs(visY-lastDrawPos)>200) {
+            if (Math.abs(visY-lastDrawPos)>(100/fftSize*4000)) {
                 // console.log(Math.abs(visY-lastDrawPos), f)
                 let e = f + interval;
                 while (f<e) {
@@ -355,6 +356,10 @@ function yAxisMousemove(e) {
             oldY = mouseY;
         }
     }
+    drawTimeline();
+    drawYAxis();
+    drawLogScale();
+    drawCursor();
 }
 window.addEventListener("mousemove", e => {yAxisMousemove(e);});
 window.addEventListener("touchmove", e => {yAxisMousemove(e);});

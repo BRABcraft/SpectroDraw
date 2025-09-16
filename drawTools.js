@@ -10,62 +10,62 @@ let pendingPreview = false;
 let lastPreviewCoords = null;
 
 function previewShape(cx, cy) {
-
   lastPreviewCoords = { cx, cy };
   if (pendingPreview) return;
   pendingPreview = true;
+
   requestAnimationFrame(() => {
     pendingPreview = false;
-    const coords = lastPreviewCoords;
+    const { cx, cy } = lastPreviewCoords;
+
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     overlayCtx.strokeStyle = "#fff";
     overlayCtx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
-    if (currentTool === "rectangle" && startX !== null && startY !== null) {
-      overlayCtx.strokeRect(startX + 0.5, startY + 0.5, coords.cx - startX, coords.cy - startY);
-    } else if (currentTool === "line" && startX !== null && startY !== null) {
+
+    const hasStart = startX !== null && startY !== null;
+
+    if (currentTool === "rectangle" && hasStart) {
+      overlayCtx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
+      return;
+    }
+
+    if (currentTool === "line" && hasStart) {
       overlayCtx.beginPath();
       overlayCtx.moveTo(startX + 0.5, startY + 0.5);
-      overlayCtx.lineTo(coords.cx + 0.5, coords.cy + 0.5);
+      overlayCtx.lineTo(cx + 0.5, cy + 0.5);
       overlayCtx.stroke();
-    } else if (currentTool === "image"  && overlayImage) {
+      return;
+    }
 
-      const screenSpace = true; 
+    // Precompute scaling info (used by both "image" and ellipse)
+    const rect = canvas.getBoundingClientRect();
+    const pixelsPerFrame = rect.width / Math.max(1, canvas.width);
+    const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
+    const desiredScreenMax = brushSize * 4;
 
-      const rect = canvas.getBoundingClientRect();
-      const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
-      const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
-
-      const desiredScreenMax = brushSize*4;
-
-      const imgW = overlayImage.width;
-      const imgH = overlayImage.height;
+    if (currentTool === "image" && overlayImage) {
+      const { width: imgW, height: imgH } = overlayImage;
       const imgAspect = imgW / imgH;
 
-      let screenW, screenH;
-      if (imgW >= imgH) {
-        screenW = desiredScreenMax;
-        screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
-      } else {
-        screenH = desiredScreenMax;
-        screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
-      }
+      // screen-space size
+      const screenW = imgW >= imgH ? desiredScreenMax : Math.round(desiredScreenMax * imgAspect);
+      const screenH = imgW >= imgH ? Math.round(desiredScreenMax / imgAspect) : desiredScreenMax;
 
-      let overlayW, overlayH;
-      if (screenSpace) {
-        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
-      } else {
-        overlayH = Math.max(1, Math.round(brushSize));
-        overlayW = Math.max(1, Math.round(overlayH * imgAspect));
-      }
+      // convert to canvas space
+      const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+      const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
 
-      overlayCtx.strokeRect(
-        coords.cx - overlayW / 2,
-        coords.cy - overlayH / 2,
-        overlayW,
-        overlayH
-      );
+      overlayCtx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+      return;
     }
+
+    // Default = ellipse
+    const radiusX = (desiredScreenMax / 7) / pixelsPerFrame;
+    const radiusY = desiredScreenMax / 7 / pixelsPerBin;
+
+    overlayCtx.beginPath();
+    overlayCtx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    overlayCtx.stroke();
   });
 }
 
@@ -160,7 +160,6 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
     const bo = currentTool === "eraser" ? 1 : brushOpacity;
-
     function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
         const xI = Math.round(xFrame);
         const yI = Math.round(yDisplay);
@@ -168,11 +167,13 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
         const bin = displayYToBin(yI, fullH);
         const idx = xI * fullH + bin;
         if (idx < 0 || idx >= mags.length) return;
+        if (visited && visited[idx] == 1) return;
+        if (visited) visited[idx] = 1;
         const oldMag = mags[idx] || 0;
         const oldPhase = phases[idx] || 0;
-        const newMag = oldMag * (1 - bo) + mag * bo;
+        const newMag = (currentTool==="amplifier")?(oldMag*(mag * bo/10)):(oldMag * (1 - bo) + mag * bo);
         const newPhase = oldPhase + po * (phase - oldPhase);
-        mags[idx] = newMag;
+        mags[idx] = Math.min(newMag,255);
         phases[idx] = newPhase;
         const displayY = binToDisplayY(bin, fullH);
         const pix = (displayY * fullW + xI) * 4;
@@ -183,15 +184,16 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
         imageBuffer.data[pix + 3] = 255;
     }
 
-    if (currentTool === "brush" || currentTool === "eraser") {
-        const radiusY = brushSize;
+    if (currentTool === "brush" || currentTool === "eraser" || currentTool === "amplifier") {
+        const radiusY = brushSize *(fWidth/(sampleRate/2));
         const rect = canvas.getBoundingClientRect();
-        const radiusXFrames = Math.floor(radiusY * iWidth / hopSizeEl.value/2/(rect.width/rect.height));
+        const radiusXFrames = Math.floor(radiusY * iWidth / 512/2/(rect.width/rect.height));
+        console.log(radiusXFrames);
 
         const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
         const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
-        const minY = Math.max(0, Math.floor(cy - radiusY*(fWidth/(sampleRate/2))));
-        const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fWidth/(sampleRate/2))));
+        const minY = Math.max(0, Math.floor(cy - radiusY*(fftSize/2048)));
+        const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fftSize/2048)));
 
         const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
         const brushPhase = currentTool === "eraser" ? 0 : penPhase;
@@ -201,7 +203,7 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
                 const dx = xx - cx;
                 const dy = yy - cy;
 
-                if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / (radiusY * radiusY) > 1) continue;
+                if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / Math.pow(radiusY*(fftSize/2048),2) > 1) continue;
                 drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
             }
         }

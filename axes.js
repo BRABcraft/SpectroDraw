@@ -82,9 +82,9 @@ function drawTimeline() {
 function timelineXToFrame(clientXLeft) {
     return iLow + clientXLeft/timeline.getBoundingClientRect().width*iWidth;
 }
-function timelineMousedown(e) {
+function timelineMousedown(e,touch) {
   const rect = timeline.getBoundingClientRect();
-    if (e.clientY- rect.top>20) {
+    if ((touch ? e.touches[0].clientY : e.clientY)- rect.top>20) {
       draggingTimeline = true;
       wasPlayingDuringDrag = playing;
 
@@ -98,20 +98,20 @@ function timelineMousedown(e) {
       drawCursor();
     } else {
       draggingBounds = true;
-      oldX = e.clientX- rect.left;
+      oldX = (touch ? e.touches[0].clientX : e.clientX)- rect.left;
       iWidth = iHigh-iLow;
     }
 }
 timeline.addEventListener("mousedown", e => {
-    timelineMousedown(e);
+    timelineMousedown(e,false);
 });
 timeline.addEventListener("touchstart", e => {
-    timelineMousedown(e);
+    timelineMousedown(e,true);
 });
-function timelineMousemove(e) {
+function timelineMousemove(e,touch) {
     const rect = timeline.getBoundingClientRect();
-    const mouseY = e.clientY- rect.top;
-    const mouseX = e.clientX- rect.left;
+    const mouseY = (touch ? e.touches[0].clientY : e.clientY)- rect.top;
+    const mouseX = (touch ? e.touches[0].clientX : e.clientX)- rect.left;
     if (mouseY > 20 && tDmode == -1) {
       timeline.style.cursor = "pointer";
       if (!draggingTimeline) return;
@@ -165,10 +165,10 @@ function timelineMousemove(e) {
       drawCursor();
 }
 window.addEventListener("mousemove", e => {
-    timelineMousemove(e);
+    timelineMousemove(e,false);
 });
 window.addEventListener("touchmove", e => {
-    timelineMousemove(e);
+    timelineMousemove(e,true);
 });
 function timelineMouseup(e) {
   tDmode = -1;
@@ -306,22 +306,24 @@ function drawYAxis() {
 }
 
 
-function yAxisMousedown(e) {
-  const rect = yAxis.getBoundingClientRect();
-    if (e.clientX - rect.left < 15) {
+function yAxisMousedown(e,touch) {
+    const rect = yAxis.getBoundingClientRect();
+    const x = touch ? e.touches[0].clientX : e.clientX;
+    const y = touch ? e.touches[0].clientY : e.clientY;
+    if (x - rect.left < 15) {
         draggingFreq = true;
-        oldY = e.clientY - rect.top;
+        oldY = y - rect.top;
         fWidth = fHigh - fLow;
     }
 }
 
-yAxis.addEventListener("mousedown", e => {yAxisMousedown(e);});
-yAxis.addEventListener("touchstart", e => {yAxisMousedown(e);});
+yAxis.addEventListener("mousedown", e => {yAxisMousedown(e,false);});
+yAxis.addEventListener("touchstart", e => {yAxisMousedown(e,true);});
 
-function yAxisMousemove(e) {
+function yAxisMousemove(e,touch) {
   const rect = yAxis.getBoundingClientRect();
-    const mouseY = e.clientY - rect.top;
-    const mouseX = e.clientX - rect.left;
+    const mouseY = (touch ? e.touches[0].clientY : e.clientY) - rect.top;
+    const mouseX = (touch ? e.touches[0].clientX : e.clientX) - rect.left;
 
     if (mouseX < 15) {
         const sLow = (fLow / (sampleRate/2)) * rect.height;
@@ -362,8 +364,8 @@ function yAxisMousemove(e) {
     drawLogScale();
     drawCursor();
 }
-window.addEventListener("mousemove", e => {yAxisMousemove(e);});
-window.addEventListener("touchmove", e => {yAxisMousemove(e);});
+window.addEventListener("mousemove", e => {yAxisMousemove(e,false);});
+window.addEventListener("touchmove", e => {yAxisMousemove(e,true);});
 
 window.addEventListener("mouseup", e => {fDmode = -1;draggingFreq = false;});
 window.addEventListener("touchend", e => {fDmode = -1;draggingFreq = false;});

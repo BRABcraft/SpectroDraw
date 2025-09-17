@@ -364,6 +364,7 @@ let useHz = false;
 let autoPlayOnFinish = true;
 
 let startX = null, startY = null;
+let cx_ = null, cy_ = null;
 
 let brushSize=parseInt(brushSizeEl.value);
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
@@ -1031,7 +1032,7 @@ function drawCursor(){
     const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow)
     overlayCtx.clearRect(0,0, canvas.width, canvas.height);
     overlayCtx.strokeStyle = "#0f0";
-    overlayCtx.lineWidth = framesTotal/500;
+    overlayCtx.lineWidth = iWidth/500;
     overlayCtx.beginPath();
     overlayCtx.moveTo(x + 0.5, 0);
     overlayCtx.lineTo(x + 0.5, specHeight);
@@ -1094,11 +1095,19 @@ function renderView() {
 let painting=false;
 let paintedPixels=null;
 
-function getCanvasCoords(e){
+function getCanvasCoords(e,touch){
     const rect=canvas.getBoundingClientRect();
     const scaleX=canvas.width/rect.width;
     const scaleY=canvas.height/rect.height;
-    return {cx:(e.clientX-rect.left)*scaleX, cy:(e.clientY-rect.top)*scaleY, scaleX, scaleY};
+    let x; let y;
+    if (touch && e.touches.length === 0) {
+        x = _cx; y = _cy;
+    } else {
+        x = touch ? e.touches[0].clientX : e.clientX;
+        y = touch ? e.touches[0].clientY : e.clientY;
+        _cx = x; _cy = y;
+    }
+    return {cx:(x-rect.left)*scaleX, cy:(y-rect.top)*scaleY, scaleX, scaleY};
 }
 
 </script>
@@ -1145,7 +1154,7 @@ function visibleToSpecY(visY) {
 let snapshotMags = null;
 let snapshotPhases = null;
 
-function canvasMouseDown(e) {
+function canvasMouseDown(e,touch) {
     if (!mags || !phases) return;
 
     painting = true;
@@ -1156,7 +1165,7 @@ function canvasMouseDown(e) {
     visited = new Uint8Array(mags.length);
     stopSource();
     paintedPixels = new Set();
-    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
+    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
     startX = cx; startY = cy;
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
     const realY = visibleToSpecY(cy);
@@ -1179,15 +1188,15 @@ function canvasMouseDown(e) {
     }
 }
 canvas.addEventListener("mousedown", e=>{
-    canvasMouseDown(e);
+    canvasMouseDown(e,false);
 });
-canvas.addEventListener("touchStart", e=>{
-    canvasMouseDown(e);
+canvas.addEventListener("touchstart", e=>{
+    canvasMouseDown(e,true);
 });
 
-function canvasMouseMove(e) {
-  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
-  if (!recording) {
+function canvasMouseMove(e,touch) {
+    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+    if (!recording) {
     const hz = getSineFreq(visibleToSpecY(cy)).toFixed(0);
     const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
     const i = Math.floor(cx*specHeight+hz/(sampleRate/fftSize));
@@ -1198,14 +1207,14 @@ function canvasMouseMove(e) {
     if (!painting && currentTool === "brush" || currentTool === "eraser" || currentTool === "blur" || currentTool === "amplifier") {
         previewShape(cx, cy);
     }
-  if(!painting && currentTool != "image") return;
+    if(!painting && currentTool != "image") return;
 
     if (currentTool === "rectangle" || currentTool === "line" || currentTool === "image") {
-      previewShape(cx, cy);
+        previewShape(cx, cy);
     } else {
-      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-      const realY = visibleToSpecY(cy);
-      paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        const realY = visibleToSpecY(cy);
+        paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
     }
 
     currentFrame = Math.floor(cx);
@@ -1218,16 +1227,16 @@ function canvasMouseMove(e) {
     drawCursor();
 }
 canvas.addEventListener("mousemove", e=>{
-    canvasMouseMove(e);
+    canvasMouseMove(e,false);
 });
 canvas.addEventListener("touchmove", e=>{
-    canvasMouseMove(e);
+    canvasMouseMove(e,true);
 });
 
 </script>
 <script src="undoredo.js"></script>
 <script>
-function canvasMouseUp(e) {
+function canvasMouseUp(e,touch) {
   if (!mags || !phases || !painting) return;
     visited = null;
     es.style.display = "none";
@@ -1241,7 +1250,7 @@ function canvasMouseUp(e) {
         sineOsc = null;
         sineGain = null;
     }
-    const { cx, cy } = getCanvasCoords(e);
+    const { cx, cy } = getCanvasCoords(e,touch);
     if (currentTool === "rectangle" || currentTool === "line") {
         commitShape(cx, cy); 
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
@@ -1319,10 +1328,10 @@ function canvasMouseUp(e) {
 }
 
 document.addEventListener("mouseup", e => {
-    canvasMouseUp(e);
+    canvasMouseUp(e,false);
 });
 document.addEventListener("touchend", e => {
-    canvasMouseUp(e);
+    canvasMouseUp(e,true);
 });
 
 let sourceNode = null;

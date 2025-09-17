@@ -12,7 +12,7 @@
     <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
   </label>
   <label title="Number of audio samples given to each frame (x pixel).">Time resolution:
-    <input id="hopSize" type="number" value="512" step="1" min="1">
+    <input id="hopSize" type="number" value="1024" step="1" min="1">
   </label>
 
   <label id="es" style="position:absolute; left:240px;">
@@ -547,15 +547,23 @@ async function startRecording() {
   fWidth = fHigh;
 
   stopSource();
-  info.textContent = "Recording in 3";
-  await countdown(1);
-  if (!recording) return;
-  info.textContent = "Recording in 2";
-  await countdown(1);
-  if (!recording) return;
-  info.textContent = "Recording in 1";
-  await countdown(1);
-  if (!recording) return;
+  const beep = new Audio("beep.mp3");
+beep.load();
+
+info.textContent = "Recording in 3";
+beep.currentTime = 0; beep.play();
+await countdown(1);
+if (!recording) return;
+
+info.textContent = "Recording in 2";
+beep.currentTime = 0; beep.play();
+await countdown(1);
+if (!recording) return;
+
+info.textContent = "Recording in 1";
+beep.currentTime = 0; beep.play();
+await countdown(1);
+if (!recording) return;
   info.textContent = "Recording...";
   status.textContent = "Recording...";
   if (!recording) return;
@@ -650,7 +658,10 @@ function stopRecording() {
   iLow = null;
   pcmChunks = null;
 
+    let t = pcm.length / sampleRate;
+    hopSizeEl.value = t<0.5?128:(t<5?512:1024);
   restartRender(true);
+    
 }
 
 recordBtn.addEventListener("click", async () => {
@@ -686,6 +697,9 @@ fileEl.addEventListener("change", async e=>{
       status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
       status.style.display = "block";
       restartRender(true);
+      
+    let t = pcm.length / sampleRate;
+    hopSizeEl.value = t<0.5?128:(t<5?512:1024);
       iLow = 0;
       iHigh = framesTotal;
 
@@ -750,9 +764,9 @@ preset.addEventListener("change", async (e) => {
 
     status.textContent = `Loaded preset "${val}", ${pcm.length} samples @ ${sampleRate} Hz`;
     es.style.display = "none";
-
+    let t = pcm.length / sampleRate;
+    hopSizeEl.value = t<0.5?128:(t<5?512:1024);
     restartRender(true);
-
     iLow = 0;
     iHigh = framesTotal;
 
@@ -773,7 +787,7 @@ function restartRender(autoPlay){
     win = hann(fftSize);
 
     framesTotal = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
-    if (iLow == null) {
+    if (iLow == null || iHigh > framesTotal) {
       iLow = 0;
       iHigh = framesTotal;
     }

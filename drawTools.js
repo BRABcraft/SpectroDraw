@@ -15,10 +15,20 @@ function previewShape(cx, cy) {
   pendingPreview = true;
 
   requestAnimationFrame(() => {
+    
     pendingPreview = false;
     const { cx, cy } = lastPreviewCoords;
 
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
+    overlayCtx.strokeStyle = "#0f0";
+    overlayCtx.lineWidth = framesTotal/500;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(x + 0.5, 0);
+    overlayCtx.lineTo(x + 0.5, specHeight);
+    overlayCtx.stroke();
+    
     overlayCtx.strokeStyle = "#fff";
     overlayCtx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
 

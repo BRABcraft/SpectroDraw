@@ -404,6 +404,7 @@ trueScale.addEventListener("click", () => {
 yAxisMode.addEventListener("click", () => {
         useHz = !useHz;
         yAxisMode.style.background = useHz ? "#4af" : "#f3f3f3";
+        drawYAxis();
       });
 
 overlayFile.addEventListener("change", e => {
@@ -545,20 +546,24 @@ async function startRecording() {
   fHigh = sampleRate/2;
   fWidth = fHigh;
 
+  stopSource();
+  info.textContent = "Recording in 3";
+  await countdown(1);
+  if (!recording) return;
+  info.textContent = "Recording in 2";
+  await countdown(1);
+  if (!recording) return;
+  info.textContent = "Recording in 1";
+  await countdown(1);
+  if (!recording) return;
+  info.textContent = "Recording...";
+  status.textContent = "Recording...";
+  if (!recording) return;
   pcmChunks = [];        
   pcm = new Float32Array(0);
   pos = 0;
   x = 0;
   rendering = false;
-  stopSource();
-  info.textContent = "Recording in 3";
-  await countdown(1);
-  info.textContent = "Recording in 2";
-  await countdown(1);
-  info.textContent = "Recording in 1";
-  await countdown(1);
-  info.textContent = "Recording...";
-  status.textContent = "Recording...";
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -616,6 +621,7 @@ async function startRecording() {
 function stopRecording() {
   recording = false;
   status.textContent = "Recording stopped.";
+  info.textContent = "";
 
   if (processor) {
     processor.disconnect();
@@ -690,13 +696,12 @@ fileEl.addEventListener("change", async e=>{
 });
 preset.addEventListener("change", async (e) => {
   const val = e.target.value;
-  // special-case silence
+
   if (val === "silence") {
     initEmptyPCM();
     return;
   }
 
-  // map preset names to file URLs (adjust paths to where you host the WAVs)
   const presetMap = {
     dog: "presets/dog.wav",
     flute: "presets/flute.wav",
@@ -731,27 +736,23 @@ preset.addEventListener("change", async (e) => {
 
   try {
     status.textContent = `Loading preset "${val}"…`;
-    ensureAudioCtx(); // make sure audioCtx exists and sampleRate is accurate
+    ensureAudioCtx(); 
 
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
 
     const ab = await resp.arrayBuffer();
 
-    // decodeAudioData returns a Promise in modern browsers; using await works
     const decoded = await audioCtx.decodeAudioData(ab.slice(0));
-    // use channel 0
+
     pcm = new Float32Array(decoded.getChannelData(0));
     sampleRate = decoded.sampleRate || sampleRate;
 
-    // clear UI state similar to file loader
     status.textContent = `Loaded preset "${val}", ${pcm.length} samples @ ${sampleRate} Hz`;
     es.style.display = "none";
 
-    // restart render (pass true like file loader so it behaves consistently)
     restartRender(true);
 
-    // ensure view bounds include whole new audio
     iLow = 0;
     iHigh = framesTotal;
 
@@ -836,7 +837,7 @@ function restartRender(autoPlay){
     startTime = performance.now();
     audioProcessed = 0;
 
-    stopSource(true);
+    if (playing) stopSource(true);
     requestAnimationFrame(drawLoop);
 
     if (!autoPlay) {
@@ -1104,19 +1105,18 @@ function visibleToSpecY(visY) {
     const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
     const fullY = Math.round(visY + fStart);
     return Math.max(0, Math.min(specHeight - 1, fullY));
-}// snapshot of mags/phases at start of stroke (deep copy)
+}
 let snapshotMags = null;
 let snapshotPhases = null;
 
 function canvasMouseDown(e) {
     if (!mags || !phases) return;
-    // existing stuff...
+
     painting = true;
-    // create deep copies (Float32Array copy constructor clones data)
+
     snapshotMags = new Float32Array(mags);
     snapshotPhases = new Float32Array(phases);
 
-    // optional: track that a snapshot exists for this mouse drag
     visited = new Uint8Array(mags.length);
     stopSource();
     paintedPixels = new Set();
@@ -1148,7 +1148,6 @@ canvas.addEventListener("mousedown", e=>{
 canvas.addEventListener("touchStart", e=>{
     canvasMouseDown(e);
 });
-
 
 function canvasMouseMove(e) {
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e);
@@ -1189,233 +1188,9 @@ canvas.addEventListener("touchmove", e=>{
     canvasMouseMove(e);
 });
 
-
-function recomputePCMForCols(colStart, colEnd) {
-  if (!pcm || !mags || !phases) return;
-
-  // clamp inputs
-  colStart = Math.max(0, Math.floor(colStart));
-  colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
-  if (colEnd < colStart) return;
-
-  // margin in columns to cover FFT overlap (safe)
-  const marginCols = Math.ceil(fftSize / hop) + 1;
-
-  // extend the range
-  const colFirst = Math.max(0, colStart - marginCols);
-  const colLast  = Math.min(specWidth - 1, colEnd + marginCols);
-
-  // compute sample range that needs rebuilding
-  const sampleStart = Math.max(0, colFirst * hop);
-  const sampleEnd   = Math.min(pcm.length, (colLast * hop) + fftSize);
-  const segmentLen  = sampleEnd - sampleStart;
-  if (segmentLen <= 0) return;
-
-  // prepare accumulators
-  const newSegment = new Float32Array(segmentLen);
-  const overlapCount = new Float32Array(segmentLen);
-
-  const h = specHeight;
-  const window = new Float32Array(fftSize);
-  for (let i = 0; i < fftSize; i++) window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
-
-  const re = new Float32Array(fftSize);
-  const im = new Float32Array(fftSize);
-
-  // iterate every column that can contribute to this sample range
-  for (let xCol = colFirst; xCol <= colLast; xCol++) {
-    // build frequency-domain column
-    re.fill(0); im.fill(0);
-    for (let bin = 0; bin < h && bin < fftSize; bin++) {
-      const idx = xCol * h + bin;
-      const mag = mags[idx] || 0;
-      const phase = phases[idx] || 0;
-      re[bin] = mag * Math.cos(phase);
-      im[bin] = mag * Math.sin(phase);
-      if (bin > 0 && bin < fftSize / 2) {
-        const sym = fftSize - bin;
-        re[sym] = re[bin];
-        im[sym] = -im[bin];
-      }
-    }
-
-    // inverse transform
-    ifft_inplace(re, im);
-
-    // add contribution into newSegment
-    const baseSample = xCol * hop;
-    for (let i = 0; i < fftSize; i++) {
-      const globalSample = baseSample + i;
-      if (globalSample < sampleStart || globalSample >= sampleEnd) continue;
-      const segIndex = globalSample - sampleStart;
-      newSegment[segIndex] += re[i] * window[i];
-      overlapCount[segIndex] += window[i] * window[i];
-    }
-  }
-
-  // normalize overlap
-  for (let i = 0; i < segmentLen; i++) {
-    if (overlapCount[i] > 0) newSegment[i] /= overlapCount[i];
-  }
-
-  // write back into global pcm
-  pcm.set(newSegment, sampleStart);
-
-  // repaint the same extended column range so the display is consistent.
-  // Use the extended colFirst..colLast, not the tight colStart..colEnd.
-  renderSpectrogramColumnsToImageBuffer(colFirst, colLast);
-
-  // if playing, refresh audio buffer so output matches pcm
-  if (playing) {
-    stopSource(true);
-    playPCM(true);
-  }
-}
-
-
-function renderSpectrogramColumnsToImageBuffer(colStart, colEnd) {
-  colStart = Math.max(0, Math.floor(colStart));
-  colEnd = Math.min(specWidth - 1, Math.floor(colEnd));
-  if (!imageBuffer || !specCtx) return;
-  const h = specHeight;
-  const w = specWidth;
-
-  for (let xx = colStart; xx <= colEnd; xx++) {
-    for (let yy = 0; yy < h; yy++) {
-      const bin = displayYToBin(yy, h);
-      const idx = xx * h + bin;
-      const mag = mags[idx] || 0;
-      const phase = phases[idx] || 0;
-      const [r,g,b] = magPhaseToRGB(mag, phase);
-      const pix = (yy * w + xx) * 4;
-      imageBuffer.data[pix] = r;
-      imageBuffer.data[pix+1] = g;
-      imageBuffer.data[pix+2] = b;
-      imageBuffer.data[pix+3] = 255;
-    }
-  }
-  // push only the modified rectangle to canvas for speed:
-  specCtx.putImageData(imageBuffer, 0, 0, colStart, 0, (colEnd-colStart+1), specHeight);
-  renderView();
-}
-
-document.addEventListener('keydown', (ev) => {
-  const key = ev.key.toLowerCase();
-  if ((ev.ctrlKey || ev.metaKey) && key === 'z') {
-    ev.preventDefault();
-    if (ev.shiftKey) doRedo();    // Ctrl+Shift+Z -> redo
-    else doUndo();                // Ctrl+Z -> undo
-  } else if ((ev.ctrlKey || ev.metaKey) && key === 'y') {
-    ev.preventDefault();
-    doRedo();                     // Ctrl+Y -> redo
-  }
-});
-
-async function doUndo() {
-  if (historyStack.length === 0) { console.log("Nothing to undo"); return; }
-  const entry = historyStack.pop();
-
-  if (entry.type === 'paint') {
-    const indices = entry.indices;           // Uint32Array
-    const prevMags = entry.prevMags;        // Float32Array (previous values to restore)
-    const prevPhases = entry.prevPhases;
-
-    // build arrays that represent the current (post-action) values so we can redo
-    const n = indices.length;
-    const postMags = new Float32Array(n);
-    const postPhases = new Float32Array(n);
-
-    for (let i = 0; i < n; i++) {
-      const idx = indices[i];
-      postMags[i] = mags[idx] || 0;
-      postPhases[i] = phases[idx] || 0;
-    }
-
-    // restore previous values (the actual undo)
-    for (let i = 0; i < n; i++) {
-      const idx = indices[i];
-      mags[idx] = prevMags[i];
-      phases[idx] = prevPhases[i];
-    }
-
-    // repaint affected columns & recompute pcm
-    const minCol = Math.max(0, entry.minCol);
-    const maxCol = Math.min(specWidth - 1, entry.maxCol);
-    renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
-    recomputePCMForCols(minCol, maxCol);
-
-    // push redo entry (store the values needed to reapply the action)
-    while (redoStack.length >= MAX_HISTORY_ENTRIES) redoStack.shift();
-    redoStack.push({
-      type: 'paint',
-      indices: indices,           // reuse same indices buffer (immutable)
-      nextMags: postMags,        // values to reapply when redoing
-      nextPhases: postPhases,
-      minCol: minCol,
-      maxCol: maxCol
-    });
-
-    if (playing) {
-      stopSource(true);
-      playPCM(true);
-    }
-  } else {
-    console.warn("Unknown history entry type:", entry.type);
-  }
-}
-
-async function doRedo() {
-  if (redoStack.length === 0) { console.log("Nothing to redo"); return; }
-  const rentry = redoStack.pop();
-
-  if (rentry.type === 'paint') {
-    const indices = rentry.indices;
-    const nextMags = rentry.nextMags;
-    const nextPhases = rentry.nextPhases;
-    const n = indices.length;
-
-    // capture current values (these will become prevMags for the history entry)
-    const prevMags = new Float32Array(n);
-    const prevPhases = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      const idx = indices[i];
-      prevMags[i] = mags[idx] || 0;
-      prevPhases[i] = phases[idx] || 0;
-    }
-
-    // apply redo (set mags/phases to the stored "next" values)
-    for (let i = 0; i < n; i++) {
-      const idx = indices[i];
-      mags[idx] = nextMags[i];
-      phases[idx] = nextPhases[i];
-    }
-
-    // repaint & recompute
-    const minCol = Math.max(0, rentry.minCol);
-    const maxCol = Math.min(specWidth - 1, rentry.maxCol);
-    renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
-    recomputePCMForCols(minCol, maxCol);
-
-    // push a history entry so this redo can be undone
-    // NOTE: pass clearRedo = false so we don't clear redoStack when re-pushing history
-    pushHistory({
-      type: 'paint',
-      indices: indices,
-      prevMags: prevMags,
-      prevPhases: prevPhases,
-      minCol: minCol,
-      maxCol: maxCol
-    }, /* clearRedo = */ false);
-
-    if (playing) {
-      stopSource(true);
-      playPCM(true);
-    }
-  } else {
-    console.warn("Unknown redo entry type:", rentry.type);
-  }
-}
-
+</script>
+<script src="undoredo.js"></script>
+<script>
 function canvasMouseUp(e) {
   if (!mags || !phases || !painting) return;
     visited = null;
@@ -1439,17 +1214,16 @@ function canvasMouseUp(e) {
     startX=startY=null;
 
     if (snapshotMags && snapshotPhases && mags && phases) {
-    const epsMag = 1e-6;         // tune if you want looser equality
-    const epsPhase = 1e-3;       // radians; tune as needed
+    const epsMag = 1e-6;         
+    const epsPhase = 1e-3;       
 
     const changedIdxs = [];
     const prevMags = [];
     const prevPhases = [];
 
     const h = specHeight;
-    const total = mags.length; // same as phases.length
+    const total = mags.length; 
 
-    // single pass to collect diffs
     for (let idx = 0; idx < total; idx++) {
       const oldM = snapshotMags[idx] || 0;
       const newM = mags[idx] || 0;
@@ -1459,7 +1233,7 @@ function canvasMouseUp(e) {
         prevPhases.push(snapshotPhases[idx] || 0);
         continue;
       }
-      // compare phases with angular distance
+
       const oldP = snapshotPhases[idx] || 0;
       const newP = phases[idx] || 0;
       if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
@@ -1469,9 +1243,8 @@ function canvasMouseUp(e) {
       }
     }
 
-    // if anything changed, create an entry (typed arrays)
     if (changedIdxs.length > 0) {
-      // compute bounding columns
+
       let minCol = Infinity, maxCol = -Infinity;
       for (let k = 0; k < changedIdxs.length; k++) {
         const col = Math.floor(changedIdxs[k] / h);
@@ -1480,12 +1253,10 @@ function canvasMouseUp(e) {
       }
         if (!isFinite(minCol)) { minCol = 0; maxCol = 0; }
 
-        // convert to typed arrays for compactness
         const indicesArr = new Uint32Array(changedIdxs);
         const prevMagsArr = new Float32Array(prevMags);
         const prevPhasesArr = new Float32Array(prevPhases);
 
-        // push to history (respect your MAX_HISTORY_ENTRIES)
         pushHistory({
             type: 'paint',
             indices: indicesArr,
@@ -1496,11 +1267,9 @@ function canvasMouseUp(e) {
         });
     }
 
-    // free snapshot memory
     snapshotMags = null;
     snapshotPhases = null;
 
-    // now recompute only the affected sample/column range:
     const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
     if (lastEntry) {
       recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol);
@@ -1565,7 +1334,6 @@ async function playPCM(loop = true, startFrame = null) {
     if (!pcm) return;
     ensureAudioCtx();
 
-    // resume the context if suspended (required by browser autoplay policies)
     if (audioCtx.state === 'suspended') {
       try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
     }
@@ -1589,12 +1357,12 @@ async function playPCM(loop = true, startFrame = null) {
     sourceNode.connect(audioCtx.destination);
 
     const offsetSec = startSample / sampleRate;
-    // set sourceStartTime relative to the (now-running) audioCtx clock
+
     sourceStartTime = audioCtx.currentTime - offsetSec;
     try {
         sourceNode.start(0, offsetSec);
     } catch (e) {
-        // fallback for very short remaining buffer
+
         const remaining = pcm.length - startSample;
         const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
         shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
@@ -1617,7 +1385,6 @@ async function playFrame(frameX) {
     if (!pcm) return;
     ensureAudioCtx();
 
-    // ensure resumed
     if (audioCtx.state === 'suspended') {
       try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
     }

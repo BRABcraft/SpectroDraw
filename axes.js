@@ -250,11 +250,13 @@ function drawYAxis() {
 
         return visY/yFactor/(fftSize/2048);
     }
+    const rect = yAxis.getBoundingClientRect();
     if (useHz) {
         let lastDrawPos = 9999999;
         for (let f = 0.859375; f < sampleRate / 2; f *= (Math.pow(2, 1 / 12))) {
             visY = fToVisY(f);
             if (Math.abs(visY - lastDrawPos) < (100/fftSize*246)) continue;
+            if (visY < 0 || visY > rect.height) continue;
             const label = hzToNoteName(f);
             yctx.save();
             yctx.scale(1.0, yFactor/(fftSize/2048));
@@ -405,7 +407,7 @@ document.addEventListener('keydown', function(event) {
 
 stopBtn.addEventListener("click", () => {
     stopSource(false); 
-    if (recording) stopRecording();
+    if (recording) {stopRecording(); recording = false;}
     timelineCursorX = 0;
     currentCursorX = 0;
     drawTimeline();

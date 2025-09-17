@@ -465,40 +465,55 @@ function drawLogScale() {
   lctx.stroke();
 }
 let changingLogScale = false;
-function logScaleMouseDown(e) {
+function getMouseXY(e,touch) {
+  if (touch) {
+    return [e.touches[0].clientX, e.touches[0].clientY];
+  } else {
+    return [e.clientX, e.clientY];
+  }
+}
+logscaleEl.addEventListener("mousedown", e=> {
+  console.log("mouse",e);
+  logScaleMouseDown(e,false);
+});
+logscaleEl.addEventListener("touchstart", e=> {
+  console.log("touch",e);
+  logScaleMouseDown(e.true);
+});
+function logScaleMouseDown(e,touch) {
   const rect= logscaleEl.getBoundingClientRect();
   changingLogScale = true;
-  startY = e.clientY;
-  startX = e.clientX;
+  [startX, startY] = getMouseXY(e,touch);
   renderFullSpectrogramToImage();
   drawLogScale();
 }
 logscaleEl.addEventListener("mousedown", e=> {
-  logScaleMouseDown(e);
+  console.log("mouse",e);
+  logScaleMouseDown(e,false);
 });
 logscaleEl.addEventListener("touchstart", e=> {
-  logScaleMouseDown(e);
+  console.log("touch",e);
+  logScaleMouseDown(e,true);
 });
 
-function logScaleMouseMove(e) {
+function logScaleMouseMove(e,touch) {
   logscaleEl.style.cursor = "n-resize";
   if (!changingLogScale) return;
   const rect= logscaleEl.getBoundingClientRect();
-  logScaleVal -= (e.clientY - startY - (e.clientX - startX))/400;
+  logScaleVal -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
   if (logScaleVal < 1) logScaleVal = 1;
   if (logScaleVal > 2) logScaleVal = 2;
-  startY = e.clientY;
-  startX = e.clientX;
+  [startX, startY] = getMouseXY(e,touch);
   renderFullSpectrogramToImage();
   drawLogScale();
   drawYAxis();
 }
 
 document.addEventListener("mousemove", e=> {
-  logScaleMouseMove(e);
+  logScaleMouseMove(e,false);
 });
 document.addEventListener("touchmove", e=> {
-  logScaleMouseMove(e);
+  logScaleMouseMove(e,true);
 });
 
 logscaleEl.addEventListener("mousemove", e=> {

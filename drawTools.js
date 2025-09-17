@@ -181,7 +181,7 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
         if (visited) visited[idx] = 1;
         const oldMag = mags[idx] || 0;
         const oldPhase = phases[idx] || 0;
-        const newMag = (currentTool==="amplifier")?(oldMag*(mag * bo/10)):(oldMag * (1 - bo) + mag * bo);
+        const newMag = (currentTool==="amplifier")?(oldMag*(mag/64 * bo)):(oldMag * (1 - bo) + mag * bo);
         const newPhase = oldPhase + po * (phase - oldPhase);
         mags[idx] = Math.min(newMag,255);
         phases[idx] = newPhase;
@@ -198,7 +198,6 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
         const radiusY = brushSize *(fWidth/(sampleRate/2));
         const rect = canvas.getBoundingClientRect();
         const radiusXFrames = Math.floor(radiusY * iWidth / 512/2/(rect.width/rect.height));
-        console.log(radiusXFrames);
 
         const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
         const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));

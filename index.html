@@ -50,7 +50,7 @@
     <option value="saw">Saw wave</option>
   </select>
   <label style="position:absolute; left:560px;" id="mouseInfo"></label>
-  <label style="position: absolute; left: 750px;" title="Brush size/image size" id="sliderStart">
+  <label style="position: absolute; left: 830px;" title="Brush size/image size" id="sliderStart">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <!-- axes -->
       <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
@@ -68,7 +68,7 @@
       <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
     </div>
   </label>
-  <label title="Brightness" style="position: absolute; left: 780px;">
+  <label title="Brightness" style="position: absolute; left: 860px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 24 24" width="20" height="20">
       <defs>
         <linearGradient id="brightnessGrad" x1="0" x2="1" y1="0" y2="0">
@@ -83,7 +83,7 @@
       <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
     </div>
   </label>
-  <label title="Phase" style="position: absolute; left: 810px;">
+  <label title="Phase" style="position: absolute; left: 890px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <linearGradient id="rainbow" x1="1" y1="0" x2="0" y2="1">
@@ -103,7 +103,7 @@
       <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
     </div>
   </label>
-  <label title="Brightness strength" style="position: absolute; left: 840px;">
+  <label title="Brightness strength" style="position: absolute; left: 920px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <pattern id="checker" width="4" height="4" patternUnits="userSpaceOnUse">
@@ -125,7 +125,7 @@
       <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
     </div>
   </label>
-  <label title="Phase strength" style="position: absolute; left: 870px;">
+  <label title="Phase strength" style="position: absolute; left: 950px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
       <defs>
         <linearGradient id="saturation" x1="1" y1="0" x2="0" y2="1">
@@ -233,16 +233,10 @@
       <svg xmlns="http://www.w3.org/2000/svg" 
          width="28" height="28" viewBox="0 0 20 20" 
          fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-
-      <!-- Left text -->
-      <text x="0" y="18" font-size="8" fill="currentColor" stroke-width="0.5">1.0k</text>
-
-      <!-- Right text -->
-      <text x="10" y="6" font-size="8" fill="currentColor" stroke-width="0.5">a5</text>
-
-      <!-- Diagonal slash -->
-      <line x1="4" y1="4" x2="18" y2="14" />
-    </svg>
+        <text x="0" y="18" font-size="8" fill="currentColor" stroke-width="0.5">1.0k</text>
+        <text x="10" y="6" font-size="8" fill="currentColor" stroke-width="0.5">a5</text>
+        <line x1="4" y1="4" x2="18" y2="14" />
+      </svg>
     </button>
      <button id="downloadWav" style="margin-left:20px" title="Download audio">
       <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -270,6 +264,19 @@
         <line x1="16" x2="16" y1="11" y2 = "17" stroke-width="1"/>
         <rect x="3" y="4" width="18" height="3" rx="2" ry="2" />
         <rect x="8" y="1" width="8" height="2" rx="2" ry="2" stroke-width="1"/>
+      </svg>
+    </button>
+    <button id="undoBtn" title="Undo (Ctrl+Z)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 14H5V10"/>
+        <path d="M20 20a9 9 0 0 0-15-6.7L5 10"/>
+      </svg>
+    </button>
+
+    <button id="redoBtn" title="Redo (Ctrl+Y)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 14h4v-4"/>
+        <path d="M4 20a9 9 0 0 1 15-6.7L19 10"/>
       </svg>
     </button>
   </div>

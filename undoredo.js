@@ -105,6 +105,13 @@ document.addEventListener('keydown', (ev) => {
   }
 });
 
+document.getElementById('undoBtn').addEventListener('click', () => {
+  doUndo();
+});
+document.getElementById('redoBtn').addEventListener('click', () => {
+  doRedo();
+});
+
 async function doUndo() {
   if (historyStack.length === 0) { console.log("Nothing to undo"); return; }
   const entry = historyStack.pop();

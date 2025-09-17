@@ -278,7 +278,6 @@ function drawYAxis() {
         let visY = 0;
         while (f < sampleRate/2) {
             if (Math.abs(visY-lastDrawPos)>(100/fftSize*4000)) {
-                // console.log(Math.abs(visY-lastDrawPos), f)
                 let e = f + interval;
                 while (f<e) {
                     visY = fToVisY(f);

@@ -101,7 +101,7 @@ label .vertical-wrap {
 /* ensure canvases sit below controls and buttons remain visible */
 #canvasWrapper { z-index: 1; position: absolute; }
 canvas#overlay { z-index: 10; pointer-events: none; }
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode {
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
   position: relative;
   z-index: 6000;           /* keep UI buttons above rotated inputs and canvas */
 }
@@ -110,7 +110,7 @@ body { background:#111; color:#eee; font-family:sans-serif; margin:0px;}
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.2em; }
 canvas { display:block; background:#000;}
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale, #fileB, #rec, #yAxisMode {
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;

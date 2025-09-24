@@ -1,12 +1,14 @@
 :root{
-  --slider-length: 60px;    /* vertical length in screen px */
-  --slider-thickness: 12px;  /* visual thickness (smaller = less wide) */
-  --track-color: #444;
-  --thumb-color: #fff;
+  --slider-length: 60px;    
+  --slider-thickness: 12px;  
+  --track-color: #555;           /* darker gray track */
+  --thumb-color: #fff;           /* keep thumb white for contrast */
   --thumb-size: 12px;
+  --accent-gradient: linear-gradient(90deg, #4f46e5, #9333ea, #ec4899);
+  --font-family: 'Inter', 'Segoe UI', sans-serif;
 }
 
-/* ensure controls sit above the canvas and won't be hidden */
+/* controls above canvas */
 .controls {
   position: relative;
   z-index: 5000;
@@ -14,40 +16,41 @@
   flex-wrap:nowrap;
   gap:8px;
   align-items:flex-start;
+  font-family: var(--font-family);
+  color: #eee;
 }
 
-/* each control label gets reserved horizontal space so the rotated input won't overlap siblings */
+/* labels */
 .controls label {
   display: flex;
   flex-direction: column;
   align-items: center;
   font-size: 0.9em;
-  min-width: 15px;    /* reserve space horizontally for the rotated element */
+  min-width: 15px;
   padding: 2px 0;
   box-sizing: border-box;
+  font-weight: 600;
+  color: #f9fafb;
 }
 
-/* put the rotated input inside a small container so the rotated bounding-box is constrained */
+/* vertical wrap */
 label .vertical-wrap {
   width: var(--slider-thickness);
   height: var(--slider-length);
   display:flex;
   align-items:center;
   justify-content:center;
-  overflow: visible; /* allow thumb to render outside if needed */
+  overflow: visible;
   pointer-events: auto;
 }
 
-/* the actual rotated range */
+/* vertical range */
 .controls input[type="range"].vertical {
   -webkit-appearance: none;
   appearance: none;
-
-  /* keep the logical element small (thickness x length), then rotate so it looks vertical */
   width: var(--slider-length);
   height: var(--slider-thickness);
-
-  transform: rotate(-90deg);        /* visually vertical */
+  transform: rotate(-90deg);
   transform-origin: 50% 50%;
   display: block;
   margin: 0;
@@ -56,9 +59,9 @@ label .vertical-wrap {
   cursor: pointer;
 }
 
-/* track & thumb: WebKit */
+/* WebKit track & thumb */
 .controls input[type="range"].vertical::-webkit-slider-runnable-track {
-  height: 4px;                        /* thin track */
+  height: 4px;
   background: var(--track-color);
   border-radius: 999px;
 }
@@ -70,9 +73,8 @@ label .vertical-wrap {
   height: var(--thumb-size);
   border-radius: 50%;
   background: var(--thumb-color);
-  margin-top: -(var(--thumb-size) / 2); /* try to center thumb */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
   margin-top: -4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
 }
 
 /* Firefox */
@@ -87,30 +89,23 @@ label .vertical-wrap {
   border-radius:50%;
   background: var(--thumb-color);
   border: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
   margin-top: -4px;
 }
 
-/* small tweaks so the label text doesn't shift when slider rotates */
+/* small tweaks for label alignment */
 .controls label > input[type="range"],
 .controls label > .vertical-wrap {
   margin-top: 6px;
   margin-bottom: 6px;
 }
 
-/* ensure canvases sit below controls and buttons remain visible */
+/* canvas */
 #canvasWrapper { z-index: 1; position: absolute; }
-canvas#overlay { z-index: 10; pointer-events: none; }
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
-  position: relative;
-  z-index: 6000;           /* keep UI buttons above rotated inputs and canvas */
-}
+canvas#overlay { z-index: 10; pointer-events: none; background:#111; }
 
-body { background:#111; color:#eee; font-family:sans-serif; margin:0px;}
-.controls { margin-bottom:1em; }
-label { margin-right:1em; display:inline-block; margin-top:0.2em; }
-canvas { display:block; background:#000;}
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
+/* buttons */
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,46 +113,46 @@ canvas { display:block; background:#000;}
   height: 36px;
   padding: 6px;
   border: none;
-  background: #f3f3f3;
   border-radius: 6px;
   cursor: pointer;
+  font-family: var(--font-family);
+  font-weight: 700;
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  transition: all 0.2s ease;
 }
 
+.tool-btn:hover, #downloadWav:hover, #downloadButton:hover, #resetButton:hover, #playPause:hover, #stop:hover, #trueScale:hover,#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover {
+  opacity: 0.85;
+  transform: translateY(-2px);
+}
+
+/* svg icons inside buttons */
 .tool-btn svg {
   width: 20px;
   height: 20px;
   display: block;
+  fill: #fff;
   transform: translateX(-0.5px); 
 }
+
+/* timeline and status */
 #timeline { display:block; height:40px; }
-#status { margin-top:0.5em; font-size:13px; }
-.controls {
-  display: flex;
-  flex-wrap: nowrap; 
-  gap: 5px;       
-  align-items: flex-start; 
-}
+#status { margin-top:0.5em; font-size:13px; color:#ccc; }
 
-.controls label {
-  display: flex;
-  flex-direction: column; 
-  font-size: 0.9em;
-}
-
-.controls input[type="range"],
+/* number inputs */
 .controls input[type="number"] {
-  margin-top: 2px; 
-}
-/* make all number inputs compact */
-.controls input[type="number"] {
-  width: 5ch;            /* try 4ch..8ch to taste */
+  width: 5ch;
   min-width: 10ch;
   max-width: 10ch;
   box-sizing: border-box;
   padding: 0.15rem 0.35rem;
   font-size: 0.95rem;
-  background-color: #333;
-  border-radius: 10px;
-  border-color: #aaa;
+  font-family: var(--font-family);
+  font-weight: 600;
   color: #fff;
+  background-color: #222;
+  border-radius: 10px;
+  border-color: #555;
 }

@@ -8,6 +8,10 @@
   --font-family: 'Inter', 'Segoe UI', sans-serif;
 }
 
+body {
+  background-color: #111;
+}
+
 /* ensure controls sit above the canvas and won't be hidden */
 .controls {
   position: relative;
@@ -108,7 +112,11 @@ canvas#overlay { z-index: 10; pointer-events: none; }
   z-index: 6000;           /* keep UI buttons above rotated inputs and canvas */
 }
 
-body { background:#111 !important; color:#eee; font-family:sans-serif; margin:0px;}
+body {
+  background:#111 !important;
+  color:#eee;
+  font-family:sans-serif;
+  margin:0px;}
 .controls { margin-bottom:1em; }
 label { margin-right:1em; display:inline-block; margin-top:0.2em; }
 canvas { display:block; background:#000;}

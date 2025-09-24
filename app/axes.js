@@ -182,7 +182,7 @@ function timelineMouseup(e) {
     if (wasPlayingDuringDrag) {
         playPCM(true, frame);
         document.getElementById("playPause").innerHtml = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 20 20">
         <rect x="2" y="0" width="5" height="18" rx="2" ry="2"/>
         <rect x="12" y="0" width="5" height="18" rx="2" ry="2"/>
       </svg>
@@ -374,8 +374,8 @@ window.addEventListener("touchend", e => {fDmode = -1;draggingFreq = false;});
 
 const playPauseBtn = document.getElementById("playPause");
 const stopBtn = document.getElementById("stop");
-const playHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>`;
-const pauseHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>`;
+const playHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>`;
+const pauseHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>`;
 
 function playPause() {
   ensureAudioCtx();

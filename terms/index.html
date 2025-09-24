@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service – SpectroDraw</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+      color: #f9fafb;
+      line-height: 1.7;
+      padding: 2rem;
+    }
+
+    nav {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1.5rem;
+      padding: 1rem 2rem;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    nav a {
+      color: #f9fafb;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    nav a:hover {
+      color: #60a5fa;
+    }
+
+    h1, h2, h3, h4 {
+      font-weight: 700;
+      background: linear-gradient(90deg, #4f46e5, #9333ea, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    p, li {
+      color: #e5e7eb;
+    }
+
+    ul {
+      margin-left: 1.5rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid #1f2937;
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="app.html">Launch App</a>
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="terms.html">Terms</a>
+  </nav>
+
+  <h1>Terms of Service</h1>
+  <p>Last updated: September 24, 2025</p>
+
+  <h2>Usage Restrictions</h2>
+  <p>By using this VST plugin, you agree to the following terms:</p>
+  <ul>
+    <li>Do not illegally distribute or sell the VST plugin.</li>
+    <li>Purchasing the premium version is permanent for your single account and there are no refunds.</li>
+    <li>Please credit this app if it helped you with anything.</li>
+  </ul>
+
+  <h2>Account and Purchase</h2>
+  <p>Each purchase is tied to a single user account. Sharing your premium account or login credentials with others is prohibited.</p>
+
+  <h2>Intellectual Property</h2>
+  <p>The plugin and its associated content are protected under copyright law. Unauthorized redistribution, modification, or commercial use is strictly prohibited.</p>
+
+  <h2>Limitation of Liability</h2>
+  <p>The company is not liable for any damages or losses resulting from the use of this plugin. Use at your own risk.</p>
+
+  <footer>
+    © <span id="year"></span> SpectroDraw. All rights reserved.
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

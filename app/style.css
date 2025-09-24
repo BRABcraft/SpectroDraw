@@ -1,14 +1,14 @@
 :root{
-  --slider-length: 60px;    
-  --slider-thickness: 12px;  
-  --track-color: #555;           /* darker gray track */
-  --thumb-color: #fff;           /* keep thumb white for contrast */
+  --slider-length: 60px;    /* vertical length in screen px */
+  --slider-thickness: 12px;  /* visual thickness (smaller = less wide) */
+  --track-color: #444;
+  --thumb-color: #fff;
   --thumb-size: 12px;
-  --accent-gradient: linear-gradient(90deg, #4f46e5, #9333ea, #ec4899);
+  --accent-gradient: linear-gradient(90deg, #c8c5fb, #d4c3fc, #f5bdd9);
   --font-family: 'Inter', 'Segoe UI', sans-serif;
 }
 
-/* controls above canvas */
+/* ensure controls sit above the canvas and won't be hidden */
 .controls {
   position: relative;
   z-index: 5000;
@@ -16,41 +16,40 @@
   flex-wrap:nowrap;
   gap:8px;
   align-items:flex-start;
-  font-family: var(--font-family);
-  color: #eee;
 }
 
-/* labels */
+/* each control label gets reserved horizontal space so the rotated input won't overlap siblings */
 .controls label {
   display: flex;
   flex-direction: column;
   align-items: center;
   font-size: 0.9em;
-  min-width: 15px;
+  min-width: 15px;    /* reserve space horizontally for the rotated element */
   padding: 2px 0;
   box-sizing: border-box;
-  font-weight: 600;
-  color: #f9fafb;
 }
 
-/* vertical wrap */
+/* put the rotated input inside a small container so the rotated bounding-box is constrained */
 label .vertical-wrap {
   width: var(--slider-thickness);
   height: var(--slider-length);
   display:flex;
   align-items:center;
   justify-content:center;
-  overflow: visible;
+  overflow: visible; /* allow thumb to render outside if needed */
   pointer-events: auto;
 }
 
-/* vertical range */
+/* the actual rotated range */
 .controls input[type="range"].vertical {
   -webkit-appearance: none;
   appearance: none;
+
+  /* keep the logical element small (thickness x length), then rotate so it looks vertical */
   width: var(--slider-length);
   height: var(--slider-thickness);
-  transform: rotate(-90deg);
+
+  transform: rotate(-90deg);        /* visually vertical */
   transform-origin: 50% 50%;
   display: block;
   margin: 0;
@@ -59,9 +58,9 @@ label .vertical-wrap {
   cursor: pointer;
 }
 
-/* WebKit track & thumb */
+/* track & thumb: WebKit */
 .controls input[type="range"].vertical::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 4px;                        /* thin track */
   background: var(--track-color);
   border-radius: 999px;
 }
@@ -73,8 +72,9 @@ label .vertical-wrap {
   height: var(--thumb-size);
   border-radius: 50%;
   background: var(--thumb-color);
+  margin-top: -(var(--thumb-size) / 2); /* try to center thumb */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
   margin-top: -4px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
 }
 
 /* Firefox */
@@ -89,22 +89,81 @@ label .vertical-wrap {
   border-radius:50%;
   background: var(--thumb-color);
   border: none;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
   margin-top: -4px;
 }
 
-/* small tweaks for label alignment */
+/* small tweaks so the label text doesn't shift when slider rotates */
 .controls label > input[type="range"],
 .controls label > .vertical-wrap {
   margin-top: 6px;
   margin-bottom: 6px;
 }
 
-/* canvas */
+/* ensure canvases sit below controls and buttons remain visible */
 #canvasWrapper { z-index: 1; position: absolute; }
-canvas#overlay { z-index: 10; pointer-events: none; background:#111; }
+canvas#overlay { z-index: 10; pointer-events: none; }
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
+  position: relative;
+  z-index: 6000;           /* keep UI buttons above rotated inputs and canvas */
+}
 
-/* buttons */
+body { background:#111; color:#eee; font-family:sans-serif; margin:0px;}
+.controls { margin-bottom:1em; }
+label { margin-right:1em; display:inline-block; margin-top:0.2em; }
+canvas { display:block; background:#000;}
+.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  border: none;
+  background: var(--accent-gradient);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tool-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  transform: translateX(-0.5px); 
+}
+#timeline { display:block; height:40px; }
+#status { margin-top:0.5em; font-size:13px; }
+.controls {
+  display: flex;
+  flex-wrap: nowrap; 
+  gap: 5px;       
+  align-items: flex-start; 
+}
+
+.controls label {
+  display: flex;
+  flex-direction: column; 
+  font-size: 0.9em;
+}
+
+.controls input[type="range"],
+.controls input[type="number"] {
+  margin-top: 2px; 
+}
+/* make all number inputs compact */
+.controls input[type="number"] {
+  width: 5ch;            /* try 4ch..8ch to taste */
+  min-width: 10ch;
+  max-width: 10ch;
+  box-sizing: border-box;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.95rem;
+  background-color: #333;
+  border-radius: 10px;
+  border-color: #aaa;
+  color: #fff;
+}
+
 .tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
   display: inline-flex;
   align-items: center;
@@ -120,39 +179,65 @@ canvas#overlay { z-index: 10; pointer-events: none; background:#111; }
   background: var(--accent-gradient);
   color: #fff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-  transition: all 0.2s ease;
+  transition: all 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
 }
 
+/* Neon glow effect on hover */
 .tool-btn:hover, #downloadWav:hover, #downloadButton:hover, #resetButton:hover, #playPause:hover, #stop:hover, #trueScale:hover,#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover {
-  opacity: 0.85;
+  opacity: 1;
   transform: translateY(-2px);
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 32px #ec4899, 0 0 48px #4f46e5;
 }
 
-/* svg icons inside buttons */
-.tool-btn svg {
-  width: 20px;
-  height: 20px;
-  display: block;
-  fill: #fff;
-  transform: translateX(-0.5px); 
+/* Pulse glow animation */
+.tool-btn::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 32px #ec4899, 0 0 48px #4f46e5;
 }
 
-/* timeline and status */
-#timeline { display:block; height:40px; }
-#status { margin-top:0.5em; font-size:13px; color:#ccc; }
+.tool-btn:hover::after {
+  opacity: 0.6;
+}
 
-/* number inputs */
-.controls input[type="number"] {
-  width: 5ch;
-  min-width: 10ch;
-  max-width: 10ch;
-  box-sizing: border-box;
-  padding: 0.15rem 0.35rem;
-  font-size: 0.95rem;
-  font-family: var(--font-family);
-  font-weight: 600;
-  color: #fff;
-  background-color: #222;
-  border-radius: 10px;
-  border-color: #555;
+/* ----- SLIDER THUMBSTICK HOVER ANIMATION ----- */
+.controls input[type="range"].vertical::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 50%;
+  background: var(--thumb-color);
+  margin-top: -4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  transition: all 0.2s ease, box-shadow 0.2s ease;
+}
+
+.controls input[type="range"].vertical::-webkit-slider-thumb:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
+}
+
+/* Firefox */
+.controls input[type="range"].vertical::-moz-range-thumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius:50%;
+  background: var(--thumb-color);
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  transition: all 0.2s ease, box-shadow 0.2s ease;
+}
+
+.controls input[type="range"].vertical::-moz-range-thumb:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
 }

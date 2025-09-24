@@ -51,13 +51,13 @@
   </select>
   <label style="position:absolute; left:560px;" id="mouseInfo"></label>
   <label style="position: absolute; left: 830px;" title="Brush size/image size" id="sliderStart">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="#fff" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <!-- axes -->
       <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
       <line x1="5" y1="19" x2="5"  y2="5"  />   <!-- Y axis -->
 
       <!-- little filled origin box at bottom-left (origin) -->
-      <rect x="4.5" y="12.5" width="6" height="6" fill="currentColor" stroke="none" rx="0.5" ry="0.5" />
+      <rect x="4.5" y="12.5" width="6" height="6" fill="#fff" stroke="none" rx="0.5" ry="0.5" />
 
       <!-- small axis arrows -->
       <path d="M19 19 L17.5 17.5" />
@@ -76,7 +76,7 @@
           <stop offset="100%" stop-color="white"/>
         </linearGradient>
       </defs>
-      <rect x="0" y="0" width="20" height="20" fill="url(#brightnessGrad)" stroke="currentColor"/>
+      <rect x="0" y="0" width="20" height="20" fill="url(#brightnessGrad)" stroke="black"/>
     </svg>
 
     <div class="vertical-wrap">
@@ -96,7 +96,7 @@
           <stop offset="100%" stop-color="violet"/>
         </linearGradient>
       </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#rainbow)" stroke="currentColor"/>
+      <circle cx="12" cy="12" r="10" fill="url(#rainbow)" stroke="black"/>
     </svg>
 
     <div class="vertical-wrap">
@@ -118,7 +118,7 @@
       </defs>
       <rect x="4" y="4" width="20" height="20" fill="url(#checker)"/>
       <rect x="4" y="4" width="20" height="20" fill="url(#fade)"/>
-      <rect x="4" y="4" width="20" height="20" stroke="currentColor" fill="none"/>
+      <rect x="4" y="4" width="20" height="20" stroke="black" fill="none"/>
     </svg>
 
     <div class="vertical-wrap">
@@ -134,7 +134,7 @@
           <stop offset="100%" stop-color="gray"/>
         </linearGradient>
       </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#saturation)" stroke="currentColor"/>
+      <circle cx="12" cy="12" r="10" fill="url(#saturation)" stroke="black"/>
     </svg>
 
     <div class="vertical-wrap">
@@ -152,7 +152,7 @@
     <button id="rec" title="Record">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 15a4 4 0 0 0 8 0" />
-        <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="currentColor"/>
+        <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="black"/>
         <line x1="12" y1="18" x2="12" y2="17"/>
         <line x1="9" y1="21" x2="15" y2="21"/>
       </svg>
@@ -170,7 +170,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" 
            viewBox="5 4 18 18" 
-           fill="currentColor">
+           fill="black">
         <path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/>
       </svg>
     </button>
@@ -194,7 +194,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="24" height="24" 
            viewBox="0 0 24 24" 
-           fill="currentColor">
+           fill="black">
         <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
       </svg>
     </button>
@@ -221,7 +221,7 @@
     <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
         <title>Enter fullscreen</title>
-        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 9V3h6" />
           <path d="M15 3h6v6" />
           <path d="M3 15v6h6" />
@@ -232,9 +232,9 @@
     <button id="yAxisMode" title="Toggle Y axis label mode">
       <svg xmlns="http://www.w3.org/2000/svg" 
          width="28" height="28" viewBox="0 0 20 20" 
-         fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <text x="0" y="18" font-size="8" fill="currentColor" stroke-width="0.5">1.0k</text>
-        <text x="10" y="6" font-size="8" fill="currentColor" stroke-width="0.5">a5</text>
+         fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <text x="0" y="18" font-size="8" fill="black" stroke-width="0.5">1.0k</text>
+        <text x="10" y="6" font-size="8" fill="black" stroke-width="0.5">a5</text>
         <line x1="4" y1="4" x2="18" y2="14" />
       </svg>
     </button>
@@ -267,14 +267,14 @@
       </svg>
     </button>
     <button id="undoBtn" title="Undo (Ctrl+Z)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 14H5V10"/>
         <path d="M20 20a9 9 0 0 0-15-6.7L5 10"/>
       </svg>
     </button>
 
     <button id="redoBtn" title="Redo (Ctrl+Y)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M15 14h4v-4"/>
         <path d="M4 20a9 9 0 0 1 15-6.7L19 10"/>
       </svg>

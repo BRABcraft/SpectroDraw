@@ -1,6 +1,6 @@
-:root{
+:root {
   --slider-length: 60px;    /* vertical length in screen px */
-  --slider-thickness: 12px;  /* visual thickness (smaller = less wide) */
+  --slider-thickness: 12px; /* visual thickness (smaller = less wide) */
   --track-color: #444;
   --thumb-color: #fff;
   --thumb-size: 12px;
@@ -9,158 +9,58 @@
 }
 
 body {
-  background-color: #111;
-}
-
-/* ensure controls sit above the canvas and won't be hidden */
-.controls {
-  position: relative;
-  z-index: 5000;
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:flex-start;
-}
-
-/* each control label gets reserved horizontal space so the rotated input won't overlap siblings */
-.controls label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 0.9em;
-  min-width: 15px;    /* reserve space horizontally for the rotated element */
-  padding: 2px 0;
-  box-sizing: border-box;
-}
-
-/* put the rotated input inside a small container so the rotated bounding-box is constrained */
-label .vertical-wrap {
-  width: var(--slider-thickness);
-  height: var(--slider-length);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow: visible; /* allow thumb to render outside if needed */
-  pointer-events: auto;
-}
-
-/* the actual rotated range */
-.controls input[type="range"].vertical {
-  -webkit-appearance: none;
-  appearance: none;
-
-  /* keep the logical element small (thickness x length), then rotate so it looks vertical */
-  width: var(--slider-length);
-  height: var(--slider-thickness);
-
-  transform: rotate(-90deg);        /* visually vertical */
-  transform-origin: 50% 50%;
-  display: block;
+  background: #111 !important;
+  color: #eee;
+  font-family: var(--font-family);
   margin: 0;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
 }
 
-/* track & thumb: WebKit */
-.controls input[type="range"].vertical::-webkit-slider-runnable-track {
-  height: 4px;                        /* thin track */
-  background: var(--track-color);
-  border-radius: 999px;
+canvas {
+  display: block;
+  background: #000;
 }
+#timeline { height: 40px; }
+#status { margin-top: 0.5em; font-size: 13px; }
 
-.controls input[type="range"].vertical::-webkit-slider-thumb {
+/* ----------------- CONTROLS ----------------- */
+
+
+.left-panel input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: var(--thumb-size);
-  height: var(--thumb-size);
   border-radius: 50%;
   background: var(--thumb-color);
-  margin-top: -(var(--thumb-size) / 2); /* try to center thumb */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  margin-top: -4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  transition: all 0.2s ease, box-shadow 0.2s ease;
+}
+.left-panel input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
 }
 
-/* Firefox */
-.controls input[type="range"].vertical::-moz-range-track {
+/* Firefox track & thumb */
+.left-panel input[type="range"]::-moz-range-track {
   height: 4px;
   background: var(--track-color);
   border-radius: 999px;
 }
-.controls input[type="range"].vertical::-moz-range-thumb {
+.left-panel input[type="range"]::-moz-range-thumb {
   width: var(--thumb-size);
-  height: var(--thumb-size);
-  border-radius:50%;
+  border-radius: 50%;
   background: var(--thumb-color);
   border: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  margin-top: -4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  transition: all 0.2s ease, box-shadow 0.2s ease;
+}
+.left-panel input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
 }
 
-/* small tweaks so the label text doesn't shift when slider rotates */
-.controls label > input[type="range"],
-.controls label > .vertical-wrap {
-  margin-top: 6px;
-  margin-bottom: 6px;
-}
-
-/* ensure canvases sit below controls and buttons remain visible */
-#canvasWrapper { z-index: 1; position: absolute; }
-canvas#overlay { z-index: 10; pointer-events: none; }
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
-  position: relative;
-  z-index: 6000;           /* keep UI buttons above rotated inputs and canvas */
-}
-
-body {
-  background:#111 !important;
-  color:#eee;
-  font-family:sans-serif;
-  margin:0px;}
-.controls { margin-bottom:1em; }
-label { margin-right:1em; display:inline-block; margin-top:0.2em; }
-canvas { display:block; background:#000;}
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 6px;
-  border: none;
-  background: var(--accent-gradient);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.tool-btn svg {
-  width: 20px;
-  height: 20px;
-  display: block;
-  transform: translateX(-0.5px); 
-}
-#timeline { display:block; height:40px; }
-#status { margin-top:0.5em; font-size:13px; }
-.controls {
-  display: flex;
-  flex-wrap: wrap; 
-  gap: 5px;       
-  align-items: flex-start; 
-}
-
-.controls label {
-  display: flex;
-  flex-direction: column; 
-  font-size: 0.9em;
-}
-
-.controls input[type="range"],
-.controls input[type="number"] {
-  margin-top: 2px; 
-}
-/* make all number inputs compact */
-.controls input[type="number"] {
-  width: 5ch;            /* try 4ch..8ch to taste */
+/* compact number inputs */
+.left-panel input[type="number"] {
+  width: 10ch;
   min-width: 10ch;
   max-width: 10ch;
   box-sizing: border-box;
@@ -168,12 +68,16 @@ canvas { display:block; background:#000;}
   font-size: 0.95rem;
   background-color: #333;
   border-radius: 10px;
-  border-color: #aaa;
+  border: 1px solid #aaa;
   color: #fff;
+  margin-top: 2px;
 }
 
-.tool-btn, #downloadWav, #downloadButton, #resetButton, #playPause, #stop, #trueScale,#fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
-  /* display: inline-flex; */
+/* ----------------- BUTTONS ----------------- */
+.tool-btn,
+#downloadWav, #downloadButton, #resetButton, #playPause, #stop,
+#trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 36px;
@@ -189,59 +93,112 @@ canvas { display:block; background:#000;}
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   transition: all 0.3s ease, box-shadow 0.3s ease;
   position: relative;
+  z-index: 6000;
 }
 
-/* Neon glow effect on hover */
-.tool-btn:hover, #downloadWav:hover, #downloadButton:hover, #resetButton:hover, #playPause:hover, #stop:hover, #trueScale:hover,#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover {
-  opacity: 1;
+.tool-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  transform: translateX(-0.5px);
+}
+
+/* neon glow hover */
+.tool-btn:hover,
+#downloadWav:hover, #downloadButton:hover, #resetButton:hover,
+#playPause:hover, #stop:hover, #trueScale:hover,
+#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 32px #ec4899, 0 0 48px #4f46e5;
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea,
+              0 0 32px #ec4899, 0 0 48px #4f46e5;
 }
 
-/* Pulse glow animation */
+/* pulsing glow */
 .tool-btn::after {
   content: '';
   position: absolute;
   border-radius: 6px;
   opacity: 0;
   transition: opacity 0.3s ease;
-  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 32px #ec4899, 0 0 48px #4f46e5;
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea,
+              0 0 32px #ec4899, 0 0 48px #4f46e5;
+}
+.tool-btn:hover::after { opacity: 0.6; }
+
+/* ----------------- LAYOUT ----------------- */
+.app {
+  display: grid;
+  grid-template-rows: 64px 1fr;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-family);
 }
 
-.tool-btn:hover::after {
-  opacity: 0.6;
+.top-bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* padding: 8px 12px; */
+  background: transparent;
+  z-index: 7000;
+  overflow-x: auto;
 }
 
-/* ----- SLIDER THUMBSTICK HOVER ANIMATION ----- */
-.controls input[type="range"].vertical::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  border-radius: 50%;
-  background: var(--thumb-color);
-  margin-top: -4px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-  transition: all 0.2s ease, box-shadow 0.2s ease;
+.left-panel {
+  grid-column: 1;
+  grid-row: 2;
+  /* padding: 12px; */
+  overflow-y: auto;
+  background: transparent;
+  box-sizing: border-box;
+}
+.left-panel .controls {
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  position: static;
 }
 
-.controls input[type="range"].vertical::-webkit-slider-thumb:hover {
-  transform: scale(1.4);
-  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
+
+
+.main-area {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  overflow: hidden;
+  /* padding: 12px; */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
 }
 
-/* Firefox */
-.controls input[type="range"].vertical::-moz-range-thumb {
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  border-radius:50%;
-  background: var(--thumb-color);
-  border: none;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-  transition: all 0.2s ease, box-shadow 0.2s ease;
+.top-bar .tool-btn,
+.top-bar button,
+.top-bar input[type="file"] {
+  z-index: 8000;
 }
 
-.controls input[type="range"].vertical::-moz-range-thumb:hover {
-  transform: scale(1.4);
-  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
+/* responsive collapse */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 64px auto 1fr;
+  }
+  .top-bar { grid-column: 1; }
+  .left-panel {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .main-area { grid-column: 1; grid-row: 3; }
 }

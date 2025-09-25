@@ -7,140 +7,9 @@
   <link rel="icon" href="/favicon32x32.ico"/>
 </head>
 <body>
-<div class="controls" style="position:absolute; width:70%;left:50%; transform:translateX(-50%);">
-  <label title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:
-    <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
-  </label>
-  <label title="Number of audio samples given to each frame (x pixel).">Time resolution:
-    <input id="hopSize" type="number" value="1024" step="1" min="1">
-  </label>
-  <label id="es" style="position:absolute; left:240px;">
-    <span class="label-line">
-      <span class="label-text">Empty audio seconds:</span>
-      <span class="label-value" id="ev">10</span>
-    </span>
-    <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
-  </label>
-  <label for="presets" style="position:absolute; left:425px;top:0">Use presets</label>
-  <select id="presets" style="position:absolute; left:425px; top:25px;">
-    <option value="silence">Silence</option>
-    <option value="male">Male sing</option>
-    <option value="female">Female sing</option>
-    <option value="dog">Dog</option>
-    <option value="birdChirp">Bird chirp</option>
-    <option value="lionRoar">Lion roar</option>
-    <option value="seaLion">Sea lion</option>
-    <option value="violin">Violin</option>
-    <option value="trumpet">Trumpet</option>
-    <option value="timpani">Timpani</option>
-    <option value="piano">Piano</option>
-    <option value="flute">Flute</option>
-    <option value="cymbal">Cymbal</option>
-    <option value="computerBeeps">Computer beeps</option>
-    <option value="scream">Scream</option>
-    <option value="bomb">Bomb</option>
-    <option value="engine">Engine</option>
-    <option value="fullSpectra">Loud noise</option>
-    <option value="bass808">808 bass</option>
-    <option value="cave14">Cave14.ogg</option>
-    <option value="sine">Sine wave</option>
-    <option value="triangle">Triangle wave</option>
-    <option value="square">Square wave</option>
-    <option value="saw">Saw wave</option>
-  </select>
-  <label style="position:absolute; left:560px;" id="mouseInfo"></label>
-  <label style="position: absolute; left: 830px;" title="Brush size/image size" id="sliderStart">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="#fff" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <!-- axes -->
-      <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
-      <line x1="5" y1="19" x2="5"  y2="5"  />   <!-- Y axis -->
-
-      <!-- little filled origin box at bottom-left (origin) -->
-      <rect x="4.5" y="12.5" width="6" height="6" fill="#fff" stroke="none" rx="0.5" ry="0.5" />
-
-      <!-- small axis arrows -->
-      <path d="M19 19 L17.5 17.5" />
-      <path d="M5 5 L3.5 6.5" />
-    </svg>
-
-    <div class="vertical-wrap">
-      <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
-    </div>
-  </label>
-  <label title="Brightness" style="position: absolute; left: 860px;">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 24 24" width="20" height="20">
-      <defs>
-        <linearGradient id="brightnessGrad" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stop-color="black"/>
-          <stop offset="100%" stop-color="white"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="20" height="20" fill="url(#brightnessGrad)" stroke="black"/>
-    </svg>
-
-    <div class="vertical-wrap">
-      <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
-    </div>
-  </label>
-  <label title="Phase" style="position: absolute; left: 890px;">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-      <defs>
-        <linearGradient id="rainbow" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="red"/>
-          <stop offset="17%" stop-color="orange"/>
-          <stop offset="33%" stop-color="yellow"/>
-          <stop offset="50%" stop-color="green"/>
-          <stop offset="67%" stop-color="blue"/>
-          <stop offset="83%" stop-color="indigo"/>
-          <stop offset="100%" stop-color="violet"/>
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#rainbow)" stroke="black"/>
-    </svg>
-
-    <div class="vertical-wrap">
-      <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
-    </div>
-  </label>
-  <label title="Brightness strength" style="position: absolute; left: 920px;">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-      <defs>
-        <pattern id="checker" width="4" height="4" patternUnits="userSpaceOnUse">
-          <rect width="4" height="4" fill="white"/>
-          <rect width="2" height="2" fill="#ccc"/>
-          <rect x="2" y="2" width="2" height="2" fill="#ccc"/>
-        </pattern>
-        <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="white" stop-opacity="1"/>
-          <stop offset="100%" stop-color="white" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <rect x="4" y="4" width="20" height="20" fill="url(#checker)"/>
-      <rect x="4" y="4" width="20" height="20" fill="url(#fade)"/>
-      <rect x="4" y="4" width="20" height="20" stroke="black" fill="none"/>
-    </svg>
-
-    <div class="vertical-wrap">
-      <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
-    </div>
-  </label>
-  <label title="Phase strength" style="position: absolute; left: 950px;">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-      <defs>
-        <linearGradient id="saturation" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="red"/>
-          <stop offset="50%" stop-color="gray"/>
-          <stop offset="100%" stop-color="gray"/>
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#saturation)" stroke="black"/>
-    </svg>
-
-    <div class="vertical-wrap">
-      <input id="phaseOpacity" class="vertical" type="range" min="0" max="100" value="0">
-    </div>
-  </label>
-  <div class="controls" style="position:absolute; top:60px">
+  <!-- New page layout -->
+<div class="app">
+  <header class="top-bar">
     <button id="fileB" title="Upload Audio" style="margin-left: 10px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <line x1="10" y1="16" x2="10" y2="6" />
@@ -277,17 +146,159 @@
         <path d="M4 20a9 9 0 0 1 15-6.7L19 10"/>
       </svg>
     </button>
-  </div>
+  </header>
+
+  <aside class="left-panel">
+    <label title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:
+    <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
+  </label><br>
+  <label title="Number of audio samples given to each frame (x pixel).">Time resolution:
+    <input id="hopSize" type="number" value="1024" step="1" min="1">
+  </label><br>
+  <label for="presets">Use presets</label>
+  <select id="presets">
+    <option value="silence">Silence</option>
+    <option value="male">Male sing</option>
+    <option value="female">Female sing</option>
+    <option value="dog">Dog</option>
+    <option value="birdChirp">Bird chirp</option>
+    <option value="lionRoar">Lion roar</option>
+    <option value="seaLion">Sea lion</option>
+    <option value="violin">Violin</option>
+    <option value="trumpet">Trumpet</option>
+    <option value="timpani">Timpani</option>
+    <option value="piano">Piano</option>
+    <option value="flute">Flute</option>
+    <option value="cymbal">Cymbal</option>
+    <option value="computerBeeps">Computer beeps</option>
+    <option value="scream">Scream</option>
+    <option value="bomb">Bomb</option>
+    <option value="engine">Engine</option>
+    <option value="fullSpectra">Loud noise</option>
+    <option value="bass808">808 bass</option>
+    <option value="cave14">Cave14.ogg</option>
+    <option value="sine">Sine wave</option>
+    <option value="triangle">Triangle wave</option>
+    <option value="square">Square wave</option>
+    <option value="saw">Saw wave</option>
+  </select><br>
+  <label id="mouseInfo"><br><br></label><br>
+  <label title="Brush size/image size" id="sliderStart">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="#fff" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <!-- axes -->
+      <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
+      <line x1="5" y1="19" x2="5"  y2="5"  />   <!-- Y axis -->
+
+      <!-- little filled origin box at bottom-left (origin) -->
+      <rect x="4.5" y="12.5" width="6" height="6" fill="#fff" stroke="none" rx="0.5" ry="0.5" />
+
+      <!-- small axis arrows -->
+      <path d="M19 19 L17.5 17.5" />
+      <path d="M5 5 L3.5 6.5" />
+    </svg>
+      <label>Brush Size</label><br>
+    <div class="vertical-wrap">
+      <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
+    </div>
+  </label>
+  <label title="Brightness">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 24 24" width="20" height="20">
+      <defs>
+        <linearGradient id="brightnessGrad" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stop-color="black"/>
+          <stop offset="100%" stop-color="white"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="20" height="20" fill="url(#brightnessGrad)" stroke="black"/>
+    </svg>
+
+      <label>Brush Color</label><br>
+    <div class="vertical-wrap">
+      <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
+    </div>
+  </label>
+  <label title="Phase">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+      <defs>
+        <linearGradient id="rainbow" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="red"/>
+          <stop offset="17%" stop-color="orange"/>
+          <stop offset="33%" stop-color="yellow"/>
+          <stop offset="50%" stop-color="green"/>
+          <stop offset="67%" stop-color="blue"/>
+          <stop offset="83%" stop-color="indigo"/>
+          <stop offset="100%" stop-color="violet"/>
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12" r="10" fill="url(#rainbow)" stroke="black"/>
+    </svg>
+
+    <div class="vertical-wrap">
+      <label>Phase</label><br>
+      <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
+    </div>
+  </label>
+  <label title="Brightness strength">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+      <defs>
+        <pattern id="checker" width="4" height="4" patternUnits="userSpaceOnUse">
+          <rect width="4" height="4" fill="white"/>
+          <rect width="2" height="2" fill="#ccc"/>
+          <rect x="2" y="2" width="2" height="2" fill="#ccc"/>
+        </pattern>
+        <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="white" stop-opacity="1"/>
+          <stop offset="100%" stop-color="white" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <rect x="4" y="4" width="20" height="20" fill="url(#checker)"/>
+      <rect x="4" y="4" width="20" height="20" fill="url(#fade)"/>
+      <rect x="4" y="4" width="20" height="20" stroke="black" fill="none"/>
+    </svg>
+      <label>Brush Opacity</label><br>
+    <div class="vertical-wrap">
+      <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
+    </div>
+  </label>
+  <label title="Phase strength">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+      <defs>
+        <linearGradient id="saturation" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="red"/>
+          <stop offset="50%" stop-color="gray"/>
+          <stop offset="100%" stop-color="gray"/>
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12" r="10" fill="url(#saturation)" stroke="black"/>
+    </svg>
+
+    <div class="vertical-wrap">
+      <label>Phase Opacity</label><br>
+      <input id="phaseOpacity" class="vertical" type="range" min="0" max="100" value="0">
+    </div>
+  </label>
+  <label id="es">
+    <span class="label-line">
+      <span class="label-text">Empty audio seconds:</span>
+      <span class="label-value" id="ev">10</span>
+    </span>
+    <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
+  </label>
+  </aside>
+
+  <main class="main-area">
+    <!-- paste your canvas wrapper here -->
+    <div id="canvasWrapper" style="position:absolute; width:70%;">
+      <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
+      <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
+      <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>
+      <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; ; top:40px"></canvas>
+      <canvas id="logscale" width=40 height = 40 style="position:absolute; top:0px; background: #111;z-index: 99999; top:0px"></canvas>
+    </div>
+  </main>
 </div>
 <!-- Timeline canvas -->
-<div id="canvasWrapper" style="position:absolute; width:70%; top:100px; left:50%; transform:translateX(-50%);">
-  <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
-  <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
-  <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>
-  <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; ; top:40px"></canvas>
-  <canvas id="logscale" width=40 height = 40 style="position:absolute; top:0px; background: #111;z-index: 99999; top:0px"></canvas>
 
-</div>
 <div id="status" style="position:absolute;bottom:0px;"></div>
 
 <script src="fft.js"></script>

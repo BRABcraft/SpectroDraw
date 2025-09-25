@@ -161,7 +161,7 @@ canvas {
 }
 .left-panel .controls {
   flex-direction: column;
-  gap: 12px;
+  gap: 0px;
   align-items: stretch;
   position: static;
 }

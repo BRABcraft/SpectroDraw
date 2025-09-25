@@ -14,7 +14,6 @@
   <label title="Number of audio samples given to each frame (x pixel).">Time resolution:
     <input id="hopSize" type="number" value="1024" step="1" min="1">
   </label>
-
   <label id="es" style="position:absolute; left:240px;">
     <span class="label-line">
       <span class="label-text">Empty audio seconds:</span>
@@ -272,7 +271,6 @@
         <path d="M20 20a9 9 0 0 0-15-6.7L5 10"/>
       </svg>
     </button>
-
     <button id="redoBtn" title="Redo (Ctrl+Y)">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M15 14h4v-4"/>
@@ -1027,7 +1025,6 @@ function drawLoop() {
 }
 
 function drawCursor(){
-
     const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow)
     overlayCtx.clearRect(0,0, canvas.width, canvas.height);
     overlayCtx.strokeStyle = "#0f0";

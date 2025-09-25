@@ -7,7 +7,7 @@
   <link rel="icon" href="/favicon32x32.ico"/>
 </head>
 <body>
-<div class="controls">
+<div class="controls" style="position:absolute; width:70%;left:50%; transform:translateX(-50%);">
   <label title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:
     <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
   </label>
@@ -281,9 +281,8 @@
     </button>
   </div>
 </div>
-
 <!-- Timeline canvas -->
-<div id="canvasWrapper" style="position:absolute; display:inline-block; width:100%; top:100px;">
+<div id="canvasWrapper" style="position:absolute; width:70%; top:100px; left:50%; transform:translateX(-50%);">
   <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
   <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
   <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>

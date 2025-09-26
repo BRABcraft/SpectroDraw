@@ -108,6 +108,11 @@ canvas {
   z-index: 6000;
 }
 
+#home {
+  width: auto;
+  height: 32px;
+}
+
 .tool-btn svg {
   width: 20px;
   height: 20px;

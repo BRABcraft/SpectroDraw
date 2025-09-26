@@ -1,6 +1,5 @@
 :root {
   --slider-length: 30px;    /* vertical length in screen px */
-  --slider-thickness: 12px; /* visual thickness (smaller = less wide) */
   --track-color: #444;
   --thumb-color: #fff;
   --thumb-size: 12px;
@@ -34,7 +33,7 @@ canvas {
   background: var(--thumb-color);
   box-shadow: 0 2px 6px rgba(0,0,0,0.6);
   transition: all 0.2s ease, box-shadow 0.2s ease;
-  margin-top:-4px;
+  margin-top:-2px;
 }
 .left-panel input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.4);
@@ -43,14 +42,15 @@ canvas {
 
 /* webkit track (optional appearance) */
 .left-panel input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 8px;
   background: var(--track-color);
   border-radius: 999px;
+  cursor: pointer;
 }
 
 /* Firefox track & thumb */
 .left-panel input[type="range"]::-moz-range-track {
-  height: 4px;
+  height: 8px;
   background: var(--track-color);
   border-radius: 999px;
 }
@@ -62,7 +62,7 @@ canvas {
   border: none;
   box-shadow: 0 2px 6px rgba(0,0,0,0.6);
   transition: all 0.2s ease, box-shadow 0.2s ease;
-  margin-top:-4px;
+  margin-top:-2px;
 }
 .left-panel input[type="range"]::-moz-range-thumb:hover {
   transform: scale(1.4);
@@ -88,7 +88,7 @@ canvas {
 /* ----------------- BUTTONS ----------------- */
 .tool-btn,
 #downloadWav, #downloadButton, #resetButton, #playPause, #stop,
-#trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn {
+#trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn, #home {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -119,10 +119,10 @@ canvas {
 .tool-btn:hover,
 #downloadWav:hover, #downloadButton:hover, #resetButton:hover,
 #playPause:hover, #stop:hover, #trueScale:hover,
-#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover {
+#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover, #home:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea,
-              0 0 32px #ec4899, 0 0 48px #4f46e5;
+  box-shadow: 0 0 8px #fff, 0 0 8px #9333ea,
+              0 0 16px #ec4899, 0 0 16px #4f46e5;
 }
 
 /* pulsing glow */
@@ -132,8 +132,8 @@ canvas {
   border-radius: 6px;
   opacity: 0;
   transition: opacity 0.3s ease;
-  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea,
-              0 0 32px #ec4899, 0 0 48px #4f46e5;
+  box-shadow: 0 0 8px #fff, 0 0 8px #9333ea,
+              0 0 16px #ec4899, 0 0 16px #4f46e5;
 }
 .tool-btn:hover::after { opacity: 0.6; }
 

@@ -10,6 +10,7 @@
   <!-- New page layout -->
 <div class="app">
   <header class="top-bar">
+    <a href="/" id="home" title="Home" style="margin-left:10px;"><img src="/favicon32x32.ico" style="background:transparent;"></a>
     <button id="fileB" title="Upload Audio" style="margin-left: 10px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <line x1="10" y1="16" x2="10" y2="6" />
@@ -405,7 +406,7 @@ overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
   const img = new Image();
-  img.onload = () => overlayImage = img;
+  img.onload = () => {overlayImage = img; updateBrushPreview();}
   img.src = URL.createObjectURL(f);
 });
 
@@ -1526,11 +1527,37 @@ function updateBrushPreview() {
     pctx.lineTo(centerX + 20, centerY - 20);
     pctx.stroke();
   } else if (currentTool === "rectangle") {
-    pctx.strokeStyle = color;
+    pctx.fillStyle = color;
     pctx.beginPath();
     pctx.rect(centerX - 30, centerY - 30, 60, 60);
     pctx.fill();
-  }else {
+  } else if (currentTool === "image"){
+    console.log(overlayImage);
+    if (overlayImage && overlayImage.complete) {
+      const maxDim = Math.min(preview.width, preview.height) * 0.8 * (brushSize / 20);
+      const aspect = overlayImage.width / overlayImage.height;
+      let drawW, drawH;
+      if (aspect > 1) {
+        drawW = maxDim;
+        drawH = maxDim / aspect;
+      } else {
+        drawH = maxDim;
+        drawW = maxDim * aspect;
+      }
+      const dx = centerX - drawW / 2;
+      const dy = centerY - drawH / 2;
+      pctx.drawImage(overlayImage, dx, dy, drawW, drawH);
+    }
+  } else if (currentTool === "amplifier") {
+    pctx.font = "12px Arial";
+    pctx.fillStyle = brushColor.toString(16).padStart(2,'0')+"0000";
+    pctx.fillText((((brushColor / 255) * 128)/64 * brushOpacity).toFixed(1)+"x", centerX-10, centerY+5);
+    pctx.strokeStyle = color;
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    pctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+    pctx.stroke();
+  } else {
     pctx.fillStyle = color;
     pctx.beginPath();
     pctx.arc(centerX, centerY, radius, 0, Math.PI * 2);

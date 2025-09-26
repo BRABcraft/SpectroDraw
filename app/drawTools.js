@@ -219,10 +219,10 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
     } else if (currentTool === "blur") {
         const radius = brushSize;
 
-        const minXFrame = Math.max(0, Math.floor(cx - radius));
-        const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radius));
-        const minY = Math.max(0, Math.floor(cy - radius));
-        const maxY = Math.min(fullH - 1, Math.ceil(cy + radius));
+        const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
+        const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
+        const minY = Math.max(0, Math.floor(cy - radiusY*(fftSize/2048)));
+        const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fftSize/2048)));
 
         for (let yy = minY; yy <= maxY; yy++) {
             for (let xx = minXFrame; xx <= maxXFrame; xx++) {

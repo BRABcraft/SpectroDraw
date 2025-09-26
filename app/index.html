@@ -423,7 +423,6 @@ function initEmptyPCM() {
 
     const pcmArray = new Float32Array(length);
     for (let i = 0; i < length; i++) {
-      // console.log((5*Math.sin(i/100)+5))
       if (type === "Slow sine") pcmArray[i] = Math.sin(i / 1) * tinyNoiseAmplitude;
       else if (type === "Fast sine") pcmArray[i] = Math.sin(i / 1000) * tinyNoiseAmplitude;
       else if (type === "Static") pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
@@ -465,11 +464,9 @@ function getMouseXY(e,touch) {
   }
 }
 logscaleEl.addEventListener("mousedown", e=> {
-  console.log("mouse",e);
   logScaleMouseDown(e,false);
 });
 logscaleEl.addEventListener("touchstart", e=> {
-  console.log("touch",e);
   logScaleMouseDown(e.true);
 });
 function logScaleMouseDown(e,touch) {
@@ -480,11 +477,9 @@ function logScaleMouseDown(e,touch) {
   drawLogScale();
 }
 logscaleEl.addEventListener("mousedown", e=> {
-  console.log("mouse",e);
   logScaleMouseDown(e,false);
 });
 logscaleEl.addEventListener("touchstart", e=> {
-  console.log("touch",e);
   logScaleMouseDown(e,true);
 });
 
@@ -1186,12 +1181,14 @@ canvas.addEventListener("touchstart", e=>{
 function canvasMouseMove(e,touch) {
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
     if (!recording) {
-    const hz = getSineFreq(visibleToSpecY(cy)).toFixed(0);
+    const hz = getSineFreq(visibleToSpecY(cy));
     const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
-    const i = Math.floor(cx*specHeight+hz/(sampleRate/fftSize));
+    const hx = Math.floor(cx);
+    const hy = Math.floor(hz/(sampleRate/fftSize));
+    const i = hx*specHeight+hy;
     let normalizedMag = Math.min(1, mags[i] / 256);
-    let db = (20 * Math.log10(normalizedMag + 1e-12)).toFixed(1);
-    info.innerHTML=`Pitch: ${hz}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db}db`
+    let db = (20 * Math.log10(normalizedMag)).toFixed(1);
+    info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
     }
     if (!painting && currentTool === "brush" || currentTool === "eraser" || currentTool === "blur" || currentTool === "amplifier") {
         previewShape(cx, cy);
@@ -1532,7 +1529,6 @@ function updateBrushPreview() {
     pctx.rect(centerX - 30, centerY - 30, 60, 60);
     pctx.fill();
   } else if (currentTool === "image"){
-    console.log(overlayImage);
     if (overlayImage && overlayImage.complete) {
       const maxDim = Math.min(preview.width, preview.height) * 0.8 * (brushSize / 20);
       const aspect = overlayImage.width / overlayImage.height;

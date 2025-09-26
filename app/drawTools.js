@@ -193,11 +193,10 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
         imageBuffer.data[pix + 2] = b;
         imageBuffer.data[pix + 3] = 255;
     }
-
+    const radiusY = brushSize *(fWidth/(sampleRate/2));
+    const rect = canvas.getBoundingClientRect();
+    const radiusXFrames = Math.floor(radiusY * iWidth / 512/2/(rect.width/rect.height));
     if (currentTool === "brush" || currentTool === "eraser" || currentTool === "amplifier") {
-        const radiusY = brushSize *(fWidth/(sampleRate/2));
-        const rect = canvas.getBoundingClientRect();
-        const radiusXFrames = Math.floor(radiusY * iWidth / 512/2/(rect.width/rect.height));
 
         const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
         const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
@@ -226,6 +225,9 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
 
         for (let yy = minY; yy <= maxY; yy++) {
             for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+                const dx = xx - cx;
+                const dy = yy - cy;
+                if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / Math.pow(radiusY*(fftSize/2048),2) > 1) continue;
                 let sumMag = 0, sumPhase = 0, count = 0;
                 for (let oy = -1; oy <= 1; oy++) {
                     for (let ox = -1; ox <= 1; ox++) {

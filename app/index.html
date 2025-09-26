@@ -384,6 +384,7 @@ toolButtons.forEach(btn => {
     toolButtons.forEach(b => b.style.background = "");
     btn.style.background = "#4af"; 
     if(currentTool === "image") overlayFile.click();
+    updateBrushPreview();
   });
 });
 fileB.addEventListener("click", () => {
@@ -1500,12 +1501,41 @@ function updateBrushPreview() {
     return [r,g,b].map(v => Math.round(avg + (v-avg)*factor));
   }
   let rgb = adjustSaturation(magPhaseToRGB(brushColor/5*brushOpacity, penPhase),phaseOpacity);
-  const color = currentTool === "eraser" ? "#fff" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
+  const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
 
-  pctx.fillStyle = color;
-  pctx.beginPath();
-  pctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  pctx.fill();
+  if (currentTool === "eraser") {
+    pctx.strokeStyle = "#fff";
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    pctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+    pctx.stroke();
+  } else if (currentTool === "blur") {
+    let gradient = pctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius*1.5);
+    gradient.addColorStop(0, 'white');  // center
+    gradient.addColorStop(1, 'black');  // edge
+    pctx.fillStyle = gradient;
+    pctx.lineWidth = 2;
+    pctx.beginPath();
+    pctx.arc(centerX, centerY, radius*1.5 - 1, 0, Math.PI * 2);
+    pctx.fill();
+  } else if (currentTool === "line") {
+    pctx.strokeStyle = color;
+    pctx.lineWidth = 2;
+    pctx.beginPath();
+    pctx.moveTo(centerX - 20 , centerY + 20);
+    pctx.lineTo(centerX + 20, centerY - 20);
+    pctx.stroke();
+  } else if (currentTool === "rectangle") {
+    pctx.strokeStyle = color;
+    pctx.beginPath();
+    pctx.rect(centerX - 30, centerY - 30, 60, 60);
+    pctx.fill();
+  }else {
+    pctx.fillStyle = color;
+    pctx.beginPath();
+    pctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    pctx.fill();
+  }
 }
 updateBrushPreview();
 updateTimelineCursor();

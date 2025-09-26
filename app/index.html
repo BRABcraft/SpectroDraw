@@ -149,147 +149,92 @@
   </header>
 
   <aside class="left-panel">
-    <label title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:
-    <input id="fftSize" type="number" value="11" step="1" min="6" max="14">
-  </label><br>
-  <label title="Number of audio samples given to each frame (x pixel).">Time resolution:
-    <input id="hopSize" type="number" value="1024" step="1" min="1">
-  </label><br>
-  <label for="presets">Use presets</label>
-  <select id="presets">
-    <option value="silence">Silence</option>
-    <option value="male">Male sing</option>
-    <option value="female">Female sing</option>
-    <option value="dog">Dog</option>
-    <option value="birdChirp">Bird chirp</option>
-    <option value="lionRoar">Lion roar</option>
-    <option value="seaLion">Sea lion</option>
-    <option value="violin">Violin</option>
-    <option value="trumpet">Trumpet</option>
-    <option value="timpani">Timpani</option>
-    <option value="piano">Piano</option>
-    <option value="flute">Flute</option>
-    <option value="cymbal">Cymbal</option>
-    <option value="computerBeeps">Computer beeps</option>
-    <option value="scream">Scream</option>
-    <option value="bomb">Bomb</option>
-    <option value="engine">Engine</option>
-    <option value="fullSpectra">Loud noise</option>
-    <option value="bass808">808 bass</option>
-    <option value="cave14">Cave14.ogg</option>
-    <option value="sine">Sine wave</option>
-    <option value="triangle">Triangle wave</option>
-    <option value="square">Square wave</option>
-    <option value="saw">Saw wave</option>
-  </select><br>
-  <label id="mouseInfo"><br><br></label><br>
-  <label title="Brush size/image size" id="sliderStart">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" stroke="#fff" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <!-- axes -->
-      <line x1="5" y1="19" x2="19" y2="19" />   <!-- X axis -->
-      <line x1="5" y1="19" x2="5"  y2="5"  />   <!-- Y axis -->
-
-      <!-- little filled origin box at bottom-left (origin) -->
-      <rect x="4.5" y="12.5" width="6" height="6" fill="#fff" stroke="none" rx="0.5" ry="0.5" />
-
-      <!-- small axis arrows -->
-      <path d="M19 19 L17.5 17.5" />
-      <path d="M5 5 L3.5 6.5" />
-    </svg>
-      <label>Brush Size</label><br>
-    <div class="vertical-wrap">
-      <input id="brushSize" class="vertical" type="range" min="1" max="200" value="40">
+    <div style="border:1px solid #888; padding: 4px;"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
+    <label class="h1">Spectrogram properties</label>
+    <div class= "slider-row">
+      <label class="h2" title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:</label>
+      <input id="fftSize" type="number" value="11" step="1" min="6" max="14" style="margin-left: 102px;">
     </div>
-  </label>
-  <label title="Brightness">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 24 24" width="20" height="20">
-      <defs>
-        <linearGradient id="brightnessGrad" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stop-color="black"/>
-          <stop offset="100%" stop-color="white"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="20" height="20" fill="url(#brightnessGrad)" stroke="black"/>
-    </svg>
-
-      <label>Brush Color</label><br>
-    <div class="vertical-wrap">
-      <input id="brushColor" class="vertical" type="range" min="0" max="255" value="255">
+    <div class= "slider-row">
+      <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
+      <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 102px;">
     </div>
-  </label>
-  <label title="Phase">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-      <defs>
-        <linearGradient id="rainbow" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="red"/>
-          <stop offset="17%" stop-color="orange"/>
-          <stop offset="33%" stop-color="yellow"/>
-          <stop offset="50%" stop-color="green"/>
-          <stop offset="67%" stop-color="blue"/>
-          <stop offset="83%" stop-color="indigo"/>
-          <stop offset="100%" stop-color="violet"/>
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#rainbow)" stroke="black"/>
-    </svg>
-
-      <label>Phase</label><br>
-    <div class="vertical-wrap">
-      <input id="penPhase" class="vertical" type="range" min="0" max="31415" value="0">
+    <label class="h1">Preset audio (Reset audio to apply)<br>
+    </label>
+    <label class="h2" for="presets">Use presets</label>
+    <select id="presets">
+      <option value="silence">Silence</option>
+      <option value="male">Male sing</option>
+      <option value="female">Female sing</option>
+      <option value="dog">Dog</option>
+      <option value="birdChirp">Bird chirp</option>
+      <option value="lionRoar">Lion roar</option>
+      <option value="seaLion">Sea lion</option>
+      <option value="violin">Violin</option>
+      <option value="trumpet">Trumpet</option>
+      <option value="timpani">Timpani</option>
+      <option value="piano">Piano</option>
+      <option value="flute">Flute</option>
+      <option value="cymbal">Cymbal</option>
+      <option value="computerBeeps">Computer beeps</option>
+      <option value="scream">Scream</option>
+      <option value="bomb">Bomb</option>
+      <option value="engine">Engine</option>
+      <option value="fullSpectra">Loud noise</option>
+      <option value="bass808">808 bass</option>
+      <option value="cave14">Cave14.ogg</option>
+      <option value="sine">Sine wave</option>
+      <option value="triangle">Triangle wave</option>
+      <option value="square">Square wave</option>
+      <option value="saw">Saw wave</option>
+    </select>
+    <div id ="es" class="slider-row" title="Empty audio seconds">
+      <label class="h2">Empty audio seconds</label>
+      <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
+      <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="100">
     </div>
-  </label>
-  <label title="Brightness strength">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-      <defs>
-        <pattern id="checker" width="4" height="4" patternUnits="userSpaceOnUse">
-          <rect width="4" height="4" fill="white"/>
-          <rect width="2" height="2" fill="#ccc"/>
-          <rect x="2" y="2" width="2" height="2" fill="#ccc"/>
-        </pattern>
-        <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="white" stop-opacity="1"/>
-          <stop offset="100%" stop-color="white" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <rect x="4" y="4" width="20" height="20" fill="url(#checker)"/>
-      <rect x="4" y="4" width="20" height="20" fill="url(#fade)"/>
-      <rect x="4" y="4" width="20" height="20" stroke="black" fill="none"/>
-    </svg>
-      <label>Brush Opacity</label><br>
-    <div class="vertical-wrap">
-      <input id="brushOpacity" class="vertical" type="range" min="0" max="100" value="100">
+    <div id="ev" class="slider-row" title="Background phase">
+      <label class="h2" for="phaseType">Background phase</label>
+      <select id="phaseType">
+        <option value="Static">Static</option>
+        <option value="Slow sine">Slow sine</option>
+        <option value="Fast sine">Fast sine</option>
+        <option value="Empty">Empty</option>
+      </select>
     </div>
-  </label>
-  <label title="Phase strength">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-      <defs>
-        <linearGradient id="saturation" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="red"/>
-          <stop offset="50%" stop-color="gray"/>
-          <stop offset="100%" stop-color="gray"/>
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#saturation)" stroke="black"/>
-    </svg>
-
-      <label>Phase Opacity</label><br>
-    <div class="vertical-wrap">
-      <input id="phaseOpacity" class="vertical" type="range" min="0" max="100" value="0">
+    <label class="h1">Brush settings</label>
+    <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+    <div class="slider-row" title="Brush size/image size" id="sliderStart">
+      <label class="h2">Brush Size</label>
+      <input id="brushSize" type="range" min="1" max="200" value="40">
+      <input id="brushSizeInput" type="number" value="40" min="1" max="200">
     </div>
-  </label>
-  <label id="es">
-    <span class="label-line">
-      <span class="label-text">Empty audio seconds:</span>
-      <span class="label-value" id="ev">10</span>
-    </span>
-    <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
-  </label>
-  <canvas id="strokePreview" width="100" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>  
+    <div class="slider-row" title="Brightness">
+        <label class="h2">Brush Brightness</label>
+        <input id="brushColor"  type="range" min="0" max="255" value="255">
+        <input id="brushColorInput" type="number" value="255" min="0" max="255">
+    </div>
+    <div class="slider-row" title="Phase">
+        <label class="h2">Brush Phase</label>
+        <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+        <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
+    </div>
+    <div class="slider-row" title="Brightness strength">
+        <label class="h2">Brush Opacity</label>
+        <input id="brushOpacity"  type="range" min="0" max="100" value="100">
+        <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
+    </div>
+    <div class="slider-row" title="Phase strength">
+        <label class="h2">Phase Opacity</label>
+        <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
+        <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
+    </div> 
+  
   </aside>
 
   <main class="main-area">
     <!-- paste your canvas wrapper here -->
-    <div id="canvasWrapper" style="position:absolute; width:70%;">
+    <div id="canvasWrapper" style="position:absolute; width:100%;">
       <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
       <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
       <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>
@@ -298,10 +243,33 @@
     </div>
   </main>
 </div>
-<!-- Timeline canvas -->
 
 <div id="status" style="position:absolute;bottom:0px;"></div>
+<script>
+  function syncNumberAndRange(numberInput, rangeInput) {
+    // Update range when number changes
+    numberInput.addEventListener('input', () => {
+      let val = parseInt(numberInput.value);
+      if (val < rangeInput.min) val = rangeInput.min;
+      if (val > rangeInput.max) val = rangeInput.max;
+      rangeInput.value = val;
+      numberInput.value = val; // clamp value
+    });
 
+    // Update number when range changes
+    rangeInput.addEventListener('input', () => {
+      numberInput.value = rangeInput.value;
+    });
+  }
+
+  const sliders = [[document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput')],
+                   [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
+                   [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
+                   [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
+                   [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
+                   [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')]];
+  sliders.forEach(pair => syncNumberAndRange(pair[1], pair[0]));
+</script>
 <script src="fft.js"></script>
 <script>
 
@@ -320,8 +288,10 @@ const brushColorEl=document.getElementById("brushColor");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
+const phaseTypeEl = document.getElementById("phaseType");
 const recordBtn = document.getElementById("rec");
 const preset = document.getElementById("presets");
+const es = document.getElementById("es");
 const ev = document.getElementById("ev");
 const yAxis=document.getElementById("freq");
 const yctx=yAxis.getContext("2d");
@@ -381,11 +351,17 @@ let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
 let brushColor=parseInt(brushColorEl.value); 
 let penPhase=parseInt(penPhaseEl.value)/10000;
 let currentTool = "brush";
-brushSizeEl.addEventListener("input",()=>brushSize=parseInt(brushSizeEl.value));
-brushOpacityEl.addEventListener("input",()=>brushOpacity=parseInt(brushOpacityEl.value)/100);
-phaseOpacityEl.addEventListener("input",()=>phaseOpacity=parseInt(phaseOpacityEl.value)/100);
-brushColorEl.addEventListener("input",()=>brushColor=parseInt(brushColorEl.value));
-penPhaseEl.addEventListener("input", ()=>penPhase = parseInt(penPhaseEl.value) / 10000);
+brushSizeEl.addEventListener("input",()=>{brushSize=parseInt(brushSizeEl.value); updateBrushPreview();});
+brushOpacityEl.addEventListener("input",()=>{brushOpacity=parseInt(brushOpacityEl.value)/100; updateBrushPreview();});
+phaseOpacityEl.addEventListener("input",()=>{phaseOpacity=parseInt(phaseOpacityEl.value)/100; updateBrushPreview();});
+brushColorEl.addEventListener("input",()=>{brushColor=parseInt(brushColorEl.value); updateBrushPreview();});
+penPhaseEl.addEventListener("input", ()=>{penPhase = parseFloat(penPhaseEl.value); updateBrushPreview();});
+sliders[1][1].addEventListener("input",()=>{brushSize=parseInt(   sliders[1][1].value); updateBrushPreview();});
+sliders[4][1].addEventListener("input",()=>{brushOpacity=parseInt(sliders[4][1].value)/100; updateBrushPreview();});
+sliders[5][1].addEventListener("input",()=>{phaseOpacity=parseInt(sliders[5][1].value)/100; updateBrushPreview();});
+sliders[2][1].addEventListener("input",()=>{brushColor=parseInt(  sliders[2][1].value); updateBrushPreview();});
+sliders[3][1].addEventListener("input", ()=>{penPhase = parseFloat( sliders[3][1].value); updateBrushPreview();});
+
 
 function angleDiff(a, b) {
   const d = a - b;
@@ -439,18 +415,22 @@ overlayFile.addEventListener("change", e => {
 function initEmptyPCM() {
     const sampleRateLocal = 48000;
     const duration = emptyAudioLengthEl.value; 
+    const type = phaseTypeEl.value;
     const length = sampleRateLocal * duration; 
     const tinyNoiseAmplitude = 0.0001; 
 
     const pcmArray = new Float32Array(length);
     for (let i = 0; i < length; i++) {
-        pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude; 
+      // console.log((5*Math.sin(i/100)+5))
+      if (type === "Slow sine") pcmArray[i] = Math.sin(i / 1) * tinyNoiseAmplitude;
+      else if (type === "Fast sine") pcmArray[i] = Math.sin(i / 1000) * tinyNoiseAmplitude;
+      else if (type === "Static") pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+      else if (type === "Empty")  pcmArray[i] = 0;
     }
 
     pcm = pcmArray;
     sampleRate = sampleRateLocal;
 
-    es.style.display = "";
     iLow = null;
     restartRender(false);
 }
@@ -534,7 +514,6 @@ document.addEventListener("mouseup", e=>{changingLogScale=false;})
 document.addEventListener("touchend", e=>{changingLogScale=false;})
 
 emptyAudioLengthEl.addEventListener("input", ()=> {
-  ev.textContent = parseFloat(emptyAudioLengthEl.value).toFixed(2);
   initEmptyPCM();
 
   if (typeof drawTimeline === 'function') drawTimeline();
@@ -548,6 +527,9 @@ emptyAudioLengthEl.addEventListener("input", ()=> {
 
   iLow = 0;
   iHigh = framesTotal;
+});
+phaseTypeEl.addEventListener("input", ()=> {
+  initEmptyPCM();
 });
 
 let recording = false;
@@ -573,7 +555,6 @@ function countdown(seconds) {
 }
 
 async function startRecording() {  
-  es.style.display = "none";
   ensureAudioCtx();
   fHigh = sampleRate/2;
   fWidth = fHigh;
@@ -735,7 +716,6 @@ fileEl.addEventListener("change", async e=>{
       iLow = 0;
       iHigh = framesTotal;
 
-      es.style.display = "none";
     } catch (err){
       alert("Error decoding video. Please try a different video.");
     }
@@ -795,7 +775,6 @@ preset.addEventListener("change", async (e) => {
     sampleRate = decoded.sampleRate || sampleRate;
 
     status.textContent = `Loaded preset "${val}", ${pcm.length} samples @ ${sampleRate} Hz`;
-    es.style.display = "none";
     let t = pcm.length / sampleRate;
     hopSizeEl.value = t<0.5?128:(t<5?512:1024);
     restartRender(true);
@@ -838,7 +817,7 @@ function restartRender(autoPlay){
       canvas.style.height = (canvas.height * scale) + "px";
     } else {
       canvas.style.width = "calc(100% - 40px)";
-      let h = window.innerHeight - 155;
+      let h = window.innerHeight - 110;
       canvas.style.height = h+"px";
     }
 
@@ -1247,7 +1226,6 @@ canvas.addEventListener("touchmove", e=>{
 function canvasMouseUp(e,touch) {
   if (!mags || !phases || !painting) return;
     visited = null;
-    es.style.display = "none";
     painting = false;
     paintedPixels = null;
     mouseDown = false;
@@ -1501,6 +1479,35 @@ function processPendingFramesLive(){
   renderView();
   drawCursor();
 }
+
+function updateBrushPreview() {
+  const preview = document.getElementById("strokePreview");
+  const pctx = preview.getContext("2d");
+  pctx.clearRect(0, 0, preview.width, preview.height);
+
+  const centerX = preview.width / 2;
+  const centerY = preview.height / 2;
+  const radius = brushSize / 2;
+  function th(num) {
+    let hex = num.toString(16);
+    if (hex.length === 1) {
+      hex = '0' + hex;
+    }
+    return hex;
+  }
+  function adjustSaturation([r,g,b], factor){
+    let avg = Math.max(r,g,b);
+    return [r,g,b].map(v => Math.round(avg + (v-avg)*factor));
+  }
+  let rgb = adjustSaturation(magPhaseToRGB(brushColor/5*brushOpacity, penPhase),phaseOpacity);
+  const color = currentTool === "eraser" ? "#fff" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
+
+  pctx.fillStyle = color;
+  pctx.beginPath();
+  pctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  pctx.fill();
+}
+updateBrushPreview();
 updateTimelineCursor();
 
 drawTimeline();

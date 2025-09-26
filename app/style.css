@@ -1,5 +1,5 @@
 :root {
-  --slider-length: 60px;    /* vertical length in screen px */
+  --slider-length: 30px;    /* vertical length in screen px */
   --slider-thickness: 12px; /* visual thickness (smaller = less wide) */
   --track-color: #444;
   --thumb-color: #fff;
@@ -24,19 +24,28 @@ canvas {
 
 /* ----------------- CONTROLS ----------------- */
 
-
+/* range thumb (webkit) */
 .left-panel input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: var(--thumb-size);
+  height: var(--thumb-size);
   border-radius: 50%;
   background: var(--thumb-color);
   box-shadow: 0 2px 6px rgba(0,0,0,0.6);
   transition: all 0.2s ease, box-shadow 0.2s ease;
+  margin-top:-4px;
 }
 .left-panel input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.4);
   box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
+}
+
+/* webkit track (optional appearance) */
+.left-panel input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--track-color);
+  border-radius: 999px;
 }
 
 /* Firefox track & thumb */
@@ -47,19 +56,22 @@ canvas {
 }
 .left-panel input[type="range"]::-moz-range-thumb {
   width: var(--thumb-size);
+  height: var(--thumb-size);
   border-radius: 50%;
   background: var(--thumb-color);
   border: none;
   box-shadow: 0 2px 6px rgba(0,0,0,0.6);
   transition: all 0.2s ease, box-shadow 0.2s ease;
+  margin-top:-4px;
 }
 .left-panel input[type="range"]::-moz-range-thumb:hover {
   transform: scale(1.4);
   box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
 }
 
-/* compact number inputs */
+/* compact number inputs (generic) */
 .left-panel input[type="number"] {
+  /* generic style for number inputs that are not in .slider-row */
   width: 10ch;
   min-width: 10ch;
   max-width: 10ch;
@@ -82,7 +94,7 @@ canvas {
   justify-content: center;
   width: 36px;
   height: 36px;
-  padding: 6px;
+  padding: 2px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -128,8 +140,8 @@ canvas {
 /* ----------------- LAYOUT ----------------- */
 .app {
   display: grid;
-  grid-template-rows: 64px 1fr;
-  grid-template-columns: 260px 1fr;
+  grid-template-rows: 54px 1fr;
+  grid-template-columns: 330px 1fr;
   height: 100vh;
   gap: 12px;
   box-sizing: border-box;
@@ -145,7 +157,6 @@ canvas {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* padding: 8px 12px; */
   background: transparent;
   z-index: 7000;
   overflow-x: auto;
@@ -154,10 +165,10 @@ canvas {
 .left-panel {
   grid-column: 1;
   grid-row: 2;
-  /* padding: 12px; */
   overflow-y: auto;
   background: transparent;
   box-sizing: border-box;
+  padding: 12px 10px; /* small padding so contents don't touch edge */
 }
 .left-panel .controls {
   flex-direction: column;
@@ -166,14 +177,11 @@ canvas {
   position: static;
 }
 
-
-
 .main-area {
   grid-column: 2;
   grid-row: 2;
   position: relative;
   overflow: hidden;
-  /* padding: 12px; */
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -201,4 +209,77 @@ canvas {
     gap: 8px;
   }
   .main-area { grid-column: 1; grid-row: 3; }
+}
+
+/* ----------------- SLIDER ROW LAYOUT (clean, single set of rules) ----------------- */
+
+/* outer row container */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* space between label, slider, input */
+  margin: 6px 0;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: visible;
+}
+
+/* left label fixed but compact so row fits in left-panel */
+.slider-row > label {
+  flex: 0 0 150px;     /* reduced from 120px to fit 260px panel */
+  font-size: 0.9rem;
+  color: #eee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* range slider fixed width — change this width to make sliders shorter/longer */
+.slider-row input[type="range"] {
+  flex: 0 0 90px;      /* explicit fixed value */
+  width: 90px;
+  min-width: 70px;
+  max-width: 100px;
+  box-sizing: border-box;
+  background: transparent;
+  display: inline-block;
+  -webkit-appearance: none; /* ensure consistent sizing */
+}
+
+/* small tweak so vertical class (if used) doesn't break layout visually in rows */
+.slider-row input[type="range"].vertical {
+  /* keep same visual behaviour but use the horizontal width in the row */
+  height: 4px;
+}
+
+/* numeric input on the right — guaranteed visible */
+.slider-row input[type="number"] {
+  flex: 0 0 50px;      /* visible width */
+  width: 50px;
+  min-width: 50px;
+  text-align: left;
+  box-sizing: border-box;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #aaa;
+  padding: 0.12rem 0.25rem;
+  border-radius: 8px;
+}
+
+/* fallback: make number inputs visible if older rule present */
+.slider-row input[type="number"]::-webkit-outer-spin-button,
+.slider-row input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.h1 {
+  display: block;
+  font-weight: 600;
+  margin-top:10px;
+  margin-bottom: 10px;
+}
+.h2 {
+  font-size: 0.9em;
+  font-weight: 300;
 }

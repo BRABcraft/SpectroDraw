@@ -1294,6 +1294,14 @@ function visibleToSpecY(visY) {
 let snapshotMags = null;
 let snapshotPhases = null;
 
+function cxToFrame(cx) {
+  return Math.floor((cx/canvas.width*(iWidth/specWidth)+iLow)*specWidth);
+}
+
+function frameToCx(frame) {
+  return ((frame-iLow)/(iWidth/specWidth)*1);
+}
+
 function canvasMouseDown(e,touch) {
     if (!mags || !phases) return;
 
@@ -1307,10 +1315,17 @@ function canvasMouseDown(e,touch) {
     paintedPixels = new Set();
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
     startX = cx; startY = cy;
+    if (alignTime) {
+      const startFrame = cxToFrame(startX);
+      const snapSize = (sampleRate/hopSizeEl.value)*(60/bpm);
+      const startFrame0 = Math.floor(startFrame/snapSize)*snapSize;
+      line(startFrame0, startFrame, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
+      startX = frameToCx(startFrame0);
+    }
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
     const realY = visibleToSpecY(cy);
     if (!(currentTool === "rectangle" || currentTool === "line")) {
-        paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
+        paint(cx + iLow, realY);
     }
     ensureAudioCtx();
     mouseDown = true;
@@ -1356,7 +1371,7 @@ function canvasMouseMove(e,touch) {
     } else {
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         const realY = visibleToSpecY(cy);
-        paint(cx + iLow, realY, scaleX, scaleY, startX, startY);
+        paint(cx + iLow, realY);
     }
 
     currentFrame = Math.floor(cx);
@@ -1395,6 +1410,13 @@ function canvasMouseUp(e,touch) {
     if (currentTool === "rectangle" || currentTool === "line") {
         commitShape(cx, cy); 
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    }
+    if (alignTime) {
+      console.log('hi')
+      const startFrame = cxToFrame(cx);
+      const snapSize = (sampleRate/hopSizeEl.value)*(60/bpm);
+      const startFrame1 = Math.floor(startFrame/snapSize+1)*snapSize;
+      line(startFrame, startFrame1, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
     }
 
     startX=startY=null;
@@ -1674,7 +1696,7 @@ function updateBrushPreview() {
     pctx.fill();
   } else if (currentTool === "line") {
     pctx.strokeStyle = color;
-    pctx.lineWidth = 2;
+    pctx.lineWidth = brushSize/4;
     pctx.beginPath();
     pctx.moveTo(centerX - 20 , centerY + 20);
     pctx.lineTo(centerX + 20, centerY - 20);

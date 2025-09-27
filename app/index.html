@@ -148,89 +148,187 @@
       </svg>
     </button>
   </header>
+  <aside class="left-bar">
+  <!-- Settings cogwheel -->
+  <button class="panel-btn" id="settingsBtn" title="General" data-tool="0">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         width="20" height="20" viewBox="0 0 24 24" 
+         fill="none" stroke="white" stroke-width="2" 
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 
+               1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 
+               1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 
+               1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 
+               1 1-2.83-2.83l.06-.06a1.65 
+               1.65 0 0 0 .33-1.82 1.65 
+               1.65 0 0 0-1.51-1H3a2 2 0 
+               1 1 0-4h.09a1.65 1.65 0 
+               0 0 1.51-1 1.65 1.65 0 
+               0 0-.33-1.82l-.06-.06a2 
+               2 0 1 1 2.83-2.83l.06.06a1.65 
+               1.65 0 0 0 1.82.33H9a1.65 
+               1.65 0 0 0 1-1.51V3a2 2 
+               0 1 1 4 0v.09a1.65 1.65 0 
+               0 0 1 1.51 1.65 1.65 0 
+               0 0 1.82-.33l.06-.06a2 
+               2 0 1 1 2.83 2.83l-.06.06a1.65 
+               1.65 0 0 0-.33 1.82V9c0 
+               .69.28 1.35.77 1.82.49.47 
+               1.15.77 1.82.77h.09a2 2 
+               0 1 1 0 4h-.09c-.69 0-1.35.28-1.82.77z"/>
+    </svg>
+  </button>
+
+  <!-- Piano keys -->
+  <button class="panel-btn" id="pianoBtn" title="Midi" data-tool="1">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         width="24" height="24" viewBox="0 0 24 24" 
+         fill="none" stroke="white" stroke-width="2" 
+         stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2" ry="2"/>
+      <line x1="8" y1="5" x2="8" y2="19"/>
+      <line x1="16" y1="5" x2="16" y2="19"/>
+      <line x1="12" y1="5" x2="12" y2="15"/>
+    </svg>
+  </button>
+
+  <!-- EQ curve -->
+  <button class="panel-btn" id="eqBtn" title="Equalizer" data-tool="2">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         width="24" height="24" viewBox="0 0 24 24" 
+         fill="none" stroke="white" stroke-width="2" 
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
+      <circle cx="3" cy="17" r="1.5" fill="white"/>
+      <circle cx="11" cy="11" r="1.5" fill="white"/>
+      <circle cx="21" cy="15" r="1.5" fill="white"/>
+    </svg>
+  </button>
+</aside>
 
   <aside class="left-panel">
-    <div style="border:1px solid #888; padding: 4px;"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
-    <label class="h1">Spectrogram properties</label>
-    <div class= "slider-row">
-      <label class="h2" title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:</label>
-      <input id="fftSize" type="number" value="11" step="1" min="6" max="14" style="margin-left: 102px;">
-    </div>
-    <div class= "slider-row">
-      <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
-      <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 102px;">
-    </div>
-    <label class="h1">Preset audio (Reset audio to apply)<br>
-    </label>
-    <label class="h2" for="presets">Use presets</label>
-    <select id="presets">
-      <option value="silence">Silence</option>
-      <option value="male">Male sing</option>
-      <option value="female">Female sing</option>
-      <option value="dog">Dog</option>
-      <option value="birdChirp">Bird chirp</option>
-      <option value="lionRoar">Lion roar</option>
-      <option value="seaLion">Sea lion</option>
-      <option value="violin">Violin</option>
-      <option value="trumpet">Trumpet</option>
-      <option value="timpani">Timpani</option>
-      <option value="piano">Piano</option>
-      <option value="flute">Flute</option>
-      <option value="cymbal">Cymbal</option>
-      <option value="computerBeeps">Computer beeps</option>
-      <option value="scream">Scream</option>
-      <option value="bomb">Bomb</option>
-      <option value="engine">Engine</option>
-      <option value="fullSpectra">Loud noise</option>
-      <option value="bass808">808 bass</option>
-      <option value="cave14">Cave14.ogg</option>
-      <option value="sine">Sine wave</option>
-      <option value="triangle">Triangle wave</option>
-      <option value="square">Square wave</option>
-      <option value="saw">Saw wave</option>
-    </select>
-    <div id ="es" class="slider-row" title="Empty audio seconds">
-      <label class="h2">Empty audio seconds</label>
-      <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
-      <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="100">
-    </div>
-    <div id="ev" class="slider-row" title="Background phase">
-      <label class="h2" for="phaseType">Background phase</label>
-      <select id="phaseType">
-        <option value="Static">Static</option>
-        <option value="Slow sine">Slow sine</option>
-        <option value="Fast sine">Fast sine</option>
-        <option value="Empty">Empty</option>
+    <div style="border:1px solid #888; padding: 4px; margin-top:-11px"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
+    <div id="d1">
+      <label class="h1">Spectrogram properties</label>
+      <div class= "slider-row">
+        <label class="h2" title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:</label>
+        <input id="fftSize" type="number" value="11" step="1" min="6" max="14" style="margin-left: 102px;">
+      </div>
+      <div class= "slider-row">
+        <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
+        <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 102px;">
+      </div>
+      <label class="h1">Preset audio (Reset audio to apply)<br>
+      </label>
+      <label class="h2" for="presets">Use presets</label>
+      <select id="presets">
+        <option value="silence">Silence</option>
+        <option value="male">Male sing</option>
+        <option value="female">Female sing</option>
+        <option value="dog">Dog</option>
+        <option value="birdChirp">Bird chirp</option>
+        <option value="lionRoar">Lion roar</option>
+        <option value="seaLion">Sea lion</option>
+        <option value="violin">Violin</option>
+        <option value="trumpet">Trumpet</option>
+        <option value="timpani">Timpani</option>
+        <option value="piano">Piano</option>
+        <option value="flute">Flute</option>
+        <option value="cymbal">Cymbal</option>
+        <option value="computerBeeps">Computer beeps</option>
+        <option value="scream">Scream</option>
+        <option value="bomb">Bomb</option>
+        <option value="engine">Engine</option>
+        <option value="fullSpectra">Loud noise</option>
+        <option value="bass808">808 bass</option>
+        <option value="cave14">Cave14.ogg</option>
+        <option value="sine">Sine wave</option>
+        <option value="triangle">Triangle wave</option>
+        <option value="square">Square wave</option>
+        <option value="saw">Saw wave</option>
       </select>
+      <div id ="es" class="slider-row" title="Empty audio seconds">
+        <label class="h2">Empty audio seconds</label>
+        <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
+        <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="100">
+      </div>
+      <div id="ev" class="slider-row" title="Background phase">
+        <label class="h2" for="phaseType">Background phase</label>
+        <select id="phaseType">
+          <option value="Static">Static</option>
+          <option value="Slow sine">Slow sine</option>
+          <option value="Fast sine">Fast sine</option>
+          <option value="Empty">Empty</option>
+        </select>
+      </div>
+      <label class="h1">Brush settings</label>
+      <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+      <div class="slider-row" title="Brush size/image size" id="sliderStart">
+        <label class="h2">Brush Size</label>
+        <input id="brushSize" type="range" min="1" max="200" value="40">
+        <input id="brushSizeInput" type="number" value="40" min="1" max="200">
+      </div>
+      <div class="slider-row" title="Brightness">
+          <label class="h2">Brush Brightness</label>
+          <input id="brushColor"  type="range" min="0" max="255" value="255">
+          <input id="brushColorInput" type="number" value="255" min="0" max="255">
+      </div>
+      <div class="slider-row" title="Phase">
+          <label class="h2">Brush Phase</label>
+          <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+          <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
+      </div>
+      <div class="slider-row" title="Brightness strength">
+          <label class="h2">Brush Opacity</label>
+          <input id="brushOpacity"  type="range" min="0" max="100" value="100">
+          <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
+      </div>
+      <div class="slider-row" title="Phase strength">
+          <label class="h2">Phase Opacity</label>
+          <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
+          <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
+      </div> 
     </div>
-    <label class="h1">Brush settings</label>
-    <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
-    <div class="slider-row" title="Brush size/image size" id="sliderStart">
-      <label class="h2">Brush Size</label>
-      <input id="brushSize" type="range" min="1" max="200" value="40">
-      <input id="brushSizeInput" type="number" value="40" min="1" max="200">
+    <div id="d2" style="display:none;">
+      <label class="h1">Brush Alignment</label>
+      <!--Auto align pitch-->
+      <button class="leftBtn" id="alignPitch" title="Auto align pitch">Auto Align Pitch</button>
+      <div id ="a4PitchDiv" class="slider-row" title="A4 pitch" style="display:none;">
+        <label class="h2">A4 Pitch</label>
+        <input id="a4Pitch" type="range" min="415.304" max="466.163" step="0.01" value="440">
+        <input id="a4PitchInput" type="number" value="440">
+      </div>
+      <!--Auto align time-->
+      <button class="leftBtn" id="alignTime" title="Auto align time">Auto Align Time</button>
+      <div id ="bpmDiv" class="slider-row" title="BPM" style="display:none;">
+        <label class="h2">BPM</label>
+        <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
+        <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
+      </div>
+      <label class="h1">MIDI Export</label>
+      <!--Remove harmonicse button-->
+      <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics">Remove Harmonics</button>
+      <!--Notes per octave (achieve with pitch bends)-->
+      <div class="slider-row" title="Notes Per Octave">
+        <label class="h2">Notes per octave</label>
+        <input id="npo" type="range" min="1" max="48" step="1" value="12">
+        <input id="npoInput" type="number" value="12" min="1" max="384">
+      </div>
+      <!--Noise floor cutoff-->
+      <div class="slider-row" title="Noise floor cutoff">
+        <label class="h2">Noise floor (dB)</label>
+        <input id="noiseFloorCutoff" type="range" min="-240" max="0" step="0.1" value="-40">
+        <input id="noiseFloorCutoffInput" type="number" value="-40" min="-240" max="0">
+      </div>
+      <!--Export button-->
+      <button class="leftBtn" id="exportMIDI" title="Export Midi">Export MIDI</button>
     </div>
-    <div class="slider-row" title="Brightness">
-        <label class="h2">Brush Brightness</label>
-        <input id="brushColor"  type="range" min="0" max="255" value="255">
-        <input id="brushColorInput" type="number" value="255" min="0" max="255">
+    <div id="d3" style="display:none;">
+      <label class="h1">Equalizer</label>
+      <canvas id="eqCanvas" width="300" height="200" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+      <button id="resetEQ" style="margin-top:10px;">Reset EQ</button>
     </div>
-    <div class="slider-row" title="Phase">
-        <label class="h2">Brush Phase</label>
-        <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
-        <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
-    </div>
-    <div class="slider-row" title="Brightness strength">
-        <label class="h2">Brush Opacity</label>
-        <input id="brushOpacity"  type="range" min="0" max="100" value="100">
-        <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
-    </div>
-    <div class="slider-row" title="Phase strength">
-        <label class="h2">Phase Opacity</label>
-        <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
-        <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
-    </div> 
-  
   </aside>
 
   <main class="main-area">
@@ -268,8 +366,12 @@
                    [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
                    [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
                    [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
-                   [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')]];
-  sliders.forEach(pair => syncNumberAndRange(pair[1], pair[0]));
+                   [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')],
+                   [document.getElementById('npo'), document.getElementById('npoInput')],
+                   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput')],
+                   [document.getElementById('bpm'), document.getElementById('bpmInput')],
+                   [document.getElementById('a4Pitch'), document.getElementById('a4PitchInput'), true]];
+  sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
 <script>
@@ -298,6 +400,10 @@ const yAxis=document.getElementById("freq");
 const yctx=yAxis.getContext("2d");
 const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
+const alignPitchBtn = document.getElementById("alignPitch");
+const a4PitchDiv = document.getElementById("a4PitchDiv");
+const alignTimeBtn = document.getElementById("alignTime");
+const bpmDiv = document.getElementById("bpmDiv");
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {
   process(inputs) {
@@ -314,8 +420,12 @@ class RecorderProcessor extends AudioWorkletProcessor {
 registerProcessor('recorder-processor', RecorderProcessor);
 `;
 const toolButtons = document.querySelectorAll(".tool-btn");
+const panelButtons = document.querySelectorAll(".panel-btn");
 const trueScale = document.getElementById("trueScale");
 const overlayFile = document.getElementById("overlayFile");
+const d1 = document.getElementById("d1");
+const d2 = document.getElementById("d2");
+const d3 = document.getElementById("d3");
 
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
@@ -342,6 +452,7 @@ let trueScaleVal=false;
 let overlayImage = null;
 let useHz = false;
 let autoPlayOnFinish = true;
+let alignPitch=false;let alignTime=false;
 
 let startX = null, startY = null;
 let cx_ = null, cy_ = null;
@@ -352,17 +463,44 @@ let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
 let brushColor=parseInt(brushColorEl.value); 
 let penPhase=parseInt(penPhaseEl.value)/10000;
 let currentTool = "brush";
-brushSizeEl.addEventListener("input",()=>{brushSize=parseInt(brushSizeEl.value); updateBrushPreview();});
-brushOpacityEl.addEventListener("input",()=>{brushOpacity=parseInt(brushOpacityEl.value)/100; updateBrushPreview();});
-phaseOpacityEl.addEventListener("input",()=>{phaseOpacity=parseInt(phaseOpacityEl.value)/100; updateBrushPreview();});
-brushColorEl.addEventListener("input",()=>{brushColor=parseInt(brushColorEl.value); updateBrushPreview();});
-penPhaseEl.addEventListener("input", ()=>{penPhase = parseFloat(penPhaseEl.value); updateBrushPreview();});
-sliders[1][1].addEventListener("input",()=>{brushSize=parseInt(   sliders[1][1].value); updateBrushPreview();});
-sliders[4][1].addEventListener("input",()=>{brushOpacity=parseInt(sliders[4][1].value)/100; updateBrushPreview();});
-sliders[5][1].addEventListener("input",()=>{phaseOpacity=parseInt(sliders[5][1].value)/100; updateBrushPreview();});
-sliders[2][1].addEventListener("input",()=>{brushColor=parseInt(  sliders[2][1].value); updateBrushPreview();});
-sliders[3][1].addEventListener("input", ()=>{penPhase = parseFloat( sliders[3][1].value); updateBrushPreview();});
+let currentPanel = "0";
+let bpm = 120; let npo = 12; let noiseFloor = -40; let a4p = 440;
+sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
+sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
+sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
+sliders[2][1].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][1].value); updateBrushPreview();});
+sliders[3][0].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][0].value); updateBrushPreview();});
+sliders[3][1].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][1].value); updateBrushPreview();});
+sliders[4][0].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][0].value)/100; updateBrushPreview();});
+sliders[4][1].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][1].value)/100; updateBrushPreview();});
+sliders[5][0].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
+sliders[5][1].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
+sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
+sliders[6][1].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][1].value);});
+sliders[7][0].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][0].value);});
+sliders[7][1].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][1].value);});
+sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);});
+sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);});
+sliders[9][0].addEventListener('input', () => {
+  const val = parseFloat(sliders[9][0].value);
+  a4p = val;
+  sliders[9][1].value = val;
+});
 
+// When user presses Enter in the A4 number input, clamp value, update the slider and a4p.
+sliders[9][1].addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    let val = parseFloat(sliders[9][1].value);
+    const min = parseFloat(sliders[9][0].min);
+    const max = parseFloat(sliders[9][0].max);
+    if (isNaN(val)) val = a4p;      // ignore invalid input
+    if (val < min) val = min;
+    if (val > max) val = max;
+    sliders[9][1].value = val;      // show clamped value
+    sliders[9][0].value = val;      // sync the slider
+    a4p = val;
+  }
+});
 
 function angleDiff(a, b) {
   const d = a - b;
@@ -374,6 +512,31 @@ function pushHistory(entry, clearRedo = true) {
   if (clearRedo) redoStack.length = 0;
 }
 
+panelButtons.forEach(btn => {
+  if(btn.dataset.tool === currentPanel) {
+    btn.style.background = "#4af"; 
+  }
+});
+panelButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentPanel = btn.dataset.tool;
+    panelButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#4af";
+    if (currentPanel === "0") {
+      d1.style.display = "block";
+      d2.style.display = "none";
+      d3.style.display = "none";
+    } else if (currentPanel === "1") {
+      d1.style.display = "none";
+      d2.style.display = "block";
+      d3.style.display = "none";
+    } else {
+      d1.style.display = "none";
+      d2.style.display = "none";
+      d3.style.display = "block";
+    }
+  });
+});
 toolButtons.forEach(btn => {
   if(btn.dataset.tool === currentTool) {
     btn.style.background = "#4af"; 
@@ -391,17 +554,10 @@ toolButtons.forEach(btn => {
 fileB.addEventListener("click", () => {
   file.click();
 });
-trueScale.addEventListener("click", () => {
-    trueScaleVal = !trueScaleVal;
-    trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3";
-    restartRender(false);
-  });
-yAxisMode.addEventListener("click", () => {
-        useHz = !useHz;
-        yAxisMode.style.background = useHz ? "#4af" : "#f3f3f3";
-        drawYAxis();
-      });
-
+trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3"; restartRender(false);});
+yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"#f3f3f3"; drawYAxis();});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"#f3f3f3"; a4PitchDiv.style.display=alignPitch?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#f3f3f3"; bpmDiv.style.display=alignTime?"block":"none";});
 overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;

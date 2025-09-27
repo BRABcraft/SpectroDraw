@@ -151,7 +151,12 @@ function commitShape(cx, cy) {
         let err = (dx > dy ? dx : -dy) / 2;
 
         while (true) {
-            drawPixelIntFrame(x0, y0, brushMag, brushPhase, bo, po);
+            const yysf = getSineFreq(y0);
+            let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
+            nearestPitch = a4p * Math.pow(2, (nearestPitch) / npo);
+            if (!(alignPitch && Math.abs(yysf-nearestPitch) > yysf * (Math.pow(2, 5/1200) - 1))) {
+              drawPixelIntFrame(x0, y0, brushMag, brushPhase, bo, po);
+            }
             if (x0 === x1 && y0 === y1) break;
             const e2 = err;
             if (e2 > -dx) { err -= dy; x0 += sx; }
@@ -208,6 +213,11 @@ function paint(cx, cy, scaleX, scaleY, startX_vis, startY_vis) {
 
         for (let yy = minY; yy <= maxY; yy++) {
             for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+                //Find nearest pitch
+                const yysf = getSineFreq(yy);
+                let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
+                nearestPitch = a4p * Math.pow(2, (nearestPitch) / npo);
+                if (currentTool === "brush" && alignPitch && Math.abs(yysf-nearestPitch) > yysf * (Math.pow(2, 5/1200) - 1)) continue;
                 const dx = xx - cx;
                 const dy = yy - cy;
 

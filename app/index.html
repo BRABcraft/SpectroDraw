@@ -456,6 +456,7 @@ let overlayImage = null;
 let useHz = false;
 let autoPlayOnFinish = true;
 let alignPitch=false;let alignTime=false;
+let subBeat = 1;
 
 let startX = null, startY = null;
 let cx_ = null, cy_ = null;
@@ -482,8 +483,8 @@ sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][
 sliders[6][1].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][1].value);});
 sliders[7][0].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][0].value);});
 sliders[7][1].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][1].value);});
-sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);});
-sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);});
+sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);drawCursor(true);});
+sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);drawCursor(true);});
 sliders[9][0].addEventListener('input', () => {
   const val = parseFloat(sliders[9][0].value);
   a4p = val;
@@ -560,7 +561,7 @@ fileB.addEventListener("click", () => {
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"#f3f3f3"; drawYAxis();});
 alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"#f3f3f3"; a4PitchDiv.style.display=alignPitch?"block":"none";});
-alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#f3f3f3"; bpmDiv.style.display=alignTime?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#f3f3f3"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
 overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
@@ -1155,7 +1156,7 @@ function drawLoop() {
 
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
-    drawCursor();
+    drawCursor(true);
     const elapsedMS = performance.now() - startTime;
     const elapsedSec = elapsedMS / 1000;
     const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
@@ -1171,15 +1172,25 @@ function drawLoop() {
     }
 }
 
-function drawCursor(){
-    const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow)
-    overlayCtx.clearRect(0,0, canvas.width, canvas.height);
+function drawCursor(clear){
+    const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
+    if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
     overlayCtx.strokeStyle = "#0f0";
     overlayCtx.lineWidth = iWidth/500;
     overlayCtx.beginPath();
     overlayCtx.moveTo(x + 0.5, 0);
     overlayCtx.lineTo(x + 0.5, specHeight);
     overlayCtx.stroke();
+    if (alignTime) {
+      overlayCtx.strokeStyle = "#222";
+      for (let i = 0; i < specWidth; i += (sampleRate/fftSize)/subBeat * (120/bpm)) {
+        const x = (i-iLow)* canvas.width / (iHigh-iLow);
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(x,0);
+        overlayCtx.lineTo(x,specHeight);
+        overlayCtx.stroke();
+      }
+    }
 }
 
 function updateCanvasScroll() {
@@ -1206,7 +1217,7 @@ function updateCanvasScroll() {
     overlayCanvas.height = canvas.height;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-    drawCursor();
+    drawCursor(true);
 }
 
 function renderView() {
@@ -1320,11 +1331,11 @@ function canvasMouseDown(e,touch) {
     startX = cx; startY = cy;
     if (alignTime) {
       const startFrame = Math.round(cx + iLow);
-      const snapSize = 60/bpm;
+      const snapSize = 30/bpm/subBeat;
       const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
       const endTime = (cx/(sampleRate/hopSizeEl.value));
       const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
+      if (currentTool !== "rectangle" && currentTool !== "line") line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
       startX = startFrame0 - iLow;
     }
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
@@ -1357,14 +1368,14 @@ canvas.addEventListener("touchstart", e=>{
 function canvasMouseMove(e,touch) {
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
     if (!recording) {
-    const hz = getSineFreq(visibleToSpecY(cy));
-    const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
-    const hx = Math.floor(cx);
-    const hy = Math.floor(hz/(sampleRate/fftSize));
-    const i = hx*specHeight+hy;
-    let normalizedMag = Math.min(1, mags[i] / 256);
-    let db = (20 * Math.log10(normalizedMag)).toFixed(1);
-    info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
+      const hz = getSineFreq(visibleToSpecY(cy));
+      const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
+      const hx = Math.floor(cx);
+      const hy = Math.floor(hz/(sampleRate/fftSize));
+      const i = hx*specHeight+hy;
+      let normalizedMag = Math.min(1, mags[i] / 256);
+      let db = (20 * Math.log10(normalizedMag)).toFixed(1);
+      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
     }
     if (!painting && currentTool === "brush" || currentTool === "eraser" || currentTool === "blur" || currentTool === "amplifier") {
         previewShape(cx, cy);
@@ -1377,6 +1388,7 @@ function canvasMouseMove(e,touch) {
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         const realY = visibleToSpecY(cy);
         paint(cx + iLow, realY);
+        drawCursor(true);
     }
 
     currentFrame = Math.floor(cx);
@@ -1386,7 +1398,6 @@ function canvasMouseMove(e,touch) {
     }
 
     currentCursorX = currentFrame;
-    drawCursor();
 }
 canvas.addEventListener("mousemove", e=>{
     canvasMouseMove(e,false);
@@ -1416,9 +1427,9 @@ function canvasMouseUp(e,touch) {
         commitShape(cx, cy); 
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
     }
-    if (alignTime) {
+    if (alignTime && currentTool !== "rectangle" && currentTool !== "line") {
       const startFrame = Math.round(cx + iLow);
-      const snapSize = 60/bpm;
+      const snapSize = 30/bpm/subBeat;
       const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + snapSize;
       const endTime = (cx/(sampleRate/hopSizeEl.value));
       const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
@@ -1527,7 +1538,7 @@ function updateCursorLoop() {
 
         specCtx.putImageData(imageBuffer, 0, 0);
         renderView();
-        drawCursor();
+        drawCursor(true);
     }
     requestAnimationFrame(updateCursorLoop);
 }
@@ -1660,7 +1671,7 @@ function processPendingFramesLive(){
 
   if (imageBuffer && specCtx) specCtx.putImageData(imageBuffer, 0, 0);
   renderView();
-  drawCursor();
+  drawCursor(true);
 }
 
 function updateBrushPreview() {

@@ -95,7 +95,7 @@ function timelineMousedown(e,touch) {
       drawTimeline();
       drawYAxis();
       drawLogScale();
-      drawCursor();
+      drawCursor(true);
     } else {
       draggingBounds = true;
       oldX = (touch ? e.touches[0].clientX : e.clientX)- rect.left;
@@ -109,6 +109,13 @@ timeline.addEventListener("touchstart", e => {
     timelineMousedown(e,true);
 });
 function timelineMousemove(e,touch) {
+    const beatSize = (sampleRate/hopSizeEl.value)/iWidth;
+    if (beatSize > 2) subBeat = 16;
+    else if (beatSize > 1) subBeat = 8;
+    else if (beatSize > 0.5) subBeat = 4;
+    else if (beatSize > 1/4) subBeat = 2;
+    else if (beatSize > 1/8) subBeat = 1;
+    else subBeat = 1/2;
     const rect = timeline.getBoundingClientRect();
     const mouseY = (touch ? e.touches[0].clientY : e.clientY)- rect.top;
     const mouseX = (touch ? e.touches[0].clientX : e.clientX)- rect.left;
@@ -162,7 +169,7 @@ function timelineMousemove(e,touch) {
       drawTimeline();
       drawYAxis();
       drawLogScale();
-      drawCursor();
+      drawCursor(false);
 }
 window.addEventListener("mousemove", e => {
     timelineMousemove(e,false);
@@ -190,7 +197,7 @@ function timelineMouseup(e) {
     } else {
         specCtx.putImageData(imageBuffer, 0, 0);
         renderView();
-        drawCursor();
+        drawCursor(true);
     }
     drawTimeline();
     drawLogScale();
@@ -362,7 +369,7 @@ function yAxisMousemove(e,touch) {
     drawTimeline();
     drawYAxis();
     drawLogScale();
-    drawCursor();
+    drawCursor(true);
 }
 window.addEventListener("mousemove", e => {yAxisMousemove(e,false);});
 window.addEventListener("touchmove", e => {yAxisMousemove(e,true);});
@@ -416,7 +423,7 @@ stopBtn.addEventListener("click", () => {
     drawLogScale();
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
-    drawCursor();
+    drawCursor(true);
     playPauseBtn.innerHTML = playHtml;
 });
 
@@ -434,7 +441,7 @@ function updateTimelineCursor() {
         currentCursorX = timelineCursorX;
         drawTimeline();
         drawYAxis();
-        drawCursor();
+        drawCursor(true);
     }
     requestAnimationFrame(updateTimelineCursor);
 }

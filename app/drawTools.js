@@ -77,6 +77,8 @@ function previewShape(cx, cy) {
     overlayCtx.beginPath();
     overlayCtx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
     overlayCtx.stroke();
+    
+    drawCursor(false);
   });
 }
 
@@ -107,8 +109,6 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
         drawPixelFrame(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
       }
     }
-      console.log(x0,x1)
-
     if (x0 === x1 && y0 === y1) break;
     const e2 = err;
     if (e2 > -dx) { err -= dy; x0 += sx; }
@@ -162,9 +162,18 @@ function commitShape(cx, cy) {
     const startVisY = (startY === null ? cy : startY);
 
     const startFrame = Math.round(startVisX + (iLow || 0));
-    const endFrame   = Math.round(cx + (iLow || 0));
-    let x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
-    let x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
+    let endFrame   = Math.round(cx + (iLow || 0));
+    let x0Frame; let x1Frame;
+    if (alignTime) {
+      const snapSize = 60/bpm/subBeat;
+      const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + snapSize;
+      endFrame = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      x0Frame = Math.min(startFrame,endFrame);
+      x1Frame = Math.max(startFrame,endFrame);
+    } else {
+      x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
+      x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
+    }
 
     const startSpecY = visibleToSpecY(startVisY);
     const endSpecY   = visibleToSpecY(cy);

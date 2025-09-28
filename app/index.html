@@ -181,7 +181,7 @@
   </button>
 
   <!-- Piano keys -->
-  <button class="panel-btn" id="pianoBtn" title="Midi" data-tool="1">
+  <button class="panel-btn" id="pianoBtn" title="Piano" data-tool="1">
     <svg xmlns="http://www.w3.org/2000/svg" 
          width="24" height="24" viewBox="0 0 24 24" 
          fill="none" stroke="white" stroke-width="2" 
@@ -210,10 +210,11 @@
   <aside class="left-panel">
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <div id="d1">
+      <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
       <label class="h1">Spectrogram properties</label>
       <div class= "slider-row">
         <label class="h2" title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:</label>
-        <input id="fftSize" type="number" value="11" step="1" min="6" max="14" style="margin-left: 102px;">
+        <input id="fftSize" type="number" value="12" step="1" min="6" max="14" style="margin-left: 102px;">
       </div>
       <div class= "slider-row">
         <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
@@ -266,8 +267,8 @@
       <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
       <div class="slider-row" title="Brush size/image size" id="sliderStart">
         <label class="h2">Brush Size</label>
-        <input id="brushSize" type="range" min="1" max="200" value="40">
-        <input id="brushSizeInput" type="number" value="40" min="1" max="200">
+        <input id="brushSize" type="range" min="1" max="200" value="10">
+        <input id="brushSizeInput" type="number" value="10" min="1" max="200">
       </div>
       <div class="slider-row" title="Brightness">
           <label class="h2">Brush Brightness</label>
@@ -291,6 +292,7 @@
       </div> 
     </div>
     <div id="d2" style="display:none;">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Piano</h2>
       <label class="h1">Brush Alignment</label>
       <!--Auto align pitch-->
       <button class="leftBtn" id="alignPitch" title="Auto align pitch">Auto Align Pitch</button>
@@ -325,6 +327,7 @@
       <button class="leftBtn" id="exportMIDI" title="Export Midi">Export MIDI</button>
     </div>
     <div id="d3" style="display:none;">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Equilizer</h2>
       <label class="h1">Equalizer</label>
       <canvas id="eqCanvas" width="300" height="200" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
       <button id="resetEQ" style="margin-top:10px;">Reset EQ</button>
@@ -1316,11 +1319,13 @@ function canvasMouseDown(e,touch) {
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
     startX = cx; startY = cy;
     if (alignTime) {
-      const startFrame = cxToFrame(startX);
-      const snapSize = (sampleRate/hopSizeEl.value)*(60/bpm);
-      const startFrame0 = Math.floor(startFrame/snapSize)*snapSize;
-      line(startFrame0, startFrame, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
-      startX = frameToCx(startFrame0);
+      const startFrame = Math.round(cx + iLow);
+      const snapSize = 60/bpm;
+      const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
+      const endTime = (cx/(sampleRate/hopSizeEl.value));
+      const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
+      startX = startFrame0 - iLow;
     }
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
     const realY = visibleToSpecY(cy);
@@ -1412,11 +1417,12 @@ function canvasMouseUp(e,touch) {
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
     }
     if (alignTime) {
-      console.log('hi')
-      const startFrame = cxToFrame(cx);
-      const snapSize = (sampleRate/hopSizeEl.value)*(60/bpm);
-      const startFrame1 = Math.floor(startFrame/snapSize+1)*snapSize;
-      line(startFrame, startFrame1, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
+      const startFrame = Math.round(cx + iLow);
+      const snapSize = 60/bpm;
+      const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + snapSize;
+      const endTime = (cx/(sampleRate/hopSizeEl.value));
+      const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
     }
 
     startX=startY=null;

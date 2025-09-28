@@ -99,23 +99,15 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
 
   const half = Math.floor(lineWidth / 2);
 
-  while (true) {
-    const yysf = getSineFreq(y0);
-    let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
-    nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
-
-    if (!(alignPitch && Math.abs(yysf - nearestPitch) > yysf * (Math.pow(2, 5/1200) - 1))) {
-      // draw a square "brush" of size lineWidth × lineWidth
-      for (let dx = -half; dx <= half; dx++) {
-        for (let dy = -half; dy <= half; dy++) {
-          const px = x0 + dx;
-          const py = y0 + dy;
-          if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-            drawPixelFrame(px, py, brushMag, penPhase, brushOpacity, phaseOpacity);
-          }
-        }
+ while (true) {
+    for (let dy = -half; dy <= half; dy++) {
+      const px = x0;
+      const py = y0 + dy;
+      if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
+        drawPixelFrame(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
       }
     }
+      console.log(x0,x1)
 
     if (x0 === x1 && y0 === y1) break;
     const e2 = err;
@@ -126,7 +118,15 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
 
 function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   const xI = Math.round(xFrame);
-  const yI = Math.round(yDisplay);
+  let yI;
+  if (alignPitch) {
+    const yysf = getSineFreq(yDisplay);
+    let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
+    nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
+    yI = Math.round(ftvsy(nearestPitch));
+  } else {
+    yI = Math.round(yDisplay);
+  }
   if (xI < 0 || xI >= specWidth || yI < 0 || yI >= specHeight) return;
   const bin = displayYToBin(yI, specHeight);
   const idx = xI * specHeight + bin;
@@ -189,6 +189,25 @@ function commitShape(cx, cy) {
     renderView();
 }
 
+function ftvsy(f) {
+  const h = specHeight;
+  const s = parseFloat(logScaleVal);
+  let bin = f / (sampleRate / fftSize);
+  let cy;
+  if (s <= 1.0000001) {
+      cy = h - 1 - bin;
+  } else {
+      const a = s - 1;
+      const denom = Math.log(1 + a * (h - 1));
+      const t = Math.log(1 + a * bin) / denom;
+      cy = (1 - t) * (h - 1);
+  }
+
+  const visY = ((cy) / h) * h;
+
+  return visY;
+}
+
 function paint(cx, cy) {
     if (!mags || !phases) return;
 
@@ -204,15 +223,11 @@ function paint(cx, cy) {
     const minY = Math.max(0, Math.floor(cy - radiusY*(fftSize/2048)));
     const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fftSize/2048)));
     if (currentTool === "brush" || currentTool === "eraser" || currentTool === "amplifier") {
+        
         const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
         const brushPhase = currentTool === "eraser" ? 0 : penPhase;
         for (let yy = minY; yy <= maxY; yy++) {
           for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-              //Find nearest pitch
-              const yysf = getSineFreq(yy);
-              let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
-              nearestPitch = a4p * Math.pow(2, (nearestPitch) / npo);
-              if (currentTool === "brush" && alignPitch && Math.abs(yysf-nearestPitch) > yysf * (Math.pow(2, 5/1200) - 1)) continue;
               const dx = xx - cx;
               const dy = yy - cy;
               if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / Math.pow(radiusY*(fftSize/2048),2) > 1) continue;

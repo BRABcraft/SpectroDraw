@@ -310,7 +310,7 @@
       </div>
       <label class="h1">MIDI Export</label>
       <!--Remove harmonicse button-->
-      <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics">Remove Harmonics</button>
+      <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics" onClick="removeHarmonics()">Remove Harmonics</button>
       <!--Notes per octave (achieve with pitch bends)-->
       <div class="slider-row" title="Notes Per Octave">
         <label class="h2">Notes per octave</label>
@@ -320,11 +320,16 @@
       <!--Noise floor cutoff-->
       <div class="slider-row" title="Noise floor cutoff">
         <label class="h2">Noise floor (dB)</label>
-        <input id="noiseFloorCutoff" type="range" min="-240" max="0" step="0.1" value="-40">
-        <input id="noiseFloorCutoffInput" type="number" value="-40" min="-240" max="0">
+        <input id="noiseFloorCutoff" type="range" min="-240" max="0" step="0.1" value="-30">
+        <input id="noiseFloorCutoffInput" type="number" value="-30" min="-240" max="0">
+      </div>
+      <div class="slider-row" title="Duration cutoff">
+        <label class="h2">Duration cutoff (secs)</label>
+        <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
+        <input id="durationCutoffInput" type="number" value="0.05" min="0" max="1">
       </div>
       <!--Export button-->
-      <button class="leftBtn" id="exportMIDI" title="Export Midi">Export MIDI</button>
+      <button class="leftBtn" id="exportMIDI" title="Export Midi" onclick="exportMidi()">Export MIDI</button>
     </div>
     <div id="d3" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Equilizer</h2>
@@ -373,7 +378,8 @@
                    [document.getElementById('npo'), document.getElementById('npoInput')],
                    [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput')],
                    [document.getElementById('bpm'), document.getElementById('bpmInput')],
-                   [document.getElementById('a4Pitch'), document.getElementById('a4PitchInput'), true]];
+                   [document.getElementById('a4Pitch'), document.getElementById('a4PitchInput'), true],
+                   [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -468,7 +474,9 @@ let brushColor=parseInt(brushColorEl.value);
 let penPhase=parseInt(penPhaseEl.value)/10000;
 let currentTool = "brush";
 let currentPanel = "0";
-let bpm = 120; let npo = 12; let noiseFloor = -40; let a4p = 440;
+let bpm = 120; let npo = 12;
+let noiseFloor = document.getElementById("noiseFloorCutoff").value; let a4p = 440;
+let dCutoff = document.getElementById("durationCutoff").value;
 sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
 sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
@@ -485,13 +493,7 @@ sliders[7][0].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][
 sliders[7][1].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][1].value);});
 sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);drawCursor(true);});
 sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);drawCursor(true);});
-sliders[9][0].addEventListener('input', () => {
-  const val = parseFloat(sliders[9][0].value);
-  a4p = val;
-  sliders[9][1].value = val;
-});
-
-// When user presses Enter in the A4 number input, clamp value, update the slider and a4p.
+sliders[9][0].addEventListener('input', () => {a4p = parseFloat(sliders[9][0].value); sliders[9][1].value = a4p;});
 sliders[9][1].addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     let val = parseFloat(sliders[9][1].value);
@@ -503,6 +505,20 @@ sliders[9][1].addEventListener('keydown', (e) => {
     sliders[9][1].value = val;      // show clamped value
     sliders[9][0].value = val;      // sync the slider
     a4p = val;
+  }
+});
+sliders[10][0].addEventListener('input', () => {dCutoff = parseFloat(sliders[10][0].value); sliders[10][1].value = dCutoff;});
+sliders[10][1].addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    let val = parseFloat(sliders[10][1].value);
+    const min = parseFloat(sliders[10][0].min);
+    const max = parseFloat(sliders[10][0].max);
+    if (isNaN(val)) val = dCutoff;      // ignore invalid input
+    if (val < min) val = min;
+    if (val > max) val = max;
+    sliders[10][1].value = val;      // show clamped value
+    sliders[10][0].value = val;      // sync the slider
+    dCutoff = val;
   }
 });
 
@@ -573,6 +589,328 @@ overlayFile.addEventListener("change", e => {
 </script>
 <script src="axes.js"></script>
 <script>
+
+function dbToMag(db) {
+  //Mag to db: return (20 * Math.log10(mag));
+  return Math.pow(10, db / 20);
+}
+
+// ---------- exportMidi: detect & merge, now adds startTime (seconds) ----------
+function exportMidi() {
+  pos = 0;
+  x = 0;
+  const w = specWidth; const h = specHeight;
+  let detectedPitches = [];
+  audioProcessed = 0;
+
+  // detection pass: store [detectedPitch, mag, velFrame] per frame
+  for (let frame = 0; frame < w; frame++) {
+    detectedPitches.push([]);
+    if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
+
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+    for (let j = 0; j < fftSize; j++) { re[j] = (pcm[pos + j] || 0) * win[j]; im[j] = 0; }
+    fft_inplace(re, im);
+
+    const factor = sampleRate / fftSize / 2; // Hz per bin
+
+    for (let bin = 0; bin < h; bin++) {
+      const mag = Math.hypot(re[bin] || 0, im[bin] || 0)/256;
+      if (mag <= dbToMag(noiseFloor)) continue;
+
+      const freq = factor * bin;
+      if (freq <= 0) continue;
+
+      // nearest pitch logic (keeps your prior intent)
+      let nearestPitch = Math.round(npo * Math.log2(freq / a4p));
+      nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
+      const detectedPitch = Math.floor(nearestPitch / factor);
+
+      // per-frame integer velocity from this bin's magnitude
+      const magToDb = m => 20 * Math.log10(Math.max(m, 1e-12));
+      const db = magToDb(mag);
+      const t = (db - noiseFloor) / (0 - noiseFloor);
+      const velFrame = Math.round(Math.max(0, Math.min(1, t)) * 127);
+
+      // ensure uniqueness per frame by pitch+velocity
+      if (!detectedPitches[frame].some(([p, _m, v]) => p === detectedPitch && v === velFrame)) {
+        detectedPitches[frame].push([detectedPitch, mag, velFrame]);
+      }
+    }
+
+    pos += hop; x++;
+    audioProcessed += hop;
+    if (x >= w) { rendering = false; status.style.display = "none"; }
+  }
+
+  // --- merge adjacent-frame detections into notes only when pitch AND velocity match (±1 tolerance) ---
+  const notes = [];               // final notes [{ midiFloat|freq, velocity, lengthFrames, lengthSeconds, startTime }, ...]
+  const active = [];              // array of { midiRounded, startFrame, mags: [], vel, midiFloat, seen }
+  const factor = sampleRate / fftSize / 2;
+
+  function avg(arr) { return arr.reduce((s, v) => s + v, 0) / arr.length; }
+
+  for (let frame = 0; frame < w; frame++) {
+    // reset seen flag
+    for (const a of active) a.seen = false;
+
+    for (const [detectedPitch, mag, velFrame] of detectedPitches[frame]) {
+      const freq = detectedPitch * factor;
+      if (freq <= 0) continue;
+      const midiFloat = 69 + 12 * Math.log2(freq / a4p);
+      const midiRounded = Math.round(midiFloat);
+
+      // find an active entry with same midiRounded and vel within +/-1
+      let match = null;
+      for (const a of active) {
+        if (a.midiRounded === midiRounded && Math.abs(a.vel - velFrame) <= 40) {
+          match = a;
+          break;
+        }
+      }
+
+      if (match) {
+        match.mags.push(mag);
+        match.seen = true;
+      } else {
+        // create a new active note
+        active.push({
+          midiRounded,
+          startFrame: frame,
+          mags: [mag],
+          vel: velFrame,
+          midiFloat,
+          seen: true
+        });
+      }
+    }
+
+    // finalize any active notes that were NOT seen this frame
+    for (let i = active.length - 1; i >= 0; i--) {
+      const a = active[i];
+      if (!a.seen) {
+        const lengthFrames = frame - a.startFrame;
+        notes.push({
+          midiFloat: a.midiFloat,
+          velocity: a.vel, // use the stored per-frame velocity
+          lengthFrames,
+          lengthSeconds: (lengthFrames * hop) / sampleRate,
+          startTime: (a.startFrame * hop) / sampleRate
+        });
+        active.splice(i, 1);
+      }
+    }
+  }
+
+  // finalize remaining active notes that extend to the end
+  for (const a of active) {
+    const lengthFrames = w - a.startFrame;
+    notes.push({
+      midiFloat: a.midiFloat,
+      velocity: a.vel,
+      lengthFrames,
+      lengthSeconds: (lengthFrames * hop) / sampleRate,
+      startTime: (a.startFrame * hop) / sampleRate
+    });
+  }
+
+  let i = 0;
+  while (i < notes.length) {
+    if (notes[i].lengthSeconds < dCutoff) {
+      notes.splice(i,1);
+    } else {
+      i++;
+    }
+  }
+
+  // export
+  writeMidiFile(notes, { downloadName: "export.mid" });
+}
+
+
+// ---------- writeMidiFile: uses note.startTime to schedule events ----------
+function writeMidiFile(notes, opts = {}) {
+  // options
+  const ppq = opts.ppq ?? 480;
+  const tempoBPM = opts.tempoBPM ?? 120;
+  const channel = opts.channel ?? 0;
+  const a4 = opts.a4 ?? 440;
+  const pitchBendRange = opts.pitchBendRange ?? 2; // semitones (+/-)
+  const downloadName = opts.downloadName ?? "output.mid";
+
+  // helper: write variable length quantity into given array
+  function writeVarLen(value, out) {
+    // value is integer >= 0
+    let buffer = value & 0x7f;
+    while ((value >>= 7) > 0) {
+      buffer <<= 8;
+      buffer |= ((value & 0x7f) | 0x80);
+    }
+    while (true) {
+      out.push(buffer & 0xff);
+      if (buffer & 0x80) buffer >>= 8;
+      else break;
+    }
+  }
+
+  // push helpers
+  const bytes = [];
+  function pushU16BE(v) { bytes.push((v >> 8) & 0xff, v & 0xff); }
+  function pushU32BE(v) { bytes.push((v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff); }
+
+  // Header chunk (format 0 single track)
+  bytes.push(0x4d,0x54,0x68,0x64); // "MThd"
+  pushU32BE(6);
+  pushU16BE(0); // format 0
+  pushU16BE(1); // 1 track
+  pushU16BE(ppq);
+
+  // track bytes collector
+  const track = [];
+
+  // tempo meta
+  const microsecondsPerQuarter = Math.round(60000000 / tempoBPM);
+  writeVarLen(0, track);
+  track.push(0xFF, 0x51, 0x03);
+  track.push((microsecondsPerQuarter >> 16) & 0xff, (microsecondsPerQuarter >> 8) & 0xff, microsecondsPerQuarter & 0xff);
+
+  // program change (optional)
+  writeVarLen(0, track); track.push(0xC0 | channel, 0);
+
+  // set pitch bend range via RPN (delta 0)
+  function pushControl(changeController, value) {
+    writeVarLen(0, track);
+    track.push(0xB0 | (channel & 0x0f), changeController & 0x7f, value & 0x7f);
+  }
+  pushControl(0x65, 0x00);
+  pushControl(0x64, 0x00);
+  const semis = Math.floor(Math.max(0, Math.min(127, Math.round(pitchBendRange))));
+  pushControl(0x06, semis);
+  pushControl(0x26, 0x00);
+  pushControl(0x65, 127);
+  pushControl(0x64, 127);
+
+  // utility: convert frequency to midiFloat (not strictly used if notes already provide midiFloat)
+  function freqToMidiFloat(freq, npo) {
+    if (!freq || freq <= 0) return null;
+    if (npo && npo > 0) {
+      const micro = Math.round(npo * Math.log2(freq / a4));
+      return 69 + (12 * micro) / npo;
+    } else {
+      return 69 + 12 * Math.log2(freq / a4);
+    }
+  }
+
+  // compute ticks per second for tick conversions
+  const ticksPerSec = ppq * (tempoBPM / 60);
+
+  // helper: produce 14-bit pitch bend from fractional midi relative to base
+  function midiFloatToPitchBend(midiFloat, baseMidi, rangeSemitones) {
+    const semitoneOffset = midiFloat - baseMidi;
+    const normalized = semitoneOffset / rangeSemitones;
+    const clamped = Math.max(-1, Math.min(1, normalized));
+    const value = Math.round(8192 + clamped * 8192);
+    return Math.max(0, Math.min(16383, value));
+  }
+
+  // Build compact event list: arrays [tick, order, type, a, b]
+  // order: pitch-bend(0) -> note-on(1) -> note-off(2) for stable ordering
+  const events = [];
+  for (let i = 0, L = notes.length; i < L; ++i) {
+    const note = notes[i];
+    if (!note || typeof note.lengthSeconds !== "number") continue;
+
+    const startTime = (typeof note.startTime === 'number') ? note.startTime : 0;
+    const startTick = Math.max(0, Math.round(startTime * ticksPerSec));
+    const lengthTicks = Math.max(1, Math.round(note.lengthSeconds * ticksPerSec));
+    const endTick = startTick + lengthTicks;
+
+    // derive midiFloat
+    let midiFloat = null;
+    if (typeof note.midiFloat === "number") midiFloat = note.midiFloat;
+    else if (typeof note.freq === "number") {
+      if (note.freq >= 0 && note.freq <= 127 && Number.isInteger(note.freq)) midiFloat = note.freq;
+      else midiFloat = freqToMidiFloat(note.freq, opts.npo);
+    } else {
+      continue;
+    }
+    if (!Number.isFinite(midiFloat)) continue;
+
+    let baseMidi = Math.round(midiFloat);
+    baseMidi = Math.max(0, Math.min(127, baseMidi));
+    const pb14 = midiFloatToPitchBend(midiFloat, baseMidi, pitchBendRange);
+    const pbLSB = pb14 & 0x7f;
+    const pbMSB = (pb14 >> 7) & 0x7f;
+
+    const velocity = (typeof note.velocity === 'number') ? Math.max(1, Math.min(127, note.velocity)) : 100;
+
+    // push compact event entries
+    events.push([startTick, 0, 'pb', pbLSB, pbMSB]);
+    events.push([startTick, 1, 'on', baseMidi, velocity]);
+    events.push([endTick,   2, 'off', baseMidi, 0]);
+  }
+
+  // sort events - numeric comparator
+  events.sort(function(a,b){
+    if (a[0] < b[0]) return -1;
+    if (a[0] > b[0]) return  1;
+    return a[1] - b[1];
+  });
+
+  // write events with proper delta times (iterative)
+  let lastTick = 0;
+  for (let i = 0; i < events.length; ++i) {
+    const ev = events[i];
+    const delta = Math.max(0, ev[0] - lastTick);
+    writeVarLen(delta, track);
+
+    const type = ev[2];
+    if (type === 'pb') {
+      track.push(0xE0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+    } else if (type === 'on') {
+      track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+    } else if (type === 'off') {
+      track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, 0x00);
+    }
+
+    lastTick = ev[0];
+  }
+
+  // End of track meta
+  writeVarLen(0, track);
+  track.push(0xFF, 0x2F, 0x00);
+
+  // Write track chunk header + bytes
+  bytes.push(0x4d,0x54,0x72,0x6b); // "MTrk"
+  pushU32BE(track.length);
+  
+  const totalLen = bytes.length + track.length;
+  const out = new Uint8Array(totalLen);
+
+  let k = 0;
+  for (let i = 0; i < bytes.length; ++i) out[k++] = bytes[i];
+  for (let i = 0; i < track.length; ++i) out[k++] = track[i];
+
+  // optional download
+  if (downloadName) {
+    const blob = new Blob([out], { type: "audio/midi" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = downloadName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }
+
+  return out;
+}
+
+function removeHarmonics() {
+  
+}
 
 function initEmptyPCM() {
     const sampleRateLocal = 48000;

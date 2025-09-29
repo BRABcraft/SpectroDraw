@@ -332,12 +332,13 @@
       <!--Export button-->
       <button class="leftBtn" id="exportMIDI" title="Export Midi" onclick="exportMidi()">Export MIDI</button>
     </div>
-    <div id="d3" style="display:none;">
-      <h2 style="margin-bottom:10px;margin-top:10px;">Equilizer</h2>
+    <div id="d3" style="display:none; height: 80%">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Equalizer</h2>
+      <h5 style="margin-top:0px; margin-bottom:10px;">Note: Does not update on the spectrogram to save lag</h5>
       <div class="slider-row" title="Global gain">
         <label class="h2">Global gain</label>
-        <input id="globalGain" type="range" min="-25" max="25" step="0.1" value="0">
-        <input id="globalGainInput" type="number" value="0" min="-25" max="25">
+        <input id="globalGain" type="range" min="-30" max="30" step="0.1" value="0">
+        <input id="globalGainInput" type="number" value="0" min="-30" max="30">
       </div>
       <div class="slider-row" title="EQ Presets">
         <label class="h2" for="eqPresets">Presets</label>
@@ -349,9 +350,10 @@
           <option value="Midpass">Midpass</option>
           <option value="High boost">High boost</option>
           <option value="Highpass">Highpass</option>
+          <option value="Custom">Custom</option>
         </select>
       </div>
-      <canvas id="eqCanvas" width="295" height="480" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+      <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     </div>
   </aside>
 
@@ -454,7 +456,8 @@ const d1 = document.getElementById("d1");
 const d2 = document.getElementById("d2");
 const d3 = document.getElementById("d3");
 const EQcanvas = document.getElementById("eqCanvas");
-const eCtx = EQcanvas.getContext("2d");
+const eCtx = EQcanvas.getContext("2d"); 
+const eqPresets = document.getElementById("eqPresets");
 
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
@@ -510,7 +513,7 @@ sliders[4][1].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][
 sliders[5][0].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
 sliders[5][1].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
 sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
-sliders[6][1].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][1].value);});
+sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) npo=parseInt  (sliders[6][1].value);});
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
 sliders[7][1].addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
@@ -1516,6 +1519,7 @@ function updateCursorLoop() {
         specCtx.putImageData(imageBuffer, 0, 0);
         renderView();
         drawCursor(true);
+        drawEQ();
     }
     requestAnimationFrame(updateCursorLoop);
 }
@@ -1532,83 +1536,120 @@ function stopSource(preservePaused=false){
     playing = false;
 }
 
+// helper to pick the right input node to connect to
+function _getPlaybackTarget() {
+  // prefer curveEQ if present and initialized
+  if (typeof curveEQ !== 'undefined' && curveEQ && curveEQ.inited && curveEQ.eqInput) {
+    // ensure filters are up-to-date when we start playback
+    if (typeof updateCurveEQ === 'function') {
+      try { updateCurveEQ(); } catch (e) { /* ignore */ }
+    }
+    return curveEQ.eqInput;
+  }
+  // fallback to older eqInput variable if present
+  if (typeof eqInput !== 'undefined' && eqInput) return eqInput;
+  // final fallback: direct destination
+  return audioCtx.destination;
+}
+
 async function playPCM(loop = true, startFrame = null) {
-    if (!pcm) return;
-    ensureAudioCtx();
+  if (!pcm) return;
+  ensureAudioCtx();
 
-    if (audioCtx.state === 'suspended') {
-      try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
-    }
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
+  }
 
-    stopSource(true);
+  stopSource(true);
 
-    let startSample = 0;
-    if (startFrame !== null && !isNaN(startFrame)) {
-        startSample = Math.max(0, Math.min(pcm.length - 1, startFrame * hop));
-    } else if (pausedAtSample !== null) {
-        startSample = Math.max(0, Math.min(pcm.length - 1, pausedAtSample));
-    } else {
-        startSample = 0;
-    }
+  let startSample = 0;
+  if (startFrame !== null && !isNaN(startFrame)) {
+      startSample = Math.max(0, Math.min(pcm.length - 1, startFrame * hop));
+  } else if (pausedAtSample !== null) {
+      startSample = Math.max(0, Math.min(pcm.length - 1, pausedAtSample));
+  } else {
+      startSample = 0;
+  }
 
-    sourceNode = audioCtx.createBufferSource();
-    const buffer = audioCtx.createBuffer(1, pcm.length, sampleRate);
-    buffer.copyToChannel(pcm, 0);
-    sourceNode.buffer = buffer;
-    sourceNode.loop = !!loop;
-    sourceNode.connect(audioCtx.destination);
+  sourceNode = audioCtx.createBufferSource();
+  const buffer = audioCtx.createBuffer(1, pcm.length, sampleRate);
+  buffer.copyToChannel(pcm, 0);
+  sourceNode.buffer = buffer;
+  sourceNode.loop = !!loop;
 
-    const offsetSec = startSample / sampleRate;
+  // connect into EQ chain (or destination) using helper
+  try {
+    const targetNode = _getPlaybackTarget();
+    sourceNode.connect(targetNode);
+  } catch (e) {
+    // fallback: direct to destination
+    try { sourceNode.connect(audioCtx.destination); } catch (e2) { console.warn("connect fallback failed", e2); }
+  }
 
-    sourceStartTime = audioCtx.currentTime - offsetSec;
-    try {
-        sourceNode.start(0, offsetSec);
-    } catch (e) {
+  const offsetSec = startSample / sampleRate;
+  sourceStartTime = audioCtx.currentTime - offsetSec;
+  try {
+      sourceNode.start(0, offsetSec);
+  } catch (e) {
+      // fallback short buffer version (same connect pattern)
+      const remaining = pcm.length - startSample;
+      const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
+      shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
+      try { sourceNode.stop(); } catch(_) {}
+      try { sourceNode.disconnect(); } catch(_) {}
+      sourceNode = audioCtx.createBufferSource();
+      sourceNode.buffer = shortBuf;
+      sourceNode.loop = !!loop;
+      try {
+        const targetNode = _getPlaybackTarget();
+        sourceNode.connect(targetNode);
+      } catch (e2) {
+        try { sourceNode.connect(audioCtx.destination); } catch (_) {}
+      }
+      sourceStartTime = audioCtx.currentTime;
+      sourceNode.start();
+  }
 
-        const remaining = pcm.length - startSample;
-        const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
-        shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
-        try { sourceNode.stop(); } catch(_) {}
-        try { sourceNode.disconnect(); } catch(_) {}
-        sourceNode = audioCtx.createBufferSource();
-        sourceNode.buffer = shortBuf;
-        sourceNode.loop = !!loop;
-        sourceNode.connect(audioCtx.destination);
-        sourceStartTime = audioCtx.currentTime;
-        sourceNode.start();
-    }
-
-    playing = true;
-    pausedAtSample = null;
+  playing = true;
+  pausedAtSample = null;
 }
 
 async function playFrame(frameX) {
-    currentCursorX = frameX;
-    if (!pcm) return;
-    ensureAudioCtx();
+  currentCursorX = frameX;
+  if (!pcm) return;
+  ensureAudioCtx();
 
-    if (audioCtx.state === 'suspended') {
-      try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
-    }
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
+  }
 
-    stopSource(true);
-    const start = frameX * hop;
-    const end = Math.min(start + fftSize, pcm.length);
-    if (end <= start) return;
-    const frameLen = end - start;
+  stopSource(true);
+  const start = frameX * hop;
+  const end = Math.min(start + fftSize, pcm.length);
+  if (end <= start) return;
+  const frameLen = end - start;
 
-    const buffer = audioCtx.createBuffer(1, frameLen, sampleRate);
-    buffer.copyToChannel(pcm.subarray(start, end), 0);
+  const buffer = audioCtx.createBuffer(1, frameLen, sampleRate);
+  buffer.copyToChannel(pcm.subarray(start, end), 0);
 
-    sourceNode = audioCtx.createBufferSource();
-    sourceNode.buffer = buffer;
-    sourceNode.loop = true; 
-    sourceNode.connect(audioCtx.destination);
-    sourceStartTime = audioCtx.currentTime - (start / sampleRate);
-    sourceNode.start();
-    playing = true;
-    pausedAtSample = null;
+  sourceNode = audioCtx.createBufferSource();
+  sourceNode.buffer = buffer;
+  sourceNode.loop = true; 
+
+  // connect into EQ chain (or destination)
+  try {
+    const targetNode = _getPlaybackTarget();
+    sourceNode.connect(targetNode);
+  } catch (e) {
+    try { sourceNode.connect(audioCtx.destination); } catch (_) {}
+  }
+
+  sourceStartTime = audioCtx.currentTime - (start / sampleRate);
+  sourceNode.start();
+  playing = true;
+  pausedAtSample = null;
 }
+
 
 function renderFullSpectrogramToImage() {
     if (!imageBuffer || !mags || !phases) return;

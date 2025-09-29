@@ -657,8 +657,9 @@ function detectPitches(alignPitch) {
 
 // ---------- exportMidi: detect & merge, now adds startTime (seconds) ----------
 function exportMidi(opts = {}) {
-  // opts: { useVolumeControllers: true/false, downloadName: "...", ... }
+  // opts: { useVolumeControllers: true/false, downloadName: "...", minVelocityDb: -60, ... }
   const velSplitTolerance = opts.velSplitTolerance ?? 40; // used only when useVolumeControllers == false
+  const minVelocityDb = (opts.minVelocityDb !== undefined) ? opts.minVelocityDb : -60;
 
   pos = 0;
   x = 0;
@@ -666,7 +667,34 @@ function exportMidi(opts = {}) {
   let detectedPitches = [];
   audioProcessed = 0;
   for (let frame = 0; frame < w; frame++) {
-    detectedPitches.push(detectPitches(true))
+    detectedPitches.push(detectPitches(true)); // each entry: [detectedPitch, mag, velFrame]
+  }
+
+  // compute global max magnitude (avoid divide-by-zero)
+  let globalMaxMag = 0;
+  for (const frameArr of detectedPitches) {
+    for (const entry of frameArr) {
+      const mag = entry[1];
+      if (mag > globalMaxMag) globalMaxMag = mag;
+    }
+  }
+  if (globalMaxMag <= 0) globalMaxMag = 1e-12;
+
+  // mapping: magnitude -> MIDI velocity 1..127 using a dB perceptual scale
+  function mapMagToMidi(mag) {
+    // normalize to 0..1 w.r.t global max
+    const amp = Math.max(0, mag) / globalMaxMag;
+    // amplitude to dB relative to max
+    const db = amp > 0 ? 20 * Math.log10(amp) : -1000;
+    // clamp to [minVelocityDb, 0]
+    let norm = (db - minVelocityDb) / (0 - minVelocityDb);
+    if (!isFinite(norm)) norm = 0;
+    if (norm < 0) norm = 0;
+    if (norm > 1) norm = 1;
+    let midi = Math.round(norm * 127);
+    // avoid 0 (note-on with vel 0 is interpreted as note-off)
+    if (midi < 1) midi = 1;
+    return midi;
   }
 
   // --- merge adjacent-frame detections into notes ---
@@ -681,7 +709,7 @@ function exportMidi(opts = {}) {
     // reset seen flag
     for (const a of active) a.seen = false;
 
-    for (const [detectedPitch, mag, velFrame] of detectedPitches[frame]) {
+    for (const [detectedPitch, mag /*, velFrame */] of detectedPitches[frame]) {
       const freq = detectedPitch * factor;
       if (freq <= 0) continue;
       const midiFloat = 69 + 12 * Math.log2(freq / a4p);
@@ -693,7 +721,8 @@ function exportMidi(opts = {}) {
         if (a.midiRounded === midiRounded) {
           // if we're preserving volume-splitting (old behavior), require velocity match within tolerance
           if (!useVolumeControllers) {
-            if (Math.abs(a.lastVel - velFrame) <= velSplitTolerance) {
+            // compare against last magnitude-based "velocity" (store lastMag instead of lastVel)
+            if (Math.abs(a.lastMag - mag) <= velSplitTolerance) {
               match = a;
               break;
             } else {
@@ -710,8 +739,9 @@ function exportMidi(opts = {}) {
 
       if (match) {
         match.mags.push(mag);
-        match.velFrames.push({ frame, vel: velFrame });
-        match.lastVel = velFrame;
+        // store magnitude here; we'll map to MIDI later when compressing velFrames
+        match.velFrames.push({ frame, vel: mag });
+        match.lastMag = mag;
         match.seen = true;
       } else {
         // create a new active note
@@ -719,8 +749,8 @@ function exportMidi(opts = {}) {
           midiRounded,
           startFrame: frame,
           mags: [mag],
-          velFrames: [{ frame, vel: velFrame }],
-          lastVel: velFrame,
+          velFrames: [{ frame, vel: mag }], // store mag
+          lastMag: mag,
           midiFloat,
           seen: true
         });
@@ -738,12 +768,17 @@ function exportMidi(opts = {}) {
         let lastVel = null;
         for (const entry of vf) {
           const rel = entry.frame - a.startFrame;
-          if (lastVel === null || entry.vel !== lastVel) {
-            velChanges.push({ offsetFrames: rel, vel: entry.vel });
-            lastVel = entry.vel;
+          // map the stored magnitude to MIDI here
+          const mapped = mapMagToMidi(entry.vel);
+          if (lastVel === null || mapped !== lastVel) {
+            velChanges.push({ offsetFrames: rel, vel: mapped });
+            lastVel = mapped;
           }
         }
-        if (velChanges.length === 0) velChanges.push({ offsetFrames: 0, vel: Math.round(avg(a.mags)) });
+        if (velChanges.length === 0) {
+          // fallback: use average magnitude mapped to MIDI
+          velChanges.push({ offsetFrames: 0, vel: mapMagToMidi(avg(a.mags)) });
+        }
 
         notes.push({
           midiFloat: a.midiFloat,
@@ -766,12 +801,13 @@ function exportMidi(opts = {}) {
     let lastVel = null;
     for (const entry of vf) {
       const rel = entry.frame - a.startFrame;
-      if (lastVel === null || entry.vel !== lastVel) {
-        velChanges.push({ offsetFrames: rel, vel: entry.vel });
-        lastVel = entry.vel;
+      const mapped = mapMagToMidi(entry.vel);
+      if (lastVel === null || mapped !== lastVel) {
+        velChanges.push({ offsetFrames: rel, vel: mapped });
+        lastVel = mapped;
       }
     }
-    if (velChanges.length === 0) velChanges.push({ offsetFrames: 0, vel: Math.round(avg(a.mags)) });
+    if (velChanges.length === 0) velChanges.push({ offsetFrames: 0, vel: mapMagToMidi(avg(a.mags)) });
 
     notes.push({
       midiFloat: a.midiFloat,

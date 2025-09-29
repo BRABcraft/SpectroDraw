@@ -1,1 +1,1 @@
-https://spectrotools.netlify.app/
+spectrodraw.com

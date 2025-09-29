@@ -211,7 +211,7 @@
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <div id="d1">
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
-      <label class="h1">Spectrogram properties</label>
+      <label class="h1">FFT Parameters</label>
       <div class= "slider-row">
         <label class="h2" title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:</label>
         <input id="fftSize" type="number" value="12" step="1" min="6" max="14" style="margin-left: 102px;">
@@ -320,14 +320,15 @@
       <!--Noise floor cutoff-->
       <div class="slider-row" title="Noise floor cutoff">
         <label class="h2">Noise floor (dB)</label>
-        <input id="noiseFloorCutoff" type="range" min="-240" max="0" step="0.1" value="-30">
-        <input id="noiseFloorCutoffInput" type="number" value="-30" min="-240" max="0">
+        <input id="noiseFloorCutoff" type="range" min="-50" max="0" step="0.1" value="-30">
+        <input id="noiseFloorCutoffInput" type="number" value="-30" min="-50" max="0">
       </div>
       <div class="slider-row" title="Duration cutoff">
         <label class="h2">Duration cutoff (secs)</label>
         <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
         <input id="durationCutoffInput" type="number" value="0.05" min="0" max="1">
       </div>
+      <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
       <!--Export button-->
       <button class="leftBtn" id="exportMIDI" title="Export Midi" onclick="exportMidi()">Export MIDI</button>
     </div>
@@ -376,7 +377,7 @@
                    [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
                    [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')],
                    [document.getElementById('npo'), document.getElementById('npoInput')],
-                   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput')],
+                   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
                    [document.getElementById('bpm'), document.getElementById('bpmInput')],
                    [document.getElementById('a4Pitch'), document.getElementById('a4PitchInput'), true],
                    [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true]];
@@ -432,6 +433,7 @@ const toolButtons = document.querySelectorAll(".tool-btn");
 const panelButtons = document.querySelectorAll(".panel-btn");
 const trueScale = document.getElementById("trueScale");
 const overlayFile = document.getElementById("overlayFile");
+const uvcb = document.getElementById("useVolumeControllers");
 const d1 = document.getElementById("d1");
 const d2 = document.getElementById("d2");
 const d3 = document.getElementById("d3");
@@ -463,6 +465,7 @@ let useHz = false;
 let autoPlayOnFinish = true;
 let alignPitch=false;let alignTime=false;
 let subBeat = 1;
+let useVolumeControllers = false;
 
 let startX = null, startY = null;
 let cx_ = null, cy_ = null;
@@ -489,8 +492,20 @@ sliders[5][0].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][
 sliders[5][1].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
 sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
 sliders[6][1].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][1].value);});
-sliders[7][0].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][0].value);});
-sliders[7][1].addEventListener("input", ()=>{noiseFloor  =parseFloat(sliders[7][1].value);});
+sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
+sliders[7][1].addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    let val = parseFloat(sliders[7][1].value);
+    const min = parseFloat(sliders[7][0].min);
+    const max = parseFloat(sliders[7][0].max);
+    if (isNaN(val)) val = noiseFloor;      // ignore invalid input
+    if (val < min) val = min;
+    if (val > max) val = max;
+    sliders[7][1].value = val;      // show clamped value
+    sliders[7][0].value = val;      // sync the slider
+    noiseFloor = val;
+  }
+});
 sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);drawCursor(true);});
 sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);drawCursor(true);});
 sliders[9][0].addEventListener('input', () => {a4p = parseFloat(sliders[9][0].value); sliders[9][1].value = a4p;});
@@ -574,10 +589,11 @@ toolButtons.forEach(btn => {
 fileB.addEventListener("click", () => {
   file.click();
 });
-trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"#f3f3f3"; restartRender(false);});
-yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"#f3f3f3"; drawYAxis();});
-alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"#f3f3f3"; a4PitchDiv.style.display=alignPitch?"block":"none";});
-alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#f3f3f3"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
+trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
+yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
+uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--accent-gradient)";});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; a4PitchDiv.style.display=alignPitch?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
 overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
@@ -595,58 +611,68 @@ function dbToMag(db) {
   return Math.pow(10, db / 20);
 }
 
+function detectPitches(alignPitch) {
+  detectedPitches=[];
+  if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
+
+  const re = new Float32Array(fftSize);
+  const im = new Float32Array(fftSize);
+  for (let j = 0; j < fftSize; j++) { re[j] = (pcm[pos + j] || 0) * win[j]; im[j] = 0; }
+  fft_inplace(re, im);
+
+  const factor = sampleRate / fftSize / 2; // Hz per bin
+
+  for (let bin = 0; bin < specHeight; bin++) {
+    const mag = Math.hypot(re[bin] || 0, im[bin] || 0)/256;
+    if (mag <= dbToMag(noiseFloor)) continue;
+
+    const freq = factor * bin;
+    if (freq <= 0) continue;
+    let detectedPitch;
+    if (alignPitch) {
+      // nearest pitch logic (keeps your prior intent)
+      let nearestPitch = Math.round(npo * Math.log2(freq / a4p));
+      nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
+      detectedPitch = Math.floor(nearestPitch / factor);
+    } else {
+      detectedPitch = freq;
+    }
+    // per-frame integer velocity from this bin's magnitude
+    const magToDb = m => 20 * Math.log10(Math.max(m, 1e-12));
+    const db = magToDb(mag);
+    const t = mag//(db - noiseFloor) / (0 - noiseFloor);
+    const velFrame = Math.round(Math.max(0, Math.min(1, t)));
+
+    // ensure uniqueness per frame by pitch+velocity
+    if (!detectedPitches.some(([p, _m, v]) => p === detectedPitch && v === velFrame)) {
+      detectedPitches.push([detectedPitch, mag, velFrame]);
+    }
+  }
+
+  pos += hop; x++;
+  audioProcessed += hop;
+  if (x >= specWidth) { rendering = false; status.style.display = "none"; }
+  return detectedPitches;
+}
+
 // ---------- exportMidi: detect & merge, now adds startTime (seconds) ----------
-function exportMidi() {
+function exportMidi(opts = {}) {
+  // opts: { useVolumeControllers: true/false, downloadName: "...", ... }
+  const velSplitTolerance = opts.velSplitTolerance ?? 40; // used only when useVolumeControllers == false
+
   pos = 0;
   x = 0;
   const w = specWidth; const h = specHeight;
   let detectedPitches = [];
   audioProcessed = 0;
-
-  // detection pass: store [detectedPitch, mag, velFrame] per frame
   for (let frame = 0; frame < w; frame++) {
-    detectedPitches.push([]);
-    if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
-
-    const re = new Float32Array(fftSize);
-    const im = new Float32Array(fftSize);
-    for (let j = 0; j < fftSize; j++) { re[j] = (pcm[pos + j] || 0) * win[j]; im[j] = 0; }
-    fft_inplace(re, im);
-
-    const factor = sampleRate / fftSize / 2; // Hz per bin
-
-    for (let bin = 0; bin < h; bin++) {
-      const mag = Math.hypot(re[bin] || 0, im[bin] || 0)/256;
-      if (mag <= dbToMag(noiseFloor)) continue;
-
-      const freq = factor * bin;
-      if (freq <= 0) continue;
-
-      // nearest pitch logic (keeps your prior intent)
-      let nearestPitch = Math.round(npo * Math.log2(freq / a4p));
-      nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
-      const detectedPitch = Math.floor(nearestPitch / factor);
-
-      // per-frame integer velocity from this bin's magnitude
-      const magToDb = m => 20 * Math.log10(Math.max(m, 1e-12));
-      const db = magToDb(mag);
-      const t = (db - noiseFloor) / (0 - noiseFloor);
-      const velFrame = Math.round(Math.max(0, Math.min(1, t)) * 127);
-
-      // ensure uniqueness per frame by pitch+velocity
-      if (!detectedPitches[frame].some(([p, _m, v]) => p === detectedPitch && v === velFrame)) {
-        detectedPitches[frame].push([detectedPitch, mag, velFrame]);
-      }
-    }
-
-    pos += hop; x++;
-    audioProcessed += hop;
-    if (x >= w) { rendering = false; status.style.display = "none"; }
+    detectedPitches.push(detectPitches(true))
   }
 
-  // --- merge adjacent-frame detections into notes only when pitch AND velocity match (±1 tolerance) ---
-  const notes = [];               // final notes [{ midiFloat|freq, velocity, lengthFrames, lengthSeconds, startTime }, ...]
-  const active = [];              // array of { midiRounded, startFrame, mags: [], vel, midiFloat, seen }
+  // --- merge adjacent-frame detections into notes ---
+  // final notes [{ midiFloat|freq, velocity, lengthFrames, lengthSeconds, startTime, velChanges: [{offsetFrames, vel}, ...] }, ...]
+  const notes = [];
+  const active = []; // array of { midiRounded, startFrame, mags: [], velFrames: [{frame, vel}], midiFloat, seen }
   const factor = sampleRate / fftSize / 2;
 
   function avg(arr) { return arr.reduce((s, v) => s + v, 0) / arr.length; }
@@ -661,17 +687,31 @@ function exportMidi() {
       const midiFloat = 69 + 12 * Math.log2(freq / a4p);
       const midiRounded = Math.round(midiFloat);
 
-      // find an active entry with same midiRounded and vel within +/-1
+      // find an active entry with same midiRounded
       let match = null;
       for (const a of active) {
-        if (a.midiRounded === midiRounded && Math.abs(a.vel - velFrame) <= 40) {
-          match = a;
-          break;
+        if (a.midiRounded === midiRounded) {
+          // if we're preserving volume-splitting (old behavior), require velocity match within tolerance
+          if (!useVolumeControllers) {
+            if (Math.abs(a.lastVel - velFrame) <= velSplitTolerance) {
+              match = a;
+              break;
+            } else {
+              // not a match by velocity — continue searching (might create new active)
+              continue;
+            }
+          } else {
+            // useVolumeControllers == true -> match by pitch only
+            match = a;
+            break;
+          }
         }
       }
 
       if (match) {
         match.mags.push(mag);
+        match.velFrames.push({ frame, vel: velFrame });
+        match.lastVel = velFrame;
         match.seen = true;
       } else {
         // create a new active note
@@ -679,7 +719,8 @@ function exportMidi() {
           midiRounded,
           startFrame: frame,
           mags: [mag],
-          vel: velFrame,
+          velFrames: [{ frame, vel: velFrame }],
+          lastVel: velFrame,
           midiFloat,
           seen: true
         });
@@ -691,12 +732,26 @@ function exportMidi() {
       const a = active[i];
       if (!a.seen) {
         const lengthFrames = frame - a.startFrame;
+        // compress velFrames into changes relative to startFrame
+        const vf = a.velFrames.slice().sort((u,v)=>u.frame - v.frame);
+        const velChanges = [];
+        let lastVel = null;
+        for (const entry of vf) {
+          const rel = entry.frame - a.startFrame;
+          if (lastVel === null || entry.vel !== lastVel) {
+            velChanges.push({ offsetFrames: rel, vel: entry.vel });
+            lastVel = entry.vel;
+          }
+        }
+        if (velChanges.length === 0) velChanges.push({ offsetFrames: 0, vel: Math.round(avg(a.mags)) });
+
         notes.push({
           midiFloat: a.midiFloat,
-          velocity: a.vel, // use the stored per-frame velocity
+          velocity: velChanges[0].vel, // primary velocity (first)
           lengthFrames,
           lengthSeconds: (lengthFrames * hop) / sampleRate,
-          startTime: (a.startFrame * hop) / sampleRate
+          startTime: (a.startFrame * hop) / sampleRate,
+          velChanges
         });
         active.splice(i, 1);
       }
@@ -706,12 +761,25 @@ function exportMidi() {
   // finalize remaining active notes that extend to the end
   for (const a of active) {
     const lengthFrames = w - a.startFrame;
+    const vf = a.velFrames.slice().sort((u,v)=>u.frame - v.frame);
+    const velChanges = [];
+    let lastVel = null;
+    for (const entry of vf) {
+      const rel = entry.frame - a.startFrame;
+      if (lastVel === null || entry.vel !== lastVel) {
+        velChanges.push({ offsetFrames: rel, vel: entry.vel });
+        lastVel = entry.vel;
+      }
+    }
+    if (velChanges.length === 0) velChanges.push({ offsetFrames: 0, vel: Math.round(avg(a.mags)) });
+
     notes.push({
       midiFloat: a.midiFloat,
-      velocity: a.vel,
+      velocity: velChanges[0].vel,
       lengthFrames,
       lengthSeconds: (lengthFrames * hop) / sampleRate,
-      startTime: (a.startFrame * hop) / sampleRate
+      startTime: (a.startFrame * hop) / sampleRate,
+      velChanges
     });
   }
 
@@ -724,8 +792,9 @@ function exportMidi() {
     }
   }
 
-  // export
-  writeMidiFile(notes, { downloadName: "export.mid" });
+  // export - pass through option so writeMidiFile can emit CCs or not
+  const downloadName = opts.downloadName ?? "export.mid";
+  writeMidiFile(notes, { downloadName, velSplitTolerance });
 }
 
 
@@ -814,8 +883,8 @@ function writeMidiFile(notes, opts = {}) {
     return Math.max(0, Math.min(16383, value));
   }
 
-  // Build compact event list: arrays [tick, order, type, a, b]
-  // order: pitch-bend(0) -> note-on(1) -> note-off(2) for stable ordering
+  // Build compact event list: arrays [tick, order, type, a, b, extra...]
+  // order: cc(-1) -> pitch-bend(0) -> note-on(1) -> note-off(2) for stable ordering
   const events = [];
   for (let i = 0, L = notes.length; i < L; ++i) {
     const note = notes[i];
@@ -845,10 +914,34 @@ function writeMidiFile(notes, opts = {}) {
 
     const velocity = (typeof note.velocity === 'number') ? Math.max(1, Math.min(127, note.velocity)) : 100;
 
-    // push compact event entries
-    events.push([startTick, 0, 'pb', pbLSB, pbMSB]);
-    events.push([startTick, 1, 'on', baseMidi, velocity]);
-    events.push([endTick,   2, 'off', baseMidi, 0]);
+    // If velChanges exists and useVolumeControllers is true, create CC events; otherwise rely on note.velocity and possibly split earlier
+    const velChanges = Array.isArray(note.velChanges) ? note.velChanges : [{ offsetFrames: 0, vel: velocity }];
+
+    if (useVolumeControllers) {
+      // emit initial CC at startTick with first vel
+      const initialCC = Math.max(0, Math.min(127, Math.round(velChanges[0].vel)));
+      events.push([startTick, -1, 'cc', 0x07, initialCC]); // controller #7 (channel volume)
+
+      // emit CC changes for each subsequent change (skip offset=0 already emitted)
+      for (let vc = 0; vc < velChanges.length; vc++) {
+        const c = velChanges[vc];
+        if (c.offsetFrames === 0) continue; // already emitted
+        const offsetSeconds = (c.offsetFrames * hop) / sampleRate;
+        const changeTick = startTick + Math.round(offsetSeconds * ticksPerSec);
+        const ccval = Math.max(0, Math.min(127, Math.round(c.vel)));
+        events.push([changeTick, -1, 'cc', 0x07, ccval]);
+      }
+
+      // push pitch-bend, note-on, note-off as before
+      events.push([startTick, 0, 'pb', pbLSB, pbMSB]);
+      events.push([startTick, 1, 'on', baseMidi, Math.max(1, Math.min(127, Math.round(velChanges[0].vel)))]);
+      events.push([endTick,   2, 'off', baseMidi, 0]);
+    } else {
+      // not using volume controllers: fallback to single note-on velocity (notes were split earlier based on velocity)
+      events.push([startTick, 0, 'pb', pbLSB, pbMSB]);
+      events.push([startTick, 1, 'on', baseMidi, velocity]);
+      events.push([endTick,   2, 'off', baseMidi, 0]);
+    }
   }
 
   // sort events - numeric comparator
@@ -872,6 +965,9 @@ function writeMidiFile(notes, opts = {}) {
       track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     } else if (type === 'off') {
       track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, 0x00);
+    } else if (type === 'cc') {
+      // Control Change: ev[3] = controller, ev[4] = value
+      track.push(0xB0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     }
 
     lastTick = ev[0];
@@ -908,8 +1004,108 @@ function writeMidiFile(notes, opts = {}) {
   return out;
 }
 
-function removeHarmonics() {
-  
+function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultiplier = 4} = {}) {
+  snapshotMags = new Float32Array(mags);
+  snapshotPhases = new Float32Array(phases);
+  pos = 0;
+  x = 0;
+  audioProcessed = 0;
+
+  const h = specHeight;
+
+  function median(arr) {
+    const a = Array.from(arr).sort((a, b) => a - b);
+    const mid = Math.floor(a.length / 2);
+    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  }
+  function mad(arr, med) {
+    const diffs = arr.map(v => Math.abs(v - med));
+    return median(diffs);
+  }
+
+  const factor = sampleRate / fftSize; // Hz per bin
+
+  for (let frame = 0; frame < specWidth; frame++) {
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+    for (let j = 0; j < fftSize; j++) {
+      re[j] = (pcm[pos + j] || 0) * win[j];
+      im[j] = 0;
+    }
+    fft_inplace(re, im);
+
+    const fmags = new Float32Array(h);
+    for (let bin = 0; bin < h; bin++) {
+      fmags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0) / 256;
+    }
+
+    const med = median(fmags);
+    const m = mad(fmags, med) || 1e-12;
+    const threshold = med + peakMadMultiplier * m;
+
+    const peaks = [];
+    for (let bin = 1; bin < h; bin++) {
+      const mag = fmags[bin];
+      if (mag > threshold) {
+        peaks.push({ bin, mag, freq: factor * bin });
+      }
+    }
+    peaks.sort((a, b) => b.mag - a.mag);
+
+    const suppressed = new Array(h).fill(false);
+    const suppressedBinsThisFrame = [];
+
+    function suppressBin(binIndex) {
+      if (suppressed[binIndex]) return;
+      const mirror = (fftSize - binIndex) % fftSize;
+      const scale = 1 / 10000;
+      re[binIndex] *= scale; im[binIndex] *= scale;
+      re[mirror] *= scale;  im[mirror] *= scale;
+      suppressed[binIndex] = true;
+      if (mirror < h) suppressed[mirror] = true;
+      suppressedBinsThisFrame.push(binIndex);
+    }
+
+    // === New simplified loop ===
+    for (const peak of peaks) {
+      if (suppressed[peak.bin]) continue; // already removed as harmonic
+      const baseFreq = peak.freq;
+      for (const q of peaks) {
+        if (q.bin === peak.bin) continue;
+        if (suppressed[q.bin]) continue;
+        for (let k = 2; k <= maxHarmonic; k++) {
+          if (Math.abs(q.freq - k * baseFreq) <= harmonicTolerance * baseFreq) {
+            suppressBin(q.bin);
+            break;
+          }
+        }
+      }
+    }
+
+    const processedMags = new Float32Array(h);
+    for (let bin = 0; bin < h; bin++) {
+      if (suppressed[bin]) {
+        processedMags[bin] = 0//fmags[bin] / 100000;
+      } else {
+        processedMags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0);
+      }
+    }
+    mags.set(processedMags,frame*specHeight);
+
+    pos += hop;
+    x++;
+    audioProcessed += hop;
+    if (x >= specWidth) break;
+  }
+  newHistory();
+
+  recomputePCMForCols(0, specWidth);
+  restartRender();
+
+  startTime = performance.now();
+  audioProcessed = 0;
+  playPCM();
+  document.getElementById("playPause").innerHTML=pauseHtml;
 }
 
 function initEmptyPCM() {
@@ -1748,7 +1944,7 @@ canvas.addEventListener("touchmove", e=>{
 <script src="undoredo.js"></script>
 <script>
 function canvasMouseUp(e,touch) {
-  if (!mags || !phases || !painting) return;
+    if (!mags || !phases || !painting) return;
     visited = null;
     painting = false;
     paintedPixels = null;
@@ -1777,72 +1973,76 @@ function canvasMouseUp(e,touch) {
     startX=startY=null;
 
     if (snapshotMags && snapshotPhases && mags && phases) {
-    const epsMag = 1e-6;         
-    const epsPhase = 1e-3;       
+      newHistory();
 
-    const changedIdxs = [];
-    const prevMags = [];
-    const prevPhases = [];
+      snapshotMags = null;
+      snapshotPhases = null;
 
-    const h = specHeight;
-    const total = mags.length; 
-
-    for (let idx = 0; idx < total; idx++) {
-      const oldM = snapshotMags[idx] || 0;
-      const newM = mags[idx] || 0;
-      if (Math.abs(oldM - newM) > epsMag) {
-        changedIdxs.push(idx);
-        prevMags.push(oldM);
-        prevPhases.push(snapshotPhases[idx] || 0);
-        continue;
-      }
-
-      const oldP = snapshotPhases[idx] || 0;
-      const newP = phases[idx] || 0;
-      if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
-        changedIdxs.push(idx);
-        prevMags.push(oldM);
-        prevPhases.push(oldP);
+      const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
+      if (lastEntry) {
+        recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol);
       }
     }
-
-    if (changedIdxs.length > 0) {
-
-      let minCol = Infinity, maxCol = -Infinity;
-      for (let k = 0; k < changedIdxs.length; k++) {
-        const col = Math.floor(changedIdxs[k] / h);
-        if (col < minCol) minCol = col;
-        if (col > maxCol) maxCol = col;
-      }
-        if (!isFinite(minCol)) { minCol = 0; maxCol = 0; }
-
-        const indicesArr = new Uint32Array(changedIdxs);
-        const prevMagsArr = new Float32Array(prevMags);
-        const prevPhasesArr = new Float32Array(prevPhases);
-
-        pushHistory({
-            type: 'paint',
-            indices: indicesArr,
-            prevMags: prevMagsArr,
-            prevPhases: prevPhasesArr,
-            minCol: Math.max(0, minCol),
-            maxCol: Math.min(specWidth - 1, maxCol)
-        });
-    }
-
-    snapshotMags = null;
-    snapshotPhases = null;
-
-    const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
-    if (lastEntry) {
-      recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol);
-    }
-  }
 
     startTime = performance.now();
     audioProcessed = 0;
     playPCM();
     document.getElementById("playPause").innerHTML=pauseHtml;
+}
+
+function newHistory() {
+  const epsMag = 1e-6;         
+  const epsPhase = 1e-3;       
+
+  const changedIdxs = [];
+  const prevMags = [];
+  const prevPhases = [];
+
+  const h = specHeight;
+  const total = mags.length; 
+
+  for (let idx = 0; idx < total; idx++) {
+    const oldM = snapshotMags[idx] || 0;
+    const newM = mags[idx] || 0;
+    if (Math.abs(oldM - newM) > epsMag) {
+      changedIdxs.push(idx);
+      prevMags.push(oldM);
+      prevPhases.push(snapshotPhases[idx] || 0);
+      continue;
+    }
+
+    const oldP = snapshotPhases[idx] || 0;
+    const newP = phases[idx] || 0;
+    if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
+      changedIdxs.push(idx);
+      prevMags.push(oldM);
+      prevPhases.push(oldP);
+    }
+  }
+
+  if (changedIdxs.length > 0) {
+
+    let minCol = Infinity, maxCol = -Infinity;
+    for (let k = 0; k < changedIdxs.length; k++) {
+      const col = Math.floor(changedIdxs[k] / h);
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+    }
+    if (!isFinite(minCol)) { minCol = 0; maxCol = 0; }
+
+    const indicesArr = new Uint32Array(changedIdxs);
+    const prevMagsArr = new Float32Array(prevMags);
+    const prevPhasesArr = new Float32Array(prevPhases);
+
+    pushHistory({
+        type: 'paint',
+        indices: indicesArr,
+        prevMags: prevMagsArr,
+        prevPhases: prevPhasesArr,
+        minCol: Math.max(0, minCol),
+        maxCol: Math.min(specWidth - 1, maxCol)
+    });
+  }
 }
 
 document.addEventListener("mouseup", e => {

@@ -334,9 +334,24 @@
     </div>
     <div id="d3" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Equilizer</h2>
-      <label class="h1">Equalizer</label>
-      <canvas id="eqCanvas" width="300" height="200" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
-      <button id="resetEQ" style="margin-top:10px;">Reset EQ</button>
+      <div class="slider-row" title="Global gain">
+        <label class="h2">Global gain</label>
+        <input id="globalGain" type="range" min="-25" max="25" step="0.1" value="0">
+        <input id="globalGainInput" type="number" value="0" min="-25" max="25">
+      </div>
+      <div class="slider-row" title="EQ Presets">
+        <label class="h2" for="eqPresets">Presets</label>
+        <select id="eqPresets">
+          <option value="Flat">Flat</option>
+          <option value="Bass boost">Bass boost</option>
+          <option value="Lowpass">Lowpass</option>
+          <option value="Mid boost">Mid boost</option>
+          <option value="Midpass">Midpass</option>
+          <option value="High boost">High boost</option>
+          <option value="Highpass">Highpass</option>
+        </select>
+      </div>
+      <canvas id="eqCanvas" width="295" height="480" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     </div>
   </aside>
 
@@ -380,7 +395,8 @@
                    [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
                    [document.getElementById('bpm'), document.getElementById('bpmInput')],
                    [document.getElementById('a4Pitch'), document.getElementById('a4PitchInput'), true],
-                   [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true]];
+                   [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
+                   [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -437,6 +453,8 @@ const uvcb = document.getElementById("useVolumeControllers");
 const d1 = document.getElementById("d1");
 const d2 = document.getElementById("d2");
 const d3 = document.getElementById("d3");
+const EQcanvas = document.getElementById("eqCanvas");
+const eCtx = EQcanvas.getContext("2d");
 
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
@@ -480,6 +498,7 @@ let currentPanel = "0";
 let bpm = 120; let npo = 12;
 let noiseFloor = document.getElementById("noiseFloorCutoff").value; let a4p = 440;
 let dCutoff = document.getElementById("durationCutoff").value;
+let globalGain = 0;
 sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
 sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
@@ -536,6 +555,21 @@ sliders[10][1].addEventListener('keydown', (e) => {
     dCutoff = val;
   }
 });
+sliders[11][0].addEventListener('input', () => {globalGain = parseFloat(sliders[11][0].value); sliders[11][1].value = globalGain; updateEQ();});
+sliders[11][1].addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    let val = parseFloat(sliders[11][1].value);
+    const min = parseFloat(sliders[11][0].min);
+    const max = parseFloat(sliders[11][0].max);
+    if (isNaN(val)) val = globalGain;      // ignore invalid input
+    if (val < min) val = min;
+    if (val > max) val = max;
+    sliders[11][1].value = val;      // show clamped value
+    sliders[11][0].value = val;      // sync the slider
+    globalGain = val;
+    updateEQ();
+  }
+});
 
 function angleDiff(a, b) {
   const d = a - b;
@@ -569,6 +603,7 @@ panelButtons.forEach(btn => {
       d1.style.display = "none";
       d2.style.display = "none";
       d3.style.display = "block";
+      drawEQ();
     }
   });
 });
@@ -2329,6 +2364,8 @@ function updateBrushPreview() {
     pctx.fill();
   }
 }
+
+
 updateBrushPreview();
 updateTimelineCursor();
 
@@ -2336,6 +2373,11 @@ drawTimeline();
 drawYAxis();
 drawLogScale();
 renderFullSpectrogramToImage();
+
+
+</script>
+<script src="eq.js"></script>
+<script>
 </script>
 </body>
 </html>

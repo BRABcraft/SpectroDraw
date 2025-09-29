@@ -1,6 +1,6 @@
 const FREQ_LOG_SCALE = 2;
 let eqBands = [
-    { type: "low_shelf", freq: sampleRate/2048, gain: 0, Q: 1 }, 
+    { type: "low_shelf", freq: 0, gain: 0, Q: 1 }, 
     { type: "peaking", freq: sampleRate/128, gain: 0, Q: 1 }, 
     { type: "peaking", freq: sampleRate/32, gain: 0, Q: 1 }, 
     { type: "peaking", freq: sampleRate/16, gain: 0, Q: 1 }, 
@@ -8,8 +8,8 @@ let eqBands = [
     { type: "peaking", freq: sampleRate/4, gain: 0, Q: 1 }, 
     { type: "high_shelf", freq: sampleRate/2, gain: 0, Q: 1 }
 ];// --- config (unchanged) ---
-const POINT_HIT_RADIUS = 8;
-const HANDLE_HIT_RADIUS = 10;
+const POINT_HIT_RADIUS = 7.5;
+const HANDLE_HIT_RADIUS = 7.5;
 
 // --- state ---
 let draggingPointIndex = -1;
@@ -23,7 +23,7 @@ let drawScheduled = false;
 // ensure default angle/tLen on bands (do once)
 eqBands.forEach(b => {
   if (typeof b.angle !== 'number') b.angle = Math.PI / 2;
-  if (typeof b.tLen !== 'number') b.tLen = 15;
+  if (typeof b.tLen !== 'number') b.tLen = 60;
   // cache mx/my if possible
   b.mx = Math.cos(b.angle) * b.tLen;
   b.my = Math.sin(b.angle) * b.tLen;
@@ -104,7 +104,7 @@ function drawEQ() {
 
   // grid/center lines
   eCtx.lineWidth = 1;
-  eCtx.strokeStyle = "#222";
+  eCtx.strokeStyle = "#444";
   eCtx.beginPath();
   const xZero = gainToX(0, w);
   eCtx.moveTo(xZero, 0); eCtx.lineTo(xZero, h);
@@ -140,7 +140,7 @@ function drawEQ() {
   eCtx.stroke();
 
   // control points & handles & labels
-  eCtx.font = "12px monospace";
+  eCtx.font = "12px 'Inter', 'Segoe UI', sans-serif";
   eCtx.textBaseline = "middle";
   for (let idx = 0; idx < pts.length; idx++) {
     const p = pts[idx];
@@ -153,11 +153,12 @@ function drawEQ() {
     eCtx.strokeStyle = "#f00";
     eCtx.lineWidth = 2;
     eCtx.beginPath();
-    eCtx.moveTo(p.x - p.mx, p.y - p.my);
-    eCtx.lineTo(p.x + p.mx, p.y + p.my);
+    eCtx.moveTo(p.x - p.mx/3, p.y - p.my/3);
+    eCtx.lineTo(p.x + p.mx/3, p.y + p.my/3);
     eCtx.stroke();
     // handle tip
-    const hx = p.x + p.mx, hy = p.y + p.my;
+    let hx, hy;
+    if (p.b.type === "high_shelf") {hx = p.x - p.mx/3, hy = p.y - p.my/3;}else{hx = p.x + p.mx/3, hy = p.y + p.my/3;}
     eCtx.beginPath();
     eCtx.fillStyle = "#ff0";
     eCtx.arc(hx, hy, 3, 0, Math.PI * 2);
@@ -192,7 +193,8 @@ function findHit(pos) {
     // handle tip: prefer cached mx/my if present
     const mx = (typeof b.mx === 'number') ? b.mx : Math.cos(b.angle || 0) * (b.tLen || 40);
     const my = (typeof b.my === 'number') ? b.my : Math.sin(b.angle || 0) * (b.tLen || 40);
-    const hx = x + mx, hy = y + my;
+    let hx = x + mx/3, hy = y + my/3;
+    if (b.type == "high_shelf") {hx = x-mx/3; hy = y-my/3;}
     const dxh = pos.x - hx, dyh = pos.y - hy;
     if ((dxh * dxh + dyh * dyh) <= (HANDLE_HIT_RADIUS * HANDLE_HIT_RADIUS)) return { type: 'handle', index: i };
     const dxp = pos.x - x, dyp = pos.y - y;
@@ -341,6 +343,15 @@ function eqMouseMove(evt) {
     gainText = `${xToGain(pos.x, w).toFixed(1)} dB (raw X)`;
   } else {
     gainText = `${xToGain(XonSpline, w).toFixed(1)} dB (curve)`;
+    drawEQ();
+    if (!findHit(getCanvasPos(evt))) {
+        eCtx.save();
+        eCtx.fillStyle = "limegreen";
+        eCtx.beginPath();
+        eCtx.arc(XonSpline, pos.y, 3, 0, Math.PI * 2);
+        eCtx.fill();
+        eCtx.restore();
+    }
   }
   if (typeof info !== 'undefined' && info) {
     info.innerHTML = `Freq: ${freqAtCursor.toFixed(0)} Hz<br>Gain: ${gainText}<br>`;
@@ -359,7 +370,7 @@ function onPointerMove(evt) {
     const newY = pos.y - dragOffset.y;
     const newGain = xToGain(newX, eqCanvas.width);
     const newFreq = yToFreq(newY, eqCanvas.height);
-    b.freq = clamp(newFreq, 20, sampleRate / 2);
+    if (b.type !== "low_shelf" && b.type !== "high_shelf") b.freq = clamp(newFreq, 20, sampleRate / 2);
     b.gain = clamp(Number(newGain.toFixed(2)), -24, 24);
     ptsDirty = true;
     scheduleDraw();
@@ -368,7 +379,7 @@ function onPointerMove(evt) {
     const b = eqBands[idx];
     const px = gainToX(b.gain, eqCanvas.width);
     const py = freqToY(b.freq, eqCanvas.height);
-    const angle = Math.atan2(pos.y - py, pos.x - px);
+    const angle = ((b.type !== "high_shelf") ? 0 : Math.PI) + Math.atan2(pos.y - py, pos.x - px);
     b.angle = angle;
     // update cached mx/my immediately so hit tests use new value
     b.mx = Math.cos(b.angle) * (b.tLen || 40);

@@ -2,7 +2,6 @@ function syncOverlaySize() {
   overlayCanvas.width = canvas.width;
   overlayCanvas.style.width = canvas.style.width;
   overlayCanvas.height = canvas.height;
-
   overlayCanvas.style.height = canvas.style.height;
 }
 
@@ -15,7 +14,7 @@ function previewShape(cx, cy) {
   pendingPreview = true;
 
   requestAnimationFrame(() => {
-    
+
     pendingPreview = false;
     const { cx, cy } = lastPreviewCoords;
 
@@ -28,7 +27,7 @@ function previewShape(cx, cy) {
     overlayCtx.moveTo(x + 0.5, 0);
     overlayCtx.lineTo(x + 0.5, specHeight);
     overlayCtx.stroke();
-    
+
     overlayCtx.strokeStyle = "#fff";
     overlayCtx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
 
@@ -48,7 +47,6 @@ function previewShape(cx, cy) {
       return;
     }
 
-    // Precompute scaling info (used by both "image" and ellipse)
     const rect = canvas.getBoundingClientRect();
     const pixelsPerFrame = rect.width / Math.max(1, canvas.width);
     const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
@@ -58,11 +56,9 @@ function previewShape(cx, cy) {
       const { width: imgW, height: imgH } = overlayImage;
       const imgAspect = imgW / imgH;
 
-      // screen-space size
       const screenW = imgW >= imgH ? desiredScreenMax : Math.round(desiredScreenMax * imgAspect);
       const screenH = imgW >= imgH ? Math.round(desiredScreenMax / imgAspect) : desiredScreenMax;
 
-      // convert to canvas space
       const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
       const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
 
@@ -70,14 +66,13 @@ function previewShape(cx, cy) {
       return;
     }
 
-    // Default = ellipse
     const radiusX = (desiredScreenMax / 7) / pixelsPerFrame;
     const radiusY = desiredScreenMax / 7 / pixelsPerBin;
 
     overlayCtx.beginPath();
     overlayCtx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
     overlayCtx.stroke();
-    
+
     drawCursor(false);
   });
 }
@@ -118,62 +113,77 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
 
 function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   const xI = Math.round(xFrame);
-  let yI;
+  if (xI < 0 || xI >= specWidth) return;
+
+  let displayYFloat;
   if (alignPitch) {
     const yysf = getSineFreq(yDisplay);
     let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
     nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
-    yI = Math.round(ftvsy(nearestPitch));
+    displayYFloat = ftvsy(nearestPitch); 
   } else {
-    yI = Math.round(yDisplay);
+    displayYFloat = yDisplay;
   }
-  if (xI < 0 || xI >= specWidth || yI < 0 || yI >= specHeight) return;
-  const bin = displayYToBin(yI, specHeight);
-  const idx = xI * specHeight + bin;
-  if (idx < 0 || idx >= mags.length) return;
-  if (visited && visited[idx] == 1) return;
-  if (visited) visited[idx] = 1;
-  const oldMag = mags[idx] || 0;
-  const oldPhase = phases[idx] || 0;
-  const newMag = (currentTool==="amplifier")?(oldMag*(mag/64 * bo)):(oldMag * (1 - bo) + mag * bo);
-  const newPhase = oldPhase + po * (phase - oldPhase);
-  mags[idx] = Math.min(newMag,255);
-  phases[idx] = newPhase;
-  const displayY = binToDisplayY(bin, specHeight);
-  const pix = (displayY * specWidth + xI) * 4;
-  const [r, g, b] = magPhaseToRGB(newMag, newPhase);
-  imageBuffer.data[pix] = r;
-  imageBuffer.data[pix + 1] = g;
-  imageBuffer.data[pix + 2] = b;
-  imageBuffer.data[pix + 3] = 255;
+
+  const topBinF = displayYToBin(displayYFloat - 0.5, specHeight);
+  const botBinF = displayYToBin(displayYFloat + 0.5, specHeight);
+
+  let binStart = Math.floor(Math.min(topBinF, botBinF));
+  let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
+
+  if (!Number.isFinite(binStart)) binStart = 0;
+  if (!Number.isFinite(binEnd))   binEnd   = 0;
+  binStart = Math.max(0, Math.min(specHeight - 1, binStart));
+  binEnd   = Math.max(0, Math.min(specHeight - 1, binEnd));
+
+  for (let bin = binStart; bin <= binEnd; bin++) {
+    const idx = xI * specHeight + bin;
+    if (idx < 0 || idx >= mags.length) continue;
+    if (visited && visited[idx] == 1) continue;
+    if (visited) visited[idx] = 1;
+
+    const oldMag = mags[idx] || 0;
+    const oldPhase = phases[idx] || 0;
+    const newMag = (currentTool === "amplifier")
+                 ? (oldMag * (mag / 64 * bo))
+                 : (oldMag * (1 - bo) + mag * bo);
+    const newPhase = oldPhase + po * (phase - oldPhase);
+
+    mags[idx] = Math.min(newMag, 255);
+    phases[idx] = newPhase;
+
+    const displayY = binToDisplayY(bin, specHeight);
+    const pix = (displayY * specWidth + xI) * 4;
+    const [r, g, b] = magPhaseToRGB(mags[idx], phases[idx]);
+    imageBuffer.data[pix]     = r;
+    imageBuffer.data[pix + 1] = g;
+    imageBuffer.data[pix + 2] = b;
+    imageBuffer.data[pix + 3] = 255;
+  }
 }
 
 function commitShape(cx, cy) {
-    if (!mags || !phases) return;
+  if (!mags || !phases) return;
 
-    const fullW = specWidth;
-    const fullH = specHeight;
-    const bo = brushOpacity;
-    const po = phaseOpacity;
-    const brushMag = (brushColor / 255) * 128;
-    const brushPhase = penPhase;
+  const fullW = specWidth;
+  const fullH = specHeight;
+  const bo = brushOpacity;
+  const po = phaseOpacity;
+  const brushMag = (brushColor / 255) * 128;
+  const brushPhase = penPhase;
 
-    const startVisX = (startX === null ? cx : startX);
-    const startVisY = (startY === null ? cy : startY);
+  const visitedLocal = new Uint8Array(fullW * fullH);
+  const savedVisited = visited;
+  visited = visitedLocal;
+
+  try {
+    const startVisX = (startX == null ? cx : startX);
+    const startVisY = (startY == null ? cy : startY);
 
     const startFrame = Math.round(startVisX + (iLow || 0));
-    let endFrame   = Math.round(cx + (iLow || 0));
-    let x0Frame; let x1Frame;
-    if (alignTime) {
-      const snapSize = 30/bpm/subBeat;
-      const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + snapSize;
-      endFrame = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      x0Frame = Math.min(startFrame,endFrame);
-      x1Frame = Math.max(startFrame,endFrame);
-    } else {
-      x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
-      x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
-    }
+    const endFrame   = Math.round(cx + (iLow || 0));
+    let x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
+    let x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
 
     const startSpecY = visibleToSpecY(startVisY);
     const endSpecY   = visibleToSpecY(cy);
@@ -181,21 +191,73 @@ function commitShape(cx, cy) {
     let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
 
     if (currentTool === "rectangle") {
-        const minX = x0Frame;
-        const maxX = x1Frame;
-        const minY = y0Spec;
-        const maxY = y1Spec;
-        for (let yy = minY; yy <= maxY; yy++) {
-            for (let xx = minX; xx <= maxX; xx++) {
-                drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
-            }
+
+      const minX = x0Frame;
+      const maxX = x1Frame;
+
+      let binA = displayYToBin(y0Spec, fullH);
+      let binB = displayYToBin(y1Spec, fullH);
+      if (binA > binB) { const t = binA; binA = binB; binB = t; }
+
+      binA = Math.max(0, Math.min(fullH - 1, Math.round(binA)));
+      binB = Math.max(0, Math.min(fullH - 1, Math.round(binB)));
+
+      for (let xx = minX; xx <= maxX; xx++) {
+
+        for (let bin = binA; bin <= binB; bin++) {
+          const displayY = binToDisplayY(bin, fullH);
+          drawPixelFrame(xx, displayY, brushMag, brushPhase, bo, po);
         }
+      }
+
     } else if (currentTool === "line") {
-        line(startFrame, endFrame, startSpecY, endSpecY,brushSize/4);
+
+      let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
+      let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
+      const startWasLeft = (startFrame <= endFrame);
+      let yStartSpec = startWasLeft ? startSpecY : endSpecY;
+      let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
+
+      x0 = Math.max(0, Math.min(fullW - 1, Math.round(x0)));
+      x1 = Math.max(0, Math.min(fullW - 1, Math.round(x1)));
+      let y0 = Math.max(0, Math.min(fullH - 1, Math.round(yStartSpec)));
+      let y1 = Math.max(0, Math.min(fullH - 1, Math.round(yEndSpec)));
+
+      const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+      const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+      let err = (dx > dy ? dx : -dy) / 2;
+
+      let prevBin = displayYToBin(y0, fullH);
+
+      while (true) {
+        const curBin = displayYToBin(y0, fullH);
+
+        if (prevBin <= curBin) {
+          for (let b = prevBin; b <= curBin; b++) {
+            drawPixelFrame(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
+          }
+        } else {
+          for (let b = prevBin; b >= curBin; b--) {
+            drawPixelFrame(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
+          }
+        }
+
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = err;
+        if (e2 > -dx) { err -= dy; x0 += sx; }
+        if (e2 <  dy) { err += dx; y0 += sy; }
+
+        prevBin = curBin;
+      }
     }
 
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
+  } finally {
+
+    visited = savedVisited;
+  }
+
+  specCtx.putImageData(imageBuffer, 0, 0);
+  renderView();
 }
 
 function ftvsy(f) {
@@ -231,7 +293,7 @@ function paint(cx, cy) {
     const minY = Math.max(0, Math.floor(cy - radiusY*(fftSize/2048)));
     const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fftSize/2048)));
     if (currentTool === "brush" || currentTool === "eraser" || currentTool === "amplifier") {
-        
+
         const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
         const brushPhase = currentTool === "eraser" ? 0 : penPhase;
         for (let yy = minY; yy <= maxY; yy++) {

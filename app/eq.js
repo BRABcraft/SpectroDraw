@@ -8,33 +8,29 @@ let eqBands= [
     { type: "peaking", freq: sampleRate/8}, 
     { type: "peaking", freq: sampleRate/4}, 
     { type: "high_shelf", freq: sampleRate/2}
-];// --- config (unchanged) ---
+];
 const POINT_HIT_RADIUS = 7.5;
 const HANDLE_HIT_RADIUS = 7.5;
 
-// --- state ---
 let draggingPointIndex = -1;
 let draggingTangentIndex = -1;
 let dragOffset = { x: 0, y: 0 };
-let ptsCache = null;         // cached sorted pts for current canvas size
+let ptsCache = null;         
 let ptsCacheW = 0, ptsCacheH = 0;
 let ptsDirty = true;
 let drawScheduled = false;
 
-// ensure default angle/tLen on bands (do once)
 eqBands.forEach(b => {
   if (typeof b.angle !== 'number') b.angle = Math.PI / 2;
   if (typeof b.tLen !== 'number') b.tLen = 60;
   b.gain = 0; b.Q = 1;
-  // cache mx/my if possible
+
   b.mx = Math.cos(b.angle) * b.tLen;
   b.my = Math.sin(b.angle) * b.tLen;
 });
 
-// utility
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// frequency/gain <-> screen (vertical orientation)
 function freqToY(freq, h) {
   const nyquist = sampleRate * 0.5;
   let nf = (freq <= 0) ? 0 : freq / nyquist;
@@ -55,8 +51,6 @@ function xToGain(x, w) {
   return ((clamp(x, 0, w) / w) * (gainScale*2)) - gainScale;
 }
 
-// Build (and cache) screen-space points array sorted by y.
-// returns array of { i, b, x, y, mx, my }
 function buildPts(w, h) {
   if (!ptsDirty && ptsCache && ptsCacheW === w && ptsCacheH === h) {
     return ptsCache;
@@ -64,7 +58,7 @@ function buildPts(w, h) {
   const arr = new Array(eqBands.length);
   for (let i = 0; i < eqBands.length; i++) {
     const b = eqBands[i];
-    // ensure band cached tangent values are up to date
+
     if (b._cachedAngle !== b.angle || b._cachedTLen !== b.tLen) {
       b.mx = Math.cos(b.angle) * (b.tLen || 40);
       b.my = Math.sin(b.angle) * (b.tLen || 40);
@@ -82,7 +76,6 @@ function buildPts(w, h) {
   return arr;
 }
 
-// requestAnimationFrame coalesced draw
 function scheduleDraw() {
   if (drawScheduled) return;
   drawScheduled = true;
@@ -92,19 +85,17 @@ function scheduleDraw() {
   });
 }
 
-// Main drawing (uses buildPts)
 function drawEQ() {
   if (!EQcanvas || !eCtx || currentPanel !== "2") return;
   const w = EQcanvas.width, h = EQcanvas.height;
-  // clear
+
   eCtx.clearRect(0, 0, w, h);
-  // background
+
   eCtx.fillStyle = "#111";
   eCtx.fillRect(0, 0, w, h);
 
   const pts = buildPts(w, h);
 
-  // grid/center lines
   eCtx.lineWidth = 1;
   eCtx.strokeStyle = "#444";
   eCtx.beginPath();
@@ -114,7 +105,6 @@ function drawEQ() {
   eCtx.moveTo(xGlobal, 0); eCtx.lineTo(xGlobal, h);
   eCtx.stroke();
 
-  // Hermite spline (sample per segment proportionally)
   eCtx.lineWidth = 2;
   eCtx.strokeStyle = "#fff";
   eCtx.beginPath();
@@ -122,7 +112,7 @@ function drawEQ() {
     eCtx.moveTo(pts[0].x, pts[0].y);
     for (let k = 0; k < pts.length - 1; k++) {
       const p0 = pts[k], p1 = pts[k + 1];
-      // number of steps proportional to euclidean distance
+
       const dx = p1.x - p0.x, dy = p1.y - p0.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const steps = Math.max(8, Math.floor(dist / 6));
@@ -141,31 +131,30 @@ function drawEQ() {
   }
   eCtx.stroke();
 
-  // control points & handles & labels
   eCtx.font = "12px 'Inter', 'Segoe UI', sans-serif";
   eCtx.textBaseline = "middle";
   for (let idx = 0; idx < pts.length; idx++) {
     const p = pts[idx];
-    // point
+
     eCtx.beginPath();
     eCtx.fillStyle = "#fff";
     eCtx.arc(p.x, p.y, 5, 0, Math.PI * 2);
     eCtx.fill();
-    // tangent line (both directions)
+
     eCtx.strokeStyle = "#f00";
     eCtx.lineWidth = 2;
     eCtx.beginPath();
     eCtx.moveTo(p.x - p.mx/3, p.y - p.my/3);
     eCtx.lineTo(p.x + p.mx/3, p.y + p.my/3);
     eCtx.stroke();
-    // handle tip
+
     let hx, hy;
     if (p.b.type === "high_shelf") {hx = p.x - p.mx/3, hy = p.y - p.my/3;}else{hx = p.x + p.mx/3, hy = p.y + p.my/3;}
     eCtx.beginPath();
     eCtx.fillStyle = "#ff0";
     eCtx.arc(hx, hy, 3, 0, Math.PI * 2);
     eCtx.fill();
-    // label: compute once
+
     const freqLabel = `${Math.round(p.b.freq)} Hz`;
     const gainLabel = `${(p.b.gain >= 0 ? "+" : "")}${Number((p.b.gain || 0).toFixed(1))} dB`;
     const label = `${freqLabel} / ${gainLabel}`;
@@ -198,17 +187,16 @@ function drawSpectrals() {
 
   for (let i = 0; i < bandCount; i++) {
       const bin = Math.floor(yToFreq(((i / bandCount)),1)/(sampleRate/2)*specHeight);
-      // const bin = Math.floor((i / bandCount) * (fftSize / 2));
+
       const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
       bands[bin] = mag;
   }
-  // console.log(bands);
-  
+
   eCtx.strokeStyle ="rgba(255, 255, 255, 0.48)";
   eCtx.lineWidth = EQcanvas.height/bandCount/1.25;
   for (let yy = 0; yy < bandCount; yy++) {
       const mappedBin = Math.floor(yToFreq(((yy / bandCount)),1)/(sampleRate/2)*specHeight);
-      // const mappedBin = Math.floor((yy / bandCount) * (fftSize / 2));
+
       const mag = bands[mappedBin] || 0;
       eCtx.beginPath();
       eCtx.moveTo(0, (yy/bandCount)*EQcanvas.height);
@@ -221,7 +209,6 @@ function drawSpectrals() {
   }
 }
 
-// ---- hit-testing (uses band cached mx/my when available)
 function findHit(pos) {
   if (!EQcanvas) return null;
   const w = EQcanvas.width, h = EQcanvas.height;
@@ -229,7 +216,7 @@ function findHit(pos) {
     const b = eqBands[i];
     const y = freqToY(b.freq, h);
     const x = gainToX(b.gain || 0, w);
-    // handle tip: prefer cached mx/my if present
+
     const mx = (typeof b.mx === 'number') ? b.mx : Math.cos(b.angle || 0) * (b.tLen || 40);
     const my = (typeof b.my === 'number') ? b.my : Math.sin(b.angle || 0) * (b.tLen || 40);
     let hx = x + mx/3, hy = y + my/3;
@@ -242,7 +229,6 @@ function findHit(pos) {
   return null;
 }
 
-// cursor SVG helper (unchanged)
 function makeSvgCursor(svgString, hotspotX = 16, hotspotY = 16) {
   const svg = svgString.replace(/\n/g, ' ');
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${hotspotX} ${hotspotY}, auto`;
@@ -263,7 +249,6 @@ function updateCanvasCursorFromPos(pos) {
   }
 }
 
-// --- Hermite eval + solver (uses pts from buildPts) ---
 function evalHermiteAt(p0, p1, t) {
   const t2 = t * t, t3 = t2 * t;
   const h00 = 2 * t3 - 3 * t2 + 1;
@@ -275,14 +260,11 @@ function evalHermiteAt(p0, p1, t) {
   return { X, Y };
 }
 
-// Find t in [0,1] such that Y(t) ~= targetY. Bracket then bisection.
-// reduced samples to speed up; conservative bounds check first.
 function findTForYOnSegment(p0, p1, targetY) {
   const minY = Math.min(p0.y, p1.y) - Math.abs(p0.my) - Math.abs(p1.my) - 1;
   const maxY = Math.max(p0.y, p1.y) + Math.abs(p0.my) + Math.abs(p1.my) + 1;
   if (targetY < minY || targetY > maxY) return null;
 
-  // coarse sampling to find bracket (fewer samples)
   const SAMPLES = 24;
   let tPrev = 0;
   let fPrev = evalHermiteAt(p0, p1, 0).Y - targetY;
@@ -292,7 +274,7 @@ function findTForYOnSegment(p0, p1, targetY) {
     const f = evalHermiteAt(p0, p1, t).Y - targetY;
     if (Math.abs(f) < 0.5) return t;
     if (fPrev * f <= 0) {
-      // bracket found between tPrev and t
+
       let a = tPrev, b = t, fa = fPrev, fb = f;
       for (let iter = 0; iter < 28; iter++) {
         const m = 0.5 * (a + b);
@@ -307,7 +289,6 @@ function findTForYOnSegment(p0, p1, targetY) {
   return null;
 }
 
-// Evaluate curve's X at a given screen Y position (returns screen X or null)
 function evalEQGainAtY(targetY) {
   if (!EQcanvas) return null;
   const w = EQcanvas.width, h = EQcanvas.height;
@@ -329,7 +310,6 @@ function evalEQGainAtY(targetY) {
   return null;
 }
 
-// --- pointer / interaction handlers (events unchanged behavior, set ptsDirty when mutate) ---
 function getCanvasPos(evt) {
   const rect = EQcanvas.getBoundingClientRect();
   let clientX, clientY;
@@ -432,7 +412,7 @@ function onPointerMove(evt) {
     const py = freqToY(b.freq, EQcanvas.height);
     const angle = ((b.type !== "high_shelf") ? 0 : Math.PI) + Math.atan2(pos.y - py, pos.x - px);
     b.angle = angle;
-    // update cached mx/my immediately so hit tests use new value
+
     b.mx = Math.cos(b.angle) * (b.tLen || 40);
     b.my = Math.sin(b.angle) * (b.tLen || 40);
     b._cachedAngle = b.angle; b._cachedTLen = b.tLen;
@@ -440,7 +420,7 @@ function onPointerMove(evt) {
   }
   scheduleDraw();
   updateCurveEQ();
-  updateGlobalGain(); // keep globalGain in sync while dragging
+  updateGlobalGain(); 
 }
 
 function onPointerUp(evt) {
@@ -458,14 +438,12 @@ function onPointerUp(evt) {
   }
 }
 
-// attach listeners
 if (EQcanvas) {
   EQcanvas.style.touchAction = 'none';
   EQcanvas.addEventListener('pointerdown', onPointerDown);
   EQcanvas.addEventListener('pointermove', eqMouseMove);
 }
 
-// --- update functions ---
 function updateGlobalGain() {
   if (!eqBands || eqBands.length === 0) {
     globalGain = 0;
@@ -474,13 +452,13 @@ function updateGlobalGain() {
     for (let i = 0; i < eqBands.length; i++) sum += (eqBands[i].gain || 0);
     globalGain = sum / eqBands.length;
   }
-  // write back to UI sliders if they exist and are valid
+
   try {
     if (sliders && sliders[11]) {
       if (sliders[11][0]) sliders[11][0].value = globalGain;
       if (sliders[11][1]) sliders[11][1].value = globalGain;
     }
-  } catch (e) { /* ignore UI update errors */ }
+  } catch (e) {  }
   return globalGain;
 }
 
@@ -497,12 +475,12 @@ function updateEQ(targetGain = null) {
   scheduleDraw();
   updateCurveEQ();
 }
-// --- globals (reuse your audioCtx/EQcanvas existing vars) ---
+
 let curveEQ = {
   eqInput: null,
   eqOutput: null,
-  filters: [],     // array of BiquadFilterNode
-  bandCount: 24,   // default, adjustable
+  filters: [],     
+  bandCount: 24,   
   inited: false
 };
 
@@ -510,20 +488,18 @@ function ensureCurveEQ(bandCount = 24) {
   ensureAudioCtx();
   if (curveEQ.inited && curveEQ.bandCount === bandCount) return;
   curveEQ.bandCount = bandCount;
-  // tear down previous chain (if any)
+
   try { curveEQ.eqInput && curveEQ.eqInput.disconnect(); } catch(e){}
   curveEQ.filters.forEach(f => { try { f.disconnect(); } catch(e){} });
   try { curveEQ.eqOutput && curveEQ.eqOutput.disconnect(); } catch(e){}
 
   curveEQ.eqInput = audioCtx.createGain();
   curveEQ.eqOutput = audioCtx.createGain();
-  // final destination
+
   curveEQ.eqOutput.connect(audioCtx.destination);
 
-  // create placeholder filters - they will be configured in buildCurveEQ()
   curveEQ.filters = new Array(bandCount).fill(0).map(() => audioCtx.createBiquadFilter());
 
-  // wire: eqInput -> filt0 -> filt1 -> ... -> eqOutput
   if (curveEQ.filters.length === 0) {
     curveEQ.eqInput.connect(curveEQ.eqOutput);
   } else {
@@ -534,11 +510,10 @@ function ensureCurveEQ(bandCount = 24) {
     curveEQ.filters[curveEQ.filters.length - 1].connect(curveEQ.eqOutput);
   }
   curveEQ.inited = true;
-  // (initial configure)
+
   buildCurveEQ(bandCount);
 }
 
-// Build / configure the BiquadFilterNodes from the spline curve
 function buildCurveEQ(bandCount = 24) {
   if (!EQcanvas) {
     console.warn("buildCurveEQ: need EQcanvas for screen mapping; using defaults (no curve).");
@@ -549,7 +524,6 @@ function buildCurveEQ(bandCount = 24) {
   const fMin = 20;
   const fMax = nyquist;
 
-  // geometric spacing between fMin and fMax
   const ratio = Math.pow(fMax / fMin, 1 / Math.max(1, bandCount - 1));
   const centers = new Array(bandCount);
   centers[0] = fMin;
@@ -559,21 +533,19 @@ function buildCurveEQ(bandCount = 24) {
 
   for (let i = 0; i < bandCount; i++) {
     const fc = centers[i];
-    // sample the curve: get screen Y for this freq, then eval the curve for screen X
-    const y = freqToY(fc, h);                       // normalized to canvas height
+
+    const y = freqToY(fc, h);                       
     const XonSpline = evalEQGainAtY(y);
     const gainDb = (XonSpline === null) ? 0 : xToGain(XonSpline, w);
 
-    // estimate bandwidth -> Q
     const prevFc = (i === 0) ? (fc / ratio) : centers[i - 1];
     const nextFc = (i === bandCount - 1) ? (fc * ratio) : centers[i + 1];
-    // approximate - avoid divide by 0:
+
     const bw = Math.max(1e-6, nextFc - prevFc);
-    // conservative Q: fc / bw; clamp into reasonable range
+
     let Q = fc / bw;
     Q = clamp(Q, 0.3, 18);
 
-    // configure filter node
     const fnode = curveEQ.filters[i];
     fnode.type = 'peaking';
     fnode.frequency.value = Math.min(Math.max(fc, 1), nyquist - 1);
@@ -582,7 +554,6 @@ function buildCurveEQ(bandCount = 24) {
   }
 }
 
-// Update existing filters' gains from the current spline (call often while editing)
 function updateCurveEQ() {
   if (!curveEQ.inited || curveEQ.filters.length === 0) return;
   if (!EQcanvas) return;
@@ -594,21 +565,16 @@ function updateCurveEQ() {
     const y = freqToY(fc, h);
     const XonSpline = evalEQGainAtY(y);
     const gainDb = (XonSpline === null) ? 0 : xToGain(XonSpline, w);
-    // smooth transition
+
     fnode.gain.setTargetAtTime(gainDb, audioCtx.currentTime, 0.01);
   }
 }
 
-// Call this once (or whenever you want a different resolution)
-ensureCurveEQ(24);        // create 24-band approx
+ensureCurveEQ(24);        
 buildCurveEQ(24);
 
-// Hook up your sourceNode connection: instead of sourceNode.connect(audioCtx.destination)
-// connect to curveEQ.eqInput
-// Example modifications to your playPCM/playFrame:
-// after you create `sourceNode`:
 if (curveEQ && curveEQ.inited) {
-  // connect source to eqInput (and not directly to dest)
+
   try { sourceNode.connect(curveEQ.eqInput); } catch(e){ console.warn(e); }
 } else {
   sourceNode.connect(audioCtx.destination);
@@ -625,27 +591,25 @@ const eqPresetsData = {
   "Custom":      null
 };
 
-// Utility: apply an array of gains to eqBands
 function applyPresetValues(gainsArray) {
   if (!Array.isArray(gainsArray) || gainsArray.length !== eqBands.length) {
     console.warn("applyPresetValues: preset length mismatch", gainsArray);
     return;
   }
   for (let i = 0; i < eqBands.length; i++) {
-    // write and clamp
+
     eqBands[i].gain = clamp(Number(gainsArray[i]||0), -gainScale, gainScale);
   }
   ptsDirty = true;
   scheduleDraw();
   updateCurveEQ();
   updateGlobalGain();
-  // try to reflect changes in UI sliders (two strategies)
+
   tryUpdateBandSlidersFromBands();
 }
 
-// Try to update known slider data structures (best-effort)
 function tryUpdateBandSlidersFromBands() {
-  // If your code uses a `sliders` global with format sliders[bandIndex][0 or 1]
+
   try {
     if (typeof sliders !== 'undefined' && Array.isArray(sliders)) {
       for (let i = 0; i < eqBands.length && i < sliders.length; i++) {
@@ -654,9 +618,8 @@ function tryUpdateBandSlidersFromBands() {
       }
       return;
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {  }
 
-  // Otherwise try DOM approach: elements with data-eq-band="0" ... "6"
   for (let i = 0; i < eqBands.length; i++) {
     const sel = document.querySelectorAll(`[data-eq-band="${i}"]`);
     sel.forEach(node => {
@@ -665,11 +628,10 @@ function tryUpdateBandSlidersFromBands() {
   }
 }
 
-// Apply a named preset (case-sensitive names from your <select>)
 function applyPresetByName(name) {
   if (!name) return;
   if (name.toLowerCase() === "custom") {
-    // nothing to apply
+
     return;
   }
   const preset = eqPresetsData[name];
@@ -680,12 +642,11 @@ function applyPresetByName(name) {
   applyPresetValues(preset);
 }
 
-// Save current bands as a named preset (overwrites)
 function saveCurrentAsPreset(name) {
   if (!name) return;
   const arr = eqBands.map(b => Number(b.gain || 0));
   eqPresetsData[name] = arr;
-  // If the select didn't have the name, you may want to add it to the <select>.
+
   const optExists = !!document.querySelector(`#eqPresets option[value="${name}"]`);
   if (!optExists) {
     const op = document.createElement('option');
@@ -694,14 +655,13 @@ function saveCurrentAsPreset(name) {
   }
 }
 
-// Hook up the <select> change listener
 const eqPresetsSelect = document.getElementById('eqPresets');
 if (eqPresetsSelect) {
   eqPresetsSelect.addEventListener("change", (e) => {
     const presetName = eqPresetsSelect.value;
     if (!presetName) return;
     if (presetName.toLowerCase() === "custom") {
-      // user chose Custom; do nothing (they will edit)
+
       return;
     }
     if (eqPresetsData[presetName]) {
@@ -712,22 +672,19 @@ if (eqPresetsSelect) {
   });
 }
 
-// Mark select as Custom when user edits sliders or drags points.
-// 1) DOM slider edits: detect elements with data-eq-band or class `.eq-band-slider`
 function markPresetCustom() {
   if (!eqPresetsSelect) return;
   const cur = eqPresetsSelect.value;
   if (cur !== "Custom") eqPresetsSelect.value = "Custom";
 }
 
-// Add event listeners for slider inputs (best effort)
 function attachSliderChangeDetection() {
-  // elements with data-eq-band="N"
+
   const slidersByAttr = document.querySelectorAll('[data-eq-band]');
   if (slidersByAttr.length) {
     slidersByAttr.forEach(el => el.addEventListener('input', markPresetCustom));
   }
-  // fallback: any element with class eq-band-slider
+
   const slidersByClass = document.querySelectorAll('.eq-band-slider');
   if (slidersByClass.length) {
     slidersByClass.forEach(el => el.addEventListener('input', markPresetCustom));
@@ -735,21 +692,18 @@ function attachSliderChangeDetection() {
 }
 attachSliderChangeDetection();
 
-// 2) Canvas pointer interactions already change eqBands; make pointerup mark Custom
 if (typeof EQcanvas !== 'undefined' && EQcanvas) {
   EQcanvas.addEventListener('pointerup', (e) => {
-    // after user drags a point, mark preset as Custom
+
     markPresetCustom();
   }, { passive: true });
 }
 
-// Optional convenience: allow saving current curve into "Custom" or another name via API:
 window.eqPresets = window.eqPresets || {};
 window.eqPresets.apply = applyPresetByName;
 window.eqPresets.save = saveCurrentAsPreset;
 window.eqPresets.data = eqPresetsData;
 
-// Example: if you want the default to be Flat at load:
 if (eqPresetsSelect && eqPresetsSelect.value === "") {
   eqPresetsSelect.value = "Flat";
   applyPresetByName("Flat");

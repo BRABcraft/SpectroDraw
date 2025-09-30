@@ -801,6 +801,7 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
   document.getElementById("playPause").innerHTML=pauseHtml;
 }
 
+
 function initEmptyPCM() {
     const sampleRateLocal = 48000;
     const duration = emptyAudioLengthEl.value; 
@@ -1297,7 +1298,7 @@ let sx2 = 0, sy2 = 0;
 
 function canvasMouseDown(e,touch) {
     if (!mags || !phases) return;
-    if (e.button !== 0) return;
+    if (!touch && e.button !== 0) return;
 
     painting = true;
 
@@ -1439,6 +1440,19 @@ function canvasMouseUp(e,touch) {
     audioProcessed = 0;
     playPCM();
     document.getElementById("playPause").innerHTML=pauseHtml;
+    
+    const startFrame = Math.max(0, Math.floor(iLow || 0));
+    pos = startFrame * hop;
+    x = startFrame;
+    rendering = true;
+    requestAnimationFrame(drawLoop);
+
+    startTime = performance.now();
+    audioProcessed = 0;
+
+    playPCM();
+    console.log("PCM updated from phase-aware spectrogram!");
+
 }
 
 function newHistory() {

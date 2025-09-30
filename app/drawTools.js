@@ -165,7 +165,7 @@ function commitShape(cx, cy) {
     let endFrame   = Math.round(cx + (iLow || 0));
     let x0Frame; let x1Frame;
     if (alignTime) {
-      const snapSize = 60/bpm/subBeat;
+      const snapSize = 30/bpm/subBeat;
       const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + snapSize;
       endFrame = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
       x0Frame = Math.min(startFrame,endFrame);
@@ -216,7 +216,6 @@ function ftvsy(f) {
 
   return visY;
 }
-
 function paint(cx, cy) {
     if (!mags || !phases) return;
 

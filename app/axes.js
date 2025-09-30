@@ -83,7 +83,8 @@ function timelineXToFrame(clientXLeft) {
     return iLow + clientXLeft/timeline.getBoundingClientRect().width*iWidth;
 }
 function timelineMousedown(e,touch) {
-  const rect = timeline.getBoundingClientRect();
+    if (e.button !== 0) return;
+    const rect = timeline.getBoundingClientRect();
     if ((touch ? e.touches[0].clientY : e.clientY)- rect.top>20) {
       draggingTimeline = true;
       wasPlayingDuringDrag = playing;
@@ -314,6 +315,7 @@ function drawYAxis() {
 
 
 function yAxisMousedown(e,touch) {
+    if (e.button !== 0) return;
     const rect = yAxis.getBoundingClientRect();
     const x = touch ? e.touches[0].clientX : e.clientX;
     const y = touch ? e.touches[0].clientY : e.clientY;
@@ -365,6 +367,8 @@ function yAxisMousemove(e,touch) {
             fHigh = fLow + fWidth;
             oldY = mouseY;
         }
+    } else {
+        yAxis.style.cursor = "default";
     }
     drawTimeline();
     drawYAxis();

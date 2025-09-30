@@ -857,6 +857,7 @@ logscaleEl.addEventListener("touchstart", e=> {
   logScaleMouseDown(e.true);
 });
 function logScaleMouseDown(e,touch) {
+  if (e.button !== 0) return;
   const rect= logscaleEl.getBoundingClientRect();
   changingLogScale = true;
   [startX, startY] = getMouseXY(e,touch);
@@ -1292,8 +1293,11 @@ function frameToCx(frame) {
   return ((frame-iLow)/(iWidth/specWidth)*1);
 }
 
+let sx2 = 0, sy2 = 0;
+
 function canvasMouseDown(e,touch) {
     if (!mags || !phases) return;
+    if (e.button !== 0) return;
 
     painting = true;
 
@@ -1306,12 +1310,10 @@ function canvasMouseDown(e,touch) {
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
     startX = cx; startY = cy;
     if (alignTime) {
-      const startFrame = Math.round(cx + iLow);
       const snapSize = 30/bpm/subBeat;
       const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
-      const endTime = (cx/(sampleRate/hopSizeEl.value));
       const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      if (currentTool !== "rectangle" && currentTool !== "line") line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
+      sx2 = cx; sy2 = cy;
       startX = startFrame0 - iLow;
     }
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
@@ -1403,13 +1405,18 @@ function canvasMouseUp(e,touch) {
         commitShape(cx, cy); 
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
     }
-    if (alignTime && currentTool !== "rectangle" && currentTool !== "line") {
+    if (alignTime && currentTool === "brush") {
       const startFrame = Math.round(cx + iLow);
       const snapSize = 30/bpm/subBeat;
-      const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + snapSize;
-      const endTime = (cx/(sampleRate/hopSizeEl.value));
-      const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushSize/((currentTool === "line")?4:1));
+      const brushS = brushSize*fWidth/sampleRate*fftSize/512;
+
+      let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
+      let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
+      
+      startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
+      startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
     }
 
     startX=startY=null;
@@ -1694,6 +1701,7 @@ function processPendingFramesLive(){
 
 </script>
 <script src="brushPreview.js"></script>
+<script src="rightClick.js"></script>
 <script>
 
 updateBrushPreview();

@@ -1,14 +1,13 @@
 const FREQ_LOG_SCALE = 2;
 const gainScale = parseInt(sliders[11][0].max);
-console.log(gainScale);
-let eqBands = [
-    { type: "low_shelf", freq: 0, gain: 0, Q: 1 }, 
-    { type: "peaking", freq: sampleRate/128, gain: 0, Q: 1 }, 
-    { type: "peaking", freq: sampleRate/32, gain: 0, Q: 1 }, 
-    { type: "peaking", freq: sampleRate/16, gain: 0, Q: 1 }, 
-    { type: "peaking", freq: sampleRate/8, gain: 0, Q: 1 }, 
-    { type: "peaking", freq: sampleRate/4, gain: 0, Q: 1 }, 
-    { type: "high_shelf", freq: sampleRate/2, gain: 0, Q: 1 }
+let eqBands= [
+    { type: "low_shelf", freq: 0, gain: 0}, 
+    { type: "peaking", freq: sampleRate/128}, 
+    { type: "peaking", freq: sampleRate/32}, 
+    { type: "peaking", freq: sampleRate/16}, 
+    { type: "peaking", freq: sampleRate/8}, 
+    { type: "peaking", freq: sampleRate/4}, 
+    { type: "high_shelf", freq: sampleRate/2}
 ];// --- config (unchanged) ---
 const POINT_HIT_RADIUS = 7.5;
 const HANDLE_HIT_RADIUS = 7.5;
@@ -26,6 +25,7 @@ let drawScheduled = false;
 eqBands.forEach(b => {
   if (typeof b.angle !== 'number') b.angle = Math.PI / 2;
   if (typeof b.tLen !== 'number') b.tLen = 60;
+  b.gain = 0; b.Q = 1;
   // cache mx/my if possible
   b.mx = Math.cos(b.angle) * b.tLen;
   b.my = Math.sin(b.angle) * b.tLen;
@@ -94,8 +94,8 @@ function scheduleDraw() {
 
 // Main drawing (uses buildPts)
 function drawEQ() {
-  if (!eqCanvas || !eCtx || currentPanel !== "2") return;
-  const w = eqCanvas.width, h = eqCanvas.height;
+  if (!EQcanvas || !eCtx || currentPanel !== "2") return;
+  const w = EQcanvas.width, h = EQcanvas.height;
   // clear
   eCtx.clearRect(0, 0, w, h);
   // background
@@ -205,26 +205,26 @@ function drawSpectrals() {
   // console.log(bands);
   
   eCtx.strokeStyle ="rgba(255, 255, 255, 0.48)";
-  eCtx.lineWidth = eqCanvas.height/bandCount/1.25;
+  eCtx.lineWidth = EQcanvas.height/bandCount/1.25;
   for (let yy = 0; yy < bandCount; yy++) {
       const mappedBin = Math.floor(yToFreq(((yy / bandCount)),1)/(sampleRate/2)*specHeight);
       // const mappedBin = Math.floor((yy / bandCount) * (fftSize / 2));
       const mag = bands[mappedBin] || 0;
       eCtx.beginPath();
-      eCtx.moveTo(0, (yy/bandCount)*eqCanvas.height);
+      eCtx.moveTo(0, (yy/bandCount)*EQcanvas.height);
       const magToDb = m => 20 * Math.log10(m);
-      const gain = xToGain(evalEQGainAtY((yy/bandCount)*eqCanvas.height),eqCanvas.width);
+      const gain = xToGain(evalEQGainAtY((yy/bandCount)*EQcanvas.height),EQcanvas.width);
       const db = magToDb(mag/256) + (gain || 0);
-      const lineTo = (db+128)/128*(eqCanvas.width/2);
-      eCtx.lineTo(lineTo, (yy/bandCount)*eqCanvas.height);
+      const lineTo = (db+128)/128*(EQcanvas.width/2);
+      eCtx.lineTo(lineTo, (yy/bandCount)*EQcanvas.height);
       eCtx.stroke();
   }
 }
 
 // ---- hit-testing (uses band cached mx/my when available)
 function findHit(pos) {
-  if (!eqCanvas) return null;
-  const w = eqCanvas.width, h = eqCanvas.height;
+  if (!EQcanvas) return null;
+  const w = EQcanvas.width, h = EQcanvas.height;
   for (let i = 0; i < eqBands.length; i++) {
     const b = eqBands[i];
     const y = freqToY(b.freq, h);
@@ -255,11 +255,11 @@ const rotateCursorUrl = makeSvgCursor(rotateSvg, 16, 16);
 function updateCanvasCursorFromPos(pos) {
   const hit = findHit(pos);
   if (!hit && draggingPointIndex === -1 && draggingTangentIndex === -1) {
-    if (eqCanvas) eqCanvas.style.cursor = 'crosshair';
+    if (EQcanvas) EQcanvas.style.cursor = 'crosshair';
   } else if (draggingPointIndex !== -1 || (hit && hit.type === 'point')) {
-    eqCanvas.style.cursor = 'pointer';
+    EQcanvas.style.cursor = 'pointer';
   } else {
-    eqCanvas.style.cursor = rotateCursorUrl;
+    EQcanvas.style.cursor = rotateCursorUrl;
   }
 }
 
@@ -309,8 +309,8 @@ function findTForYOnSegment(p0, p1, targetY) {
 
 // Evaluate curve's X at a given screen Y position (returns screen X or null)
 function evalEQGainAtY(targetY) {
-  if (!eqCanvas) return null;
-  const w = eqCanvas.width, h = eqCanvas.height;
+  if (!EQcanvas) return null;
+  const w = EQcanvas.width, h = EQcanvas.height;
   const pts = buildPts(w, h);
   if (pts.length === 0) return null;
   if (targetY <= pts[0].y) return pts[0].x;
@@ -331,7 +331,7 @@ function evalEQGainAtY(targetY) {
 
 // --- pointer / interaction handlers (events unchanged behavior, set ptsDirty when mutate) ---
 function getCanvasPos(evt) {
-  const rect = eqCanvas.getBoundingClientRect();
+  const rect = EQcanvas.getBoundingClientRect();
   let clientX, clientY;
   if (evt.touches && evt.touches[0]) {
     clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY;
@@ -341,7 +341,7 @@ function getCanvasPos(evt) {
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
-eqCanvas.addEventListener('pointerdown', (evt) => {  
+EQcanvas.addEventListener('pointerdown', (evt) => {  
   ensureAudioCtx();
   if (!sineOsc && !playing) {
       sineOsc = audioCtx.createOscillator();
@@ -349,7 +349,7 @@ eqCanvas.addEventListener('pointerdown', (evt) => {
       sineGain = audioCtx.createGain();
       sineGain.gain.value = 0.2;
       sineOsc.connect(sineGain).connect(audioCtx.destination);
-      sineOsc.frequency.setTargetAtTime(yToFreq(getCanvasPos(evt).y, eqCanvas.height), audioCtx.currentTime, 0.01);
+      sineOsc.frequency.setTargetAtTime(yToFreq(getCanvasPos(evt).y, EQcanvas.height), audioCtx.currentTime, 0.01);
       sineOsc.start();
   }
 });
@@ -357,25 +357,25 @@ function onPointerDown(evt) {
   evt.preventDefault();
   const pos = getCanvasPos(evt);
   const hit = findHit(pos);
-  if (evt.pointerId && eqCanvas.setPointerCapture) {
-    try { eqCanvas.setPointerCapture(evt.pointerId); } catch(e) {}
+  if (evt.pointerId && EQcanvas.setPointerCapture) {
+    try { EQcanvas.setPointerCapture(evt.pointerId); } catch(e) {}
   }
   if (!hit) {
     draggingPointIndex = -1; draggingTangentIndex = -1;
-    if (eqCanvas) eqCanvas.style.cursor = "crosshair";
+    if (EQcanvas) EQcanvas.style.cursor = "crosshair";
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp, { once: true });
     return;
   }
   if (hit.type === 'point') {
-    eqCanvas.style.cursor = "pointer";
+    EQcanvas.style.cursor = "pointer";
     draggingPointIndex = hit.index;
     const b = eqBands[hit.index];
-    const sx = gainToX(b.gain, eqCanvas.width);
-    const sy = freqToY(b.freq, eqCanvas.height);
+    const sx = gainToX(b.gain, EQcanvas.width);
+    const sy = freqToY(b.freq, EQcanvas.height);
     dragOffset.x = pos.x - sx; dragOffset.y = pos.y - sy;
   } else if (hit.type === 'handle') {
-    eqCanvas.style.cursor = rotateCursorUrl;
+    EQcanvas.style.cursor = rotateCursorUrl;
     draggingTangentIndex = hit.index;
   }
   window.addEventListener('pointermove', onPointerMove);
@@ -386,7 +386,7 @@ function eqMouseMove(evt) {
   const pos = getCanvasPos(evt);
   updateCanvasCursorFromPos(pos);
 
-  const w = eqCanvas.width, h = eqCanvas.height;
+  const w = EQcanvas.width, h = EQcanvas.height;
   const freqAtCursor = yToFreq(pos.y, h);
   const XonSpline = evalEQGainAtY(pos.y);
   let gainText;
@@ -413,23 +413,23 @@ function onPointerMove(evt) {
   evt.preventDefault();
   const pos = getCanvasPos(evt);
   updateCanvasCursorFromPos(pos);
-  if (sineOsc) {sineOsc.frequency.setTargetAtTime(yToFreq(pos.y, eqCanvas.height), audioCtx.currentTime, 0.01);}
+  if (sineOsc) {sineOsc.frequency.setTargetAtTime(yToFreq(pos.y, EQcanvas.height), audioCtx.currentTime, 0.01);}
 
   if (draggingPointIndex !== -1) {
     const idx = draggingPointIndex;
     const b = eqBands[idx];
     const newX = pos.x - dragOffset.x;
     const newY = pos.y - dragOffset.y;
-    const newGain = xToGain(newX, eqCanvas.width);
-    const newFreq = yToFreq(newY, eqCanvas.height);
+    const newGain = xToGain(newX, EQcanvas.width);
+    const newFreq = yToFreq(newY, EQcanvas.height);
     if (b.type !== "low_shelf" && b.type !== "high_shelf") b.freq = clamp(newFreq, 20, sampleRate / 2);
     b.gain = clamp(Number(newGain.toFixed(2)), 0-gainScale, gainScale);
     ptsDirty = true;
   } else if (draggingTangentIndex !== -1) {
     const idx = draggingTangentIndex;
     const b = eqBands[idx];
-    const px = gainToX(b.gain, eqCanvas.width);
-    const py = freqToY(b.freq, eqCanvas.height);
+    const px = gainToX(b.gain, EQcanvas.width);
+    const py = freqToY(b.freq, EQcanvas.height);
     const angle = ((b.type !== "high_shelf") ? 0 : Math.PI) + Math.atan2(pos.y - py, pos.x - px);
     b.angle = angle;
     // update cached mx/my immediately so hit tests use new value
@@ -459,10 +459,10 @@ function onPointerUp(evt) {
 }
 
 // attach listeners
-if (eqCanvas) {
-  eqCanvas.style.touchAction = 'none';
-  eqCanvas.addEventListener('pointerdown', onPointerDown);
-  eqCanvas.addEventListener('pointermove', eqMouseMove);
+if (EQcanvas) {
+  EQcanvas.style.touchAction = 'none';
+  EQcanvas.addEventListener('pointerdown', onPointerDown);
+  EQcanvas.addEventListener('pointermove', eqMouseMove);
 }
 
 // --- update functions ---
@@ -497,7 +497,7 @@ function updateEQ(targetGain = null) {
   scheduleDraw();
   updateCurveEQ();
 }
-// --- globals (reuse your audioCtx/eqCanvas existing vars) ---
+// --- globals (reuse your audioCtx/EQcanvas existing vars) ---
 let curveEQ = {
   eqInput: null,
   eqOutput: null,
@@ -540,8 +540,8 @@ function ensureCurveEQ(bandCount = 24) {
 
 // Build / configure the BiquadFilterNodes from the spline curve
 function buildCurveEQ(bandCount = 24) {
-  if (!eqCanvas) {
-    console.warn("buildCurveEQ: need eqCanvas for screen mapping; using defaults (no curve).");
+  if (!EQcanvas) {
+    console.warn("buildCurveEQ: need EQcanvas for screen mapping; using defaults (no curve).");
     return;
   }
   ensureCurveEQ(bandCount);
@@ -555,7 +555,7 @@ function buildCurveEQ(bandCount = 24) {
   centers[0] = fMin;
   for (let i = 1; i < bandCount; i++) centers[i] = centers[i - 1] * ratio;
 
-  const w = eqCanvas.width, h = eqCanvas.height;
+  const w = EQcanvas.width, h = EQcanvas.height;
 
   for (let i = 0; i < bandCount; i++) {
     const fc = centers[i];
@@ -585,9 +585,9 @@ function buildCurveEQ(bandCount = 24) {
 // Update existing filters' gains from the current spline (call often while editing)
 function updateCurveEQ() {
   if (!curveEQ.inited || curveEQ.filters.length === 0) return;
-  if (!eqCanvas) return;
+  if (!EQcanvas) return;
   const bandCount = curveEQ.filters.length;
-  const w = eqCanvas.width, h = eqCanvas.height;
+  const w = EQcanvas.width, h = EQcanvas.height;
   for (let i = 0; i < bandCount; i++) {
     const fnode = curveEQ.filters[i];
     const fc = fnode.frequency.value;
@@ -736,8 +736,8 @@ function attachSliderChangeDetection() {
 attachSliderChangeDetection();
 
 // 2) Canvas pointer interactions already change eqBands; make pointerup mark Custom
-if (typeof eqCanvas !== 'undefined' && eqCanvas) {
-  eqCanvas.addEventListener('pointerup', (e) => {
+if (typeof EQcanvas !== 'undefined' && EQcanvas) {
+  EQcanvas.addEventListener('pointerup', (e) => {
     // after user drags a point, mark preset as Custom
     markPresetCustom();
   }, { passive: true });

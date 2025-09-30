@@ -1424,13 +1424,15 @@ function canvasMouseUp(e,touch) {
     if (snapshotMags && snapshotPhases && mags && phases) {
       newHistory();
 
-      snapshotMags = null;
-      snapshotPhases = null;
-
       const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
       if (lastEntry) {
-        recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol);
+        // pass the snapshots for delta-mode synth to avoid clicks on existing loud regions
+        recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
       }
+
+      // now safe to release snapshots
+      snapshotMags = null;
+      snapshotPhases = null;
     }
 
     startTime = performance.now();

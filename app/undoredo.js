@@ -1,12 +1,12 @@
-function recomputePCMForCols(colStart, colEnd) {
+function recomputePCMForCols(colStart, colEnd, opts = {}) {
   if (!pcm || !mags || !phases) return;
 
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;
 
-  const marginCols = Math.ceil(fftSize / hop) + 1;
-
+  // margin to cover overlapping windows
+  const marginCols = Math.ceil(fftSize / hop) + 2; // +2 for safety
   const colFirst = Math.max(0, colStart - marginCols);
   const colLast  = Math.min(specWidth - 1, colEnd + marginCols);
 
@@ -15,18 +15,122 @@ function recomputePCMForCols(colStart, colEnd) {
   const segmentLen  = sampleEnd - sampleStart;
   if (segmentLen <= 0) return;
 
-  const newSegment = new Float32Array(segmentLen);
-  const overlapCount = new Float32Array(segmentLen);
+  const useDelta = opts && opts.oldMags && opts.oldPhases;
 
   const h = specHeight;
-  const window = new Float32Array(fftSize);
-  for (let i = 0; i < fftSize; i++) window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
 
+  // use global window (analysis/synthesis) if available, otherwise Hann fallback
+  const window = (typeof win !== 'undefined' && win && win.length === fftSize)
+                ? win
+                : (function buildLocalWin() {
+                    const w = new Float32Array(fftSize);
+                    for (let i = 0; i < fftSize; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+                    return w;
+                  })();
+
+  // helper that synthesizes a segment given mags/phases arrays into target buffers
+  function synthSegmentFrom(srcMags, srcPhases, outBuf, outDenom) {
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+
+    // zero outputs
+    for (let i = 0; i < segmentLen; i++) {
+      outBuf[i] = 0;
+      outDenom[i] = 0;
+    }
+
+    for (let xCol = colFirst; xCol <= colLast; xCol++) {
+      re.fill(0); im.fill(0);
+
+      // fill spectrum positive bins from src arrays
+      for (let bin = 0; bin < h && bin < fftSize; bin++) {
+        const idx = xCol * h + bin;
+        const mag = srcMags[idx] || 0;
+        const phase = srcPhases[idx] || 0;
+        re[bin] = mag * Math.cos(phase);
+        im[bin] = mag * Math.sin(phase);
+
+        if (bin > 0 && bin < fftSize / 2) {
+          const sym = fftSize - bin;
+          re[sym] = re[bin];
+          im[sym] = -im[bin];
+        }
+      }
+
+      // enforce real DC & Nyquist
+      im[0] = 0;
+      if (fftSize % 2 === 0) im[fftSize / 2] = 0;
+
+      // IFFT
+      if (typeof ifft_inplace === 'function') {
+        ifft_inplace(re, im);
+      } else if (typeof fft_inplace === 'function') {
+        // if your fft library uses a flag for inverse you may need to call that instead.
+        fft_inplace(re, im, true); // replace if necessary
+      } else {
+        throw new Error("No inverse FFT function available (replace with your ifft call).");
+      }
+
+      // optional scale if your ifft is unscaled (uncomment if necessary)
+      // for (let k = 0; k < fftSize; k++) re[k] /= fftSize;
+
+      const baseSample = xCol * hop;
+      for (let i = 0; i < fftSize; i++) {
+        const globalSample = baseSample + i;
+        if (globalSample < sampleStart || globalSample >= sampleEnd) continue;
+        const segIndex = globalSample - sampleStart;
+        outBuf[segIndex] += re[i] * window[i];
+        outDenom[segIndex] += window[i] * window[i];
+      }
+    }
+
+    // normalize where denom is significant
+    const EPS = 1e-8;
+    for (let i = 0; i < segmentLen; i++) {
+      if (outDenom[i] > EPS) outBuf[i] /= outDenom[i];
+      else outBuf[i] = 0;
+    }
+  }
+
+  if (useDelta) {
+    // delta mode: compute old and new, then add their difference to pcm
+    const oldMags = opts.oldMags;
+    const oldPhases = opts.oldPhases;
+
+    const newSegment = new Float32Array(segmentLen);
+    const newDenom = new Float32Array(segmentLen);
+    const oldSegment = new Float32Array(segmentLen);
+    const oldDenom = new Float32Array(segmentLen);
+
+    // synth new from current mags/phases
+    synthSegmentFrom(mags, phases, newSegment, newDenom);
+
+    // synth old from snapshot arrays passed in
+    synthSegmentFrom(oldMags, oldPhases, oldSegment, oldDenom);
+
+    // add delta into pcm (preserve everything else)
+    for (let i = 0; i < segmentLen; i++) {
+      // pcm += (new - old)
+      pcm[sampleStart + i] = (pcm[sampleStart + i] || 0) + (newSegment[i] - oldSegment[i]);
+    }
+
+    // update image for the columns we recomputed
+    renderSpectrogramColumnsToImageBuffer(colFirst, colLast);
+
+    if (playing) {
+      stopSource(true);
+      playPCM(true);
+    }
+    return;
+  }
+
+  // fallback: previous overwrite approach with crossfade (keeps behavior for undo/redo)
+  const newSegment = new Float32Array(segmentLen);
+  const overlapCount = new Float32Array(segmentLen);
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
 
   for (let xCol = colFirst; xCol <= colLast; xCol++) {
-
     re.fill(0); im.fill(0);
     for (let bin = 0; bin < h && bin < fftSize; bin++) {
       const idx = xCol * h + bin;
@@ -41,7 +145,11 @@ function recomputePCMForCols(colStart, colEnd) {
       }
     }
 
+    im[0] = 0;
+    if (fftSize % 2 === 0) im[fftSize / 2] = 0;
+
     ifft_inplace(re, im);
+    // if needed: for (let k = 0; k < fftSize; k++) re[k] /= fftSize;
 
     const baseSample = xCol * hop;
     for (let i = 0; i < fftSize; i++) {
@@ -53,8 +161,23 @@ function recomputePCMForCols(colStart, colEnd) {
     }
   }
 
+  const EPS = 1e-8;
   for (let i = 0; i < segmentLen; i++) {
-    if (overlapCount[i] > 0) newSegment[i] /= overlapCount[i];
+    if (overlapCount[i] > EPS) newSegment[i] /= overlapCount[i];
+    else newSegment[i] = 0;
+  }
+
+  // crossfade with old to reduce boundary artifacts
+  const oldSegment = pcm.slice(sampleStart, sampleEnd);
+  const fadeLen = Math.min(Math.max(1, hop), 128);
+  for (let i = 0; i < fadeLen; i++) {
+    const t = i / fadeLen;
+    newSegment[i] = newSegment[i] * t + oldSegment[i] * (1 - t);
+    const j = segmentLen - 1 - i;
+    if (j >= 0 && j < segmentLen) {
+      const oldIdx = oldSegment.length - 1 - i;
+      newSegment[j] = newSegment[j] * t + oldSegment[oldIdx] * (1 - t);
+    }
   }
 
   pcm.set(newSegment, sampleStart);
@@ -66,6 +189,7 @@ function recomputePCMForCols(colStart, colEnd) {
     playPCM(true);
   }
 }
+
 
 function renderSpectrogramColumnsToImageBuffer(colStart, colEnd) {
   colStart = Math.max(0, Math.floor(colStart));
@@ -139,7 +263,7 @@ async function doUndo() {
 
     const minCol = Math.max(0, entry.minCol);
     const maxCol = Math.min(specWidth - 1, entry.maxCol);
-    renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
+    // renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
     recomputePCMForCols(minCol, maxCol);
 
     while (redoStack.length >= MAX_HISTORY_ENTRIES) redoStack.shift();

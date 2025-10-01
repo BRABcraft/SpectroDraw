@@ -120,11 +120,12 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     const yysf = getSineFreq(yDisplay);
     let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
     nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
-    displayYFloat = ftvsy(nearestPitch); 
+    displayYFloat = ftvsy(nearestPitch);
   } else {
     displayYFloat = yDisplay;
   }
 
+  // find bins (float) covered by the requested display Y
   const topBinF = displayYToBin(displayYFloat - 0.5, specHeight);
   const botBinF = displayYToBin(displayYFloat + 0.5, specHeight);
 
@@ -152,13 +153,29 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     mags[idx] = Math.min(newMag, 255);
     phases[idx] = newPhase;
 
-    const displayY = binToDisplayY(bin, specHeight);
-    const pix = (displayY * specWidth + xI) * 4;
+    // --- fill all pixel rows that belong to this bin ---
+    // compute top/bottom display coordinates for the bin by sampling half-bin offsets
+    const topEdge = binToDisplayY(bin - 0.5, specHeight);
+    const botEdge = binToDisplayY(bin + 0.5, specHeight);
+
+    // ensure proper ordering (display coordinates may invert with freq mapping)
+    const yTopF = Math.min(topEdge, botEdge);
+    const yBotF = Math.max(topEdge, botEdge);
+
+    // convert to integer pixel rows (inclusive)
+    const yStart = Math.max(0, Math.floor(yTopF));
+    const yEnd   = Math.min(specHeight - 1, Math.ceil (yBotF));
+
+    // compute RGB once for this bin
     const [r, g, b] = magPhaseToRGB(mags[idx], phases[idx]);
-    imageBuffer.data[pix]     = r;
-    imageBuffer.data[pix + 1] = g;
-    imageBuffer.data[pix + 2] = b;
-    imageBuffer.data[pix + 3] = 255;
+
+    for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+      const pix = (yPixel * specWidth + xI) * 4;
+      imageBuffer.data[pix]     = r;
+      imageBuffer.data[pix + 1] = g;
+      imageBuffer.data[pix + 2] = b;
+      imageBuffer.data[pix + 3] = 255;
+    }
   }
 }
 

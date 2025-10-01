@@ -10,56 +10,31 @@ function updateTools(){
 function applyEQChanges(){
     console.log('applyEQChanges() - implement', eqBands);
 }
-function removeHarmonicsAction(){
-    console.log('removeHarmonics() - implement');
-}
 function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
+    const idx = x*specHeight + y
+    mags[idx] = mag;
+    phases[idx] = phase;
+    const topEdge = binToDisplayY(y - 0.5, specHeight);
+    const botEdge = binToDisplayY(y + 0.5, specHeight);
 
-  // compute hx/hy/index same way the menu calculates it (best-effort)
-  try {
-    const cx = Math.floor(x);
-    const cy = Math.floor(y);
+    // ensure proper ordering (display coordinates may invert with freq mapping)
+    const yTopF = Math.min(topEdge, botEdge);
+    const yBotF = Math.max(topEdge, botEdge);
 
-    // try to compute same index convention used elsewhere
-    const hz = (typeof getSineFreq === 'function' && typeof visibleToSpecY === 'function')
-      ? getSineFreq(visibleToSpecY(cy))
-      : null;
+    // convert to integer pixel rows (inclusive)
+    const yStart = Math.max(0, Math.floor(yTopF));
+    const yEnd   = Math.min(specHeight - 1, Math.ceil (yBotF));
 
-    const hx = Math.floor(cx);
-    const hy = (hz !== null && typeof sampleRate !== 'undefined' && typeof fftSize !== 'undefined')
-      ? Math.floor(hz / (sampleRate / fftSize))
-      : Math.floor(y);
+    // compute RGB once for this bin
+    const [r, g, b] = magPhaseToRGB(mags[idx], phases[idx]);
 
-    const i = (typeof specHeight !== 'undefined') ? (hx * specHeight + hy) : (hx * (fftSize || 1) + hy);
-
-    // write magnitude back (inverse of normalizedMag = mags[i]/256)
-    if (typeof mag === 'number' && window.mags && typeof window.mags.length !== 'undefined'){
-      // mags seems to be scaled so normalizedMag = mags[i] / 256
-      const val = Math.max(0, Math.min(1, mag));
-      window.mags[i] = val * 256;
-    } else {
-      console.log('setPixelMagPhaseAtCursor: mags array not found or mag not provided');
+    for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+      const pix = (yPixel * specWidth + x) * 4;
+      imageBuffer.data[pix]     = r;
+      imageBuffer.data[pix + 1] = g;
+      imageBuffer.data[pix + 2] = b;
+      imageBuffer.data[pix + 3] = 255;
     }
-
-    // write phase if we can find a phases/angs array
-    if (typeof phase === 'number') {
-      if (window.phases && typeof window.phases.length !== 'undefined') {
-        window.phases[i] = phase; // common name
-      } else if (window.angs && typeof window.angs.length !== 'undefined') {
-        window.angs[i] = phase; // alternative name
-      } else {
-        console.log('setPixelMagPhaseAtCursor: no phases/angs array to write phase into');
-      }
-    }
-
-    // trigger any UI updates you normally expect (redraw / apply EQ etc.)
-    try { redrawAll && redrawAll(); } catch (e) { /* ignore */ }
-
-    console.log('setPixelMagPhaseAtCursor: wrote mag,phase at index', i, { mag, phase });
-
-  } catch (err){
-    console.error('setPixelMagPhaseAtCursor error', err);
-  }
 }
 function zoomTimelineFit(){
     iLow = 0;
@@ -260,366 +235,317 @@ function onDocKey(e){ if (e.key === 'Escape') closeMenu(); }
 const TOOLS = ['brush','rectangle','line','blur','eraser','amplifier','image'];
 
 //Need to remove the up/down arrow in the inputs
-function makeCanvasMenu(cx, cy){
-  // compute pitch/time + mag/db/phase using the logic you gave
-  let hz = 0, secs = 0, hx = Math.floor(cx), hy = Math.floor(cy), i = -1;
-  let normalizedMag = 0, db = -200, phaseVal = 0;
+function makeCanvasMenu(cx0, cy0){
+  const rect = canvas.getBoundingClientRect();
+  const cx = cx0 * canvas.width / rect.width;
+  const cy = cy0 * canvas.height / rect.height;
+
+  let hz = 0, secs = 0, i = -1, normalizedMag = 0, db = -200, phaseVal = 0;
   try {
-    const rect = canvas.getBoundingClientRect();
-    hz = (typeof getSineFreq === 'function' && typeof visibleToSpecY === 'function') ? getSineFreq(visibleToSpecY(cy*canvas.height/rect.height)) : 0;
-    secs = Math.floor(cx / (Number(sampleRate) / Number(hopSizeEl.value)) * 10000) / 10000;
-    hx = Math.floor(cx);
-    hy = (typeof fftSize !== 'undefined' && typeof sampleRate !== 'undefined') ? Math.floor(hz / (sampleRate / fftSize)) : Math.floor(cy);
-    i = hx * (specHeight || 1) + hy;
-
-    normalizedMag = Math.min(1, mags[i] / 256);
+    hz = getSineFreq(visibleToSpecY(cy));
+    secs = Math.floor(cx / (Number(sampleRate)/Number(hopSizeEl.value)) * 10000) / 10000;
+    const hx = Math.floor(cx);
+    const hy = Math.floor(hz / (sampleRate/fftSize));
+    i = hx*(specHeight||1) + hy;
+    normalizedMag = Math.min(1, mags[i]/256);
     db = (normalizedMag > 0) ? (20 * Math.log10(normalizedMag)) : -200;
-
-    // try to read existing phase from commonly-used arrays
     phaseVal = Number(phases[i]) || 0;
-  } catch (err) {
-    console.warn('makeCanvasMenu compute failed', err);
-  }
+  } catch(e){ console.warn(e); }
 
-  // Build items array but we will insert a compact header DOM manually at top of menu
-  // Inputs are rendered by buildMenu as .ctx-input elements (compact)
+  // compact items creation (keeps same entries as before)
   const items = [
-    // placeholder top item (will be replaced by non-clickable header DOM inserted later)
-    { label: `Pitch: ${hz ? hz.toFixed(0) + 'hz' : '—'} ${typeof hzToNoteName === 'function' ? '(' + hzToNoteName(hz) + ')' : ''}`, desc: `Time: ${secs}`, onClick: null },
-
-    { type: 'separator' },
-
-    // Magnitude numeric input (0..1)
-    { type: 'input', label: 'Magnitude', value: String(Number(normalizedMag)),
-      onConfirm: (val)=> { /* nothing — handled after menu built */ } },
-
-    // dB numeric input
-    { type: 'input', label: 'dB', value: db,
-      onConfirm: (val)=> { /* nothing — handled after menu built */ } },
-
-    // Phase numeric input (radians) — buildMenu will create a numeric input; we'll clamp afterwards
-    { type: 'input', label: 'Phase', value: String(Number(phaseVal.toFixed(3))),
-      onConfirm: (val)=> { /* nothing — handled after menu built */ } },
-
+    { label:'', onClick:null },
     { type:'separator' },
-
-    // keep your tool radio items
-    ...TOOLS.map(t => ({
-      type: 'radio',
-      label: t.charAt(0).toUpperCase() + t.slice(1),
-      group: 'tool',
-      value: t,
-      checked: currentTool === t,
-      onSelect: (val) => { currentTool = val; console.log('tool ->', val); updateTools(); }
-    })),
-
+    { type:'input', label:'Magnitude', value:normalizedMag },
+    { type:'input', label:'dB', value:db },
+    { type:'input', label:'Phase', value:phaseVal },
     { type:'separator' },
-
-    { type: 'toggle', label: 'Align pitch', checked: alignPitch,
-      onToggle: (v)=>{ alignPitch = v; updateTools(); } },
-
-    { type: 'toggle', label: 'Align time', checked: alignTime,
-      onToggle: (v)=>{ alignTime = v; updateTools(); } },
-
-    { label: 'Remove harmonics', onClick: ()=> { removeHarmonicsAction(); } },
+    ...TOOLS.map(t => ({ type:'radio', label: t[0].toUpperCase()+t.slice(1), group:'tool', value:t, checked:currentTool===t, onSelect: v => { currentTool=v; updateTools(); } })),
+    { type:'separator' },
+    { type:'toggle', label:'Align pitch', checked:alignPitch, onToggle:v=>{alignPitch=v;updateTools();} },
+    { type:'toggle', label:'Align time', checked:alignTime, onToggle:v=>{alignTime=v;updateTools();} },
+    { label:'Remove harmonics', onClick:()=>removeHarmonics() }
   ];
 
-  // build the compact menu via existing buildMenu (this preserves your CSS/layout)
   const menu = buildMenu(items);
 
-  // insert a compact, non-clickable header at top (replace first placeholder)
-  const header = document.createElement('div');
-  header.className = 'ctx-item';
-  header.style.pointerEvents = 'none';
-  header.style.padding = '6px 8px';
-  header.style.margin = '0 0 4px 0';
-  // two small lines, using your existing classes to remain compact
-  const hLabel = document.createElement('div');
-  hLabel.className = 'ctx-label';
-  hLabel.style.fontWeight = '600';
-  hLabel.style.fontSize = '13px';
-  hLabel.textContent = `Pitch: ${hz ? hz.toFixed(0) + 'hz' : '—'} ${typeof hzToNoteName === 'function' ? '(' + hzToNoteName(hz) + ')' : ''}`;
-  const tLabel = document.createElement('div');
-  tLabel.className = 'ctx-label';
-  tLabel.style.opacity = '0.85';
-  tLabel.style.fontSize = '12px';
-  tLabel.textContent = `Time: ${secs}`;
-
-  header.appendChild(hLabel);
-  header.appendChild(tLabel);
-
-  // replace the first built item (placeholder) with this header
-  if (menu.firstChild) menu.replaceChild(header, menu.firstChild);
-
-  // now find the three inputs generated by buildMenu (they are in order)
-  const inputs = menu.querySelectorAll('.ctx-input');
-  // inputs ordering: magnitude, dB, phase (from our items)
-  const oldMagInput = inputs[0];
-  const oldDbInput = inputs[1];
-  const oldPhaseInput = inputs[2];
-
-  // if any input doesn't exist, return menu untouched
-  if (!oldMagInput || !oldDbInput || !oldPhaseInput) return menu;
-
-  // locate their parent ctx-item elements (we'll replace their content)
-  const magItem = oldMagInput.closest('.ctx-item');
-  const dbItem = oldDbInput.closest('.ctx-item');
-  const phaseItem = oldPhaseInput.closest('.ctx-item');
-
-  // helper: extract the label text from the corresponding .ctx-label element (fallback to a default)
-  function extractLabelText(itemEl, fallback) {
-    if (!itemEl) return fallback;
-    const lbl = itemEl.querySelector('.ctx-label');
-    if (!lbl) return fallback;
-    // prefer the first line of label text
-    return lbl.textContent.trim() || fallback;
+  // compact header
+  if(menu.firstChild){
+    menu.firstChild.innerHTML = `
+      <div class="ctx-label" style="font-weight:600;font-size:13px">
+        Pitch: ${hz ? hz.toFixed(0)+'hz' : '—'} ${typeof hzToNoteName==='function' ? '('+hzToNoteName(hz)+')' : ''}
+      </div>
+      <div class="ctx-label" style="opacity:.85;font-size:12px">Time: ${secs}</div>
+    `;
+    Object.assign(menu.firstChild.style, { pointerEvents:'none', padding:'6px 8px', margin:'0 0 4px 0' });
   }
 
-  // Create new slider-row for magnitude (label -> numeric aligned right)
-  (function createMagRow(){
-    const labelText = extractLabelText(magItem, 'Magnitude');
-    const row = document.createElement('div');
-    row.className = 'slider-row2';
+  // find the three input placeholder items created by buildMenu and replace with richer innerHTML
+  const inputs = Array.from(menu.querySelectorAll('.ctx-input'));
+  const [magItem, dbItem, phaseItem] = [
+    inputs[0].closest('.ctx-item'),
+    inputs[1].closest('.ctx-item'),
+    inputs[2].closest('.ctx-item')
+  ];
 
-    const lbl = document.createElement('label');
-    lbl.textContent = labelText;
-    row.appendChild(lbl);
+  // numeric row template helper (inline)
+  magItem.innerHTML = `<div class="slider-row2">
+    <label>Magnitude</label>
+    <input type="range" class="mag-slider" min="0" max="128" step="0.1" value="${normalizedMag}" style="position:absolute;left:70px;width:60px;">
+    <input type="number" class="ctx-input" step="0.001" min="0" max="128" value="${normalizedMag}" style="flex:0 0 70px;margin-left:auto">
+  </div>`;
 
-    // create numeric input (reuse value from oldMagInput if present)
-    const num = document.createElement('input');
-    num.type = 'number';
-    num.step = '0.001';
-    num.min = '0';
-    num.max = '1';
-    num.value = (typeof oldMagInput.value !== 'undefined') ? oldMagInput.value : String(Number(normalizedMag.toFixed(3)));
+  dbItem.innerHTML = `<div class="slider-row2">
+    <label>dB</label>
+    <input type="number" class="ctx-input" step="0.1" value="${isFinite(db)&&db>-199?db.toFixed(1):'-∞'}" style="flex:0 0 70px;margin-left:auto">
+  </div>`;
 
-    // push numeric to right
-    num.style.flex = '0 0 70px';
-    num.style.marginLeft = 'auto';
-    num.className = 'ctx-input'; // preserve the class for any selector reliance
-    row.appendChild(num);
+  phaseItem.innerHTML = `
+    <div class="slider-row2">
+      <label>Phase</label>
+      <input type="range" class="phase-slider" min="${-Math.PI}" max="${Math.PI}" step="0.001" style="flex:0 0 120px;margin-left:8px">
+      <input type="number" class="ctx-input" id="phase-num-input" step="0.001" min="${-Math.PI}" max="${Math.PI}" style="flex:0 0 70px;margin-left:8px" value="${phaseVal.toFixed(3)}">
+    </div>`;
 
-    // replace magItem content
-    magItem.innerHTML = '';
-    magItem.appendChild(row);
+  // re-query inputs after innerHTML replacement
+  const magInput = magItem.querySelector('.ctx-input');
+  const magRange = magItem.querySelector('.mag-slider');
+  const dbInput  = dbItem.querySelector('.ctx-input');
+  const phaseRange = phaseItem.querySelector('.phase-slider');
+  const phaseInput = phaseItem.querySelector('.ctx-input');
+  phaseRange.value = phaseInput.value = phaseVal;
 
-    // return numeric for wiring sync later
-    magItem._numInput = num;
-  })();
+  // compact helper conversions
+  const magToDb = m => { const ms = Math.max(Number(m)||0,1e-9); return 20*Math.log10(ms/256); };
+  const dbToMag = d => { if(!isFinite(Number(d))) return 0; return Math.min(1, Math.pow(10, Number(d)/20))*256; };
 
-  // Create new slider-row for dB (label -> numeric aligned right)
-  (function createDbRow(){
-    const labelText = extractLabelText(dbItem, 'dB');
-    const row = document.createElement('div');
-    row.className = 'slider-row2';
-
-    const lbl = document.createElement('label');
-    lbl.textContent = labelText;
-    row.appendChild(lbl);
-
-    const num = document.createElement('input');
-    num.type = 'number';
-    num.step = '0.1';
-    num.value = (typeof oldDbInput.value !== 'undefined') ? oldDbInput.value : ((isFinite(db) && db > -199) ? db.toFixed(1) : '-∞');
-    // push numeric to right
-    num.style.flex = '0 0 70px';
-    num.style.marginLeft = 'auto';
-    num.className = 'ctx-input';
-    row.appendChild(num);
-
-    dbItem.innerHTML = '';
-    dbItem.appendChild(row);
-
-    dbItem._numInput = num;
-  })();
-
-  // Create new slider-row for Phase (label -> slider -> numeric)
-  (function createPhaseRow(){
-    const labelText = extractLabelText(phaseItem, 'Phase (rad, 0..π)');
-    const row = document.createElement('div');
-    row.className = 'slider-row2';
-
-    const lbl = document.createElement('label');
-    lbl.textContent = labelText;
-    row.appendChild(lbl);
-
-    // range slider
-    const range = document.createElement('input');
-    range.type = 'range';
-    range.className = 'phase-slider';
-    range.min = String(0-Math.PI);
-    range.max = String(Math.PI);
-    range.step = '0.001';
-    range.style.flex = '0 0 120px';
-    range.style.marginLeft = '8px';
-
-    // numeric input
-    const num = document.createElement('input');
-    num.type = 'number';
-    num.step = '0.001';
-    num.min = String(0-Math.PI);
-    num.max = String(Math.PI);
-    num.style.flex = '0 0 70px';
-    num.style.marginLeft = '8px';
-    num.className = 'ctx-input';
-    num.id = 'phase-num-input';
-
-    // initialize values (prefer oldPhaseInput value)
-    const initPhase = (typeof oldPhaseInput.value !== 'undefined' && oldPhaseInput.value !== '') ? Number(oldPhaseInput.value) : Number(phaseVal || 0);
-    range.value = initPhase;
-    num.value = Number(initPhase).toFixed(3);
-
-    // wire syncing
-    range.addEventListener('input', (e) => {
-      num.value = Number(e.target.value).toFixed(3);
-    });
-    num.addEventListener('input', (e) => {
-      const v = Number(e.target.value);
-      if (!isFinite(v)) return;
-      const clamped = Math.max(0, Math.min(Math.PI, v));
-      range.value = clamped;
-      num.value = clamped.toFixed(3);
-    });
-
-    row.appendChild(range);
-    row.appendChild(num);
-
-    phaseItem.innerHTML = '';
-    phaseItem.appendChild(row);
-
-    phaseItem._numInput = num;
-    phaseItem._range = range;
-  })();
-
-  // Now wire mag <-> dB syncing (using the new numeric inputs)
-  const magNum = magItem._numInput;
-  const dbNum = dbItem._numInput;
-  const phaseNum = phaseItem._numInput;
-  const phaseRange = phaseItem._range;
-
-  function magToDb(m){
-    const mSafe = Math.max(Number(m) || 0, 1e-9);
-    return 20 * Math.log10(mSafe);
-  }
-  function dbToMag(d){
-    if (!isFinite(Number(d))) return 0;
-    return Math.min(1, Math.pow(10, Number(d) / 20));
-  }
-
-  if (magNum && dbNum) {
-    magNum.addEventListener('input', () => {
-      const m = Math.max(0, Math.min(1, Number(magNum.value) || 0));
-      const dd = magToDb(m);
-      dbNum.value = isFinite(dd) ? dd.toFixed(1) : '-∞';
-    });
-  }
-  if (dbNum && magNum) {
-    dbNum.addEventListener('input', () => {
-      const d = Number(dbNum.value);
-      const m = dbToMag(d);
-      magNum.value = m.toFixed(3);
-    });
-  }
-
-  // clamp phase numeric (already synced with range above)
-  if (phaseNum) {
-    phaseNum.addEventListener('input', () => {
-      let v = Number(phaseNum.value);
-      if (!isFinite(v)) v = 0;
-      v = Math.max(0, Math.min(Math.PI, v));
-      phaseNum.value = v.toFixed(3);
-      if (phaseRange) phaseRange.value = v;
-    });
-  }
-
-  // wire the Apply item click (find the Apply .ctx-item by its label)
-  const applyItem = Array.from(menu.querySelectorAll('.ctx-item')).find(el => {
-    return el.textContent && el.textContent.trim().startsWith('Apply');
+  // schedule live update (single compact function)
+  const scheduleLiveUpdate = () => requestAnimationFrame(()=>{
+    const magVal = Math.max(0, Math.min(128, Number(magInput.value)||0));
+    const phaseClamped = Math.max(-Math.PI, Math.min(Math.PI, Number(phaseInput.value)||0));
+    const bin = Math.floor(hz/(sampleRate/fftSize));
+    setPixelMagPhaseAtCursor(Math.floor(cx), bin, magVal, phaseClamped);
+    specCtx.putImageData(imageBuffer, 0, 0);
+    pos = Math.floor(cx) * hop;
+    autoRecomputePCM(Math.floor(cx), Math.floor(cx) + 1);
+    drawFrame(specWidth, specHeight);
   });
 
-  if (applyItem) {
-    // we replace its click behavior: read inputs and call setter then close
-    applyItem.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-
-      // read values from the new inputs
-      const magVal = magNum ? Math.max(0, Math.min(1, Number(magNum.value) || 0)) : normalizedMag;
-      const dbValRaw = dbNum ? dbNum.value : (isFinite(db) ? db.toFixed(1) : '-∞');
-      const dbVal = (dbValRaw === '-∞') ? -200 : Number(dbValRaw);
-      const phase = phaseNum ? Math.max(0, Math.min(Math.PI, Number(phaseNum.value) || 0)) : phaseVal;
-
-      // If a finite db was typed, prefer it (but your setPixelMagPhaseAtCursor expects mag & phase)
-      const finalMag = (isFinite(dbVal) && dbVal > -199) ? dbToMag(dbVal) : magVal;
-
-      // call your setter (we pass mag & phase); setPixelMagPhaseAtCursor should handle writing
-      try {
-        setPixelMagPhaseAtCursor(cx, cy, finalMag, phase);
-      } catch (err) {
-        console.error('Apply write error', err);
-      }
-      // close menu using your close function if present
-      try { closeMenu(); } catch (e) { /* ignore */ }
-    });
-  }
+  // compact wiring of events
+  magInput.addEventListener('input', () => { dbInput.value = magToDb(magInput.value).toFixed(1); scheduleLiveUpdate(); });
+  magRange.addEventListener('input', e => { magInput.value = Number(e.target.value); dbInput.value = magToDb(magInput.value).toFixed(1); scheduleLiveUpdate(); });
+  dbInput.addEventListener('input',  () => { magInput.value = dbToMag(dbInput.value).toFixed(3); scheduleLiveUpdate(); });
+  phaseRange.addEventListener('input', e => { phaseInput.value = Number(e.target.value).toFixed(3); scheduleLiveUpdate(); });
+  phaseInput.addEventListener('input', () => {
+    let v = Math.max(-Math.PI, Math.min(Math.PI, Number(phaseInput.value)||0));
+    phaseInput.value = v.toFixed(3); phaseRange.value = v; scheduleLiveUpdate();
+  });
 
   return menu;
 }
 
 
+
 function makeTimelineMenu(){
+  const factor = (sampleRate/hopSizeEl.value); // seconds -> sample/index multiplier
+  const currentMinSec = iLow / factor;
+  const currentMaxSec = iHigh / factor;
+
   const items = [
-    { label: 'Zoom to fit', desc: 'Scale timeline so all data fits in view', onClick: ()=> { zoomTimelineFit(); } },
+    { label: 'Zoom to fit', onClick: ()=> zoomTimelineFit() },
     { type:'separator' },
-    { label: 'Set min', desc: `Current: ${iLow/(sampleRate/specHeight*2)}`, onClick: ()=> {
-        const v = prompt('Set timeline min (seconds):', String(iLow/(sampleRate/specHeight*2)));
-        if (v !== null) { const n = Number(v)*(sampleRate/specHeight*2); if (!isNaN(n) && n>0 && Number(v)<iHigh){ iLow = n; drawTimeline(); } }
-        closeMenu();
-      } },
-    { label: 'Set max', desc: `Current: ${iHigh/(sampleRate/specHeight*2)}`, onClick: ()=> {
-        const v = prompt('Set timeline max (seconds):', String(iHigh/(sampleRate/specHeight*2)));
-        if (v !== null) { const n = Number(v)*(sampleRate/specHeight*2); if (!isNaN(n) && Number(v)<=specWidth && Number(v)>iLow){ iHigh = n; drawTimeline(); } }
-        closeMenu();
-      } },
+    { type:'input', label: 'Set min', value: currentMinSec },
+    { type:'input', label: 'Set max', value: currentMaxSec },
   ];
-  return buildMenu(items);
+
+  const menu = buildMenu(items);
+
+  const inputs = Array.from(menu.querySelectorAll('.ctx-input'));
+  const minItem = inputs[0]?.closest('.ctx-item');
+  const maxItem = inputs[1]?.closest('.ctx-item');
+
+  function makeSlideRow(labelText, valueSec){
+    return `
+      <div class="slide-row2" style="display:flex;align-items:center;gap:8px">
+        <label style="flex:1">${labelText}</label>
+        <input type="number" class="ctx-input timeline-sec-input" step="0.01" min="0" value="${(isFinite(valueSec)?valueSec:'0')}"
+          style="flex:0 0 90px;
+                 border-radius:6px;
+                 background-color:#333;
+                 color:#fff;
+                 border:1px solid #aaa;
+                 padding:2px 6px">
+      </div>`;
+  }
+
+  if (minItem) minItem.innerHTML = makeSlideRow('Set min', currentMinSec);
+  if (maxItem) maxItem.innerHTML = makeSlideRow('Set max', currentMaxSec);
+
+  function wireRow(itemEl, isMin){
+    if (!itemEl) return;
+    const input = itemEl.querySelector('.timeline-sec-input');
+
+    input.addEventListener('input', () => {
+      let v = Number(input.value);
+      if (isNaN(v)) v = 0;
+      const n = v * factor;
+
+      if (isMin){
+        if (n >= 0 && v <= iHigh / factor){
+          iLow = n;
+          drawTimeline();
+        }
+      } else {
+        if (v >= iLow / factor && (typeof specWidth === 'undefined' || v <= specWidth)){
+          iHigh = n;
+          drawTimeline();
+        }
+      }
+    });
+
+    // optional: pressing Escape closes menu
+    input.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  }
+
+  wireRow(minItem, true);
+  wireRow(maxItem, false);
+
+  return menu;
 }
+
 
 function makeYAxisMenu(){
   const items = [
-    { type: 'check', label: 'Show Hz / Note', checked: useHz,
-      onToggle: (v)=>{ useHz = v; drawYAxis(); } },
-    { label: 'Zoom to fit', desc: 'Fit frequency range to data', onClick: ()=> zoomYAxisFit() },
+    { type:'check', label:'Show Hz / Note', checked: useHz },
+    { label:'Zoom to fit', onClick: ()=> zoomYAxisFit() },
     { type:'separator' },
-    { label: 'Set min', desc: `Current: ${fLow} Hz`, onClick: ()=> {
-        const v = prompt('Set y-axis min frequency in Hz:', String(fLow));
-        if (v !== null) { const n=Number(v); if (!isNaN(n)){ fLow = n; drawYAxis(); } }
-      } },
-    { label: 'Set max', desc: `Current: ${fHigh} Hz`, onClick: ()=> {
-        const v = prompt('Set y-axis max frequency in Hz:', String(fHigh));
-        if (v !== null) { const n=Number(v); if (!isNaN(n)){ fHigh = n; drawYAxis(); } }
-      } },
+    { type:'input', label:'Set min', value: fLow },
+    { type:'input', label:'Set max', value: fHigh },
     { type:'separator' },
-    { type:'toggle', label: 'Log scale', desc: 'Switch y-axis between linear and log', checked: (Number(logscaleEl.value) > 1),
-      onToggle: (v)=>{
-        // map toggle to logscaleEl.value — if toggled on, set to 2, else set to 1
-        logscaleEl.value = v ? 2 : 1;
-        // if real input uses onchange, trigger it:
-        logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
-        drawYAxis();
-      } }
+    { type:'input', label:'Logscale', value: Number(logscaleEl.value) }
   ];
-  return buildMenu(items);
+
+  const menu = buildMenu(items);
+
+  const inputs = Array.from(menu.querySelectorAll('.ctx-input'));
+  const minItem = inputs[0]?.closest('.ctx-item');
+  const maxItem = inputs[1]?.closest('.ctx-item');
+  const logItem = inputs[2]?.closest('.ctx-item');
+
+  // numeric input row helper (like canvas menu)
+  function makeSliderRow(labelText, value, min=0, max=100, step=0.01){
+    return `
+      <div class="slide-row2" style="display:flex;align-items:center;gap:8px">
+        <label style="wrap:nowrap;">${labelText}</label>
+        <input type="range" class="ctx-slider" min="${min}" max="${max}" step="${step}" value="${value}" style="flex:1; width:50px">
+        <input type="number" class="ctx-input" value="${value}" step="${step}" min="${min}" max="${max}"
+          style="flex:0 0 70px;
+                 border-radius:6px;
+                 background-color:#333;
+                 color:#fff;
+                 border:1px solid #aaa;
+                 padding:2px 6px">
+      </div>`;
+  }
+
+  // replace min/max rows
+  if(minItem) minItem.innerHTML = makeSliderRow('Set min', fLow, 0, fHigh, 1);
+  if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', fHigh, fLow, 20000, 1); // assume 20kHz upper limit
+
+  // replace log scale row
+  if(logItem) logItem.innerHTML = makeSliderRow('Log scale', Number(logScaleVal), 1, 2, 0.01);
+
+  // wiring helpers
+  function wireSliderRow(itemEl, getValue, setValue, minVal, maxVal){
+    if(!itemEl) return;
+    const slider = itemEl.querySelector('.ctx-slider');
+    const input = itemEl.querySelector('.ctx-input');
+
+    const apply = (v)=>{
+      let val = Math.max(minVal, Math.min(maxVal, Number(v)));
+      setValue(val);
+      slider.value = input.value = val;
+      drawYAxis();
+    };
+
+    slider.addEventListener('input', e=> apply(e.target.value));
+    input.addEventListener('input', e=> apply(e.target.value));
+    input.addEventListener('keydown', e=>{ if(e.key==='Escape') closeMenu(); });
+  }
+
+  wireSliderRow(minItem, ()=>fLow, v=>{ fLow=v; if(v>fHigh) fHigh=v; }, 0, fHigh);
+  wireSliderRow(maxItem, ()=>fHigh, v=>{ fHigh=v; if(v<fLow) fLow=v; }, fLow, 20000);
+  wireSliderRow(logItem, ()=>Number(logscaleEl.value), v=>{
+    logscaleEl.value = v;
+    logScaleVal = v;
+    logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
+    restartRender();
+    drawYAxis();
+  }, 1, 2);
+
+  // keep the Show Hz / Note checkbox
+  const checkItem = menu.querySelector('.ctx-item'); // the first ctx-item is the checkbox
+    if(checkItem){
+        checkItem.addEventListener('click', e => {
+            e.stopPropagation(); // prevent menu from closing
+            useHz = !useHz;
+            const left = checkItem.querySelector('.ctx-check');
+            if(left){
+                left.classList.toggle('checked', useHz);
+                left.innerHTML = useHz ? '✓' : '';
+            }
+            drawYAxis();
+        });
+    }
+
+  return menu;
 }
 
-function makeLogscaleMenu(){
+
+function makeLogscaleMenu() {
+  const value = logScaleVal;
   const items = [
-    { label: 'Set logscale value', desc: `Current value: ${logscaleEl.value}`, type: 'input', value: String(logscaleEl.value),
-      onConfirm: (val)=>{
-        const n = Number(val); if (!isNaN(n)){ logscaleEl.value = n; logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change')); drawYAxis(); }
-      }, placeholder: 'numeric value (e.g. 1.0 or 2.0)'
-    }
+    { type: 'input', label: 'Logscale', value: value }
   ];
-  return buildMenu(items);
+
+  const menu = buildMenu(items);
+
+  const inputItem = menu.querySelector('.ctx-item');
+  if (!inputItem) return menu;
+
+  // create slider + numeric input row
+  inputItem.innerHTML = `
+    <div class="slide-row2" style="display:flex;align-items:center;gap:8px">
+      <label style="flex:1">Logscale</label>
+      <input type="range" class="ctx-slider" min="1" max="2" step="0.01" value="${value}" style="flex:1; width:50px">
+      <input type="number" class="ctx-input" value="${value}" step="0.01" min="1" max="2"
+        style="flex:0 0 70px;
+               border-radius:6px;
+               background-color:#333;
+               color:#fff;
+               border:1px solid #aaa;
+               padding:2px 6px">
+    </div>
+  `;
+
+  const slider = inputItem.querySelector('.ctx-slider');
+  const numberInput = inputItem.querySelector('.ctx-input');
+
+  const apply = (v) => {
+    const val = Math.max(1, Math.min(2, Number(v)));
+    logscaleEl.value = val;
+    logScaleVal = val;
+    slider.value = numberInput.value = val;
+    logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
+    drawYAxis();
+    restartRender();
+  };
+
+  slider.addEventListener('input', e => apply(e.target.value));
+  numberInput.addEventListener('input', e => apply(e.target.value));
+  numberInput.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+  return menu;
 }
 
 function makeEQMenu(){
@@ -689,18 +615,6 @@ window.addEventListener('scroll', closeMenu, true);
 [canvas, timeline, yAxis, EQcanvas].forEach(el=> {
   if (!el) return;
   el.addEventListener('mousedown', (ev)=> {
-    // right click handled above. keep native for left click
-    // if you want to always prevent native menu on these elements, uncomment:
-    // ev.preventDefault();
+    ev.preventDefault();
   });
 });
-
-// Example: wire logscaleEl change to drawYAxis if present
-if (logscaleEl && logscaleEl.addEventListener){
-  logscaleEl.addEventListener('change', ()=> {
-    console.log('logscale changed to', logscaleEl.value);
-    drawYAxis();
-  });
-}
-
-// done

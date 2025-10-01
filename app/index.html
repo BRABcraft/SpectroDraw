@@ -1441,7 +1441,7 @@ function canvasMouseMove(e,touch) {
       const i = hx*specHeight+hy;
       let normalizedMag = Math.min(1, mags[i] / 256);
       let db = (20 * Math.log10(normalizedMag)).toFixed(1);
-      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
+      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db ${i}`
     }
     if (!painting && currentTool === "brush" || currentTool === "eraser" || currentTool === "blur" || currentTool === "amplifier") {
         previewShape(cx, cy);
@@ -1515,53 +1515,7 @@ function canvasMouseUp(e,touch) {
     // ---- DEFER history + recompute until after rendering completes ----
     if (snapshotMags && snapshotPhases && mags && phases) {
       // compute changed columns immediately so we can recompute PCM before rendering
-      const epsMag = 1e-6;
-      const epsPhase = 1e-3;
-      const h = specHeight;
-      const total = mags.length;
-
-      let minCol = Infinity, maxCol = -Infinity;
-      for (let idx = 0; idx < total; idx++) {
-        const oldM = snapshotMags[idx] || 0;
-        const newM = mags[idx] || 0;
-        if (Math.abs(oldM - newM) > epsMag) {
-          const col = Math.floor(idx / h);
-          if (col < minCol) minCol = col;
-          if (col > maxCol) maxCol = col;
-          continue;
-        }
-        const oldP = snapshotPhases[idx] || 0;
-        const newP = phases[idx] || 0;
-        if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
-          const col = Math.floor(idx / h);
-          if (col < minCol) minCol = col;
-          if (col > maxCol) maxCol = col;
-        }
-      }
-
-      if (isFinite(minCol)) {
-        // clamp into specWidth range
-        minCol = Math.max(0, minCol);
-        maxCol = Math.min(specWidth - 1, maxCol);
-
-        // Recompute PCM now so the upcoming render uses the updated PCM.
-        // Pass the snapshots so recompute avoids clicks.
-        try {
-          recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
-          // mark that we already recomputed these columns to avoid double-work later
-          pendingRecomputeDone = true;
-          pendingRecomputeMinCol = minCol;
-          pendingRecomputeMaxCol = maxCol;
-        } catch (e) {
-          console.warn("Immediate recomputePCMForCols failed, will attempt recompute after render:", e);
-          pendingRecomputeDone = false;
-          pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
-        }
-      } else {
-        // nothing changed according to snapshot vs current
-        pendingRecomputeDone = false;
-        pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
-      }
+      autoRecomputePCM(-1,-1);
 
       // still defer the history push so it happens after render finishes
       pendingHistory = true;
@@ -1583,6 +1537,62 @@ function canvasMouseUp(e,touch) {
     audioProcessed = 0;
 
     // removed immediate playPCM() here because we now defer it (when relevant)
+}
+
+function autoRecomputePCM(min,max) {
+  const epsMag = 1e-6;
+  const epsPhase = 1e-3;
+  const h = specHeight;
+  const total = mags.length;
+  let minCol, maxCol;
+  if (min == -1) {
+    minCol = Infinity; maxCol = -Infinity;
+    for (let idx = 0; idx < total; idx++) {
+      const oldM = (snapshotMags) ? snapshotMags[idx] : 0;
+      const newM = mags[idx] ?? 0;
+      if (Math.abs(oldM - newM) > epsMag) {
+        const col = Math.floor(idx / h);
+        if (col < minCol) minCol = col;
+        if (col > maxCol) maxCol = col;
+        continue;
+      }
+      const oldP = (snapshotPhases) ? snapshotPhases[idx] : 0;
+      const newP = phases[idx] || 0;
+      if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
+        const col = Math.floor(idx / h);
+        if (col < minCol) minCol = col;
+        if (col > maxCol) maxCol = col;
+      }
+    }
+  } else {
+    minCol = min;
+    maxCol = max;
+  }
+  
+
+  if (isFinite(minCol)) {
+    // clamp into specWidth range
+    minCol = Math.max(0, minCol);
+    maxCol = Math.min(specWidth - 1, maxCol);
+
+    // Recompute PCM now so the upcoming render uses the updated PCM.
+    // Pass the snapshots so recompute avoids clicks.
+    try {
+      recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
+      // mark that we already recomputed these columns to avoid double-work later
+      pendingRecomputeDone = true;
+      pendingRecomputeMinCol = minCol;
+      pendingRecomputeMaxCol = maxCol;
+    } catch (e) {
+      console.warn("Immediate recomputePCMForCols failed, will attempt recompute after render:", e);
+      pendingRecomputeDone = false;
+      pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+    }
+  } else {
+    // nothing changed according to snapshot vs current
+    pendingRecomputeDone = false;
+    pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+  }
 }
 
 

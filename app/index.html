@@ -1109,15 +1109,93 @@ function drawFrame(w,h) {
     }
     pos += hop; x++;
     audioProcessed += hop;
-    if (x >= w) { rendering = false; 
-        if (!painting && autoPlayOnFinish) {
-            autoPlayOnFinish = false;
-            playPCM(true);
+    if (x >= w) {
+      // we've finished rendering the requested region
+      rendering = false;
+
+      if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
+        pendingHistory = false; // consume the flag
+
+        // push history entry now that we're done rendering
+        newHistory();
+
+        // Only recompute here if we did NOT already recompute in canvasMouseUp.
+        const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
+        if (!pendingRecomputeDone) {
+          if (lastEntry) {
+            recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
+          }
+        } else {
+          // we already recomputed; clear the pendingRecompute markers
+          pendingRecomputeDone = false;
+          pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
         }
-        status.style.display = "none";
-        return false;
+
+        // now safe to release snapshots
+        snapshotMags = null;
+        snapshotPhases = null;
+      }
+
+      // If the mouseup handler wanted playback after render, do it now.
+      if (pendingPlayAfterRender) {
+        pendingPlayAfterRender = false;
+        try {
+          playPCM(); // default loop=true (keeps previous behavior)
+        } catch (e) { console.warn("playPCM() failed after render:", e); }
+        const playPauseEl = document.getElementById("playPause");
+        if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
+      }
+
+      // preserve earlier auto-play-on-finish behavior
+      if (!painting && autoPlayOnFinish) {
+          autoPlayOnFinish = false;
+          playPCM(true);
+      }
+      status.style.display = "none";
+      return false;
     }
     return true;
+}
+
+
+/* ----- add these globals near the top of your file (global scope) ----- */
+/* ----- add these globals near the top of your file (global scope) ----- */
+let requestSpecUpdate = false;      // set true when mouseup wants to wait for next spec update
+let resolveSpecUpdate = null;       // resolver for the waiting promise
+const SPEC_UPDATE_TIMEOUT_MS = 2000; // fallback timeout
+
+// new globals to defer history/play until render completes
+let pendingHistory = false;
+let pendingPlayAfterRender = false;
+
+// recompute tracking so we don't run recompute twice
+let pendingRecomputeDone = false;
+let pendingRecomputeMinCol = null;
+let pendingRecomputeMaxCol = null;
+
+
+function waitForSpecUpdate(timeout = SPEC_UPDATE_TIMEOUT_MS) {
+  // If rendering is already false (no update pending), resolve immediately
+  if (!rendering && !requestSpecUpdate) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    // store resolver so drawLoop can call it
+    resolveSpecUpdate = (ok = true) => {
+      // guard: only call once
+      if (!resolveSpecUpdate) return;
+      const r = resolve;
+      resolveSpecUpdate = null;
+      requestSpecUpdate = false;
+      r(ok);
+    };
+
+    // safety timeout so we don't hang forever
+    setTimeout(() => {
+      if (resolveSpecUpdate) {
+        resolveSpecUpdate(false); // timed out
+      }
+    }, timeout);
+  });
 }
 
 function drawLoop() {
@@ -1132,9 +1210,18 @@ function drawLoop() {
         if (!drawFrame(w,h)) break;
     }
 
+    // update the specCanvas pixels and view
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
     drawCursor(true);
+
+    // If someone is waiting for "the next spec update", resolve them now.
+    if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') {
+      // resolve true to indicate we updated
+      resolveSpecUpdate(true);
+      // resolveSpecUpdate will clear requestSpecUpdate and itself
+    }
+
     const elapsedMS = performance.now() - startTime;
     const elapsedSec = elapsedMS / 1000;
     const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
@@ -1146,7 +1233,7 @@ function drawLoop() {
         + `Speed: ${(speed/sampleRate).toFixed(2)}x realtime`;
     if (rendering) {
       status.style.display = "block";
-      requestAnimationFrame(drawLoop);
+      requestAnimationFrame(() => drawLoop());
     }
 }
 
@@ -1422,38 +1509,82 @@ function canvasMouseUp(e,touch) {
 
     startX=startY=null;
 
-    if (snapshotMags && snapshotPhases && mags && phases) {
-      newHistory();
-
-      const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
-      if (lastEntry) {
-        // pass the snapshots for delta-mode synth to avoid clicks on existing loud regions
-        recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
-      }
-
-      // now safe to release snapshots
-      snapshotMags = null;
-      snapshotPhases = null;
-    }
-
     startTime = performance.now();
     audioProcessed = 0;
-    playPCM();
-    document.getElementById("playPause").innerHTML=pauseHtml;
+
+    // ---- DEFER history + recompute until after rendering completes ----
+    if (snapshotMags && snapshotPhases && mags && phases) {
+      // compute changed columns immediately so we can recompute PCM before rendering
+      const epsMag = 1e-6;
+      const epsPhase = 1e-3;
+      const h = specHeight;
+      const total = mags.length;
+
+      let minCol = Infinity, maxCol = -Infinity;
+      for (let idx = 0; idx < total; idx++) {
+        const oldM = snapshotMags[idx] || 0;
+        const newM = mags[idx] || 0;
+        if (Math.abs(oldM - newM) > epsMag) {
+          const col = Math.floor(idx / h);
+          if (col < minCol) minCol = col;
+          if (col > maxCol) maxCol = col;
+          continue;
+        }
+        const oldP = snapshotPhases[idx] || 0;
+        const newP = phases[idx] || 0;
+        if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
+          const col = Math.floor(idx / h);
+          if (col < minCol) minCol = col;
+          if (col > maxCol) maxCol = col;
+        }
+      }
+
+      if (isFinite(minCol)) {
+        // clamp into specWidth range
+        minCol = Math.max(0, minCol);
+        maxCol = Math.min(specWidth - 1, maxCol);
+
+        // Recompute PCM now so the upcoming render uses the updated PCM.
+        // Pass the snapshots so recompute avoids clicks.
+        try {
+          recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
+          // mark that we already recomputed these columns to avoid double-work later
+          pendingRecomputeDone = true;
+          pendingRecomputeMinCol = minCol;
+          pendingRecomputeMaxCol = maxCol;
+        } catch (e) {
+          console.warn("Immediate recomputePCMForCols failed, will attempt recompute after render:", e);
+          pendingRecomputeDone = false;
+          pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+        }
+      } else {
+        // nothing changed according to snapshot vs current
+        pendingRecomputeDone = false;
+        pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+      }
+
+      // still defer the history push so it happens after render finishes
+      pendingHistory = true;
+      pendingPlayAfterRender = true; // preserve the old behavior of starting playback after mouseup
+    } else {
+      // fallback (no snapshots) — immediate playback
+      playPCM();
+      const playPauseEl = document.getElementById("playPause");
+      if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
+    }
     
     const startFrame = Math.max(0, Math.floor(iLow || 0));
     pos = startFrame * hop;
     x = startFrame;
     rendering = true;
-    requestAnimationFrame(drawLoop);
+    requestAnimationFrame(() => drawLoop());
 
     startTime = performance.now();
     audioProcessed = 0;
 
-    playPCM();
-    console.log("PCM updated from phase-aware spectrogram!");
-
+    // removed immediate playPCM() here because we now defer it (when relevant)
 }
+
 
 function newHistory() {
   const epsMag = 1e-6;         

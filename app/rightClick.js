@@ -1,4 +1,3 @@
-// Replace these stubs with your own integration functions
 function updateTools(){
     toolButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tool === currentTool);
@@ -8,7 +7,8 @@ function updateTools(){
     updateBrushPreview();
 }
 function applyEQChanges(){
-    console.log('applyEQChanges() - implement', eqBands);
+    updateEQ();
+    scheduleDraw();
 }
 function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
     const idx = x*specHeight + y
@@ -237,7 +237,7 @@ const TOOLS = ['brush','rectangle','line','blur','eraser','amplifier','image'];
 //Need to remove the up/down arrow in the inputs
 function makeCanvasMenu(cx0, cy0){
   const rect = canvas.getBoundingClientRect();
-  const cx = cx0 * canvas.width / rect.width;
+  const cx = cx0 * canvas.width / rect.width + iLow;
   const cy = cy0 * canvas.height / rect.height;
 
   let hz = 0, secs = 0, i = -1, normalizedMag = 0, db = -200, phaseVal = 0;
@@ -327,7 +327,7 @@ function makeCanvasMenu(cx0, cy0){
     setPixelMagPhaseAtCursor(Math.floor(cx), bin, magVal, phaseClamped);
     specCtx.putImageData(imageBuffer, 0, 0);
     pos = Math.floor(cx) * hop;
-    autoRecomputePCM(Math.floor(cx), Math.floor(cx) + 1);
+    autoRecomputePCM(Math.floor(cx), Math.floor(cx));
     drawFrame(specWidth, specHeight);
   });
 
@@ -548,39 +548,40 @@ function makeLogscaleMenu() {
   return menu;
 }
 
-function makeEQMenu(){
-  const addPoint = ()=> {
-    const type = prompt('Type (peaking/low_shelf/high_shelf):','peaking') || 'peaking';
-    const freq = Number(prompt('Frequency (Hz):','1000') || 1000);
-    const gain = Number(prompt('Gain (dB):','0') || 0);
-    const Q = Number(prompt('Q:', '1') || 1);
-    eqBands.push({ type, freq, gain, Q, angle: Math.PI/2, tLen: 60 });
+function makeEQMenu(cx,cy){
+  const h = EQcanvas.height;
+  const w = EQcanvas.width;
+
+  const addPoint = () => {
+    const newPoint = {
+        type: "peaking",
+        freq: yToFreq(cy, h),
+        gain: xToGain(cx, w),
+        Q: 1,
+        angle: Math.PI/2,
+        tLen: 60
+    };
+
+    // find the insertion index (first band with freq > newPoint.freq)
+    let idx = eqBands.findIndex(b => b.freq > newPoint.freq);
+    if (idx === -1) idx = eqBands.length; // insert at end if none is greater
+
+    eqBands.splice(idx, 0, newPoint);
     applyEQChanges();
-  };
+};
   const removePoint = ()=> {
-    if (!eqBands.length){ alert('No EQ points to remove'); return; }
-    // Build a submenu listing items
-    const submenu = eqBands.map((b, idx) => ({
-      label: `#${idx}: ${b.type} ${b.freq}Hz ${b.gain}dB`,
-      desc: `Q=${b.Q}, tLen=${b.tLen}`,
-      onClick: ()=> { eqBands.splice(idx,1); applyEQChanges(); }
-    }));
-    const menu = buildMenu([
-      { label: 'Remove specific point', desc: 'Choose a point to remove', submenu: submenu }
-    ]);
-    // show it near center of current menu; since we call this from inside other menu, append to root
-    MENU_ROOT.appendChild(menu);
-    // position centered
-    const rect = MENU_ROOT.getBoundingClientRect();
-    menu.style.left = (rect.left + 40) + 'px';
-    menu.style.top = (rect.top + 40) + 'px';
+    const pos = {x:cx, y:cy};
+    const hit = findHit(pos);
+    console.log(hit);
+    if (hit && hit.type === 'point'){
+        eqBands.splice(hit.index, 1);
+        applyEQChanges();
+    }
   };
 
   const items = [
-    { label: 'Add point', desc: 'Add a new EQ band (freq, gain, Q)', onClick: addPoint },
-    { label: 'Remove point', desc: 'Remove an existing EQ band', onClick: removePoint },
-    { type:'separator' },
-    { label: 'List current points', desc: `Count: ${eqBands.length}`, onClick: ()=> { console.table(eqBands); alert('See console.table(eqBands)'); } }
+    { label: 'Add point', onClick: addPoint },
+    { label: 'Remove point', onClick: removePoint }
   ];
   return buildMenu(items);
 }
@@ -605,7 +606,11 @@ timeline && timeline.addEventListener('contextmenu', (e)=> preventAndOpen(e, mak
 yAxis && yAxis.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeYAxisMenu));
 // attach plain contextmenu to logscaleEl too:
 logscaleEl && logscaleEl.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
-EQcanvas && EQcanvas.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeEQMenu));
+EQcanvas && EQcanvas.addEventListener('contextmenu', (e)=> {
+    const rect = EQcanvas.getBoundingClientRect();
+    const cx = Math.floor((e.clientX - rect.left));
+    const cy = Math.floor((e.clientY - rect.top));
+    preventAndOpen(e, ()=> makeEQMenu(cx,cy))});
 
 // close on window resize/scroll
 window.addEventListener('resize', closeMenu);

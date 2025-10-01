@@ -7,6 +7,7 @@ function updateTools(){
     updateBrushPreview();
 }
 function applyEQChanges(){
+    updateGlobalGain();
     updateEQ();
     scheduleDraw();
 }

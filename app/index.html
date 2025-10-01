@@ -18,7 +18,7 @@
         <line x1="4" y1="16" x2="16" y2="16" />
       </svg>
     </button>
-    <button id="rec" title="Record">
+    <button id="rec" title="Record (Ctrl + space)">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 15a4 4 0 0 0 8 0" />
         <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="black"/>
@@ -26,16 +26,16 @@
         <line x1="9" y1="21" x2="15" y2="21"/>
       </svg>
     </button>
-    <input id="file" type="file" accept="audio/*,video/*" style="display:none;"/>
-    <button id="playPause" title="play" style="margin-left: 20px">
+    <input id="file" title="Import audio (Ctrl + O)" type="file" accept="audio/*,video/*" style="display:none;"/>
+    <button id="playPause" title="Play (space)" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>
     </button>
-    <button id="stop" title="stop">
+    <button id="stop" title="Stop">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="0 0 20 20">
         <rect x="0" y="0" width="18" height="18" rx="2" ry="2"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="brush" style="margin-left: 20px" title="Brush">
+    <button class="tool-btn" data-tool="brush" id="brushBtn" style="margin-left: 20px" title="Brush (b)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" 
            viewBox="5 4 18 18" 
@@ -43,7 +43,7 @@
         <path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="rectangle" title="Rectangle">
+    <button class="tool-btn" data-tool="rectangle" id="rectBtn" title="Rectangle (r)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" viewBox="0 0 20 20" 
            fill="none"
@@ -51,7 +51,7 @@
         <path d="M0 0 H 20 V 20 H 0 V -20"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="line" title="Line">
+    <button class="tool-btn" data-tool="line" id="lineBtn" title="Line (l)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" viewBox="0 0 20 20" 
            fill="none"
@@ -59,7 +59,7 @@
         <path d="M20 0 L 0 20"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="blur" title="Blur">
+    <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="24" height="24" 
            viewBox="0 0 24 24" 
@@ -67,19 +67,19 @@
         <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="eraser" title="Eraser">
+    <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
       <svg width="20" height="20" viewBox="-1 -1 16 16">
         <path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/>
         <path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="amplifier" title="Amplifier / Reducer">
+    <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/>
         <path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/>
     </svg>
     </button>
-    <button class="tool-btn" data-tool="image" title="Image Overlay">
+    <button class="tool-btn" data-tool="image" id="imageBtn" title="Image Overlay (i)">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
         <polygon points="1,20 8,10 15,20" fill="#333"/>
@@ -98,7 +98,7 @@
         </g>
       </svg>
     </button>
-    <button id="yAxisMode" title="Toggle Y axis label mode">
+    <button id="yAxisMode" title="Toggle Y axis label mode (y)">
       <svg xmlns="http://www.w3.org/2000/svg" 
          width="28" height="28" viewBox="0 0 20 20" 
          fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -107,7 +107,7 @@
         <line x1="4" y1="4" x2="18" y2="14" />
       </svg>
     </button>
-     <button id="downloadWav" style="margin-left:20px" title="Download audio">
+     <button id="downloadWav" style="margin-left:20px" title="Download audio (ctrl + s)">
       <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
         <path d="M5 14v4h2v-4H6z" />
@@ -116,7 +116,7 @@
         <path d="M9 19l3 3 3 -3" />
       </svg>
     </button>
-    <button id="downloadButton" title="Download spectrogram">
+    <button id="downloadButton" title="Download spectrogram (ctrl + shift + s)">
       <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="14" rx="2" ry="2" />
         <circle cx="17" cy="7" r="2" />
@@ -150,7 +150,7 @@
   </header>
   <aside class="left-bar">
   <!-- Settings cogwheel -->
-  <button class="panel-btn" id="settingsBtn" title="General" data-tool="0">
+  <button class="panel-btn" id="settingsBtn" title="General (g)" data-tool="0">
     <svg xmlns="http://www.w3.org/2000/svg" 
          width="20" height="20" viewBox="0 0 24 24" 
          fill="none" stroke="white" stroke-width="2" 
@@ -181,20 +181,20 @@
   </button>
 
   <!-- Piano keys -->
-  <button class="panel-btn" id="pianoBtn" title="Piano" data-tool="1">
+  <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="1">
     <svg xmlns="http://www.w3.org/2000/svg" 
-         width="24" height="24" viewBox="0 0 24 24" 
+         width="24" height="24" viewBox="0 0 24 22" 
          fill="none" stroke="white" stroke-width="2" 
          stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="2" ry="2"/>
-      <line x1="8" y1="5" x2="8" y2="19"/>
-      <line x1="16" y1="5" x2="16" y2="19"/>
-      <line x1="12" y1="5" x2="12" y2="15"/>
+      <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+      <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
+      <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
+      <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
     </svg>
   </button>
 
   <!-- EQ curve -->
-  <button class="panel-btn" id="eqBtn" title="Equalizer" data-tool="2">
+  <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="2">
     <svg xmlns="http://www.w3.org/2000/svg" 
          width="24" height="24" viewBox="0 0 24 24" 
          fill="none" stroke="white" stroke-width="2" 
@@ -309,7 +309,7 @@
         <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
       </div>
       <label class="h1">MIDI Export</label>
-      <!--Remove harmonicse button-->
+      <!--Remove harmonics button-->
       <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics" onClick="removeHarmonics()">Remove Harmonics</button>
       <!--Notes per octave (achieve with pitch bends)-->
       <div class="slider-row" title="Notes Per Octave">
@@ -330,7 +330,7 @@
       </div>
       <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
       <!--Export button-->
-      <button class="leftBtn" id="exportMIDI" title="Export Midi" onclick="exportMidi()">Export MIDI</button>
+      <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>
     </div>
     <div id="d3" style="display:none; height: 80%">
       <h2 style="margin-bottom:10px;margin-top:10px;">Equalizer</h2>
@@ -639,6 +639,87 @@ overlayFile.addEventListener("change", e => {
   img.onload = () => {overlayImage = img; updateBrushPreview();}
   img.src = URL.createObjectURL(f);
 });
+
+//Keybinds
+function keyBind(event) {
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
+    return; // Ignore key events when focused on input elements
+  }
+  const key = event.key.toLowerCase();
+  if (key === 'b') {
+    document.getElementById("brushBtn").click();
+  } else if (key === 'e') {
+    document.getElementById("eraserBtn").click();
+  } else if (key === 'p') {
+    document.getElementById("pianoBtn").click();
+  } else if (key === 'g') {
+    document.getElementById("settingsBtn").click();
+  } else if (key === 'q') {
+    document.getElementById("eqBtn").click();
+  } else if (key === 'r') {
+    document.getElementById("rectBtn").click();
+  } else if (key === 'a') {
+    document.getElementById("amplifierBtn").click();
+  } else if (key === 'u') {
+    document.getElementById("blurBtn").click();
+  } else if (key === 'i' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+    document.getElementById("imageBtn").click();
+  } else if (key === 'l') {
+    document.getElementById("lineBtn").click();
+  } else if ((event.ctrlKey || event.metaKey) && key === 'o') {
+    event.preventDefault();
+    fileEl.click();
+  } else if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 's') {
+    event.preventDefault();
+    document.getElementById('downloadButton').click();
+  } else if ((event.ctrlKey || event.metaKey) && key === 's') {
+    event.preventDefault();
+    document.getElementById('downloadWav').click();
+  } else if ((event.ctrlKey || event.metaKey) && key === 'm') {
+    exportMidi();
+  } else if ((event.ctrlKey || event.metaKey) && key === ' ') {
+    recordBtn.click();
+  } else if (key === 'y' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+    yAxisMode.click();
+  } else if (key === 'a') {
+    alignPitchBtn.click();
+  } else if (key === 's') {
+    alignTimeBtn.click();
+  }
+}
+document.addEventListener("keydown", (e) => {
+  const active = document.activeElement;
+  if (active && active.matches("input[type=range]")) {
+    // Allow arrow keys and tab navigation
+    if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Tab"].includes(e.key)) {
+      return; 
+    }
+    // For any other key, blur so global hotkeys work
+    active.blur();
+    setTimeout(() => {
+      const evt = new KeyboardEvent('keydown', {
+        key: e.key,
+        code: e.code,
+        keyCode: e.keyCode,
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+        metaKey: e.metaKey
+      });
+      document.dispatchEvent(evt);
+    }, 0);
+
+    // stop the original event from propagating (optional, avoids duplicate handling)
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
+document.addEventListener('keydown', (event) => {
+  keyBind(event);
+});
+//End keybinds
 
 </script>
 <script src="axes.js"></script>
@@ -1386,6 +1467,7 @@ let sx2 = 0, sy2 = 0;
 function canvasMouseDown(e,touch) {
     if (!mags || !phases) return;
     if (!touch && e.button !== 0) return;
+    if (pendingHistory) return; // don't start a new paint if we're waiting to commit prior one
 
     painting = true;
 

@@ -411,7 +411,7 @@ playPauseBtn.addEventListener("click", () => {
 });
 
 document.addEventListener('keydown', function(event) {
-  if (event.key === ' ') {
+  if (event.key === ' ' && !event.ctrlKey && !event.metaKey) {
     playPause();
     event.preventDefault();
   }

@@ -449,3 +449,243 @@ function updateTimelineCursor() {
     }
     requestAnimationFrame(updateTimelineCursor);
 }
+
+// --- Zoom-on-pinch / wheel handlers -------------------------
+const WHEEL_SENSITIVITY = 0.004;   // higher = more sensitive for trackpad/mouse wheel
+const PINCH_SENSITIVITY = 2.5;     // >1 amplifies pinch differences; 1.0 == 1:1
+const INVERT_PINCH_FOR_TRACKPAD = false; // flip pinch direction for trackpad/gesture events
+// small helper
+function _clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+// Zoom timeline centered at clientX (relative to element rect)
+function zoomTimelineAt(clientX, elem, scaleFactor){
+  const rect = elem.getBoundingClientRect();
+  const centerFrac = _clamp((clientX - rect.left) / rect.width, 0, 1);
+  const centerFrame = iLow + centerFrac * iWidth;
+  const newWidth = _clamp(iWidth / scaleFactor, 1, framesTotal);
+  let newLow = centerFrame - centerFrac * newWidth;
+  if (newLow < 0) newLow = 0;
+  if (newLow + newWidth > framesTotal) newLow = framesTotal - newWidth;
+  iLow = Math.floor(newLow);
+  iHigh = Math.floor(iLow + newWidth);
+  iWidth = iHigh - iLow;
+  updateCanvasScroll();
+  drawTimeline();
+  drawCursor(true);
+  renderView && renderView();
+}
+
+// Convert frequency -> displayed Y using the same mapping as drawYAxis()
+// (returns y in pixels relative to the y-axis canvas coordinate system)
+function _freqToVisY(f, rectHeight){
+  const h = specHeight;
+  const s = parseFloat(logScaleVal) || 1;
+  const bin = f / (sampleRate / fftSize);
+  let cy;
+  if (s <= 1.0000001) {
+    cy = h - 1 - bin;
+  } else {
+    const a = s - 1;
+    const denom = Math.log(1 + a * (h - 1));
+    const t = Math.log(1 + a * bin) / denom;
+    cy = (1 - t) * (h - 1);
+  }
+  const fStart = Math.max(0, Math.floor(h * (1 - fHigh / (sampleRate / 2))));
+  const fEnd   = Math.min(h, Math.floor(h * (1 - fLow / (sampleRate / 2))));
+  const viewHeight = Math.max(1, fEnd - fStart);
+  const visY = ((cy - fStart) / viewHeight) * h;
+
+  // match the transform used in drawYAxis() where they scale by yFactor/(fftSize/2048)
+  const yFactor = specHeight / parseInt(yAxis.style.height || yAxis.height || rectHeight);
+  return visY / yFactor / (fftSize / 2048); // pixel coordinate in yAxis canvas space
+}
+
+// Invert y -> frequency via binary search (robust for both linear and log scale)
+function getFreqAtY(pixelY, rectHeight){
+  // pixelY is in the same coordinate system as drawYAxis() draws (i.e. local yAxis client pixels)
+  const target = pixelY;
+  let lo = 0, hi = sampleRate / 2;
+  for (let iter = 0; iter < 30; iter++){
+    const mid = (lo + hi) / 2;
+    const yMid = _freqToVisY(mid, rectHeight);
+    if (yMid > target) {
+      // mid maps lower on screen (higher pixel value) -> increase frequency? adjust
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return (lo + hi) / 2;
+}
+
+// Zoom y-axis centered at clientY (relative to element rect)
+function zoomYAxisAt(clientY, elem, scaleFactor){
+  const rect = elem.getBoundingClientRect();
+  const yLocal = _clamp(clientY - rect.top, 0, rect.height);
+  // get center frequency (in Hz) at this y pixel
+  const centerFreq = getSineFreq(visibleToSpecY(yLocal*(canvas.height/rect.height)));
+//   console.log(centerFreq);
+  const curWidth = fHigh - fLow;
+  const newWidth = _clamp(curWidth / scaleFactor, 1e-3, sampleRate/2);
+  // fraction of the window above center: compute fraction in terms of current fLow..fHigh
+  const frac = (centerFreq - fLow) / curWidth;
+//   console.log(frac*newWidth);
+  let newLow = centerFreq - frac * newWidth;
+  if (newLow < 0) newLow = 0;
+  if (newLow + newWidth > sampleRate/2) newLow = sampleRate/2 - newWidth;
+  fLow = newLow;
+  fHigh = newLow + newWidth;
+  fWidth = fHigh - fLow;
+  updateCanvasScroll();
+  drawYAxis();
+  drawLogScale && drawLogScale();
+  drawCursor && drawCursor(true);
+  renderView && renderView();
+}
+
+// Generic wheel handler factory — attach to each element
+function makeWheelZoomHandler(elem, opts){
+  // opts: {zoomTimeline:bool, zoomYAxis:bool}
+  return function(e){
+    // treat ctrl/meta modifier as zoom intent OR if the wheel event has ctrlKey (ctrl+scroll) OR if gestureEvent (see below)
+    const shouldZoom = e.ctrlKey || e.metaKey;
+    if (!shouldZoom) return; // do not intercept normal scrolls
+    e.preventDefault(); // stop browser zoom/page zoom
+    // convert wheel delta into scale factor (exponential for smooth feel)
+    // negative deltaY => zoom in, positive => zoom out
+    const delta = e.deltaY;
+    const sign = INVERT_PINCH_FOR_TRACKPAD ? 1 : -1;
+    const scale = Math.exp(sign * delta * WHEEL_SENSITIVITY);
+
+    if (opts.zoomTimeline && elem === canvas){
+      // canvas zooms both by default
+      zoomTimelineAt(e.clientX, timeline, scale);
+    } else if (opts.zoomTimeline){
+      zoomTimelineAt(e.clientX, timeline, scale);
+    }
+    if (opts.zoomYAxis && elem === canvas){
+      zoomYAxisAt(e.clientY, yAxis, scale);
+    } else if (opts.zoomYAxis){
+      zoomYAxisAt(e.clientY, yAxis, scale);
+    }
+  };
+}
+
+// Attach wheel listeners (passive:false so we can preventDefault)
+canvas && canvas.addEventListener('wheel', makeWheelZoomHandler(canvas, {zoomTimeline:true, zoomYAxis:true}), {passive:false});
+timeline && timeline.addEventListener('wheel', makeWheelZoomHandler(timeline, {zoomTimeline:true, zoomYAxis:false}), {passive:false});
+yAxis && yAxis.addEventListener('wheel', makeWheelZoomHandler(yAxis, {zoomTimeline:false, zoomYAxis:true}), {passive:false});
+
+// --- Gesture events for Safari (optional) ---------------------------------
+// Safari exposes gesturestart/gesturechange with event.scale. Handle gracefully when available.
+function safariGestureHandler(e){
+  e.preventDefault();
+  // e.scale is relative to gesture; normalize and apply sensitivity & optional invert
+  let raw = Number(e.scale) || 1;
+  // apply pinch sensitivity curve and optionally invert
+  let scale = Math.pow(raw, PINCH_SENSITIVITY);
+  if (INVERT_PINCH_FOR_TRACKPAD) scale = 1 / scale;
+  const cx = e.clientX || (window.innerWidth/2);
+  const cy = e.clientY || (window.innerHeight/2);
+
+  const el = e.target;
+  if (el === timeline || (el.closest && el.closest('#timeline'))) {
+    zoomTimelineAt(cx, timeline, scale);
+  } else if (el === yAxis || (el.closest && el.closest('#yAxis'))) {
+    zoomYAxisAt(cy, yAxis, scale);
+  } else {
+    zoomTimelineAt(cx, timeline, scale);
+    zoomYAxisAt(cy, yAxis, scale);
+  }
+}
+['gesturestart','gesturechange'].forEach(evt => {
+  document.addEventListener(evt, safariGestureHandler, {passive:false});
+});
+
+// --- Touch pinch handling (generic and robust) ----------------------------
+
+const _pinchState = {
+  active: false,
+  startDist: 0,
+  startILow: 0, startIHigh: 0, startFLow: 0, startFHigh: 0,
+  midX: 0, midY: 0,
+  target: null // 'canvas' | 'timeline' | 'yAxis'
+};
+
+function touchDistance(t0, t1){
+  const dx = t0.clientX - t1.clientX;
+  const dy = t0.clientY - t1.clientY;
+  return Math.hypot(dx, dy);
+}
+
+function getTouchMid(t0, t1){
+  return { x: (t0.clientX + t1.clientX)/2, y: (t0.clientY + t1.clientY)/2 };
+}
+
+function touchStartHandler(e){
+  if (!e.touches || e.touches.length !== 2) return;
+  // start pinch
+  const [t0, t1] = [e.touches[0], e.touches[1]];
+  _pinchState.active = true;
+  _pinchState.startDist = touchDistance(t0, t1);
+  _pinchState.mid = getTouchMid(t0, t1);
+  _pinchState.startILow = iLow; _pinchState.startIHigh = iHigh;
+  _pinchState.startFLow = fLow; _pinchState.startFHigh = fHigh;
+
+  // determine target area by testing midpoint element
+  const el = document.elementFromPoint(_pinchState.mid.x, _pinchState.mid.y);
+  if (!el) _pinchState.target = 'canvas';
+  else if (el === timeline || el.closest && el.closest('#timeline')) _pinchState.target = 'timeline';
+  else if (el === yAxis || el.closest && el.closest('#yAxis')) _pinchState.target = 'yAxis';
+  else _pinchState.target = 'canvas';
+
+  e.preventDefault();
+}
+
+function touchMoveHandler(e){
+  if (!_pinchState.active) return;
+  if (!e.touches || e.touches.length !== 2) return;
+  const [t0, t1] = [e.touches[0], e.touches[1]];
+  const curDist = touchDistance(t0, t1);
+  if (_pinchState.startDist <= 0) return;
+
+  // rawScale > 1 when fingers spread; apply sensitivity and optional invert
+  let rawScale = curDist / _pinchState.startDist;
+  let scale = Math.pow(rawScale, PINCH_SENSITIVITY);
+  if (INVERT_PINCH_FOR_TRACKPAD) scale = 1 / scale;
+  const mid = getTouchMid(t0, t1);
+
+  if (_pinchState.target === 'canvas'){
+    // zoom both
+    iLow  = _pinchState.startILow;  iHigh = _pinchState.startIHigh; iWidth = iHigh - iLow;
+    zoomTimelineAt(mid.x, timeline, scale);
+
+    fLow  = _pinchState.startFLow;  fHigh = _pinchState.startFHigh; fWidth = fHigh - fLow;
+    zoomYAxisAt(mid.y, yAxis, scale);
+  } else if (_pinchState.target === 'timeline'){
+    iLow  = _pinchState.startILow;  iHigh = _pinchState.startIHigh; iWidth = iHigh - iLow;
+    zoomTimelineAt(mid.x, timeline, scale);
+  } else if (_pinchState.target === 'yAxis'){
+    fLow  = _pinchState.startFLow;  fHigh = _pinchState.startFHigh; fWidth = fHigh - fLow;
+    zoomYAxisAt(mid.y, yAxis, scale);
+  }
+  e.preventDefault();
+}
+
+function touchEndHandler(e){
+  if (!_pinchState.active) return;
+  if (!e.touches || e.touches.length >= 1) {
+    // still a touch remaining (not fully ended), keep active only if still 2 touches
+    if (e.touches.length < 2) { _pinchState.active = false; }
+    return;
+  }
+  _pinchState.active = false;
+}
+
+// attach touch listeners to the container elements (use capture on document to catch multi-touch)
+document.addEventListener('touchstart', touchStartHandler, {passive:false});
+document.addEventListener('touchmove', touchMoveHandler, {passive:false});
+document.addEventListener('touchend', touchEndHandler, {passive:false});
+document.addEventListener('touchcancel', touchEndHandler, {passive:false});
+
+// -------------------------------------------------------------------------

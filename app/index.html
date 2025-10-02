@@ -295,14 +295,14 @@
       <h2 style="margin-bottom:10px;margin-top:10px;">Piano</h2>
       <label class="h1">Brush Alignment</label>
       <!--Auto align pitch-->
-      <button class="leftBtn" id="alignPitch" title="Auto align pitch">Auto Align Pitch</button>
+      <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
       <div id ="a4PitchDiv" class="slider-row" title="A4 pitch" style="display:none;">
         <label class="h2">A4 Pitch</label>
         <input id="a4Pitch" type="range" min="415.304" max="466.163" step="0.01" value="440">
         <input id="a4PitchInput" type="number" value="440">
       </div>
       <!--Auto align time-->
-      <button class="leftBtn" id="alignTime" title="Auto align time">Auto Align Time</button>
+      <button class="leftBtn" id="alignTime" title="Auto align time (k)">Auto Align Time</button>
       <div id ="bpmDiv" class="slider-row" title="BPM" style="display:none;">
         <label class="h2">BPM</label>
         <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
@@ -681,15 +681,15 @@ function keyBind(event) {
     recordBtn.click();
   } else if (key === 'y' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
     yAxisMode.click();
-  } else if (key === 'a') {
+  } else if (key === 'j') {
     alignPitchBtn.click();
-  } else if (key === 's') {
+  } else if (key === 'k') {
     alignTimeBtn.click();
   }
 }
 document.addEventListener("keydown", (e) => {
   const active = document.activeElement;
-  if (active && active.matches("input[type=range]")) {
+  if (active && active.matches("input[type=range], button")) {
     // Allow arrow keys and tab navigation
     if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Tab"].includes(e.key)) {
       return; 

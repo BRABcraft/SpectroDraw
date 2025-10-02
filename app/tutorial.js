@@ -415,42 +415,100 @@
         updateSpotlightMask(targetEls);
     }
 
-
+    function _getMaskAndOverlay() {
+        if (!spotlightOverlay) return {};
+        const mask = spotlightOverlay.querySelector('mask#' + _spotlightMaskId);
+        const overlayRect = spotlightOverlay.querySelector('rect[mask]'); // the big overlay rect using the mask
+        return { mask, overlayRect };
+    }
     // Build/update the mask inside the SVG using the targets' bounding boxes
     // Build/update the mask inside the SVG using the targets' bounding boxes
-    function updateSpotlightMask(targetEls) {
+    function updateSpotlightMask(targetEls, { animate = true } = {}) {
         if (!spotlightOverlay) return;
         const ns = "http://www.w3.org/2000/svg";
-        const mask = spotlightOverlay.querySelector('mask#' + _spotlightMaskId);
+        const { mask } = _getMaskAndOverlay();
         if (!mask) return;
 
-        // Ensure the svg's viewBox matches current viewport (helps when viewport size changed)
-        try {
-            spotlightOverlay.setAttribute('viewBox', '0 0 ' + window.innerWidth + ' ' + window.innerHeight);
-        } catch (e) {}
+        // keep baseRect at index 0 (it's the always-white rect)
+        const base = mask.children[0];
+        if (!base) return;
 
-        // remove all previous hole shapes (keep the baseRect at index 0)
-        while (mask.childElementCount > 1) mask.removeChild(mask.lastChild);
-
-        // add BLACK shapes for each target bounding rect (black area in mask = hide overlay = show underlying content)
+        // build set of requested holes (keys to compare)
+        const newKeys = new Set();
+        const newHoleDefs = []; // { key, x, y, w, h }
         targetEls.forEach(el => {
             try {
                 const r = el.getBoundingClientRect();
-                // skip zero-sized rects
                 if (r.width <= 0 || r.height <= 0) return;
-                const hole = document.createElementNS(ns, 'rect');
-                // make hole slightly larger for padding & rounded corners using rx/ry
                 const pad = 8;
-                hole.setAttribute('x', Math.max(0, Math.floor(r.left) - pad));
-                hole.setAttribute('y', Math.max(0, Math.floor(r.top) - pad));
-                hole.setAttribute('width', Math.floor(r.width) + pad * 2);
-                hole.setAttribute('height', Math.floor(r.height) + pad * 2);
-                hole.setAttribute('rx', '8');
-                hole.setAttribute('ry', '8');
-                hole.setAttribute('fill', 'black'); // black => hide the overlay at this spot (make it transparent)
-                mask.appendChild(hole);
+                const x = Math.max(0, Math.floor(r.left) - pad);
+                const y = Math.max(0, Math.floor(r.top) - pad);
+                const w = Math.floor(r.width) + pad * 2;
+                const h = Math.floor(r.height) + pad * 2;
+                const key = `${x}:${y}:${w}:${h}`;
+                newKeys.add(key);
+                newHoleDefs.push({ key, x, y, w, h });
             } catch (e) {}
         });
+
+        // collect existing hole rects (we only manage rects we created with class 'tutorial-hole')
+        const existing = Array.from(mask.querySelectorAll('rect.tutorial-hole'));
+        const existingMap = new Map();
+        existing.forEach(node => {
+            const k = node.getAttribute('data-hole-key');
+            if (k) existingMap.set(k, node);
+        });
+
+        // 1) Remove old holes that are NOT in newKeys -> fade their fill-opacity to 0 then remove
+        existingMap.forEach((node, key) => {
+            if (!newKeys.has(key)) {
+                // animate out
+                try {
+                    node.style.transition = 'fill-opacity 220ms ease';
+                    node.setAttribute('fill-opacity', '0');
+                    // remove after transition
+                    setTimeout(() => {
+                        try { node.remove(); } catch (e) {}
+                    }, 260);
+                } catch (e) {}
+            }
+        });
+
+        // 2) For each desired hole, if it exists animate it to full opacity (or create it)
+        newHoleDefs.forEach(def => {
+            const { key, x, y, w, h } = def;
+            const existingNode = existingMap.get(key);
+            if (existingNode) {
+                // ensure visible
+                existingNode.style.transition = 'fill-opacity 220ms ease';
+                existingNode.setAttribute('fill-opacity', '1');
+            } else {
+                // create new hole rect with initial fill-opacity 0, then fade to 1
+                try {
+                    const hole = document.createElementNS(ns, 'rect');
+                    hole.classList.add('tutorial-hole');
+                    hole.setAttribute('data-hole-key', key);
+                    hole.setAttribute('x', x);
+                    hole.setAttribute('y', y);
+                    hole.setAttribute('width', w);
+                    hole.setAttribute('height', h);
+                    hole.setAttribute('rx', '8');
+                    hole.setAttribute('ry', '8');
+                    hole.setAttribute('fill', 'black'); // black hides overlay in mask
+                    hole.setAttribute('fill-opacity', '0'); // start transparent
+                    // inline style transition — inline helps ensure the transition fires
+                    hole.style.transition = 'fill-opacity 220ms ease';
+                    mask.appendChild(hole);
+                    // small delay so the browser registers the initial state, then animate
+                    setTimeout(() => {
+                        try { hole.setAttribute('fill-opacity', '1'); } catch (e) {}
+                    }, 20);
+                } catch (e) {}
+            }
+        });
+
+        // (optional) If there are zero holes, we still want to animate a nice fade to full overlay
+        // The above already fades each hole to 0 — good UX. No more action required.
     }
 
 
@@ -505,10 +563,7 @@
                         el.style.outline = saved.outline;
                     } catch (e) {}
                 }
-                // remove pulsing class if present
-                try {
-                    el.classList.remove('tutorial-pulse-outline');
-                } catch (e) {}
+                try { el.classList.remove('tutorial-pulse-outline'); } catch (e) {}
                 savedInlineStyles.delete(el);
             });
             highlightEls = [];
@@ -516,23 +571,15 @@
 
         // remove all marker overlays
         if (markerEls && markerEls.length) {
-            markerEls.forEach(m => {
-                try {
-                    m.remove();
-                } catch (e) {}
-            });
+            markerEls.forEach(m => { try { m.remove(); } catch (e) {} });
             markerEls = [];
         }
 
-        // remove spotlight overlay if present
+        // Animate mask holes away (instead of instant removal)
         if (spotlightOverlay) {
             try {
-                const mask = spotlightOverlay.querySelector('mask#' + _spotlightMaskId);
-                if (mask) {
-                    // remove all hole shapes (keep baseRect at index 0)
-                    while (mask.childElementCount > 1) mask.removeChild(mask.lastChild);
-                }
-                // keep spotlightOverlay and _spotlightMaskId so next step updates mask without recreating SVG
+                // call updateSpotlightMask with an empty array so it will fade out existing holes
+                updateSpotlightMask([]);
             } catch (e) {}
         }
 
@@ -540,7 +587,7 @@
         const exportBtn = document.querySelector('#exportMIDI');
         if (exportBtn) exportBtn.classList.remove('tutorial-pulse-glow');
 
-        // remove reposition listeners saved on step objects
+        // remove reposition listeners
         steps.forEach(s => {
             if (s._reposition) {
                 window.removeEventListener('resize', s._reposition);
@@ -606,6 +653,7 @@
             if (loopTarget) {
                 mouseLoopEl = document.createElement('div');
                 mouseLoopEl.style.position = 'absolute';
+                mouseLoopEl.id = 'mouseloop';
                 mouseLoopEl.style.pointerEvents = 'none';
                 mouseLoopEl.style.zIndex = 100000;
                 mouseLoopEl.innerHTML = `<svg viewBox="0 0 60 60" width="48" height="48" style="opacity:0.95; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6))">
@@ -908,7 +956,16 @@
         localStorage.setItem('tutorialSeen', 'true');
         // hide overlay
         const panel = document.getElementById('tutorialOverlayPanel');
+        const tutorialDialog = document.getElementById('tutorialDialog');
+        const tutorialSpotlight = document.querySelector('.tutorial-spotlight');
+        const mouseLoop = document.getElementById('mouseloop');
+        if (tutorialSpotlight) {
+            try { tutorialSpotlight.remove(); } catch (e) {}
+            spotlightOverlay = null;
+        }
         if (panel) panel.style.display = 'none';
+        if (mouseLoop) mouseLoop.style.display = 'none';
+        if (tutorialDialog) tutorialDialog.style.display = 'none';
     }
 
     // wire skip global
@@ -916,14 +973,11 @@
 
     // helper: start tutorial on first visit (or call window.showAppTutorial to force)
     document.addEventListener('DOMContentLoaded', () => {
-        const seen = localStorage.getItem('tutorialSeen')  // && false;
+        const seen = localStorage.getItem('tutorialSeen') && false;
         if (!seen) {
-            // open first step automatically
             openStep(0);
         } else {
-            // keep the rail visible so user can open steps anytime if seen
-            // (you asked "all buttons should be on one tutorial page" — we'll show rail anyway)
-            // If you'd rather hide until re-open, set panel display none here.
+            skipAll.style.display = 'none';
         }
     });
 

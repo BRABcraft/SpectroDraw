@@ -1,5 +1,5 @@
 (function() {
-    // ------- Steps definition (follow exact actions you gave) -------
+
     const transitionTime = 820; 
     const steps = [{
             id: 'spectrogram',
@@ -22,7 +22,7 @@
             subtitle: 'Press Spacebar or click Play',
             target: '#playPause, #stop, #canvas, #timeline, #logscale, #freq',
             dialog: "Press Spacebar to play or pause your audio at any time. 🎵",
-            // Condition: user pressed play AND (playing && currentCursorX > specWidth*0.9)
+
             waitFor: {
                 type: 'complexPlayback',
             },
@@ -40,7 +40,7 @@
             waitFor: {
                 type: 'renderCycle',
                 varName: 'rendering'
-            }, // wait rendering==true then rendering==false
+            }, 
             showNext: false,
             preAction: null,
             mouseLoop: false,
@@ -82,7 +82,7 @@
             subtitle: 'Open piano, export MIDI (pulsing export button)',
             target: '#pianoBtn, #exportMIDI, .left-panel',
             dialog: "Want to make music notation? Try exporting as a MIDI file (you can even turn it into sheet music later). 🎹",
-            // Pre-click piano, pulse export button, wait until exportMIDI clicked AND user clicks Next
+
             waitFor: {
                 type: 'clickThenNext',
                 clickSelector: '#exportMIDI'
@@ -90,7 +90,7 @@
             showNext: true,
             preAction: function() {
                 const piano = document.getElementById('pianoBtn');
-                if (piano) piano.click(); // user asked to programmatically open it
+                if (piano) piano.click(); 
             },
             mouseLoop: false,
             pulseExport: true,
@@ -108,7 +108,7 @@
             },
             waitFor: {
                 type: 'eqCanvasClick',
-            }, // waits for user to click Next after viewing / tweaking
+            }, 
             showNext: true,
             mouseLoop: true,
             mouseLoopSelector: '#eqCanvas',
@@ -132,7 +132,6 @@
         }
     ];
 
-    // ------- helpers / state -------
     const dialog = document.getElementById('tutorialDialog');
     const tdTitle = document.getElementById('tdTitle');
     const tdText = document.getElementById('tdText');
@@ -140,16 +139,15 @@
     const skipAll = document.getElementById('tutorialSkip');
 
     let activeStepIndex = 0;
-    // support multiple highlighted elements & markers
-    let highlightEls = []; // array of currently highlighted DOM nodes
-    let markerEls = []; // array of corresponding marker overlay elements
-    let spotlightOverlay = null; // SVG overlay element that darkens page with holes
-    let _spotlightMaskId = null; // array of corresponding marker overlay elements
+
+    let highlightEls = []; 
+    let markerEls = []; 
+    let spotlightOverlay = null; 
+    let _spotlightMaskId = null; 
     let arrowEl = null;
     let pollers = [];
     let savedInlineStyles = new Map();
 
-    // safe DOM helpers
     function safeSetText(node, text) {
         if (!node) return;
         node.textContent = text;
@@ -165,53 +163,46 @@
         node.classList.remove(cls);
     }
 
-    // show initial (open first automatically)
     function openStep(index) {
         try {
-            // bounds check
+
             if (typeof index !== 'number' || index < 0 || index >= steps.length) index = 0;
-            // restore previous highlight if any
+
             restoreHighlight();
             activeStepIndex = index;
             const s = steps[index];
             if (!s) return;
             if (s.id === 'done') {
                 try {
-                    // remove any lingering holes and the SVG overlay entirely
+
                     if (spotlightOverlay) {
                         spotlightOverlay.remove();
                         spotlightOverlay = null;
                         _spotlightMaskId = null;
                     }
-                    // also remove any mouse-loop element
+
                     const mouseLoop = document.getElementById('mouseloop');
                     if (mouseLoop) mouseLoop.remove();
-                } catch (e) { /* ignore */ }
+                } catch (e) {  }
             }
 
-            // set rails active (if rail buttons exist)
             document.querySelectorAll('.tutorial-step-btn').forEach(b => b.classList.remove('active'));
 
-            // show dialog (if dialog exists)
             safeSetText(tdTitle, s.label);
             safeSetText(tdText, s.dialog);
 
-            // actions: clear
             if (tdActions) tdActions.innerHTML = '';
 
-            // Skip always present
             const skipBtn = document.createElement('button');
             skipBtn.textContent = 'Skip tutorial';
             skipBtn.addEventListener('click', finishTutorial);
             if (tdActions) tdActions.appendChild(skipBtn);
 
-            // Next presence depends on step.showNext
             if (s.showNext) {
                 const nextBtn = document.createElement('button');
                 nextBtn.className = 'primary';
                 nextBtn.textContent = (index === steps.length - 1) ? 'Finish' : 'Next';
 
-                // 🔒 Disable Next if this is the tools step
                 if (s.id === 'tools' || s.id === 'midi' || s.id === 'equalizer') {
                     nextBtn.disabled = true;
                     nextBtn.classList.add('disabled');
@@ -226,24 +217,20 @@
                 });
                 if (tdActions) tdActions.appendChild(nextBtn);
 
-                // keep reference for later
                 s._nextBtn = nextBtn;
             }
 
-
             if (dialog) {
-                // show dialog with fade animation
+
                 dialog.classList.remove('hide');
                 dialog.classList.add('show');
 
-                // slight delay and entrance animation for dialog
                 dialog.style.transform = 'translateY(8px)';
                 setTimeout(() => {
                     dialog.style.transform = 'translateY(0)';
                 }, 1);
             }
 
-            // position / highlight target after a short delay so DOM layout settles
             setTimeout(() => {
                 try {
                     setupHighlightFor(s);
@@ -256,7 +243,6 @@
                     }
                     }
 
-                    // <-- position dialog now (so it applies immediately, not only on resize/scroll)
                     try { positionDialogForStep(s); } catch (e) {}
 
                     startWaitingFor(s);
@@ -268,20 +254,18 @@
             console.error('openStep error', err);
         }
     }
-    // ------------------------- new helper: position dialog -------------------------
+
     function positionDialogForStep(step) {
         if (!dialog) return;
-        // position relative to viewport so offsets are predictable
+
         dialog.style.position = 'fixed';
         dialog.style.zIndex = '100001';
         dialog.style.maxWidth = '420px';
 
-        // safe defaults
         const off = (step && step.dialogOffset) ? step.dialogOffset : { x: 16, y: 16 };
         const left = (typeof off.x === 'number') ? off.x : 16;
         const top  = (typeof off.y === 'number') ? off.y : 16;
 
-        // clear potential opposing edge styles so left/top take effect
         dialog.style.right = '';
         dialog.style.bottom = '';
 
@@ -289,22 +273,20 @@
         dialog.style.top  = `${top}px`;
     }
 
-    // highlight logic: raise target element & position marker & move arrow to point to the element
     function setupHighlightFor(step) {
-        // clear any previous highlight state
+
         restoreHighlight();
         if (!step) return;
         const sel = step.target;
         if (!sel) {
-            // center bubble only, no highlight
+
             return;
         }
 
         const targets = [];
 
         try {
-            // If comma-separated, treat each token as an individual selector and
-            // highlight the first match for each token.
+
             if (typeof sel === 'string' && sel.includes(',')) {
                 const parts = sel.split(',').map(s => s.trim()).filter(Boolean);
                 for (const p of parts) {
@@ -314,7 +296,7 @@
                     } catch (e) {}
                 }
             } else if (typeof sel === 'string') {
-                // If single selector, highlight all matches
+
                 try {
                     const all = document.querySelectorAll(sel);
                     if (all && all.length) {
@@ -322,7 +304,7 @@
                     }
                 } catch (e) {}
             } else {
-                // If an array or NodeList passed in, add them all
+
                 try {
                     if (sel && sel.length) {
                         for (let i = 0; i < sel.length; i++) {
@@ -332,17 +314,13 @@
                 } catch (e) {}
             }
 
-            // dedupe targets
             const uniqTargets = Array.from(new Set(targets));
             if (!uniqTargets.length) return;
 
-            // record highlighted elements (but DO NOT permanently change their z-index)
             highlightEls = uniqTargets.slice();
 
-            // create or update the spotlight overlay (masked dark overlay with transparent holes)
             createOrUpdateSpotlight(highlightEls, step);
 
-            // create optional decorative markers for steps that asked for pulseOutline
             uniqTargets.forEach(targetEl => {
                 savedInlineStyles.set(targetEl, {
                     position: targetEl.style.position || '',
@@ -368,18 +346,17 @@
                 }
             });
 
-            // reposition handler updates mask + markers on resize / scroll
             const reposition = () => {
                 try {
                     updateSpotlightMask(highlightEls);
-                    // reposition markers if present
+
                     highlightEls.forEach((el, i) => {
                         if (markerEls[i]) positionMarkerOver(el, markerEls[i]);
                     });
                     if (step._arrowEl && highlightEls[0]) {
                         positionArrowToTarget(step._arrowEl, highlightEls[0]);
                     }
-                    // position or reposition the dialog near the target / according to step
+
                     try { positionDialogForStep(step); } catch (e) {}
                 } catch (e) {}
             };
@@ -387,28 +364,22 @@
             window.addEventListener('scroll', reposition, true);
             step._reposition = reposition;
 
-            // special pulsing for exportMIDI if requested
             if (step.pulseExport) {
                 const exportBtn = document.querySelector('#exportMIDI');
                 if (exportBtn) exportBtn.classList.add('tutorial-pulse-glow');
             }
 
-            // Done — do NOT re-call setupHighlightFor here.
-            // openStep already calls setupHighlightFor after a short delay; re-calling here caused a loop.
         } catch (e) {
             console.warn('setupHighlightFor error', e);
         }
     }
 
-    // Create or update the SVG spotlight overlay that darkens the page except for holes over targets
-    // Create or update the SVG spotlight overlay that darkens the page except for holes over targets
     function createOrUpdateSpotlight(targetEls, step) {
-        // ensure a stable id for the mask (one per tutorial instance)
+
         if (!_spotlightMaskId) {
             _spotlightMaskId = 'tutorial-spotlight-mask-' + Math.floor(Math.random() * 1e9);
         }
 
-        // make the overlay if it doesn't exist
         if (!spotlightOverlay) {
             const ns = "http://www.w3.org/2000/svg";
             const svg = document.createElementNS(ns, 'svg');
@@ -421,32 +392,27 @@
             svg.style.top = '0';
             svg.style.width = '100%';
             svg.style.height = '100%';
-            // MAKE THE OVERLAY NOT BLOCK POINTERS so everything underneath stays clickable
+
             svg.style.pointerEvents = 'none';
-            svg.style.zIndex = '99990'; // visual stacking — dialog should be above this if needed
+            svg.style.zIndex = '99990'; 
             svg.style.touchAction = 'none';
             svg.setAttribute('aria-hidden', 'true');
 
-            // defs + mask
             const defs = document.createElementNS(ns, 'defs');
             const mask = document.createElementNS(ns, 'mask');
             mask.setAttribute('id', _spotlightMaskId);
 
-            // ---------- IMPORTANT: BASE RECT WHITE (show overlay everywhere by default) ----------
-            // white => mask shows the overlay; black => hides overlay
-            // We want overlay visible everywhere except holes, so base is white and holes are black.
             const baseRect = document.createElementNS(ns, 'rect');
             baseRect.setAttribute('x', '0');
             baseRect.setAttribute('y', '0');
             baseRect.setAttribute('width', '100%');
             baseRect.setAttribute('height', '100%');
-            baseRect.setAttribute('fill', 'white'); // white = show overlay by default
+            baseRect.setAttribute('fill', 'white'); 
             mask.appendChild(baseRect);
 
             defs.appendChild(mask);
             svg.appendChild(defs);
 
-            // the visible overlay rectangle that will be masked; fill is semi-opaque dark
             const overlayRect = document.createElementNS(ns, 'rect');
             overlayRect.setAttribute('x', '0');
             overlayRect.setAttribute('y', '0');
@@ -459,34 +425,29 @@
             document.body.appendChild(svg);
             spotlightOverlay = svg;
 
-            // NOTE: no event forwarding is attached — overlay does not capture events (pointer-events: none).
         }
 
-        // update mask shapes based on current bounding boxes
         updateSpotlightMask(targetEls);
     }
 
     function _getMaskAndOverlay() {
         if (!spotlightOverlay) return {};
         const mask = spotlightOverlay.querySelector('mask#' + _spotlightMaskId);
-        const overlayRect = spotlightOverlay.querySelector('rect[mask]'); // the big overlay rect using the mask
+        const overlayRect = spotlightOverlay.querySelector('rect[mask]'); 
         return { mask, overlayRect };
     }
-    // Build/update the mask inside the SVG using the targets' bounding boxes
-    // Build/update the mask inside the SVG using the targets' bounding boxes
+
     function updateSpotlightMask(targetEls, { animate = true } = {}) {
         if (!spotlightOverlay) return;
         const ns = "http://www.w3.org/2000/svg";
         const { mask } = _getMaskAndOverlay();
         if (!mask) return;
 
-        // keep baseRect at index 0 (it's the always-white rect)
         const base = mask.children[0];
         if (!base) return;
 
-        // build set of requested holes (keys to compare)
         const newKeys = new Set();
-        const newHoleDefs = []; // { key, x, y, w, h }
+        const newHoleDefs = []; 
         targetEls.forEach(el => {
             try {
                 const r = el.getBoundingClientRect();
@@ -502,7 +463,6 @@
             } catch (e) {}
         });
 
-        // collect existing hole rects (we only manage rects we created with class 'tutorial-hole')
         const existing = Array.from(mask.querySelectorAll('rect.tutorial-hole'));
         const existingMap = new Map();
         existing.forEach(node => {
@@ -510,14 +470,13 @@
             if (k) existingMap.set(k, node);
         });
 
-        // 1) Remove old holes that are NOT in newKeys -> fade their fill-opacity to 0 then remove
         existingMap.forEach((node, key) => {
             if (!newKeys.has(key)) {
-                // animate out
+
                 try {
                     node.style.transition = `fill-opacity ${transitionTime}ms ease`;
                     node.setAttribute('fill-opacity', '0');
-                    // remove after transition
+
                     setTimeout(() => {
                         try { node.remove(); } catch (e) {}
                     }, transitionTime + 40);
@@ -525,16 +484,15 @@
             }
         });
 
-        // 2) For each desired hole, if it exists animate it to full opacity (or create it)
         newHoleDefs.forEach(def => {
             const { key, x, y, w, h } = def;
             const existingNode = existingMap.get(key);
             if (existingNode) {
-                // ensure visible
+
                 existingNode.style.transition = `fill-opacity ${transitionTime}ms ease`;
                 existingNode.setAttribute('fill-opacity', '1');
             } else {
-                // create new hole rect with initial fill-opacity 0, then fade to 1
+
                 try {
                     const hole = document.createElementNS(ns, 'rect');
                     hole.classList.add('tutorial-hole');
@@ -545,12 +503,12 @@
                     hole.setAttribute('height', h);
                     hole.setAttribute('rx', '8');
                     hole.setAttribute('ry', '8');
-                    hole.setAttribute('fill', 'black'); // black hides overlay in mask
-                    hole.setAttribute('fill-opacity', '0'); // start transparent
-                    // inline style transition — inline helps ensure the transition fires
+                    hole.setAttribute('fill', 'black'); 
+                    hole.setAttribute('fill-opacity', '0'); 
+
                     hole.style.transition = `fill-opacity ${transitionTime}ms ease`;
                     mask.appendChild(hole);
-// ensure transition runs by switching opacity on next frame
+
 requestAnimationFrame(() => {
     try { hole.setAttribute('fill-opacity', '1'); } catch (e) {}
 });
@@ -558,25 +516,21 @@ requestAnimationFrame(() => {
             }
         });
 
-        // (optional) If there are zero holes, we still want to animate a nice fade to full overlay
-        // The above already fades each hole to 0 — good UX. No more action required.
     }
-
 
     function positionMarkerOver(el, marker) {
         if (!marker || !el || !el.getBoundingClientRect) return;
         const r = el.getBoundingClientRect();
-        // keep marker inside viewport and use fixed positioning so it follows on scroll
+
         marker.style.left = Math.max(8, r.left - 8) + 'px';
         marker.style.top = Math.max(8, r.top - 8) + 'px';
         marker.style.width = (r.width + 16) + 'px';
         marker.style.height = (r.height + 16) + 'px';
     }
 
-    // arrow positioning: compute vector from rail button to target element and rotate arrow to point
     function positionArrowToTarget(arrow, targetEl) {
         if (!arrow || !targetEl) return;
-        // get center points
+
         const t = targetEl.getBoundingClientRect();
         const a = arrow.parentElement?.getBoundingClientRect ? arrow.parentElement.getBoundingClientRect() : {
             left: 0,
@@ -588,22 +542,22 @@ requestAnimationFrame(() => {
         const fromY = a.top + a.height / 2;
         const toX = t.left + t.width / 2;
         const toY = t.top + t.height / 2;
-        // angle in degrees
+
         const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-        // position arrow element near rail button with CSS rotation so the arrow points toward the target
+
         arrow.style.transform = `translate(0px, -50%) rotate(${angle}deg)`;
-        // move arrow outward to better aim
+
         const dx = toX - fromX;
         const dy = toY - fromY;
         const dist = Math.min(Math.hypot(dx, dy), 420);
-        // shift arrow outwards based on distance (so it doesn't overlap)
+
         const shift = Math.min(90, dist / 3 + 20);
         arrow.style.right = -(shift + 36) + 'px';
         arrow.style.top = '50%';
     }
 
     function restoreHighlight() {
-        // restore element styles for all highlighted elements
+
         if (highlightEls && highlightEls.length) {
             highlightEls.forEach(el => {
                 const saved = savedInlineStyles.get(el);
@@ -620,25 +574,21 @@ requestAnimationFrame(() => {
             highlightEls = [];
         }
 
-        // remove all marker overlays
         if (markerEls && markerEls.length) {
             markerEls.forEach(m => { try { m.remove(); } catch (e) {} });
             markerEls = [];
         }
 
-        // Animate mask holes away (instead of instant removal)
         if (spotlightOverlay) {
             try {
-                // call updateSpotlightMask with an empty array so it will fade out existing holes
+
                 updateSpotlightMask([]);
             } catch (e) {}
         }
 
-        // remove pulsing export class
         const exportBtn = document.querySelector('#exportMIDI');
         if (exportBtn) exportBtn.classList.remove('tutorial-pulse-glow');
 
-        // remove reposition listeners
         steps.forEach(s => {
             if (s._reposition) {
                 window.removeEventListener('resize', s._reposition);
@@ -648,8 +598,6 @@ requestAnimationFrame(() => {
         });
     }
 
-
-    // waiting / pollers
     function clearPollers() {
         pollers.forEach(p => {
             try {
@@ -665,7 +613,7 @@ requestAnimationFrame(() => {
                 } else if (p.type === 'timeout') {
                     clearTimeout(p.id);
                 } else if (p.type === 'cleanup') {
-                    // arbitrary cleanup function to run
+
                     try {
                         if (typeof p.fn === 'function') p.fn();
                     } catch (e) {}
@@ -683,7 +631,6 @@ requestAnimationFrame(() => {
             type: 'none'
         };
 
-        // fade mouse-loop if user moves mouse over animations
         const attachMouseFade = (el, animEl) => {
             if (!el || !animEl) return;
             const onMove = () => animEl.style.opacity = '0.15';
@@ -691,13 +638,12 @@ requestAnimationFrame(() => {
             el.addEventListener('mousemove', onMove, {
                 once: true
             });
-            // when pointer moves off, restore next time after a delay
+
             setTimeout(() => {
                 el.removeEventListener('mousemove', onMove);
             }, 900);
         };
 
-        // mouse loop for canvas: add a small animated cursor path near the target
         let mouseLoopEl = null;
         if (step.mouseLoop) {
             const loopTarget = step.mouseLoopSelector ? document.querySelector(step.mouseLoopSelector) : document.querySelector(step.target);
@@ -726,7 +672,7 @@ requestAnimationFrame(() => {
                     type: 'interval',
                     id
                 });
-                // fade-out when user moves mouse over target
+
                 const fadeHandler = () => mouseLoopEl.style.opacity = '0.12';
                 loopTarget.addEventListener('mousemove', fadeHandler, {
                     once: true
@@ -740,7 +686,6 @@ requestAnimationFrame(() => {
             }
         }
 
-        // now implement wait types requested
         if (w.type === 'mouseup' && w.selector) {
             const node = document.querySelector(w.selector);
             if (node) {
@@ -757,7 +702,7 @@ requestAnimationFrame(() => {
                     fn
                 });
             } else {
-                // fallback: allow user to click the canvas (the element might not exist)
+
                 const fallback = document.getElementById('canvas');
                 if (fallback) {
                     const fn = () => stepCompleted(step);
@@ -771,7 +716,7 @@ requestAnimationFrame(() => {
                         fn
                     });
                 } else {
-                    // nothing to wait for; finish after short delay
+
                     const tid = setTimeout(() => stepCompleted(step), 900);
                     pollers.push({
                         type: 'interval',
@@ -794,7 +739,7 @@ requestAnimationFrame(() => {
                         }
                     }
                 } catch (e) {
-                    // ignore errors and keep polling
+
                 }
             }, transitionTime + 40);
             pollers.push({ type: 'interval', id });
@@ -802,7 +747,7 @@ requestAnimationFrame(() => {
         }
 
         if (w.type === 'renderCycle') {
-            // wait for rendering variable to go true then false
+
             const varName = w.varName || 'rendering';
             let sawTrue = false;
             const id = setInterval(() => {
@@ -819,7 +764,7 @@ requestAnimationFrame(() => {
                 type: 'interval',
                 id
             });
-            // fallback: listen for file input change or preset change
+
             (function() {
                 const file = document.querySelector('#file');
                 const presets = document.querySelector('#presets');
@@ -861,7 +806,7 @@ requestAnimationFrame(() => {
             const nodes = document.querySelectorAll(w.selector);
             if (nodes && nodes.length) {
                 const fn = () => {
-                    // ✅ Just enable Next button, do not complete step yet
+
                     if (step._nextBtn) {
                         step._nextBtn.disabled = false;
                         step._nextBtn.classList.remove('disabled');
@@ -893,7 +838,7 @@ requestAnimationFrame(() => {
                 }
             });
             if (!attached) {
-                // finish after a friendly timeout so tutorial doesn't hang if UI ids changed
+
                 setTimeout(() => stepCompleted(step), 1600);
             }
             return;
@@ -903,9 +848,9 @@ requestAnimationFrame(() => {
             const node = document.querySelector(w.clickSelector);
             if (node) {
                 const fn = () => {
-                    // mark click happened
+
                     step._clicked = true;
-                    // ✅ enable Next button now that export was clicked
+
                     if (step._nextBtn) {
                         step._nextBtn.disabled = false;
                         step._nextBtn.classList.remove('disabled');
@@ -932,19 +877,16 @@ requestAnimationFrame(() => {
             return;
         }
 
-        // none -> finish quickly
         setTimeout(() => stepCompleted(step), 900);
     }
 
-    // called when a step is done
     function _waitForDialogHidden(timeout = 520) {
         return new Promise(resolve => {
             if (!dialog) return resolve();
 
-            // check computed opacity — if already hidden (opacity 0 or display none) resolve immediately
             const cs = getComputedStyle(dialog);
             if (cs.opacity === '0' || cs.display === 'none' || dialog.classList.contains('hide')) {
-                // still allow a small delay to let any immediate layouts settle
+
                 return setTimeout(resolve, 8);
             }
 
@@ -959,7 +901,7 @@ requestAnimationFrame(() => {
             };
 
             function onTrans(ev) {
-                // only respond to opacity transitions (safe heuristic)
+
                 if (ev.propertyName && ev.propertyName.toLowerCase().includes('opacity')) cleanup();
             }
             function onAnim(ev) {
@@ -969,56 +911,49 @@ requestAnimationFrame(() => {
             dialog.addEventListener('transitionend', onTrans);
             dialog.addEventListener('animationend', onAnim);
 
-            // fallback timeout in case no transitionend fires
             const tid = setTimeout(cleanup, timeout);
         });
     }
 
     async function stepCompleted(step) {
-        // start hide animation
+
         dialog.classList.remove('show');
         dialog.classList.add('hide');
 
-        // start fade-out of highlights / mask
         restoreHighlight();
         clearPollers();
 
         const nextIndex = Math.min(steps.indexOf(step) + 1, steps.length - 1);
         const waitType = step.waitFor?.type || 'none';
 
-        // If this step requires explicit Next (clickThenNext / awaitNext), keep dialog visible
         if (step.showNext && (waitType === 'clickThenNext' || waitType === 'awaitNext')) {
-            // keep dialog visible — user must click next
+
             dialog.classList.remove('hide');
             dialog.classList.add('show');
             return;
         }
 
-        // If last step 'done', keep the dialog visible but ensure overlay was removed (openStep will handle)
         if (step.id === 'done') {
             dialog.classList.remove('hide');
             dialog.classList.add('show');
             return;
         }
 
-        // Wait for dialog to finish its hide transition (so we can move it while hidden)
         await _waitForDialogHidden();
 
-        // position dialog for next step while hidden, so the subsequent show animation will start from correct place
         try {
             const nextStep = steps[nextIndex];
             if (nextStep) positionDialogForStep(nextStep);
         } catch (e) {}
 
-        // open next step (openStep will show the dialog again)
         openStep(nextIndex);
     }
 
     function finishStepAndAdvance() {
         const s = steps[activeStepIndex];
-        // If this step required a click (clickThenNext) ensure click happened
+
         if (s.waitFor && s.waitFor.type === 'clickThenNext' && !s._clicked) {
-            // shake dialog to indicate required action
+
             dialog.animate([
                 { transform: 'translateX(0)' },
                 { transform: 'translateX(-8px)' },
@@ -1028,15 +963,12 @@ requestAnimationFrame(() => {
             return;
         }
 
-        // start hide animation
         dialog.classList.remove('show');
         dialog.classList.add('hide');
 
-        // teardown highlights/pollers immediately (we fade the mask in restoreHighlight)
         restoreHighlight();
         clearPollers();
 
-        // wait for hide then move + open next
         const nextIndex = Math.min(activeStepIndex + 1, steps.length - 1);
         _waitForDialogHidden().then(() => {
             try {
@@ -1047,14 +979,13 @@ requestAnimationFrame(() => {
         });
     }
 
-    // final skip/finish
     function finishTutorial() {
-        // restore everything & clear pollers
+
         restoreHighlight();
         clearPollers();
-        // mark tutorial seen
+
         localStorage.setItem('tutorialSeen', 'true');
-        // hide overlay
+
         const tutorialDialog = document.getElementById('tutorialDialog');
         const tutorialSpotlight = document.querySelector('.tutorial-spotlight');
         const mouseLoop = document.getElementById('mouseloop');
@@ -1066,16 +997,13 @@ requestAnimationFrame(() => {
         if (tutorialDialog) tutorialDialog.style.display = 'none';
     }
 
-
-    // helper: start tutorial on first visit (or call window.showAppTutorial to force)
     document.addEventListener('DOMContentLoaded', () => {
-        const seen = localStorage.getItem('tutorialSeen') && false;
+        const seen = localStorage.getItem('tutorialSeen');// && false;
         if (!seen) {
             openStep(0);
         }
     });
 
-    // expose manual opener
     window.showAppTutorial = function() {
         localStorage.removeItem('tutorialSeen');
         openStep(0);

@@ -165,6 +165,7 @@ let audioProcessed=0;
 fileEl.addEventListener("change", async e=>{
     const f=e.target.files[0]; if(!f)return;
     const buf=await f.arrayBuffer();
+    snapshotMags = mags; snapshotPhases = phases;
     ensureAudioCtx();
     fHigh = sampleRate/2;
     fWidth = fHigh;
@@ -176,7 +177,9 @@ fileEl.addEventListener("change", async e=>{
 
       status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
       status.style.display = "block";
-      restartRender(true);
+      await restartRender(true);
+
+    //   newHistory();
       
     let t = pcm.length / sampleRate;
     hopSizeEl.value = t<0.5?128:(t<5?512:1024);

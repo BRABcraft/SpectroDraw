@@ -1,10 +1,11 @@
 (function() {
     // ------- Steps definition (follow exact actions you gave) -------
+    const transitionTime = 820; 
     const steps = [{
             id: 'spectrogram',
             label: 'Spectrogram: draw',
             subtitle: 'Click & drag to draw (mouseup to finish)',
-            target: '#canvas, #timeline, #logscale, #freq, #overlay',
+            target: '#canvas, #timeline, #logscale, #freq',
             dialog: "Welcome! This is the spectrogram. It’s a visual map of your sound. 👉 Click and drag your mouse across it to draw.",
             waitFor: {
                 type: 'mouseup',
@@ -12,13 +13,14 @@
             },
             showNext: false,
             preAction: null,
-            mouseLoop: true
+            mouseLoop: true,
+            dialogOffset: { x: 600, y: 108 }
         },
         {
             id: 'playPause',
             label: 'Play / Pause',
             subtitle: 'Press Spacebar or click Play',
-            target: '#playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay',
+            target: '#playPause, #stop, #canvas, #timeline, #logscale, #freq',
             dialog: "Press Spacebar to play or pause your audio at any time. 🎵",
             // Condition: user pressed play AND (playing && currentCursorX > specWidth*0.9)
             waitFor: {
@@ -27,6 +29,7 @@
             showNext: false,
             preAction: null,
             mouseLoop: false,
+            dialogOffset: { x: 208, y: 108 },
         },
         {
             id: 'addSound',
@@ -40,7 +43,8 @@
             }, // wait rendering==true then rendering==false
             showNext: false,
             preAction: null,
-            mouseLoop: false
+            mouseLoop: false,
+            dialogOffset: { x: 258, y: 108 }
         },
         {
             id: 'tools',
@@ -54,7 +58,8 @@
             },
             showNext: true,
             preAction: null,
-            mouseLoop: false
+            mouseLoop: false,
+            dialogOffset: { x: 358, y: 58 }
         },
         {
             id: 'save',
@@ -68,7 +73,8 @@
             },
             showNext: false,
             preAction: null,
-            mouseLoop: false
+            mouseLoop: false,
+            dialogOffset: { x: 718, y: 58 }
         },
         {
             id: 'midi',
@@ -87,7 +93,8 @@
                 if (piano) piano.click(); // user asked to programmatically open it
             },
             mouseLoop: false,
-            pulseExport: true
+            pulseExport: true,
+            dialogOffset: { x: 308, y: 500 }
         },
         {
             id: 'equalizer',
@@ -104,7 +111,8 @@
             }, // waits for user to click Next after viewing / tweaking
             showNext: true,
             mouseLoop: true,
-            mouseLoopSelector: '#eqCanvas'
+            mouseLoopSelector: '#eqCanvas',
+            dialogOffset: { x: 408, y: 308 }
         },
         {
             id: 'done',
@@ -112,10 +120,15 @@
             subtitle: 'Finish the tutorial',
             target: null,
             dialog: "That’s it! 🎉 You’ve completed the tutorial. Now go make something amazing.",
+            preAction: function() {
+                const general = document.getElementById('settingsBtn');
+                if (general) general.click();
+            },
             waitFor: {
                 type: 'none'
             },
-            showNext: true
+            showNext: true,
+            dialogOffset: { x: 408, y: 208 }
         }
     ];
 
@@ -162,6 +175,19 @@
             activeStepIndex = index;
             const s = steps[index];
             if (!s) return;
+            if (s.id === 'done') {
+                try {
+                    // remove any lingering holes and the SVG overlay entirely
+                    if (spotlightOverlay) {
+                        spotlightOverlay.remove();
+                        spotlightOverlay = null;
+                        _spotlightMaskId = null;
+                    }
+                    // also remove any mouse-loop element
+                    const mouseLoop = document.getElementById('mouseloop');
+                    if (mouseLoop) mouseLoop.remove();
+                } catch (e) { /* ignore */ }
+            }
 
             // set rails active (if rail buttons exist)
             document.querySelectorAll('.tutorial-step-btn').forEach(b => b.classList.remove('active'));
@@ -192,7 +218,11 @@
                 }
 
                 nextBtn.addEventListener('click', () => {
-                    finishStepAndAdvance();
+                    if (index === steps.length - 1) {
+                        finishTutorial();
+                    } else {
+                        finishStepAndAdvance();
+                    }
                 });
                 if (tdActions) tdActions.appendChild(nextBtn);
 
@@ -218,17 +248,17 @@
                 try {
                     setupHighlightFor(s);
                     if (typeof s.preAction === 'function') {
-                        try {
-                            s.preAction();
-                        } catch (e) {
-                            console.warn('preAction error', e);
-                        }
-                        if (highlightEls && highlightEls.length) {
-                            updateSpotlightMask(highlightEls);
-                        } else {
-                            setupHighlightFor(s);
-                        }
+                    try { s.preAction(); } catch (e) { console.warn('preAction error', e); }
+                    if (highlightEls && highlightEls.length) {
+                        updateSpotlightMask(highlightEls);
+                    } else {
+                        setupHighlightFor(s);
                     }
+                    }
+
+                    // <-- position dialog now (so it applies immediately, not only on resize/scroll)
+                    try { positionDialogForStep(s); } catch (e) {}
+
                     startWaitingFor(s);
                 } catch (e) {
                     console.warn('openStep inner error', e);
@@ -237,6 +267,26 @@
         } catch (err) {
             console.error('openStep error', err);
         }
+    }
+    // ------------------------- new helper: position dialog -------------------------
+    function positionDialogForStep(step) {
+        if (!dialog) return;
+        // position relative to viewport so offsets are predictable
+        dialog.style.position = 'fixed';
+        dialog.style.zIndex = '100001';
+        dialog.style.maxWidth = '420px';
+
+        // safe defaults
+        const off = (step && step.dialogOffset) ? step.dialogOffset : { x: 16, y: 16 };
+        const left = (typeof off.x === 'number') ? off.x : 16;
+        const top  = (typeof off.y === 'number') ? off.y : 16;
+
+        // clear potential opposing edge styles so left/top take effect
+        dialog.style.right = '';
+        dialog.style.bottom = '';
+
+        dialog.style.left = `${left}px`;
+        dialog.style.top  = `${top}px`;
     }
 
     // highlight logic: raise target element & position marker & move arrow to point to the element
@@ -300,12 +350,9 @@
                     outline: targetEl.style.outline || ''
                 });
 
-                // do not force z-index changes on the target anymore
                 if (step.pulseOutline) {
-                    // add class for pulsing outline so CSS can animate it
                     targetEl.classList.add('tutorial-pulse-outline');
 
-                    // optional marker element (visual box) — we still create it if pulseOutline is requested
                     const mk = document.createElement('div');
                     mk.className = 'tutorial-target-marker';
                     mk.style.position = 'fixed';
@@ -332,6 +379,8 @@
                     if (step._arrowEl && highlightEls[0]) {
                         positionArrowToTarget(step._arrowEl, highlightEls[0]);
                     }
+                    // position or reposition the dialog near the target / according to step
+                    try { positionDialogForStep(step); } catch (e) {}
                 } catch (e) {}
             };
             window.addEventListener('resize', reposition);
@@ -344,6 +393,8 @@
                 if (exportBtn) exportBtn.classList.add('tutorial-pulse-glow');
             }
 
+            // Done — do NOT re-call setupHighlightFor here.
+            // openStep already calls setupHighlightFor after a short delay; re-calling here caused a loop.
         } catch (e) {
             console.warn('setupHighlightFor error', e);
         }
@@ -464,12 +515,12 @@
             if (!newKeys.has(key)) {
                 // animate out
                 try {
-                    node.style.transition = 'fill-opacity 220ms ease';
+                    node.style.transition = `fill-opacity ${transitionTime}ms ease`;
                     node.setAttribute('fill-opacity', '0');
                     // remove after transition
                     setTimeout(() => {
                         try { node.remove(); } catch (e) {}
-                    }, 260);
+                    }, transitionTime + 40);
                 } catch (e) {}
             }
         });
@@ -480,7 +531,7 @@
             const existingNode = existingMap.get(key);
             if (existingNode) {
                 // ensure visible
-                existingNode.style.transition = 'fill-opacity 220ms ease';
+                existingNode.style.transition = `fill-opacity ${transitionTime}ms ease`;
                 existingNode.setAttribute('fill-opacity', '1');
             } else {
                 // create new hole rect with initial fill-opacity 0, then fade to 1
@@ -497,12 +548,12 @@
                     hole.setAttribute('fill', 'black'); // black hides overlay in mask
                     hole.setAttribute('fill-opacity', '0'); // start transparent
                     // inline style transition — inline helps ensure the transition fires
-                    hole.style.transition = 'fill-opacity 220ms ease';
+                    hole.style.transition = `fill-opacity ${transitionTime}ms ease`;
                     mask.appendChild(hole);
-                    // small delay so the browser registers the initial state, then animate
-                    setTimeout(() => {
-                        try { hole.setAttribute('fill-opacity', '1'); } catch (e) {}
-                    }, 20);
+// ensure transition runs by switching opacity on next frame
+requestAnimationFrame(() => {
+    try { hole.setAttribute('fill-opacity', '1'); } catch (e) {}
+});
                 } catch (e) {}
             }
         });
@@ -670,7 +721,7 @@
                     } catch (e) {}
                 };
                 posLoop();
-                const id = setInterval(posLoop, 260);
+                const id = setInterval(posLoop, transitionTime + 40);
                 pollers.push({
                     type: 'interval',
                     id
@@ -745,7 +796,7 @@
                 } catch (e) {
                     // ignore errors and keep polling
                 }
-            }, 260);
+            }, transitionTime + 40);
             pollers.push({ type: 'interval', id });
             return;
         }
@@ -763,7 +814,7 @@
                         stepCompleted(step);
                     }
                 } catch (e) {}
-            }, 220);
+            }, transitionTime);
             pollers.push({
                 type: 'interval',
                 id
@@ -886,65 +937,114 @@
     }
 
     // called when a step is done
-    function stepCompleted(step) {
+    function _waitForDialogHidden(timeout = 520) {
+        return new Promise(resolve => {
+            if (!dialog) return resolve();
+
+            // check computed opacity — if already hidden (opacity 0 or display none) resolve immediately
+            const cs = getComputedStyle(dialog);
+            if (cs.opacity === '0' || cs.display === 'none' || dialog.classList.contains('hide')) {
+                // still allow a small delay to let any immediate layouts settle
+                return setTimeout(resolve, 8);
+            }
+
+            let resolved = false;
+            const cleanup = () => {
+                if (resolved) return;
+                resolved = true;
+                dialog.removeEventListener('transitionend', onTrans);
+                dialog.removeEventListener('animationend', onAnim);
+                clearTimeout(tid);
+                resolve();
+            };
+
+            function onTrans(ev) {
+                // only respond to opacity transitions (safe heuristic)
+                if (ev.propertyName && ev.propertyName.toLowerCase().includes('opacity')) cleanup();
+            }
+            function onAnim(ev) {
+                cleanup();
+            }
+
+            dialog.addEventListener('transitionend', onTrans);
+            dialog.addEventListener('animationend', onAnim);
+
+            // fallback timeout in case no transitionend fires
+            const tid = setTimeout(cleanup, timeout);
+        });
+    }
+
+    async function stepCompleted(step) {
+        // start hide animation
         dialog.classList.remove('show');
         dialog.classList.add('hide');
 
+        // start fade-out of highlights / mask
         restoreHighlight();
         clearPollers();
 
         const nextIndex = Math.min(steps.indexOf(step) + 1, steps.length - 1);
-
-        // Only auto-advance for steps that have actual actions
         const waitType = step.waitFor?.type || 'none';
+
+        // If this step requires explicit Next (clickThenNext / awaitNext), keep dialog visible
         if (step.showNext && (waitType === 'clickThenNext' || waitType === 'awaitNext')) {
-            // don't auto-advance, let user click Next
+            // keep dialog visible — user must click next
             dialog.classList.remove('hide');
             dialog.classList.add('show');
             return;
         }
 
-        // Prevent auto-advance for the last step
+        // If last step 'done', keep the dialog visible but ensure overlay was removed (openStep will handle)
         if (step.id === 'done') {
             dialog.classList.remove('hide');
             dialog.classList.add('show');
             return;
         }
 
-        setTimeout(() => {
-            restoreHighlight();
-            clearPollers();
-            const nextIndex = Math.min(steps.indexOf(step) + 1, steps.length - 1);
+        // Wait for dialog to finish its hide transition (so we can move it while hidden)
+        await _waitForDialogHidden();
 
-            openStep(nextIndex); // open next step
-        }, 360);
+        // position dialog for next step while hidden, so the subsequent show animation will start from correct place
+        try {
+            const nextStep = steps[nextIndex];
+            if (nextStep) positionDialogForStep(nextStep);
+        } catch (e) {}
+
+        // open next step (openStep will show the dialog again)
+        openStep(nextIndex);
     }
 
-    // finish from Next button (or finish step manually)
     function finishStepAndAdvance() {
         const s = steps[activeStepIndex];
         // If this step required a click (clickThenNext) ensure click happened
         if (s.waitFor && s.waitFor.type === 'clickThenNext' && !s._clicked) {
             // shake dialog to indicate required action
-            dialog.animate([{
-                transform: 'translateX(0)'
-            }, {
-                transform: 'translateX(-8px)'
-            }, {
-                transform: 'translateX(8px)'
-            }, {
-                transform: 'translateX(0)'
-            }], {
-                duration: 240
-            });
+            dialog.animate([
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-8px)' },
+                { transform: 'translateX(8px)' },
+                { transform: 'translateX(0)' }
+            ], { duration: 240 });
             return;
         }
-        // close current and go to next
+
+        // start hide animation
         dialog.classList.remove('show');
         dialog.classList.add('hide');
+
+        // teardown highlights/pollers immediately (we fade the mask in restoreHighlight)
         restoreHighlight();
         clearPollers();
-        setTimeout(() => openStep(Math.min(activeStepIndex + 1, steps.length - 1)), 420);
+
+        // wait for hide then move + open next
+        const nextIndex = Math.min(activeStepIndex + 1, steps.length - 1);
+        _waitForDialogHidden().then(() => {
+            try {
+                const nextStep = steps[nextIndex];
+                if (nextStep) positionDialogForStep(nextStep);
+            } catch (e) {}
+            openStep(nextIndex);
+        });
     }
 
     // final skip/finish
@@ -955,7 +1055,6 @@
         // mark tutorial seen
         localStorage.setItem('tutorialSeen', 'true');
         // hide overlay
-        const panel = document.getElementById('tutorialOverlayPanel');
         const tutorialDialog = document.getElementById('tutorialDialog');
         const tutorialSpotlight = document.querySelector('.tutorial-spotlight');
         const mouseLoop = document.getElementById('mouseloop');
@@ -963,52 +1062,23 @@
             try { tutorialSpotlight.remove(); } catch (e) {}
             spotlightOverlay = null;
         }
-        if (panel) panel.style.display = 'none';
         if (mouseLoop) mouseLoop.style.display = 'none';
         if (tutorialDialog) tutorialDialog.style.display = 'none';
     }
 
-    // wire skip global
-    skipAll.addEventListener('click', finishTutorial);
 
     // helper: start tutorial on first visit (or call window.showAppTutorial to force)
     document.addEventListener('DOMContentLoaded', () => {
         const seen = localStorage.getItem('tutorialSeen') && false;
         if (!seen) {
             openStep(0);
-        } else {
-            skipAll.style.display = 'none';
         }
     });
 
     // expose manual opener
     window.showAppTutorial = function() {
         localStorage.removeItem('tutorialSeen');
-        const panel = document.getElementById('tutorialOverlayPanel');
-        if (panel) panel.style.display = 'block';
         openStep(0);
     };
 
-})();
-(function logStack(el) {
-    el = el || document.querySelector('header');
-    if (!el) {
-        console.warn('no header found');
-        return;
-    }
-    console.group('stack chain for', el);
-    while (el) {
-        const cs = getComputedStyle(el);
-        console.log(el.tagName + (el.id ? '#' + el.id : ''), {
-            position: cs.position,
-            zIndex: cs.zIndex,
-            transform: cs.transform,
-            opacity: cs.opacity,
-            isolation: cs.isolation,
-            willChange: cs.willChange,
-            filter: cs.filter
-        });
-        el = el.parentElement;
-    }
-    console.groupEnd();
 })();

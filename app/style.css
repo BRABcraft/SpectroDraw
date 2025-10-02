@@ -555,8 +555,8 @@ select {
 /* dialog bubble */
 .tutorial-dialog {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  left: 10px;
+  top: 30px;
   width: 420px;
   z-index: 990000000;
   background: #fff;
@@ -601,10 +601,10 @@ select {
 
 /* special pulsate glow for the exportMIDI step */
 .tutorial-pulse-glow {
-  box-shadow: 0 0 0 4px rgba(255,200,60,0.06), 0 8px 30px rgba(255,200,60,0.08);
+  box-shadow: 0 0 0 4px rgba(255,200,60,0.46), 0 8px 30px rgba(255,200,60,0.78);
   animation: glowPulse 1.6s infinite;
 }
-@keyframes glowPulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+@keyframes glowPulse { 0% { transform: scale(1); } 50% { transform: scale(1.07); } 100% { transform: scale(1); } }
 
 /* subtle decorative marker only used when pulseOutline is requested */
 .tutorial-target-marker {

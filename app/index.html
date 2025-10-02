@@ -1546,7 +1546,10 @@ function newHistory() {
         prevMags: prevMagsArr,
         prevPhases: prevPhasesArr,
         minCol: Math.max(0, minCol),
-        maxCol: Math.min(specWidth - 1, maxCol)
+        maxCol: Math.min(specWidth - 1, maxCol),
+        maxSize: specWidth,
+        hopSize: hopSizeEl.value,
+        fftSize: fftSize
     });
   }
 }
@@ -1769,9 +1772,6 @@ renderFullSpectrogramToImage();
 <script src="eq.js"></script>
 <!-- Tutorial overlay (single-page buttons + per-step dialogs) -->
 
-<div id="tutorialOverlayPanel" aria-hidden="false" role="dialog" aria-label="App tutorial">
-  <button id="tutorialSkip" class="tutorial-skip-link">Skip tutorial</button>
-</div>
 <div id="tutorialDialog" class="tutorial-dialog hide" role="dialog" aria-live="polite">
     <h3 id="tdTitle">Title</h3>
     <p id="tdText">Text</p>

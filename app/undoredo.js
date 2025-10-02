@@ -217,13 +217,118 @@ document.getElementById('undoBtn').addEventListener('click', () => {
 document.getElementById('redoBtn').addEventListener('click', () => {
   doRedo();
 });
+// Ensure mags/phases (and related buffers) are sized to cover max flat index
+function ensureMagsPhasesForSizeOrIndex(v, hopArg, fftSArg) {
+  if (typeof v !== 'number' || v <= 0 || !specHeight) return;
+
+  const h = specHeight;
+  // decide whether v is columns or flat index:
+  // if v * h equals current mags length, it's likely already columns.
+  // otherwise if v appears larger than current mags length, assume it's columns.
+  // else treat v as flat max index.
+  let requiredCols;
+  if (mags && v * h === mags.length) {
+    requiredCols = v;
+  } else if (v * h > (mags ? mags.length : 0) && Number.isInteger(v) && v <= 100000) {
+    // heuristically treat as columns
+    requiredCols = v;
+  } else {
+    // treat as flat index
+    requiredCols = Math.ceil((v + 1) / h);
+  }
+
+  if (requiredCols <= 0) return;
+
+  const requiredLen = requiredCols * h; // number of bins (mags/phases length)
+  const curLen = (mags && mags.length) ? mags.length : 0;
+
+  // Determine sample sizing using provided or global hop/fftSize
+  const localHop = hop;
+  const localFFT = fftSize;
+
+  // Required PCM sample length to cover requiredCols:
+  // last column index is requiredCols - 1, last sample = lastCol*hop + fftSize - 1
+  const requiredPcmLen = Math.max(0, (requiredCols - 1) * localHop + localFFT);
+
+  // --- Grow if necessary ---
+  if (curLen < requiredLen) {
+    const newMags = new Float32Array(requiredLen);
+    const newPhases = new Float32Array(requiredLen);
+    if (mags && mags.length) newMags.set(mags.subarray(0, Math.min(mags.length, requiredLen)));
+    if (phases && phases.length) newPhases.set(phases.subarray(0, Math.min(phases.length, requiredLen)));
+    mags = newMags;
+    phases = newPhases;
+
+    // Grow pcm to required sample length (preserve existing samples at start)
+    if (typeof pcm !== 'undefined' && pcm) {
+      if (pcm.length < requiredPcmLen) {
+        const newPcm = new Float32Array(requiredPcmLen);
+        newPcm.set(pcm.subarray(0, Math.min(pcm.length, requiredPcmLen)));
+        pcm = newPcm;
+      }
+    } else {
+      // ensure pcm exists
+      pcm = new Float32Array(requiredPcmLen);
+    }
+
+    specWidth = Math.max(specWidth || 0, requiredCols);
+
+    // Resize canvas / image buffer if present
+    if (typeof specCanvas !== 'undefined' && specCanvas && specCtx) {
+      specCanvas.width = specWidth;
+      try { imageBuffer = specCtx.createImageData(specWidth, specHeight); } catch(e){}
+    }
+    framesTotal = specWidth;
+
+    console.log("ensure: grown to", requiredCols, "cols,", requiredLen, "bins; pcm len:", pcm.length);
+  }
+
+  // --- Shrink (trim) if necessary ---
+  if (curLen > requiredLen) {
+    mags = mags.slice(0, requiredLen);
+    phases = phases.slice(0, requiredLen);
+    specWidth = requiredCols;
+
+    // Resize PCM conservatively to match new size (samples)
+    const newPcmLen = Math.max(0, (specWidth - 1) * localHop + localFFT);
+    if (typeof pcm !== 'undefined' && pcm) {
+      if (pcm.length > newPcmLen) {
+        const tmp = new Float32Array(newPcmLen);
+        tmp.set(pcm.subarray(0, newPcmLen));
+        pcm = tmp;
+      } else if (pcm.length < newPcmLen) {
+        const tmp = new Float32Array(newPcmLen);
+        tmp.set(pcm, 0);
+        pcm = tmp;
+      }
+    } else {
+      pcm = new Float32Array(newPcmLen);
+    }
+
+    if (typeof specCanvas !== 'undefined' && specCanvas && specCtx) {
+      specCanvas.width = specWidth;
+      try { imageBuffer = specCtx.createImageData(specWidth, specHeight); } catch(e){}
+    }
+
+    console.log("ensure: shrunk to", requiredCols, "cols,", requiredLen, "bins; pcm len:", pcm.length);
+  }
+
+  // done — caller should call recompute / render for the columns they need
+}
 
 async function doUndo() {
   if (historyStack.length === 0) { console.log("Nothing to undo"); return; }
   const entry = historyStack.pop();
 
+  // read maxCols from possible property names (maxCols, maxSize)
+  const entryMaxCols = entry.maxCols ?? entry.maxSize ?? entry.maxSizeCols ?? null;
+  if (typeof entryMaxCols === 'number') {
+    // call helper with columns; pass hop/fft if available in the entry
+    ensureMagsPhasesForSizeOrIndex(entryMaxCols, entry.hopSize, entry.fftSize);
+  }
+
   if (entry.type === 'paint') {
-    const indices = entry.indices;           
+    const indices = entry.indices;
     const prevMags = entry.prevMags;
     const prevPhases = entry.prevPhases;
     const n = indices.length;
@@ -242,19 +347,27 @@ async function doUndo() {
       phases[idx] = prevPhases[i];
     }
 
-    const minCol = Math.max(0, entry.minCol);
-    const maxCol = Math.min(specWidth - 1, entry.maxCol);
+    // ensure recompute covers restored columns: use entry min/max and any newly restored columns
+    const minCol = Math.max(0, entry.minCol ?? 0);
+    const maxColCandidate = Math.max(entry.maxCol ?? 0, specWidth - 1);
+    const maxCol = Math.min(specWidth - 1, maxColCandidate);
 
     recomputePCMForCols(minCol, maxCol);
+    restartRender(false);
+    
+    iLow = 0; iHigh = specWidth; updateCanvasScroll();
 
     while (redoStack.length >= MAX_HISTORY_ENTRIES) redoStack.shift();
     redoStack.push({
       type: 'paint',
-      indices: indices,           
-      nextMags: postMags,        
+      indices: indices,
+      nextMags: postMags,
       nextPhases: postPhases,
       minCol: minCol,
-      maxCol: maxCol
+      maxCol: maxCol,
+      maxCols: entryMaxCols,   // carry forward column count if present
+      hopSize: entry.hopSize,
+      fftSize: entry.fftSize
     });
 
     if (playing) {
@@ -266,9 +379,15 @@ async function doUndo() {
   }
 }
 
+
 async function doRedo() {
   if (redoStack.length === 0) { console.log("Nothing to redo"); return; }
   const rentry = redoStack.pop();
+
+  const rentryMaxCols = rentry.maxCols ?? rentry.maxSize ?? null;
+  if (typeof rentryMaxCols === 'number') {
+    ensureMagsPhasesForSizeOrIndex(rentryMaxCols, rentry.hopSize, rentry.fftSize);
+  }
 
   if (rentry.type === 'paint') {
     const indices = rentry.indices;
@@ -290,19 +409,23 @@ async function doRedo() {
       phases[idx] = nextPhases[i];
     }
 
-    const minCol = Math.max(0, rentry.minCol);
-    const maxCol = Math.min(specWidth - 1, rentry.maxCol);
+    const minCol = Math.max(0, rentry.minCol ?? 0);
+    const maxCol = Math.min(specWidth - 1, rentry.maxCol ?? (specWidth - 1));
     renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
     recomputePCMForCols(minCol, maxCol);
 
+    // Push a history entry so user can undo this redo; include maxCols info
     pushHistory({
       type: 'paint',
       indices: indices,
       prevMags: prevMags,
       prevPhases: prevPhases,
       minCol: minCol,
-      maxCol: maxCol
-    },  false);
+      maxCol: maxCol,
+      maxCols: rentryMaxCols ?? specWidth,
+      hopSize: rentry.hopSize,
+      fftSize: rentry.fftSize
+    }, false);
 
     if (playing) {
       stopSource(true);

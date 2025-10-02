@@ -110,7 +110,7 @@
                 type: 'eqCanvasClick',
             }, 
             showNext: true,
-            mouseLoop: true,
+            mouseLoop: false,
             mouseLoopSelector: '#eqCanvas',
             dialogOffset: { x: 408, y: 308 }
         },
@@ -653,8 +653,8 @@ requestAnimationFrame(() => {
                 mouseLoopEl.id = 'mouseloop';
                 mouseLoopEl.style.pointerEvents = 'auto';
                 mouseLoopEl.style.zIndex = 1000000;
-                mlLeft = 500; mlTop = 150;
-                mouseLoopEl.innerHTML = `<img src="mouseloop.gif" width="600" height="600" style="opacity:0.5; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
+                mlLeft = 600; mlTop = 250;
+                mouseLoopEl.innerHTML = `<img src="mouseloop.gif" width="500" height="500" style="opacity:0.5; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
                 position:fixed; left:${mlLeft}px; top: ${mlTop}px" />`;
                 document.body.appendChild(mouseLoopEl);
 
@@ -988,7 +988,7 @@ requestAnimationFrame(() => {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const seen = localStorage.getItem('tutorialSeen') && false;
+        const seen = localStorage.getItem('tutorialSeen');// && false;
         if (!seen) {
             openStep(0);
         }

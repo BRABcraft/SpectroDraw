@@ -651,32 +651,22 @@ requestAnimationFrame(() => {
                 mouseLoopEl = document.createElement('div');
                 mouseLoopEl.style.position = 'absolute';
                 mouseLoopEl.id = 'mouseloop';
-                mouseLoopEl.style.pointerEvents = 'none';
-                mouseLoopEl.style.zIndex = 100000;
-                mouseLoopEl.innerHTML = `<svg viewBox="0 0 60 60" width="48" height="48" style="opacity:0.95; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6))">
-    <circle cx="10" cy="30" r="4" fill="white" />
-    <circle cx="30" cy="30" r="3" fill="white" />
-    <circle cx="50" cy="30" r="2" fill="white" />
-</svg>`;
+                mouseLoopEl.style.pointerEvents = 'auto';
+                mouseLoopEl.style.zIndex = 1000000;
+                mlLeft = 500; mlTop = 150;
+                mouseLoopEl.innerHTML = `<img src="mouseloop.gif" width="600" height="600" style="opacity:0.5; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
+                position:fixed; left:${mlLeft}px; top: ${mlTop}px" />`;
                 document.body.appendChild(mouseLoopEl);
-                const posLoop = () => {
-                    try {
-                        const r = loopTarget.getBoundingClientRect();
-                        mouseLoopEl.style.left = (r.left + r.width * 0.6) + 'px';
-                        mouseLoopEl.style.top = (r.top + r.height * 0.5 - 24) + 'px';
-                    } catch (e) {}
-                };
-                posLoop();
-                const id = setInterval(posLoop, transitionTime + 40);
-                pollers.push({
-                    type: 'interval',
-                    id
-                });
 
-                const fadeHandler = () => mouseLoopEl.style.opacity = '0.12';
-                loopTarget.addEventListener('mousemove', fadeHandler, {
-                    once: true
-                });
+                mouseLoopEl.style.transition = 'opacity 0.8s ease';  // add this line
+                const fadeHandler = () => {
+                    setTimeout(() => {
+                        mouseLoopEl.style.opacity = '0';
+                        // remove after fade completes
+                        setTimeout(() => mouseLoopEl.remove(), 800);
+                    }, 3000); // wait 3s before fading
+                };
+                mouseLoopEl.addEventListener('mousemove', fadeHandler, { once: true });
                 pollers.push({
                     type: 'event',
                     node: loopTarget,
@@ -692,7 +682,7 @@ requestAnimationFrame(() => {
                 const fn = () => {
                     stepCompleted(step);
                 };
-                node.addEventListener('mouseup', fn, {
+                node.addEventListener('pointerup', fn, {
                     once: true
                 });
                 pollers.push({
@@ -998,7 +988,7 @@ requestAnimationFrame(() => {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const seen = localStorage.getItem('tutorialSeen');// && false;
+        const seen = localStorage.getItem('tutorialSeen') && false;
         if (!seen) {
             openStep(0);
         }

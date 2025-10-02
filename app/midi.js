@@ -1,3 +1,53 @@
+
+
+function dbToMag(db) {
+  //Mag to db: return (20 * Math.log10(mag));
+  return Math.pow(10, db / 20);
+}
+
+function detectPitches(alignPitch) {
+  detectedPitches=[];
+  if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
+
+  const re = new Float32Array(fftSize);
+  const im = new Float32Array(fftSize);
+  for (let j = 0; j < fftSize; j++) { re[j] = (pcm[pos + j] || 0) * win[j]; im[j] = 0; }
+  fft_inplace(re, im);
+
+  const factor = sampleRate / fftSize / 2; // Hz per bin
+
+  for (let bin = 0; bin < specHeight; bin++) {
+    const mag = Math.hypot(re[bin] || 0, im[bin] || 0)/256;
+    if (mag <= dbToMag(noiseFloor)) continue;
+
+    const freq = factor * bin;
+    if (freq <= 0) continue;
+    let detectedPitch;
+    if (alignPitch) {
+      // nearest pitch logic (keeps your prior intent)
+      let nearestPitch = Math.round(npo * Math.log2(freq / a4p));
+      nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
+      detectedPitch = Math.floor(nearestPitch / factor);
+    } else {
+      detectedPitch = freq;
+    }
+    // per-frame integer velocity from this bin's magnitude
+    const magToDb = m => 20 * Math.log10(Math.max(m, 1e-12));
+    const db = magToDb(mag);
+    const t = mag//(db - noiseFloor) / (0 - noiseFloor);
+    const velFrame = Math.round(Math.max(0, Math.min(1, t)));
+
+    // ensure uniqueness per frame by pitch+velocity
+    if (!detectedPitches.some(([p, _m, v]) => p === detectedPitch && v === velFrame)) {
+      detectedPitches.push([detectedPitch, mag, velFrame]);
+    }
+  }
+
+  pos += hop; x++;
+  audioProcessed += hop;
+  if (x >= specWidth) { rendering = false; status.style.display = "none"; }
+  return detectedPitches;
+}
 // ---------- exportMidi: detect & merge, now adds startTime (seconds) ----------
 function exportMidi(opts = {}) {
   // opts: { useVolumeControllers: true/false, downloadName: "...", minVelocityDb: -60, ... }
@@ -381,4 +431,107 @@ function writeMidiFile(notes, opts = {}) {
   }
 
   return out;
+}
+function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultiplier = 4} = {}) {
+  snapshotMags = new Float32Array(mags);
+  snapshotPhases = new Float32Array(phases);
+  pos = 0;
+  x = 0;
+  audioProcessed = 0;
+
+  const h = specHeight;
+
+  function median(arr) {
+    const a = Array.from(arr).sort((a, b) => a - b);
+    const mid = Math.floor(a.length / 2);
+    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  }
+  function mad(arr, med) {
+    const diffs = arr.map(v => Math.abs(v - med));
+    return median(diffs);
+  }
+
+  const factor = sampleRate / fftSize; // Hz per bin
+
+  for (let frame = 0; frame < specWidth; frame++) {
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+    for (let j = 0; j < fftSize; j++) {
+      re[j] = (pcm[pos + j] || 0) * win[j];
+      im[j] = 0;
+    }
+    fft_inplace(re, im);
+
+    const fmags = new Float32Array(h);
+    for (let bin = 0; bin < h; bin++) {
+      fmags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0) / 256;
+    }
+
+    const med = median(fmags);
+    const m = mad(fmags, med) || 1e-12;
+    const threshold = med + peakMadMultiplier * m;
+
+    const peaks = [];
+    for (let bin = 1; bin < h; bin++) {
+      const mag = fmags[bin];
+      if (mag > threshold) {
+        peaks.push({ bin, mag, freq: factor * bin });
+      }
+    }
+    peaks.sort((a, b) => b.mag - a.mag);
+
+    const suppressed = new Array(h).fill(false);
+    const suppressedBinsThisFrame = [];
+
+    function suppressBin(binIndex) {
+      if (suppressed[binIndex]) return;
+      const mirror = (fftSize - binIndex) % fftSize;
+      const scale = 1 / 10000;
+      re[binIndex] *= scale; im[binIndex] *= scale;
+      re[mirror] *= scale;  im[mirror] *= scale;
+      suppressed[binIndex] = true;
+      if (mirror < h) suppressed[mirror] = true;
+      suppressedBinsThisFrame.push(binIndex);
+    }
+
+    // === New simplified loop ===
+    for (const peak of peaks) {
+      if (suppressed[peak.bin]) continue; // already removed as harmonic
+      const baseFreq = peak.freq;
+      for (const q of peaks) {
+        if (q.bin === peak.bin) continue;
+        if (suppressed[q.bin]) continue;
+        for (let k = 2; k <= maxHarmonic; k++) {
+          if (Math.abs(q.freq - k * baseFreq) <= harmonicTolerance * baseFreq) {
+            suppressBin(q.bin);
+            break;
+          }
+        }
+      }
+    }
+
+    const processedMags = new Float32Array(h);
+    for (let bin = 0; bin < h; bin++) {
+      if (suppressed[bin]) {
+        processedMags[bin] = 0//fmags[bin] / 100000;
+      } else {
+        processedMags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0);
+      }
+    }
+    mags.set(processedMags,frame*specHeight);
+
+    pos += hop;
+    x++;
+    audioProcessed += hop;
+    if (x >= specWidth) break;
+  }
+  newHistory();
+
+  recomputePCMForCols(0, specWidth);
+  restartRender();
+
+  startTime = performance.now();
+  audioProcessed = 0;
+  playPCM();
+  document.getElementById("playPause").innerHTML=pauseHtml;
 }

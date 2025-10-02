@@ -457,3 +457,198 @@ select {
   border-radius: 5px;
   font-size: 0.9rem;
 }
+
+#tutorialOverlayPanel {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+#tutorialCurtain {
+  display:none;
+}
+
+/* left-side step button rail (all buttons on one page) */
+#tutorialRail {
+  position: fixed;
+  left: 18px;
+  top: 18px;
+  width: 300px;
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  z-index: 99999;
+  padding:10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  border:1px solid rgba(255,255,255,0.04);
+}
+
+/* each step button */
+.tutorial-step-btn {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px;
+  border-radius:8px;
+  background: rgba(255,255,255,0.02);
+  color:#fff;
+  border: 1px solid rgba(255,255,255,0.03);
+  cursor:pointer;
+  position:relative;
+  overflow:visible;
+}
+.tutorial-step-btn .title { font-weight:600; font-size:13px; }
+.tutorial-step-btn .subtitle { font-size:12px; opacity:0.85; }
+
+/* active style */
+.tutorial-step-btn.active {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  border-color: rgba(255,255,255,0.07);
+}
+
+/* arrow wrapper that will be positioned to target */
+.tutorial-arrow {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  right: -76px;
+  top: 50%;
+  transform-origin: 50% 50%;
+  pointer-events:none;
+  opacity: 0.95;
+}
+
+/* arrow - simple curved arrow built with border and transform */
+.tutorial-arrow svg { width:100%; height:100%; display:block; }
+.tutorial-arrow .loop {
+  transform-origin: 50% 50%;
+  animation: arrow-loop 2.2s linear infinite;
+}
+@keyframes arrow-loop {
+  0% { transform: rotate(0deg); opacity:1; }
+  50% { transform: rotate(6deg) translateY(-2px); opacity:0.95;}
+  100% { transform: rotate(0deg); opacity:1; }
+}
+
+/* small pulsing target marker for highlighted target */
+.tutorial-target-marker {
+  position: absolute;
+  pointer-events: none;
+  z-index: 99999;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  animation: marker-pulse 1.6s infinite;
+  border: 2px solid rgba(255,255,255,0.12);
+}
+@keyframes marker-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* dialog bubble */
+.tutorial-dialog {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 420px;
+  z-index: 990000000;
+  background: #fff;
+  color: #111;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.6);
+  transform-origin: 100% 100%;
+  opacity: 0;
+  transition: opacity 260ms ease, transform 260ms ease;
+  pointer-events:auto;
+}
+.tutorial-dialog.show { opacity:1; transform: translateY(0);}
+.tutorial-dialog.hide { opacity:0; transform: translateY(8px); }
+
+.tutorial-dialog h3 { margin: 0 0 8px 0; font-size:16px; }
+.tutorial-dialog p { margin:0 0 12px 0; font-size:13px; line-height:1.35; color:#333; }
+
+.tutorial-actions { display:flex; justify-content:flex-end; gap:8px; }
+.tutorial-actions button { padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f6f6f6; cursor:pointer; }
+.tutorial-actions button.primary { background:#111; color:#fff; border-color:transparent; }
+
+/* skip link always visible */
+.tutorial-skip-link {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  z-index: 100000;
+  color: #fff;
+  background: rgba(0,0,0,0.4);
+  padding:8px 10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.06);
+  cursor:pointer;
+}
+
+/* small fade after user completes a dialog */
+.tutorial-fadeout {
+  transition: opacity 280ms ease;
+  opacity: 0;
+}
+
+/* special pulsate glow for the exportMIDI step */
+.tutorial-pulse-glow {
+  box-shadow: 0 0 0 4px rgba(255,200,60,0.06), 0 8px 30px rgba(255,200,60,0.08);
+  animation: glowPulse 1.6s infinite;
+}
+@keyframes glowPulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+/* subtle decorative marker only used when pulseOutline is requested */
+.tutorial-target-marker {
+  transition: left 160ms ease, top 160ms ease, width 160ms ease, height 160ms ease;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  pointer-events: none;
+}
+
+/* pulsing outline on target element (no z-index changes) */
+.tutorial-pulse-outline {
+  animation: tutorial-pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 6px rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+@keyframes tutorial-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.08); }
+  50% { box-shadow: 0 0 0 10px rgba(255,255,255,0.02); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.00); }
+}
+#tutorialDialog button.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+#tutorialDialog {
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#tutorialDialog.show {
+    opacity: 1;
+}
+
+#tutorialDialog.hide {
+    opacity: 0;
+}
+
+/* optional: fade for spotlight overlay */
+svg.tutorial-spotlight {
+    opacity: 1;
+    transition: opacity 0.35s ease;
+}
+
+svg.tutorial-spotlight.hide {
+    opacity: 0;
+}

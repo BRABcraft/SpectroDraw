@@ -36,7 +36,7 @@
             label: 'Add audio / presets',
             subtitle: 'Upload a file or choose a preset',
             target: '#fileB, #presets, #rec, #canvas, #timeline, #logscale, #freq, #midiv',
-            dialog: "Let’s add some sound! Upload an audio or video file, record with your microphone, or pick one of the built-in presets.",
+            dialog: "Let’s add some sound! Upload an audio or video file, record with\nyour microphone, or pick one of the built-in presets.",
             waitFor: {
                 type: 'renderCycle',
                 varName: 'rendering'
@@ -115,7 +115,7 @@
             label: 'Equalizer',
             subtitle: 'Open EQ and tweak points',
             target: '#eqBtn, #eqCanvas, .left-panel',
-            dialog: "Finally, open the Equalizer and tweak some points — hear how it changes your sound in real time.",
+            dialog: "Finally, open the Equalizer and tweak some points — hear how it\nchanges your sound in real time.",
             preAction: function() {
                 const eq = document.getElementById('eqBtn');
                 if (eq) eq.click();
@@ -133,7 +133,7 @@
             label: 'Done',
             subtitle: 'Finish the tutorial',
             target: '#resetButton',
-            dialog: "That’s it! 🎉 You’ve completed the tutorial. Clicking this button resets the spectrogram to silence. Now go make something amazing.",
+            dialog: "That’s it! 🎉 You’ve completed the tutorial. Clicking this button\nresets the spectrogram to silence. Now go make something amazing.",
             preAction: function() {
                 const general = document.getElementById('settingsBtn');
                 if (general) general.click();
@@ -167,15 +167,39 @@
         node.textContent = text;
     }
 
-    function safeAddClass(node, cls) {
-        if (!node) return;
-        node.classList.add(cls);
-    }
+    function fadeInText(el, speed = 25) {
+        if (!el) return;
 
-    function safeRemoveClass(node, cls) {
-        if (!node) return;
-        node.classList.remove(cls);
-    }
+        const text = el.textContent || '';
+        el.innerHTML = '';
+
+        // Split by line breaks first
+        const lines = text.split('\n');
+
+        lines.forEach((line, lineIndex) => {
+            const words = line.split(/(\s+)/); // split by spaces but keep them
+
+            words.forEach((word, wordIndex) => {
+            Array.from(word).forEach((char, charIndex) => {
+                const span = document.createElement('span');
+                span.textContent = char === ' ' ? '\u00A0' : char;
+                el.appendChild(span);
+
+                const totalIndex =
+                charIndex + words.slice(0, wordIndex).join('').length +
+                lines.slice(0, lineIndex).join('\n').length + lineIndex; // account for line breaks
+
+                setTimeout(() => {
+                span.style.opacity = 1;
+                }, totalIndex * speed);
+            });
+            });
+
+            if (lineIndex < lines.length - 1) {
+            el.appendChild(document.createElement('br')); // restore line breaks
+            }
+        });
+        }
 
     function openStep(index) {
         if (!playingTutorial) return;
@@ -225,9 +249,14 @@
             }
 
             if (dialog) {
-
                 dialog.classList.remove('hide');
                 dialog.classList.add('show');
+
+                // tiny delay so CSS transitions start nicely, then type the paragraph
+                setTimeout(() => {
+                    // tdText is your <p> element (you already set it earlier via safeSetText)
+                    fadeInText(tdText, 25); // adjust speed to taste
+                }, 60);
 
                 dialog.style.transform = 'translateY(8px)';
                 setTimeout(() => {
@@ -1012,7 +1041,6 @@
         clearPollers();
 
         localStorage.setItem('tutorialSeen', 'true');
-
         const tutorialDialog = document.getElementById('tutorialDialog');
         const tutorialSpotlight = document.querySelector('.tutorial-spotlight');
         const mouseLoop = document.getElementById('mouseloop');

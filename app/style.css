@@ -573,7 +573,20 @@ select {
 .tutorial-dialog.hide { opacity:0; transform: translateY(8px); }
 
 .tutorial-dialog h3 { margin: 0 0 8px 0; font-size:16px; }
-.tutorial-dialog p { margin:0 0 12px 0; font-size:13px; line-height:1.35; color:#111; }
+.tutorial-dialog p {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #111;
+  white-space: pre-wrap; /* preserve line breaks and spaces */
+}
+
+.tutorial-dialog p span {
+  opacity: 0;
+  display: inline-block;
+  transition: opacity 0.3s ease;
+}
+
 
 .tutorial-actions { display:flex; justify-content:flex-end; gap:8px; }
 .tutorial-actions button { padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f6f6f6; cursor:pointer; }

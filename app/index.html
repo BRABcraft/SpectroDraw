@@ -504,6 +504,7 @@ let noiseFloor = document.getElementById("noiseFloorCutoff").value; let a4p = 44
 let dCutoff = document.getElementById("durationCutoff").value;
 let globalGain = 0;
 let playingTutorial = false;
+let currentFrame = 0;
 sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
 sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
@@ -1055,11 +1056,10 @@ function drawFrame(w,h) {
         snapshotMags = null;
         snapshotPhases = null;
       }
-
       if (pendingPlayAfterRender) {
         pendingPlayAfterRender = false;
         try {
-          playPCM(); 
+          playPCM(false,currentFrame); 
         } catch (e) { console.warn("playPCM() failed after render:", e); }
         const playPauseEl = document.getElementById("playPause");
         if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
@@ -1067,7 +1067,7 @@ function drawFrame(w,h) {
 
       if (!painting && autoPlayOnFinish) {
           autoPlayOnFinish = false;
-          playPCM(true);
+          playPCM(true,currentFrame);
       }
       status.style.display = "none";
       return false;
@@ -1351,7 +1351,7 @@ function canvasMouseMove(e,touch) {
       const i = hx*specHeight+hy;
       let normalizedMag = Math.min(1, mags[i] / 256);
       let db = (20 * Math.log10(normalizedMag)).toFixed(1);
-      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db ${i}`
+      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
     }
     if (!painting && currentTool === "brush" || currentTool === "eraser" || currentTool === "blur" || currentTool === "amplifier") {
         previewShape(cx, cy);
@@ -1430,7 +1430,7 @@ function canvasMouseUp(e,touch) {
       pendingPlayAfterRender = true; 
     } else {
 
-      playPCM();
+      playPCM(startFrame = currentFrame);
       const playPauseEl = document.getElementById("playPause");
       if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
     }
@@ -1567,7 +1567,6 @@ document.addEventListener("touchend", e => {
 let sourceNode = null;
 let playing = false;
 let mouseDown = false;
-let currentFrame = 0; 
 let pausedAtSample = null; 
 let sourceStartTime = 0; 
 let wasPlayingDuringDrag = false;

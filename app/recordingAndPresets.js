@@ -259,11 +259,15 @@ preset.addEventListener("change", async (e) => {
     engine: "presets/engine.mp3",
     fullSpectra: "presets/fullSpectra.wav",
     bass808: "presets/808bass.wav",
-    cave14: "presets/cave14.oga",
+    hardstyle: "presets/hardstyle.wav",
+    kick: "presets/kick.wav",
+    hihat: "presets/hihat.wav",
+    clap: "presets/clap.wav",
+    cave14: "presets/cave14.mp3",
     sine: "presets/sine.wav",
-    triangle: "presets/triangle.mp3",
-    square: "presets/square.mp3",
-    saw: "presets/saw.mp3"
+    triangle: "presets/triangle.wav",
+    square: "presets/square.wav",
+    saw: "presets/saw.wav"
   };
 
   const url = presetMap[val];

@@ -573,7 +573,6 @@ function makeEQMenu(cx,cy){
   const removePoint = ()=> {
     const pos = {x:cx, y:cy};
     const hit = findHit(pos);
-    console.log(hit);
     if (hit && hit.type === 'point'){
         eqBands.splice(hit.index, 1);
         applyEQChanges();

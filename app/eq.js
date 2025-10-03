@@ -1,6 +1,6 @@
 const FREQ_LOG_SCALE = 2;
 const gainScale = parseInt(sliders[11][0].max);
-let eqBands= [
+let defaultEQBands= [
     { type: "low_shelf", freq: 0, gain: 0}, 
     { type: "peaking", freq: sampleRate/128}, 
     { type: "peaking", freq: sampleRate/32}, 
@@ -9,6 +9,7 @@ let eqBands= [
     { type: "peaking", freq: sampleRate/4}, 
     { type: "high_shelf", freq: sampleRate/2}
 ];
+let eqBands = defaultEQBands.map(band => ({ ...band }));
 const POINT_HIT_RADIUS = 7.5;
 const HANDLE_HIT_RADIUS = 7.5;
 
@@ -323,7 +324,7 @@ function getCanvasPos(evt) {
 
 EQcanvas.addEventListener('pointerdown', (evt) => {  
   ensureAudioCtx();
-  if (!sineOsc && !playing) {
+  if (!sineOsc && !playing && document.getElementById("previewWhileDrawing").checked) {
       sineOsc = audioCtx.createOscillator();
       sineOsc.type = "sine";
       sineGain = audioCtx.createGain();
@@ -593,8 +594,7 @@ const eqPresetsData = {
 
 function applyPresetValues(gainsArray) {
   if (!Array.isArray(gainsArray) || gainsArray.length !== eqBands.length) {
-    console.warn("applyPresetValues: preset length mismatch", gainsArray);
-    return;
+    eqBands = defaultEQBands;
   }
   for (let i = 0; i < eqBands.length; i++) {
 

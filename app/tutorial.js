@@ -170,35 +170,35 @@
     function fadeInText(el, speed = 25) {
         if (!el) return;
 
-        const text = el.textContent || '';
-        el.innerHTML = '';
+  const text = el.textContent || '';
+  el.innerHTML = '';
 
-        // Split by line breaks first
-        const lines = text.split('\n');
+  // Split by line breaks
+  const lines = text.split('\n');
 
-        lines.forEach((line, lineIndex) => {
-            const words = line.split(/(\s+)/); // split by spaces but keep them
+  lines.forEach((line, lineIndex) => {
+    // Split into words and emojis
+    const wordsAndEmojis = line.match(
+      /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\S|\s)/gu
+    ) || [];
 
-            words.forEach((word, wordIndex) => {
-            Array.from(word).forEach((char, charIndex) => {
-                const span = document.createElement('span');
-                span.textContent = char === ' ' ? '\u00A0' : char;
-                el.appendChild(span);
+    wordsAndEmojis.forEach((unit, unitIndex) => {
+      const span = document.createElement('span');
+      span.textContent = unit === ' ' ? '\u00A0' : unit;
+      span.style.opacity = 0;
+      span.style.display = 'inline-block';
+      span.style.transition = 'opacity 0.3s ease';
+      el.appendChild(span);
 
-                const totalIndex =
-                charIndex + words.slice(0, wordIndex).join('').length +
-                lines.slice(0, lineIndex).join('\n').length + lineIndex; // account for line breaks
+      setTimeout(() => {
+        span.style.opacity = 1;
+      }, unitIndex * speed);
+    });
 
-                setTimeout(() => {
-                span.style.opacity = 1;
-                }, totalIndex * speed);
-            });
-            });
-
-            if (lineIndex < lines.length - 1) {
-            el.appendChild(document.createElement('br')); // restore line breaks
-            }
-        });
+    if (lineIndex < lines.length - 1) {
+      el.appendChild(document.createElement('br')); // preserve line breaks
+    }
+  });
         }
 
     function openStep(index) {
@@ -1053,10 +1053,14 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const seen = localStorage.getItem('tutorialSeen') && false;
+        const seen = localStorage.getItem('tutorialSeen');// && false;
         if (!seen) {
             playingTutorial = true;
             openStep(0);
+        } else {
+            document.getElementById('tutorialDialog').style.display = 'none';
+            document.querySelector('.tutorial-spotlight').style.display = 'none';
+            document.getElementById('mouseloop').style.display = 'none';
         }
     });
 

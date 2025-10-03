@@ -20,31 +20,71 @@ function countdown(seconds) {
   });
 }
 
-async function startRecording() {  
+function showCountdownOverlay(number) {
+  let overlay = document.getElementById("countdown-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "countdown-overlay";
+    document.body.appendChild(overlay);
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      fontSize: "10rem",
+      fontWeight: "bold",
+      color: "white",
+      textAlign: "center",
+      pointerEvents: "none",
+      zIndex: 9999,
+      opacity: 1,
+      transition: "opacity 0.3s ease-out"
+    });
+  }
+  overlay.textContent = number;
+  overlay.style.opacity = 1;
+  setTimeout(() => overlay.style.opacity = 0, 700);
+}
+
+function countdown(seconds) {
+  return new Promise(resolve => {
+    let remaining = seconds;
+    const beep = new Audio("beep.mp3");
+    beep.load();
+
+    function tick() {
+      if (!recording) return resolve(); // stop if recording canceled
+
+      if (remaining > 0) {
+        // show overlay and play beep only if > 0
+        showCountdownOverlay(remaining);
+        info.innerHTML = `Recording in ${remaining}<br><br>`;
+        beep.currentTime = 0;
+        beep.play();
+
+        remaining--;
+        setTimeout(tick, 1000);
+      } else {
+        // countdown finished
+        resolve();
+      }
+    }
+    tick();
+  });
+}
+
+async function startRecording() { 
   ensureAudioCtx();
   fHigh = sampleRate/2;
   fWidth = fHigh;
 
   stopSource();
   const beep = new Audio("beep.mp3");
-beep.load();
+  beep.load();
 
-info.innerHTML = "Recording in 3<br><br>";
-beep.currentTime = 0; beep.play();
-await countdown(1);
-if (!recording) return;
-
-info.innerHTML = "Recording in 2<br><br>";
-beep.currentTime = 0; beep.play();
-await countdown(1);
-if (!recording) return;
-
-info.innerHTML = "Recording in 1<br><br>";
-beep.currentTime = 0; beep.play();
-await countdown(1);
-if (!recording) return;
-  info.innerHTML = "Recording...<br><br>";
+  await countdown(3);
   status.textContent = "Recording...";
+  recordBtn.innerHTML = recHTML; 
   if (!recording) return;
   pcmChunks = [];        
   pcm = new Float32Array(0);
@@ -90,6 +130,7 @@ if (!recording) return;
       const framesSoFar = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
       iHigh = Math.max(1000, framesSoFar);
       updateCanvasScroll();
+      info.innerHTML = `Recording...<br>${(framesSoFar/(sampleRate/hopSizeEl.value)).toFixed(1)} secs<br>Press record or ctrl+space to stop`;
     };
 
     const silentGain = audioCtx.createGain();
@@ -105,7 +146,8 @@ if (!recording) return;
   }
 }
 
-function stopRecording() {
+function stopRecording() {  
+  recordBtn.innerHTML = micHTML;
   recording = false;
   status.textContent = "Recording stopped.";
   info.textContent = "";

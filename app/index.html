@@ -18,14 +18,7 @@
         <line x1="4" y1="16" x2="16" y2="16" />
       </svg>
     </button>
-    <button id="rec" title="Record (Ctrl + space)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 15a4 4 0 0 0 8 0" />
-        <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="black"/>
-        <line x1="12" y1="18" x2="12" y2="17"/>
-        <line x1="9" y1="21" x2="15" y2="21"/>
-      </svg>
-    </button>
+    <button id="rec" title="Record (Ctrl + space)"></button>
     <input id="file" title="Import audio (Ctrl + O)" type="file" accept="audio/*,video/*" style="display:none;"/>
     <button id="playPause" title="Play (space)" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>
@@ -292,6 +285,10 @@
             <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
         </div>
       </div> 
+      <div class="slider-row" title="Preview sound while drawing">
+          <label class="h2">Sound while drawing</label>
+          <input id="previewWhileDrawing" type="checkbox" checked>
+      </div>
     </div>
     <div id="d2" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Piano</h2>
@@ -448,6 +445,17 @@ class RecorderProcessor extends AudioWorkletProcessor {
 }
 registerProcessor('recorder-processor', RecorderProcessor);
 `;
+const micHTML = `
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8 15a4 4 0 0 0 8 0" />
+  <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="black"/>
+  <line x1="12" y1="18" x2="12" y2="17"/>
+  <line x1="9" y1="21" x2="15" y2="21"/>
+</svg>`;
+const recHTML = `
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="red">
+  <circle cx="12" cy="12" r="8" />
+</svg>`;
 const toolButtons = document.querySelectorAll(".tool-btn");
 const panelButtons = document.querySelectorAll(".panel-btn");
 const trueScale = document.getElementById("trueScale");
@@ -576,6 +584,7 @@ sliders[11][1].addEventListener('keydown', (e) => {
     updateEQ();
   }
 });
+recordBtn.innerHTML = micHTML;
 
 function angleDiff(a, b) {
   const d = a - b;
@@ -1319,19 +1328,21 @@ function canvasMouseDown(e,touch) {
     if (!(currentTool === "rectangle" || currentTool === "line")) {
         paint(cx + iLow, realY);
     }
-    ensureAudioCtx();
-    mouseDown = true;
-    currentFrame = Math.floor(cx);
-    playFrame(currentFrame);
+    if (document.getElementById("previewWhileDrawing").checked) {
+      ensureAudioCtx();
+      mouseDown = true;
+      currentFrame = Math.floor(cx);
+      playFrame(currentFrame);
 
-    if (!sineOsc) {
-        sineOsc = audioCtx.createOscillator();
-        sineOsc.type = "sine";
-        sineGain = audioCtx.createGain();
-        sineGain.gain.value = 0.2;
-        sineOsc.connect(sineGain).connect(audioCtx.destination);
-        setSineFreq(realY); 
-        sineOsc.start();
+      if (!sineOsc) {
+          sineOsc = audioCtx.createOscillator();
+          sineOsc.type = "sine";
+          sineGain = audioCtx.createGain();
+          sineGain.gain.value = 0.2;
+          sineOsc.connect(sineGain).connect(audioCtx.destination);
+          setSineFreq(realY); 
+          sineOsc.start();
+      }
     }
 }
 canvas.addEventListener("mousedown", e=>{

@@ -1036,17 +1036,19 @@ function drawFrame(w,h) {
         phases[idx] = phase;
     }
 
-    for (let yy = 0; yy < h; yy++) {
+    for (let yy = 0; yy < h; yy+=recording?4:1) {
         const mappedBin = displayYToBin(yy, h);
         const idx = x * h + mappedBin;
         const mag = mags[idx] || 0;
         const phase = phases[idx] || 0;
         const [r, g, b] = magPhaseToRGB(mag, phase);
-        const pix = (yy * w + x) * 4; 
-        imageBuffer.data[pix]     = r;
-        imageBuffer.data[pix + 1] = g;
-        imageBuffer.data[pix + 2] = b;
-        imageBuffer.data[pix + 3] = 255;
+        for (let i = 0; i < (recording?4:1); i++) {       
+          const pix = ((yy+i) * w + x) * 4; 
+          imageBuffer.data[pix]     = r;
+          imageBuffer.data[pix + 1] = g;
+          imageBuffer.data[pix + 2] = b;
+          imageBuffer.data[pix + 3] = 255;
+        }
     }
     pos += hop; x++;
     audioProcessed += hop;
@@ -1767,7 +1769,6 @@ function processPendingFramesLive(){
   if (!pcm || !fftSize) return;
 
   while (pos + fftSize <= pcm.length) {
-
     if (!drawFrame(specWidth, specHeight)) break;
   }
 

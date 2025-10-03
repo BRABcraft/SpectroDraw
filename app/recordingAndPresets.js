@@ -116,7 +116,7 @@ async function startRecording() {
     workletNode.port.onmessage = (ev) => {
       const chunk = ev.data;
       if (!(chunk instanceof Float32Array)) return;
-      pcmChunks.push(chunk);
+      try {pcmChunks.push(chunk);} catch(e) {}
 
       let total = 0;
       for (let c of pcmChunks) total += c.length;

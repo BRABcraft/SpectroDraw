@@ -574,12 +574,12 @@ function updateCurveEQ() {
 ensureCurveEQ(24);        
 buildCurveEQ(24);
 
-if (curveEQ && curveEQ.inited) {
+// if (curveEQ && curveEQ.inited) {
 
-  try { sourceNode.connect(curveEQ.eqInput); } catch(e){ console.warn(e); }
-} else {
-  sourceNode.connect(audioCtx.destination);
-}
+//   try { sourceNode.connect(curveEQ.eqInput); } catch(e){ console.warn(e); }
+// } else {
+//   sourceNode.connect(audioCtx.destination);
+// }
 
 const eqPresetsData = {
   "Flat":        [0, 0, 0, 0, 0, 0, 0],

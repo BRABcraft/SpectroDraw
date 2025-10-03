@@ -1,5 +1,4 @@
 (function() {
-
     const transitionTime = 820; 
     const testingTutorial = false;
     const steps = [{
@@ -23,7 +22,6 @@
             subtitle: 'Press Spacebar or click Play',
             target: '#playPause, #stop, #canvas, #timeline, #logscale, #freq',
             dialog: "Press Spacebar to play or pause your audio at any time. 🎵",
-
             waitFor: {
                 type: 'complexPlayback',
             },
@@ -98,7 +96,6 @@
             subtitle: 'Open piano, export MIDI (pulsing export button)',
             target: '#pianoBtn, #exportMIDI, .left-panel',
             dialog: "Want to make music notation? Try exporting as a MIDI file (you can even turn it into sheet music later). 🎹",
-
             waitFor: {
                 type: 'clickThenNext',
                 clickSelector: '#exportMIDI'
@@ -146,15 +143,12 @@
             dialogOffset: { x: 708, y: 108 }
         }
     ];
-
     const dialog = document.getElementById('tutorialDialog');
     const tdTitle = document.getElementById('tdTitle');
     const tdText = document.getElementById('tdText');
     const tdActions = document.getElementById('tdActions');
     const skipAll = document.getElementById('tutorialSkip');
-
     let activeStepIndex = 0;
-
     let highlightEls = []; 
     let markerEls = []; 
     let spotlightOverlay = null; 
@@ -162,27 +156,19 @@
     let arrowEl = null;
     let pollers = [];
     let savedInlineStyles = new Map();
-
     function safeSetText(node, text) {
         if (!node) return;
         node.textContent = text;
     }
-
     function fadeInText(el, speed = 25) {
         if (!el) return;
-
   const text = el.textContent || '';
   el.innerHTML = '';
-
-  // Split by line breaks
   const lines = text.split('\n');
-
   lines.forEach((line, lineIndex) => {
-    // Split into words and emojis
     const wordsAndEmojis = line.match(
       /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\S|\s)/gu
     ) || [];
-
     wordsAndEmojis.forEach((unit, unitIndex) => {
       const span = document.createElement('span');
       span.textContent = unit === ' ' ? '\u00A0' : unit;
@@ -190,53 +176,41 @@
       span.style.display = 'inline-block';
       span.style.transition = 'opacity 0.3s ease';
       el.appendChild(span);
-
       setTimeout(() => {
         span.style.opacity = 1;
       }, unitIndex * speed);
     });
-
     if (lineIndex < lines.length - 1) {
-      el.appendChild(document.createElement('br')); // preserve line breaks
+      el.appendChild(document.createElement('br')); 
     }
   });
         }
-
     function openStep(index) {
         if (!playingTutorial) return;
         try {
-
             if (typeof index !== 'number' || index < 0 || index >= steps.length) index = 0;
-
             restoreHighlight();
             activeStepIndex = index;
             const s = steps[index];
             if (!s) return;
-
             document.querySelectorAll('.tutorial-step-btn').forEach(b => b.classList.remove('active'));
-
             safeSetText(tdTitle, s.label);
             safeSetText(tdText, s.dialog);
-
             if (tdActions) tdActions.innerHTML = '';
-
             if (index != steps.length - 1) {
                 const skipBtn = document.createElement('button');
                 skipBtn.textContent = 'Skip tutorial';
                 skipBtn.addEventListener('click', finishTutorial);
                 if (tdActions) tdActions.appendChild(skipBtn);
             }
-
             if (s.showNext) {
                 const nextBtn = document.createElement('button');
                 nextBtn.className = 'primary';
                 nextBtn.textContent = (index === steps.length - 1) ? 'Finish' : 'Next';
-
                 if (s.id === 'tools' || s.id === 'midi' || s.id === 'equalizer' || s.id === 'brushSettings') {
                     nextBtn.disabled = true;
                     nextBtn.classList.add('disabled');
                 }
-
                 nextBtn.addEventListener('click', () => {
                     if (index === steps.length - 1) {
                         finishTutorial();
@@ -245,26 +219,19 @@
                     }
                 });
                 if (tdActions) tdActions.appendChild(nextBtn);
-
                 s._nextBtn = nextBtn;
             }
-
             if (dialog) {
                 dialog.classList.remove('hide');
                 dialog.classList.add('show');
-
-                // tiny delay so CSS transitions start nicely, then type the paragraph
                 setTimeout(() => {
-                    // tdText is your <p> element (you already set it earlier via safeSetText)
-                    fadeInText(tdText, 25); // adjust speed to taste
+                    fadeInText(tdText, 25); 
                 }, 60);
-
                 dialog.style.transform = 'translateY(8px)';
                 setTimeout(() => {
                     dialog.style.transform = 'translateY(0)';
                 }, 1);
             }
-
             setTimeout(() => {
                 try {
                     setupHighlightFor(s);
@@ -276,9 +243,7 @@
                         setupHighlightFor(s);
                     }
                     }
-
                     try { positionDialogForStep(s); } catch (e) {}
-
                     startWaitingFor(s);
                 } catch (e) {
                     console.warn('openStep inner error', e);
@@ -288,59 +253,42 @@
             console.error('openStep error', err);
         }
     }
-
     function positionDialogForStep(step) {
         if (!dialog) return;
-
         dialog.style.position = 'fixed';
         dialog.style.zIndex = '100001';
         dialog.style.maxWidth = '420px';
-
         const off = (step && step.dialogOffset) ? step.dialogOffset : { x: 16, y: 16 };
         const left = (typeof off.x === 'number') ? off.x : 16;
         const top  = (typeof off.y === 'number') ? off.y : 16;
-
         dialog.style.right = '';
         dialog.style.bottom = '';
-
         dialog.style.left = `${left}px`;
         dialog.style.top  = `${top}px`;
     }
-
     function setupHighlightFor(step) {
-        
-
         restoreHighlight();
         if (!step) return;
         const sel = step.target;
         if (!sel) {
-
             return;
         }
-
         const targets = [];
-
         try {
-
             const all = document.querySelectorAll(sel);
             all.forEach(n => targets.push(n));
             const uniqTargets = Array.from(new Set(targets));
             if (!uniqTargets.length) return;
-
             highlightEls = uniqTargets.slice();
-
             createOrUpdateSpotlight(highlightEls, step);
-
             uniqTargets.forEach(targetEl => {
                 savedInlineStyles.set(targetEl, {
                     position: targetEl.style.position || '',
                     boxShadow: targetEl.style.boxShadow || '',
                     outline: targetEl.style.outline || ''
                 });
-
                 if (step.pulseOutline) {
                     targetEl.classList.add('tutorial-pulse-outline');
-
                     const mk = document.createElement('div');
                     mk.className = 'tutorial-target-marker';
                     mk.style.position = 'fixed';
@@ -355,25 +303,21 @@
                     positionMarkerOver(targetEl, mk);
                 }
             });
-
             const reposition = () => {
                 try {
                     updateSpotlightMask(highlightEls);
-
                     highlightEls.forEach((el, i) => {
                         if (markerEls[i]) positionMarkerOver(el, markerEls[i]);
                     });
                     if (step._arrowEl && highlightEls[0]) {
                         positionArrowToTarget(step._arrowEl, highlightEls[0]);
                     }
-
                     try { positionDialogForStep(step); } catch (e) {}
                 } catch (e) {}
             };
             window.addEventListener('resize', reposition);
             window.addEventListener('scroll', reposition, true);
             step._reposition = reposition;
-
             if (step.id === 'addSound') {
                 document.querySelector('#fileB').classList.add('tutorial-pulse-glow');
                 document.querySelector('#presets').classList.add('tutorial-pulse-glow');
@@ -390,18 +334,14 @@
             } else if (step.id === 'done') {
                 document.querySelector('#resetButton').classList.add('tutorial-pulse-glow');
             }
-
         } catch (e) {
             console.warn('setupHighlightFor error', e);
         }
     }
-
     function createOrUpdateSpotlight(targetEls, step) {
-
         if (!_spotlightMaskId) {
             _spotlightMaskId = 'tutorial-spotlight-mask-' + Math.floor(Math.random() * 1e9);
         }
-
         if (!spotlightOverlay) {
             const ns = "http://www.w3.org/2000/svg";
             const svg = document.createElementNS(ns, 'svg');
@@ -414,16 +354,13 @@
             svg.style.top = '0';
             svg.style.width = '100%';
             svg.style.height = '100%';
-
             svg.style.pointerEvents = 'none';
             svg.style.zIndex = '99990'; 
             svg.style.touchAction = 'none';
             svg.setAttribute('aria-hidden', 'true');
-
             const defs = document.createElementNS(ns, 'defs');
             const mask = document.createElementNS(ns, 'mask');
             mask.setAttribute('id', _spotlightMaskId);
-
             const baseRect = document.createElementNS(ns, 'rect');
             baseRect.setAttribute('x', '0');
             baseRect.setAttribute('y', '0');
@@ -431,10 +368,8 @@
             baseRect.setAttribute('height', '100%');
             baseRect.setAttribute('fill', 'white'); 
             mask.appendChild(baseRect);
-
             defs.appendChild(mask);
             svg.appendChild(defs);
-
             const overlayRect = document.createElementNS(ns, 'rect');
             overlayRect.setAttribute('x', '0');
             overlayRect.setAttribute('y', '0');
@@ -443,19 +378,13 @@
             overlayRect.setAttribute('fill', 'rgba(0,0,0,0.8)');
             overlayRect.setAttribute('mask', `url(#${_spotlightMaskId})`);
             svg.appendChild(overlayRect);
-
             document.body.appendChild(svg);
             spotlightOverlay = svg;
-
         }
-
         updateSpotlightMask(targetEls);
     }
-
-    // Replace your resize listener with this:
     window.addEventListener('resize', function() {
         if (spotlightOverlay) {
-            // update viewBox to new window dimensions
             spotlightOverlay.setAttribute(
                 'viewBox',
                 '0 0 ' + window.innerWidth + ' ' + window.innerHeight
@@ -465,24 +394,19 @@
             updateSpotlightMask(highlightEls);
         }
     });
-
-
     function _getMaskAndOverlay() {
         if (!spotlightOverlay) return {};
         const mask = spotlightOverlay.querySelector('mask#' + _spotlightMaskId);
         const overlayRect = spotlightOverlay.querySelector('rect[mask]'); 
         return { mask, overlayRect };
     }
-
     function updateSpotlightMask(targetEls, { animate = true } = {}) {
         if (!spotlightOverlay) return;
         const ns = "http://www.w3.org/2000/svg";
         const { mask } = _getMaskAndOverlay();
         if (!mask) return;
-
         const base = mask.children[0];
         if (!base) return;
-
         const newKeys = new Set();
         const newHoleDefs = [];
         targetEls.forEach(el => {
@@ -501,16 +425,12 @@
                 console.warn('spotlight: getBoundingClientRect failed', e);
             }
         });
-
-        // map existing rects by their data-hole-key
         const existing = Array.from(mask.querySelectorAll('rect.tutorial-hole'));
         const existingMap = new Map();
         existing.forEach(node => {
             const k = node.getAttribute('data-hole-key');
             if (k) existingMap.set(k, node);
         });
-
-        // fade out and remove any existing nodes that are no longer needed
         existingMap.forEach((node, key) => {
             if (!newKeys.has(key)) {
                 try {
@@ -524,11 +444,8 @@
                 }
             }
         });
-
-        // create or update nodes for requested holes
         newHoleDefs.forEach(def => {
             const { key, x, y, w, h } = def;
-            // create a new hole rect and animate its opacity from 0 -> 1
             try {
                 const hole = document.createElementNS(ns, 'rect');
                 hole.classList.add('tutorial-hole');
@@ -542,7 +459,6 @@
                 hole.setAttribute('fill', 'black');
                 hole.setAttribute('fill-opacity', '0');
                 hole.style.transition = `fill-opacity ${transitionTime}ms ease`;
-                // append after the base rect (so base stays at index 0)
                 mask.appendChild(hole);
                 requestAnimationFrame(() => {
                     try { hole.setAttribute('fill-opacity', '1'); } catch (e) {}
@@ -552,20 +468,16 @@
             }
         });
     }
-
     function positionMarkerOver(el, marker) {
         if (!marker || !el || !el.getBoundingClientRect) return;
         const r = el.getBoundingClientRect();
-
         marker.style.left = Math.max(8, r.left - 8) + 'px';
         marker.style.top = Math.max(8, r.top - 8) + 'px';
         marker.style.width = (r.width + 16) + 'px';
         marker.style.height = (r.height + 16) + 'px';
     }
-
     function positionArrowToTarget(arrow, targetEl) {
         if (!arrow || !targetEl) return;
-
         const t = targetEl.getBoundingClientRect();
         const a = arrow.parentElement?.getBoundingClientRect ? arrow.parentElement.getBoundingClientRect() : {
             left: 0,
@@ -577,20 +489,15 @@
         const fromY = a.top + a.height / 2;
         const toX = t.left + t.width / 2;
         const toY = t.top + t.height / 2;
-
         const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-
         arrow.style.transform = `translate(0px, -50%) rotate(${angle}deg)`;
-
         const dx = toX - fromX;
         const dy = toY - fromY;
         const dist = Math.min(Math.hypot(dx, dy), 420);
-
         const shift = Math.min(90, dist / 3 + 20);
         arrow.style.right = -(shift + 36) + 'px';
         arrow.style.top = '50%';
     }
-
     function restoreHighlight() {
         if (highlightEls && highlightEls.length) {
             highlightEls.forEach(el => {
@@ -607,21 +514,16 @@
             });
             highlightEls = [];
         }
-
         if (markerEls && markerEls.length) {
             markerEls.forEach(m => { try { m.remove(); } catch (e) {} });
             markerEls = [];
         }
-
         if (spotlightOverlay) {
             try { updateSpotlightMask([]); } catch (e) {}
         }
-
-        // 🔑 Reset pulse glow on all possible elements
         document.querySelectorAll(
             '#fileB, #presets, #rec, #exportMIDI, #playPause, #stop, #resetButton'
         ).forEach(el => el.classList.remove('tutorial-pulse-glow'));
-
         steps.forEach(s => {
             if (s._reposition) {
                 window.removeEventListener('resize', s._reposition);
@@ -630,8 +532,6 @@
             }
         });
     }
-
-
     function clearPollers() {
         pollers.forEach(p => {
             try {
@@ -647,7 +547,6 @@
                 } else if (p.type === 'timeout') {
                     clearTimeout(p.id);
                 } else if (p.type === 'cleanup') {
-
                     try {
                         if (typeof p.fn === 'function') p.fn();
                     } catch (e) {}
@@ -656,15 +555,12 @@
         });
         pollers = [];
     }
-
     function startWaitingFor(step) {
         clearPollers();
         if (!step) return;
-
         const w = step.waitFor || {
             type: 'none'
         };
-
         const attachMouseFade = (el, animEl) => {
             if (!el || !animEl) return;
             const onMove = () => animEl.style.opacity = '0.15';
@@ -672,18 +568,15 @@
             el.addEventListener('mousemove', onMove, {
                 once: true
             });
-
             setTimeout(() => {
                 el.removeEventListener('mousemove', onMove);
             }, 900);
         };
-
         let mouseLoopEl = null;
         if (step.mouseLoop) {
             const loopTarget = step.mouseLoopSelector 
                 ? document.querySelector(step.mouseLoopSelector) 
                 : document.querySelector(step.target);
-
             if (loopTarget) {
                 mouseLoopEl = document.createElement('div');
                 mouseLoopEl.style.position = 'absolute';
@@ -691,45 +584,31 @@
                 mouseLoopEl.style.pointerEvents = 'auto';
                 mouseLoopEl.style.cursor = 'crosshair';
                 mouseLoopEl.style.zIndex = 1000000;
-
                 let mlLeft = 600, mlTop = 250;
                 mouseLoopEl.innerHTML = `
                     <img src="mouseloop.gif" width="500" height="500"
                     style="opacity:1; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
                         position:fixed; left:${mlLeft}px; top:${mlTop}px" />`;
-
                 document.body.appendChild(mouseLoopEl);
-
-                // Enable smooth fade
                 mouseLoopEl.style.transition = 'opacity 0.8s ease';
-
                 const fadeHandler = (e) => {
                     mouseLoopEl.style.pointerEvents = 'none';
                     canvasMouseDown(e, false);
-
                     setTimeout(() => {
                         mouseLoopEl.style.opacity = '0';
-                        // Remove after fade completes
                         setTimeout(() => mouseLoopEl.remove(), 800);
-                    }, 3000); // wait 3s before fading
+                    }, 3000); 
                 };
-
-                // Correctly pass event to handler
                 mouseLoopEl.addEventListener('pointerdown', (e) => fadeHandler(e), { once: true });
-
-                // If you want to track mousemove but NOT trigger fade immediately
                 pollers.push({
                     type: 'event',
                     node: loopTarget,
                     ev: 'mousemove',
                     fn: (e) => {
-                        // Optional: track movement without fading
-                        // fadeHandler(e); // <-- only uncomment if intended
                     }
                 });
             }
         }
-
         if (w.type === 'mouseup' && w.selector) {
             const node = document.querySelector(w.selector);
             if (node) {
@@ -746,7 +625,6 @@
                     fn
                 });
             } else {
-
                 const fallback = document.getElementById('canvas');
                 if (fallback) {
                     const fn = () => stepCompleted(step);
@@ -760,7 +638,6 @@
                         fn
                     });
                 } else {
-
                     const tid = setTimeout(() => stepCompleted(step), 900);
                     pollers.push({
                         type: 'interval',
@@ -770,7 +647,6 @@
             }
             return;
         }
-
         if (w.type === 'complexPlayback') {
             const id = setInterval(() => {
                 try {
@@ -783,18 +659,15 @@
                         }
                     }
                 } catch (e) {
-
                 }
             }, transitionTime + 40);
             pollers.push({ type: 'interval', id });
             return;
         }
-
         if (w.type === 'renderCycle') {
             const varNames = ['rendering', 'recording'];
             const sawTrue = {};
             varNames.forEach(name => sawTrue[name] = false);
-
             const id = setInterval(() => {
                 try {
                     for (const name of varNames) {
@@ -810,10 +683,7 @@
                     }
                 } catch (e) {}
             }, transitionTime);
-
             pollers.push({ type: 'interval', id });
-
-            // still support file/presets events
             (function() {
                 const file = document.querySelector('#file');
                 const presets = document.querySelector('#presets');
@@ -836,12 +706,10 @@
             })();
             return;
         }
-
         if (w.type === 'oneToolClickOrNext') {
             const nodes = document.querySelectorAll(w.selector);
             if (nodes && nodes.length) {
                 const fn = () => {
-
                     if (step._nextBtn) {
                         step._nextBtn.disabled = false;
                         step._nextBtn.classList.remove('disabled');
@@ -852,28 +720,23 @@
             }
             return;
         }
-
         if (w.type === 'modifyBrush') {
             const container = document.querySelector('#brushSettings');
             if (container && step._nextBtn) {
                 const inputs = container.querySelectorAll('input, select, textarea, button');
-
                 const fn = () => {
                     step._nextBtn.disabled = false;
                     step._nextBtn.classList.remove('disabled');
                 };
-
                 inputs.forEach(input => {
                     input.addEventListener('input', fn, { once: true });
                     input.addEventListener('change', fn, { once: true });
-
                     pollers.push({ type: 'event', node: input, ev: 'input', fn });
                     pollers.push({ type: 'event', node: input, ev: 'change', fn });
                 });
             }
             return;
         }
-
         if (w.type === 'clickEither') {
             const selectors = w.selectors || [];
             let attached = false;
@@ -894,19 +757,15 @@
                 }
             });
             if (!attached) {
-
                 setTimeout(() => stepCompleted(step), 1600);
             }
             return;
         }
-
         if (w.type === 'clickThenNext') {
             const node = document.querySelector(w.clickSelector);
             if (node) {
                 const fn = () => {
-
                     step._clicked = true;
-
                     if (step._nextBtn) {
                         step._nextBtn.disabled = false;
                         step._nextBtn.classList.remove('disabled');
@@ -917,7 +776,6 @@
             }
             return;
         }
-
         if (w.type === 'eqCanvasClick') {
             const node = document.querySelector('#eqCanvas');
             if (node) {
@@ -932,20 +790,15 @@
             }
             return;
         }
-
         setTimeout(() => stepCompleted(step), 900);
     }
-
     function _waitForDialogHidden(timeout = 520) {
         return new Promise(resolve => {
             if (!dialog) return resolve();
-
             const cs = getComputedStyle(dialog);
             if (cs.opacity === '0' || cs.display === 'none' || dialog.classList.contains('hide')) {
-
                 return setTimeout(resolve, 8);
             }
-
             let resolved = false;
             const cleanup = () => {
                 if (resolved) return;
@@ -955,61 +808,44 @@
                 clearTimeout(tid);
                 resolve();
             };
-
             function onTrans(ev) {
-
                 if (ev.propertyName && ev.propertyName.toLowerCase().includes('opacity')) cleanup();
             }
             function onAnim(ev) {
                 cleanup();
             }
-
             dialog.addEventListener('transitionend', onTrans);
             dialog.addEventListener('animationend', onAnim);
-
             const tid = setTimeout(cleanup, timeout);
         });
     }
-
     async function stepCompleted(step) {
-
         dialog.classList.remove('show');
         dialog.classList.add('hide');
-
         restoreHighlight();
         clearPollers();
-
         const nextIndex = Math.min(steps.indexOf(step) + 1, steps.length - 1);
         const waitType = step.waitFor?.type || 'none';
-
         if (step.showNext && (waitType === 'clickThenNext' || waitType === 'awaitNext')) {
-
             dialog.classList.remove('hide');
             dialog.classList.add('show');
             return;
         }
-
         if (step.id === 'done') {
             dialog.classList.remove('hide');
             dialog.classList.add('show');
             return;
         }
-
         await _waitForDialogHidden();
-
         try {
             const nextStep = steps[nextIndex];
             if (nextStep) positionDialogForStep(nextStep);
         } catch (e) {}
-
         openStep(nextIndex);
     }
-
     function finishStepAndAdvance() {
         const s = steps[activeStepIndex];
-
         if (s.waitFor && s.waitFor.type === 'clickThenNext' && !s._clicked) {
-
             dialog.animate([
                 { transform: 'translateX(0)' },
                 { transform: 'translateX(-8px)' },
@@ -1018,13 +854,10 @@
             ], { duration: 240 });
             return;
         }
-
         dialog.classList.remove('show');
         dialog.classList.add('hide');
-
         restoreHighlight();
         clearPollers();
-
         const nextIndex = Math.min(activeStepIndex + 1, steps.length - 1);
         _waitForDialogHidden().then(() => {
             try {
@@ -1034,13 +867,10 @@
             openStep(nextIndex);
         });
     }
-
     function finishTutorial() {
         playingTutorial = false;
-
         restoreHighlight();
         clearPollers();
-
         localStorage.setItem('tutorialSeen', 'true');
         const tutorialDialog = document.getElementById('tutorialDialog');
         const tutorialSpotlight = document.querySelector('.tutorial-spotlight');
@@ -1051,8 +881,6 @@
         }
         if (mouseLoop) mouseLoop.style.display = 'none';
         if (tutorialDialog) tutorialDialog.style.display = 'none';
-
-        // show replay box after 3 seconds unless the user opted out
         try {
             setTimeout(() => {
                 try {
@@ -1061,7 +889,6 @@
             }, 3000);
         } catch (e) { console.warn('delayed replay show failed', e); }
     }
-
     document.addEventListener('DOMContentLoaded', () => {
         const seen = localStorage.getItem('tutorialSeen') && !testingTutorial;
         if (!seen) {
@@ -1069,22 +896,16 @@
             openStep(0);
         } else {
             document.getElementById('tutorialDialog').style.display = 'none';
-            document.querySelector('.tutorial-spotlight').style.display = 'none';
-            document.getElementById('mouseloop').style.display = 'none';
+            let ts = document.querySelector('.tutorial-spotlight'); if (ts) ts.style.display = 'none';
+            ts = document.getElementById('mouseloop'); if (ts) ts.style.display = 'none';
         }
     });
-
     function showReplayTutorialBox() {
         try {
-            // respect user's "don't show again"
             if (localStorage.getItem('tutorialReplayHidden') === 'true' && !testingTutorial) return;
-
-            // don't create twice
             if (document.getElementById('replayTutorialBox')) return;
-
             const box = document.createElement('div');
             box.id = 'replayTutorialBox';
-            // inline styles so it's self-contained
             box.style.position = 'fixed';
             box.style.top = '5px';
             box.style.right = '20px';
@@ -1104,8 +925,6 @@
             box.style.pointerEvents = 'auto';
             box.setAttribute('role', 'dialog');
             box.setAttribute('aria-label', 'Replay tutorial');
-
-            // button
             const btn = document.createElement('button');
             btn.id = 'replayTutorialBtn';
             btn.type = 'button';
@@ -1118,11 +937,8 @@
             btn.style.background = 'var(--accent-gradient)';
             btn.style.color = '#000';
             btn.style.boxShadow = '0 6px 18px rgba(31,142,241,0.15)';
-            // simple focus outline
             btn.onfocus = () => btn.style.outline = '2px solid rgba(255,255,255,0.12)';
             btn.onblur = () => btn.style.outline = 'none';
-
-            // close X
             const close = document.createElement('button');
             close.id = 'replayTutorialClose';
             close.type = 'button';
@@ -1136,44 +952,31 @@
             close.style.cursor = 'pointer';
             close.style.padding = '4px';
             close.style.marginLeft = '2px';
-
             box.appendChild(btn);
             box.appendChild(close);
             document.body.appendChild(box);
-
-            // small delay so CSS transition runs
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     box.style.opacity = '1';
                     box.style.transform = 'translateY(0)';
                 });
             });
-
-            // click handlers
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 try {
-                    // remove UI quickly
                     box.style.opacity = '0';
                     box.style.transform = 'translateY(8px)';
                     setTimeout(() => { try { box.remove(); } catch (e) {} }, 420);
-
-                    // start tutorial
                     playingTutorial = true;
-                    // don't clear the "tutorialSeen" flag — just open the tutorial
                     try { openStep(0); document.getElementById("tutorialDialog").style.display = '';} catch (err) { console.warn('openStep failed', err); }
                 } catch (err) {
                     console.warn('replay click error', err);
                 }
             });
-
             close.addEventListener('click', (e) => {
                 e.preventDefault();
                 try {
-                    // remember preference
                     localStorage.setItem('tutorialReplayHidden', 'true');
-
-                    // hide and remove
                     box.style.opacity = '0';
                     box.style.transform = 'translateY(8px)';
                     setTimeout(() => { try { box.remove(); } catch (e) {} }, 420);
@@ -1181,30 +984,131 @@
                     console.warn('replay close error', err);
                 }
             });
-
-            // also remove if user starts the tutorial by other means
-            pollers.push({
-                type: 'cleanup',
-                fn: () => { try { const b = document.getElementById('replayTutorialBox'); if (b) b.remove(); } catch(e){} }
-            });
-
         } catch (err) {
             console.warn('showReplayTutorialBox error', err);
         }
     }
-
     window.showAppTutorial = function() {
         localStorage.removeItem('tutorialSeen');
-        // if you want manual replay to also reset the "don't show again" flag, uncomment:
-        // localStorage.removeItem('tutorialReplayHidden');
-
-        // remove any existing replay box (we're starting the tutorial)
         const existing = document.getElementById('replayTutorialBox');
         if (existing) {
             try { existing.remove(); } catch (e) {}
         }
-
         openStep(0);
     };
-
+    (function setupImageToolMouseLoopHint() {
+        try {
+            const STORAGE_KEY = 'imageMouseLoopShown';
+            let lastMousePos = { x: -1, y: -1 };
+            let hoverTimerId = null;
+            let checkerIntervalId = null;
+            let createdMouseLoop = false;
+            const updateMousePos = (ev) => {
+                lastMousePos.x = ev.clientX;
+                lastMousePos.y = ev.clientY;
+            };
+            window.addEventListener('mousemove', updateMousePos, { passive: true });
+            window.addEventListener('pointermove', updateMousePos, { passive: true });
+            function isMouseOverCanvas() {
+                try {
+                    const canvasEl = document.getElementById('canvas');
+                    if (!canvasEl) return false;
+                    if (lastMousePos.x < 0) return false;
+                    const r = canvasEl.getBoundingClientRect();
+                    return lastMousePos.x >= r.left && lastMousePos.x <= r.right &&
+                        lastMousePos.y >= r.top  && lastMousePos.y <= r.bottom;
+                } catch (e) { return false; }
+            }
+            function clearHoverTimer() {
+                if (hoverTimerId) {
+                    clearTimeout(hoverTimerId);
+                    hoverTimerId = null;
+                }
+            }
+            function tryCreateMouseLoop(evLike) {
+                if (createdMouseLoop) return;
+                let mouseLoopEl = document.createElement('div');
+                createdMouseLoop = true;
+                try { localStorage.setItem(STORAGE_KEY, 'true'); } catch (e) {}
+                const canvasEl = document.getElementById('canvas');
+                const ml = document.createElement('div');
+                ml.id = 'mouseloop';
+                ml.style.position = 'fixed';
+                ml.style.pointerEvents = 'auto';
+                ml.style.cursor = 'crosshair';
+                ml.style.zIndex = 1000000;
+                ml.style.transition = 'opacity 1.8s ease';
+                ml.style.opacity = '1';
+                let mlLeft = 900, mlTop = 400;
+                try {
+                    if (canvasEl) {
+                        const r = canvasEl.getBoundingClientRect();
+                        mlLeft = Math.max(8, Math.floor(r.left + (r.width / 2) - 150));
+                        mlTop  = Math.max(8, Math.floor(r.top + (r.height / 2) - 150));
+                    }
+                } catch (e) {}
+                ml.innerHTML = `
+                    <img src="click.gif" width="300" height="300"
+                        style="opacity:1; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
+                        position:fixed; left:${mlLeft}px; top:${mlTop}px" />`;
+                document.body.appendChild(ml);
+                const fadeHandler = (ev) => {
+                    try {
+                        ml.style.pointerEvents = 'none';
+                        try { canvasMouseDown(ev, false); } catch (err) {  }
+                    } catch (e) {}
+                    setTimeout(() => {
+                        ml.style.opacity = '0';
+                        setTimeout(() => { try { ml.remove(); } catch (e) {} }, 800);
+                    }, 3000);
+                };
+                ml.addEventListener('pointerdown', (ev) => fadeHandler(ev), { once: true });
+                const removeOnTutorialStart = () => { try { if (ml.parentElement) ml.remove(); } catch(e){} };
+                window.addEventListener('tutorialStartRemoveMouseloop', removeOnTutorialStart, { once: true });
+            }
+            const storageSaysShown = () => {
+                try { return localStorage.getItem(STORAGE_KEY) === 'true'; } catch (e) { return false; }
+            };
+            checkerIntervalId = window.setInterval(() => {
+                try {
+                    if (createdMouseLoop) return;
+                    if (typeof playingTutorial !== 'undefined' && playingTutorial && !testingTutorial) return;
+                    if (storageSaysShown() && !testingTutorial) {
+                        createdMouseLoop = true;
+                        return;
+                    }
+                    if (typeof currentTool === 'undefined' || currentTool !== 'image' || !isMouseOverCanvas()) {
+                        clearHoverTimer();
+                        return;
+                    }
+                    if (!hoverTimerId) {
+                        hoverTimerId = setTimeout(() => {
+                            tryCreateMouseLoop({ clientX: lastMousePos.x, clientY: lastMousePos.y });
+                            hoverTimerId = null;
+                        }, testingTutorial ? 100 : 10000); 
+                    }
+                } catch (e) {
+                    console.warn('image mouseloop checker error', e);
+                }
+            }, 50);
+            window.addEventListener('beforeunload', () => {
+                try { clearHoverTimer(); clearInterval(checkerIntervalId); } catch (e) {}
+            });
+            const tutorialWatcher = setInterval(() => {
+                try {
+                    if ((typeof playingTutorial !== 'undefined') && playingTutorial) {
+                        window.dispatchEvent(new Event('tutorialStartRemoveMouseloop'));
+                    }
+                } catch (e) {}
+            }, 800);
+            const stopWatcherIfDone = setInterval(() => {
+                if (createdMouseLoop) {
+                    clearInterval(tutorialWatcher);
+                    clearInterval(stopWatcherIfDone);
+                }
+            }, 1000);
+        } catch (err) {
+            console.warn('setupImageToolMouseLoopHint failed', err);
+        }
+    })();
 })();

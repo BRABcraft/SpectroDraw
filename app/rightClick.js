@@ -470,8 +470,11 @@ function makeYAxisMenu(){
     };
 
     slider.addEventListener('input', e=> apply(e.target.value));
-    input.addEventListener('input', e=> apply(e.target.value));
-    input.addEventListener('keydown', e=>{ if(e.key==='Escape') closeMenu(); });
+    input.addEventListener('blur', () => apply(input.value));
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') apply(input.value);
+        if (e.key === 'Escape') closeMenu();
+    });
   }
 
   wireSliderRow(minItem, ()=>fLow, v=>{ fLow=v; if(v>fHigh) fHigh=v; }, 0, fHigh);
@@ -502,11 +505,38 @@ function makeYAxisMenu(){
   return menu;
 }
 
+function wireSliderRow(itemEl, getValue, setValue, minVal, maxVal){
+  if(!itemEl) return;
+  const slider = itemEl.querySelector('.ctx-slider');
+  const input = itemEl.querySelector('.ctx-input');
+
+  const apply = () => {
+    let num = parseFloat(input.value);
+    if (isNaN(num)) return; // allow typing until valid
+    num = Math.max(minVal, Math.min(maxVal, num));
+    setValue(num);
+    slider.value = input.value = num;
+    drawYAxis();
+  };
+
+  slider.addEventListener('input', e => {
+    input.value = e.target.value; // slider is always numeric
+    apply();
+  });
+
+  // only apply fully when leaving the field or pressing Enter
+  input.addEventListener('blur', apply);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') apply();
+    if (e.key === 'Escape') closeMenu();
+  });
+}
 
 function makeLogscaleMenu() {
   const value = logScaleVal;
   const items = [
-    { type: 'input', label: 'Logscale', value: value }
+    { type: 'input', label: 'Logscale', value: value },
+    { label:'Reset', onClick:()=>apply(1.12) }
   ];
 
   const menu = buildMenu(items);
@@ -543,8 +573,11 @@ function makeLogscaleMenu() {
   };
 
   slider.addEventListener('input', e => apply(e.target.value));
-  numberInput.addEventListener('input', e => apply(e.target.value));
-  numberInput.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  numberInput.addEventListener('blur', () => apply(numberInput.value));
+  numberInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') apply(numberInput.value);
+    if (e.key === 'Escape') closeMenu();
+  });
 
   return menu;
 }

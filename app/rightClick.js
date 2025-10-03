@@ -386,22 +386,24 @@ function makeTimelineMenu(){
     if (!itemEl) return;
     const input = itemEl.querySelector('.timeline-sec-input');
 
-    input.addEventListener('input', () => {
-      let v = Number(input.value);
-      if (isNaN(v)) v = 0;
-      const n = v * factor;
-
-      if (isMin){
-        if (n >= 0 && v <= iHigh / factor){
-          iLow = n;
-          drawTimeline();
-        }
-      } else {
-        if (v >= iLow / factor && (typeof specWidth === 'undefined' || v <= specWidth)){
-          iHigh = n;
-          drawTimeline();
-        }
-      }
+    input.addEventListener('blur', () => apply(input.value));
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            if (isMin) {
+                if (input.value >= 0) {
+                    iLow = Math.floor(input.value*factor);
+                } else {
+                    input.value = 0;
+                }
+            } else {
+                if (input.value <= specWidth/factor) {
+                    iHigh = Math.floor(input.value*factor);
+                } else {
+                    input.value = specWidth/factor;
+                }
+            }
+        };
+        if (e.key === 'Escape') closeMenu();
     });
 
     // optional: pressing Escape closes menu
@@ -414,14 +416,24 @@ function makeTimelineMenu(){
   return menu;
 }
 
+function lsc(f){
+    const denom = Math.log(1 + (logScaleVal-0.999999) * (specHeight - 1));
+    const t = Math.log(1 + (logScaleVal-0.999999) * (f / (sampleRate / fftSize))) / denom;
+    return Math.floor(t*sampleRate/2);
+}
+function invlsc(y){
+    const denom = Math.log(1 + (logScaleVal-0.999999) * (specHeight - 1));
+    const t = (2 * y) / sampleRate;
+    return Math.floor((sampleRate / fftSize) * (Math.exp(t * denom) - 1) / (logScaleVal - 0.999999));
+}
 
 function makeYAxisMenu(){
   const items = [
     { type:'check', label:'Show Hz / Note', checked: useHz },
     { label:'Zoom to fit', onClick: ()=> zoomYAxisFit() },
     { type:'separator' },
-    { type:'input', label:'Set min', value: fLow },
-    { type:'input', label:'Set max', value: fHigh },
+    { type:'input', label:'Set min', value: invlsc(fLow) },
+    { type:'input', label:'Set max', value: invlsc(fHigh) },
     { type:'separator' },
     { type:'input', label:'Logscale', value: Number(logscaleEl.value) }
   ];
@@ -450,8 +462,8 @@ function makeYAxisMenu(){
   }
 
   // replace min/max rows
-  if(minItem) minItem.innerHTML = makeSliderRow('Set min', fLow, 0, fHigh, 1);
-  if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', fHigh, fLow, 20000, 1); // assume 20kHz upper limit
+  if(minItem) minItem.innerHTML = makeSliderRow('Set min', invlsc(fLow), 0, fHigh, 1);
+  if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', invlsc(fHigh), fLow, sampleRate/2, 1); // assume 20kHz upper limit
 
   // replace log scale row
   if(logItem) logItem.innerHTML = makeSliderRow('Log scale', Number(logScaleVal), 1, 2, 0.01);
@@ -461,10 +473,9 @@ function makeYAxisMenu(){
     if(!itemEl) return;
     const slider = itemEl.querySelector('.ctx-slider');
     const input = itemEl.querySelector('.ctx-input');
-
     const apply = (v)=>{
       let val = Math.max(minVal, Math.min(maxVal, Number(v)));
-      setValue(val);
+      setValue(lsc(val));
       slider.value = input.value = val;
       drawYAxis();
     };
@@ -478,7 +489,7 @@ function makeYAxisMenu(){
   }
 
   wireSliderRow(minItem, ()=>fLow, v=>{ fLow=v; if(v>fHigh) fHigh=v; }, 0, fHigh);
-  wireSliderRow(maxItem, ()=>fHigh, v=>{ fHigh=v; if(v<fLow) fLow=v; }, fLow, 20000);
+  wireSliderRow(maxItem, ()=>fHigh, v=>{ fHigh=v; if(v<fLow) fLow=v; }, fLow, sampleRate/2);
   wireSliderRow(logItem, ()=>Number(logscaleEl.value), v=>{
     logscaleEl.value = v;
     logScaleVal = v;

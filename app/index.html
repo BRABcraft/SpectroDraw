@@ -251,7 +251,7 @@
         <label class="h2" for="phaseType">Background phase</label>
         <select id="phaseType">
           <option value="Static">Static</option>
-          <option value="Slow sine">Slow sine</option>
+          <option value="Harmonics">Harmonics</option>
           <option value="Fast sine">Fast sine</option>
           <option value="Empty">Empty</option>
         </select>
@@ -744,7 +744,15 @@ function initEmptyPCM() {
 
     const pcmArray = new Float32Array(length);
     for (let i = 0; i < length; i++) {
-      if (type === "Slow sine") pcmArray[i] = Math.sin(i / 1) * tinyNoiseAmplitude;
+      if (type === "Harmonics") {
+        let sum = 0;
+        const interval = 128;
+        for (let j = 1; j <= interval; j++) {
+          sum+=Math.sin(i*((Math.PI*j*(1024/interval))/1024))/interval;
+        }
+        // console.log(sum);
+        pcmArray[i] = sum * tinyNoiseAmplitude;
+      }
       else if (type === "Fast sine") pcmArray[i] = Math.sin(i / 1000) * tinyNoiseAmplitude;
       else if (type === "Static") pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
       else if (type === "Empty")  pcmArray[i] = 0;

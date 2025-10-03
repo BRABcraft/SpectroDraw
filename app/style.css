@@ -573,7 +573,7 @@ select {
 .tutorial-dialog.hide { opacity:0; transform: translateY(8px); }
 
 .tutorial-dialog h3 { margin: 0 0 8px 0; font-size:16px; }
-.tutorial-dialog p { margin:0 0 12px 0; font-size:13px; line-height:1.35; color:#333; }
+.tutorial-dialog p { margin:0 0 12px 0; font-size:13px; line-height:1.35; color:#111; }
 
 .tutorial-actions { display:flex; justify-content:flex-end; gap:8px; }
 .tutorial-actions button { padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f6f6f6; cursor:pointer; }
@@ -600,12 +600,21 @@ select {
 }
 
 /* special pulsate glow for the exportMIDI step */
-.tutorial-pulse-glow {
-  box-shadow: 0 0 0 4px rgba(255,200,60,0.46), 0 8px 30px rgba(255,200,60,0.78);
+.tutorial-pulse-glow:not(select) {
   animation: glowPulse 1.6s infinite;
+  transform-origin: center center; /* optional for smoother scaling */
 }
-@keyframes glowPulse { 0% { transform: scale(1); } 50% { transform: scale(1.07); } 100% { transform: scale(1); } }
 
+.tutorial-pulse-glow {
+  box-shadow: 0 0 15px rgba(255,200,60,0.78) !important;
+}
+
+/* Keyframes for scaling */
+@keyframes glowPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
 /* subtle decorative marker only used when pulseOutline is requested */
 .tutorial-target-marker {
   transition: left 160ms ease, top 160ms ease, width 160ms ease, height 160ms ease;

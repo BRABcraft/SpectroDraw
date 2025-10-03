@@ -599,6 +599,7 @@ function applyPresetValues(gainsArray) {
   for (let i = 0; i < eqBands.length; i++) {
 
     eqBands[i].gain = clamp(Number(gainsArray[i]||0), -gainScale, gainScale);
+    eqBands[i].angle = Math.PI/2;
   }
   ptsDirty = true;
   scheduleDraw();

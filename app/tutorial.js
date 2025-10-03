@@ -3,7 +3,7 @@
     const transitionTime = 820; 
     const steps = [{
             id: 'spectrogram',
-            label: 'Spectrogram: draw',
+            label: 'Welcome to SpectroDraw!',
             subtitle: 'Click & drag to draw (mouseup to finish)',
             target: '#canvas, #timeline, #logscale, #freq',
             dialog: "Welcome! This is the spectrogram. It’s a visual map of your sound. 👉 Click and drag your mouse across it to draw.",
@@ -35,8 +35,8 @@
             id: 'addSound',
             label: 'Add audio / presets',
             subtitle: 'Upload a file or choose a preset',
-            target: '#fileB, #presets',
-            dialog: "Let’s add some sound! Upload an audio or video file, or pick one of the built-in presets.",
+            target: '#fileB, #presets, #rec, #canvas, #timeline, #logscale, #freq, #midiv',
+            dialog: "Let’s add some sound! Upload an audio or video file, record with your microphone, or pick one of the built-in presets.",
             waitFor: {
                 type: 'renderCycle',
                 varName: 'rendering'
@@ -48,7 +48,7 @@
         },
         {
             id: 'tools',
-            label: 'Tools: Rectangle, Line, Blur, Eraser, Amp, Image',
+            label: 'Tools: Rectangle, Line, Blur, Eraser, Amplify, Image',
             subtitle: 'Try one of the tools',
             target: '#brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
             dialog: "Try out the tools: Rectangle, Line, Blur, Eraser, Amplifier, and Image Overlay (turns pictures into sound!). 🖼️🎶",
@@ -60,6 +60,21 @@
             preAction: null,
             mouseLoop: false,
             dialogOffset: { x: 358, y: 58 }
+        },
+        {
+            id: 'brushSettings',
+            label: 'Brush settings',
+            subtitle: 'Try changing the brush settings',
+            target: '#brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
+            dialog: "Try changing the brush settings while using tools like Brush, Image, Line, or Amplify to discover different effects! 🔍🎨",
+            waitFor: {
+                type: 'modifyBrush',
+                selectors: ['#brushSettings, #canvas, #timeline, #logscale, #freq']
+            },
+            showNext: true,
+            preAction: null,
+            mouseLoop: false,
+            dialogOffset: { x: 368, y: 500 }
         },
         {
             id: 'save',
@@ -93,7 +108,6 @@
                 if (piano) piano.click(); 
             },
             mouseLoop: false,
-            pulseExport: true,
             dialogOffset: { x: 308, y: 500 }
         },
         {
@@ -203,7 +217,7 @@
                 nextBtn.className = 'primary';
                 nextBtn.textContent = (index === steps.length - 1) ? 'Finish' : 'Next';
 
-                if (s.id === 'tools' || s.id === 'midi' || s.id === 'equalizer') {
+                if (s.id === 'tools' || s.id === 'midi' || s.id === 'equalizer' || s.id === 'brushSettings') {
                     nextBtn.disabled = true;
                     nextBtn.classList.add('disabled');
                 }
@@ -274,6 +288,7 @@
     }
 
     function setupHighlightFor(step) {
+        
 
         restoreHighlight();
         if (!step) return;
@@ -287,33 +302,8 @@
 
         try {
 
-            if (typeof sel === 'string' && sel.includes(',')) {
-                const parts = sel.split(',').map(s => s.trim()).filter(Boolean);
-                for (const p of parts) {
-                    try {
-                        const node = document.querySelector(p);
-                        if (node) targets.push(node);
-                    } catch (e) {}
-                }
-            } else if (typeof sel === 'string') {
-
-                try {
-                    const all = document.querySelectorAll(sel);
-                    if (all && all.length) {
-                        all.forEach(n => targets.push(n));
-                    }
-                } catch (e) {}
-            } else {
-
-                try {
-                    if (sel && sel.length) {
-                        for (let i = 0; i < sel.length; i++) {
-                            if (sel[i]) targets.push(sel[i]);
-                        }
-                    }
-                } catch (e) {}
-            }
-
+            const all = document.querySelectorAll(sel);
+            all.forEach(n => targets.push(n));
             const uniqTargets = Array.from(new Set(targets));
             if (!uniqTargets.length) return;
 
@@ -364,9 +354,19 @@
             window.addEventListener('scroll', reposition, true);
             step._reposition = reposition;
 
-            if (step.pulseExport) {
-                const exportBtn = document.querySelector('#exportMIDI');
-                if (exportBtn) exportBtn.classList.add('tutorial-pulse-glow');
+            if (step.id === 'addSound') {
+                document.querySelector('#fileB').classList.add('tutorial-pulse-glow');
+                document.querySelector('#presets').classList.add('tutorial-pulse-glow');
+                document.querySelector('#rec').classList.add('tutorial-pulse-glow');
+            } else if (step.id === 'midi') {
+                document.querySelector('#exportMIDI').classList.add('tutorial-pulse-glow');
+                document.querySelector('#fileB').classList.remove('tutorial-pulse-glow');
+                document.querySelector('#presets').classList.remove('tutorial-pulse-glow');
+                document.querySelector('#rec').classList.remove('tutorial-pulse-glow');
+            } else if (step.id === 'playPause') {
+                document.querySelector('#playPause').classList.add('tutorial-pulse-glow');
+                document.querySelector('#stop').classList.add('tutorial-pulse-glow');
+                document.querySelector('#exportMIDI').classList.remove('tutorial-pulse-glow');
             }
 
         } catch (e) {
@@ -418,7 +418,7 @@
             overlayRect.setAttribute('y', '0');
             overlayRect.setAttribute('width', '100%');
             overlayRect.setAttribute('height', '100%');
-            overlayRect.setAttribute('fill', 'rgba(0,0,0,0.6)');
+            overlayRect.setAttribute('fill', 'rgba(0,0,0,0.8)');
             overlayRect.setAttribute('mask', `url(#${_spotlightMaskId})`);
             svg.appendChild(overlayRect);
 
@@ -429,6 +429,21 @@
 
         updateSpotlightMask(targetEls);
     }
+
+    // Replace your resize listener with this:
+    window.addEventListener('resize', function() {
+        if (spotlightOverlay) {
+            // update viewBox to new window dimensions
+            spotlightOverlay.setAttribute(
+                'viewBox',
+                '0 0 ' + window.innerWidth + ' ' + window.innerHeight
+            );
+        }
+        if (highlightEls && highlightEls.length) {
+            updateSpotlightMask(highlightEls);
+        }
+    });
+
 
     function _getMaskAndOverlay() {
         if (!spotlightOverlay) return {};
@@ -447,7 +462,7 @@
         if (!base) return;
 
         const newKeys = new Set();
-        const newHoleDefs = []; 
+        const newHoleDefs = [];
         targetEls.forEach(el => {
             try {
                 const r = el.getBoundingClientRect();
@@ -460,9 +475,12 @@
                 const key = `${x}:${y}:${w}:${h}`;
                 newKeys.add(key);
                 newHoleDefs.push({ key, x, y, w, h });
-            } catch (e) {}
+            } catch (e) {
+                console.warn('spotlight: getBoundingClientRect failed', e);
+            }
         });
 
+        // map existing rects by their data-hole-key
         const existing = Array.from(mask.querySelectorAll('rect.tutorial-hole'));
         const existingMap = new Map();
         existing.forEach(node => {
@@ -470,52 +488,47 @@
             if (k) existingMap.set(k, node);
         });
 
+        // fade out and remove any existing nodes that are no longer needed
         existingMap.forEach((node, key) => {
             if (!newKeys.has(key)) {
-
                 try {
                     node.style.transition = `fill-opacity ${transitionTime}ms ease`;
                     node.setAttribute('fill-opacity', '0');
-
                     setTimeout(() => {
                         try { node.remove(); } catch (e) {}
                     }, transitionTime + 40);
-                } catch (e) {}
+                } catch (e) {
+                    console.warn('spotlight: failed removing old hole', e);
+                }
             }
         });
 
+        // create or update nodes for requested holes
         newHoleDefs.forEach(def => {
             const { key, x, y, w, h } = def;
-            const existingNode = existingMap.get(key);
-            if (existingNode) {
-
-                existingNode.style.transition = `fill-opacity ${transitionTime}ms ease`;
-                existingNode.setAttribute('fill-opacity', '1');
-            } else {
-
-                try {
-                    const hole = document.createElementNS(ns, 'rect');
-                    hole.classList.add('tutorial-hole');
-                    hole.setAttribute('data-hole-key', key);
-                    hole.setAttribute('x', x);
-                    hole.setAttribute('y', y);
-                    hole.setAttribute('width', w);
-                    hole.setAttribute('height', h);
-                    hole.setAttribute('rx', '8');
-                    hole.setAttribute('ry', '8');
-                    hole.setAttribute('fill', 'black'); 
-                    hole.setAttribute('fill-opacity', '0'); 
-
-                    hole.style.transition = `fill-opacity ${transitionTime}ms ease`;
-                    mask.appendChild(hole);
-
-requestAnimationFrame(() => {
-    try { hole.setAttribute('fill-opacity', '1'); } catch (e) {}
-});
-                } catch (e) {}
+            // create a new hole rect and animate its opacity from 0 -> 1
+            try {
+                const hole = document.createElementNS(ns, 'rect');
+                hole.classList.add('tutorial-hole');
+                hole.setAttribute('data-hole-key', key);
+                hole.setAttribute('x', x);
+                hole.setAttribute('y', y);
+                hole.setAttribute('width', w);
+                hole.setAttribute('height', h);
+                hole.setAttribute('rx', '8');
+                hole.setAttribute('ry', '8');
+                hole.setAttribute('fill', 'black');
+                hole.setAttribute('fill-opacity', '0');
+                hole.style.transition = `fill-opacity ${transitionTime}ms ease`;
+                // append after the base rect (so base stays at index 0)
+                mask.appendChild(hole);
+                requestAnimationFrame(() => {
+                    try { hole.setAttribute('fill-opacity', '1'); } catch (e) {}
+                });
+            } catch (e) {
+                console.warn('spotlight: failed creating hole', e);
             }
         });
-
     }
 
     function positionMarkerOver(el, marker) {
@@ -557,7 +570,6 @@ requestAnimationFrame(() => {
     }
 
     function restoreHighlight() {
-
         if (highlightEls && highlightEls.length) {
             highlightEls.forEach(el => {
                 const saved = savedInlineStyles.get(el);
@@ -580,14 +592,13 @@ requestAnimationFrame(() => {
         }
 
         if (spotlightOverlay) {
-            try {
-
-                updateSpotlightMask([]);
-            } catch (e) {}
+            try { updateSpotlightMask([]); } catch (e) {}
         }
 
-        const exportBtn = document.querySelector('#exportMIDI');
-        if (exportBtn) exportBtn.classList.remove('tutorial-pulse-glow');
+        // 🔑 Reset pulse glow on all possible elements
+        document.querySelectorAll(
+            '#fileB, #presets, #rec, #exportMIDI, #playPause, #stop'
+        ).forEach(el => el.classList.remove('tutorial-pulse-glow'));
 
         steps.forEach(s => {
             if (s._reposition) {
@@ -597,6 +608,7 @@ requestAnimationFrame(() => {
             }
         });
     }
+
 
     function clearPollers() {
         pollers.forEach(p => {
@@ -646,32 +658,52 @@ requestAnimationFrame(() => {
 
         let mouseLoopEl = null;
         if (step.mouseLoop) {
-            const loopTarget = step.mouseLoopSelector ? document.querySelector(step.mouseLoopSelector) : document.querySelector(step.target);
+            const loopTarget = step.mouseLoopSelector 
+                ? document.querySelector(step.mouseLoopSelector) 
+                : document.querySelector(step.target);
+
             if (loopTarget) {
                 mouseLoopEl = document.createElement('div');
                 mouseLoopEl.style.position = 'absolute';
                 mouseLoopEl.id = 'mouseloop';
                 mouseLoopEl.style.pointerEvents = 'auto';
+                mouseLoopEl.style.cursor = 'crosshair';
                 mouseLoopEl.style.zIndex = 1000000;
-                mlLeft = 600; mlTop = 250;
-                mouseLoopEl.innerHTML = `<img src="mouseloop.gif" width="500" height="500" style="opacity:0.5; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
-                position:fixed; left:${mlLeft}px; top: ${mlTop}px" />`;
+
+                let mlLeft = 600, mlTop = 250;
+                mouseLoopEl.innerHTML = `
+                    <img src="mouseloop.gif" width="500" height="500"
+                    style="opacity:1; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
+                        position:fixed; left:${mlLeft}px; top:${mlTop}px" />`;
+
                 document.body.appendChild(mouseLoopEl);
 
-                mouseLoopEl.style.transition = 'opacity 0.8s ease';  // add this line
-                const fadeHandler = () => {
+                // Enable smooth fade
+                mouseLoopEl.style.transition = 'opacity 0.8s ease';
+
+                const fadeHandler = (e) => {
+                    mouseLoopEl.style.pointerEvents = 'none';
+                    canvasMouseDown(e, false);
+
                     setTimeout(() => {
                         mouseLoopEl.style.opacity = '0';
-                        // remove after fade completes
+                        // Remove after fade completes
                         setTimeout(() => mouseLoopEl.remove(), 800);
                     }, 3000); // wait 3s before fading
                 };
-                mouseLoopEl.addEventListener('mousemove', fadeHandler, { once: true });
+
+                // Correctly pass event to handler
+                mouseLoopEl.addEventListener('pointerdown', (e) => fadeHandler(e), { once: true });
+
+                // If you want to track mousemove but NOT trigger fade immediately
                 pollers.push({
                     type: 'event',
                     node: loopTarget,
                     ev: 'mousemove',
-                    fn: fadeHandler
+                    fn: (e) => {
+                        // Optional: track movement without fading
+                        // fadeHandler(e); // <-- only uncomment if intended
+                    }
                 });
             }
         }
@@ -737,24 +769,29 @@ requestAnimationFrame(() => {
         }
 
         if (w.type === 'renderCycle') {
+            const varNames = ['rendering', 'recording'];
+            const sawTrue = {};
+            varNames.forEach(name => sawTrue[name] = false);
 
-            const varName = w.varName || 'rendering';
-            let sawTrue = false;
             const id = setInterval(() => {
                 try {
-                    const val = window[varName];
-                    if (!sawTrue && val === true) sawTrue = true;
-                    if (sawTrue && val === false) {
-                        clearInterval(id);
-                        stepCompleted(step);
+                    for (const name of varNames) {
+                        const val = (name === 'rendering')?rendering : recording;
+                        if (!sawTrue[name] && val === true) {
+                            sawTrue[name] = true;
+                        }
+                        if (sawTrue[name] && val === false) {
+                            clearInterval(id);
+                            stepCompleted(step);
+                            return;
+                        }
                     }
                 } catch (e) {}
             }, transitionTime);
-            pollers.push({
-                type: 'interval',
-                id
-            });
 
+            pollers.push({ type: 'interval', id });
+
+            // still support file/presets events
             (function() {
                 const file = document.querySelector('#file');
                 const presets = document.querySelector('#presets');
@@ -763,30 +800,16 @@ requestAnimationFrame(() => {
                         clearInterval(id);
                         stepCompleted(step);
                     };
-                    file.addEventListener('change', fn, {
-                        once: true
-                    });
-                    pollers.push({
-                        type: 'event',
-                        node: file,
-                        ev: 'change',
-                        fn
-                    });
+                    file.addEventListener('change', fn, { once: true });
+                    pollers.push({ type: 'event', node: file, ev: 'change', fn });
                 }
                 if (presets) {
                     const fn2 = () => {
                         clearInterval(id);
                         stepCompleted(step);
                     };
-                    presets.addEventListener('change', fn2, {
-                        once: true
-                    });
-                    pollers.push({
-                        type: 'event',
-                        node: presets,
-                        ev: 'change',
-                        fn: fn2
-                    });
+                    presets.addEventListener('change', fn2, { once: true });
+                    pollers.push({ type: 'event', node: presets, ev: 'change', fn: fn2 });
                 }
             })();
             return;
@@ -804,6 +827,27 @@ requestAnimationFrame(() => {
                 };
                 nodes.forEach(n => n.addEventListener('click', fn, { once: true }));
                 pollers.push({ type: 'event', node: document, ev: 'click', fn });
+            }
+            return;
+        }
+
+        if (w.type === 'modifyBrush') {
+            const container = document.querySelector('#brushSettings');
+            if (container && step._nextBtn) {
+                const inputs = container.querySelectorAll('input, select, textarea, button');
+
+                const fn = () => {
+                    step._nextBtn.disabled = false;
+                    step._nextBtn.classList.remove('disabled');
+                };
+
+                inputs.forEach(input => {
+                    input.addEventListener('input', fn, { once: true });
+                    input.addEventListener('change', fn, { once: true });
+
+                    pollers.push({ type: 'event', node: input, ev: 'input', fn });
+                    pollers.push({ type: 'event', node: input, ev: 'change', fn });
+                });
             }
             return;
         }
@@ -988,7 +1032,7 @@ requestAnimationFrame(() => {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const seen = localStorage.getItem('tutorialSeen');// && false;
+        const seen = localStorage.getItem('tutorialSeen') && false;
         if (!seen) {
             openStep(0);
         }

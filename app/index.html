@@ -208,7 +208,7 @@
 </aside>
 
   <aside class="left-panel">
-    <div style="border:1px solid #888; padding: 4px; margin-top:-11px"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
+    <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <div id="d1">
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
       <label class="h1">FFT Parameters</label>
@@ -263,32 +263,34 @@
           <option value="Empty">Empty</option>
         </select>
       </div>
-      <label class="h1">Brush settings</label>
-      <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
-      <div class="slider-row" title="Brush size/image size" id="sliderStart">
-        <label class="h2">Brush Size</label>
-        <input id="brushSize" type="range" min="1" max="200" value="10">
-        <input id="brushSizeInput" type="number" value="10" min="1" max="200">
-      </div>
-      <div class="slider-row" title="Brightness">
-          <label class="h2">Brush Brightness</label>
-          <input id="brushColor"  type="range" min="0" max="255" value="255">
-          <input id="brushColorInput" type="number" value="255" min="0" max="255">
-      </div>
-      <div class="slider-row" title="Phase">
-          <label class="h2">Brush Phase</label>
-          <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
-          <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
-      </div>
-      <div class="slider-row" title="Brightness strength">
-          <label class="h2">Brush Opacity</label>
-          <input id="brushOpacity"  type="range" min="0" max="100" value="100">
-          <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
-      </div>
-      <div class="slider-row" title="Phase strength">
-          <label class="h2">Phase Opacity</label>
-          <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
-          <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
+      <div id="brushSettings">
+        <label class="h1">Brush settings</label>
+        <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+        <div class="slider-row" title="Brush size/image size" id="sliderStart">
+          <label class="h2">Brush Size</label>
+          <input id="brushSize" type="range" min="1" max="200" value="10">
+          <input id="brushSizeInput" type="number" value="10" min="1" max="200">
+        </div>
+        <div class="slider-row" title="Brightness">
+            <label class="h2">Brush Brightness</label>
+            <input id="brushColor"  type="range" min="0" max="255" value="255">
+            <input id="brushColorInput" type="number" value="255" min="0" max="255">
+        </div>
+        <div class="slider-row" title="Phase">
+            <label class="h2">Brush Phase</label>
+            <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+            <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
+        </div>
+        <div class="slider-row" title="Brightness strength">
+            <label class="h2">Brush Opacity</label>
+            <input id="brushOpacity"  type="range" min="0" max="100" value="100">
+            <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
+        </div>
+        <div class="slider-row" title="Phase strength">
+            <label class="h2">Phase Opacity</label>
+            <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
+            <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
+        </div>
       </div> 
     </div>
     <div id="d2" style="display:none;">
@@ -1767,7 +1769,13 @@ drawTimeline();
 drawYAxis();
 drawLogScale();
 renderFullSpectrogramToImage();
+window.addEventListener('beforeunload', function (e) {
+    // Standard message browsers show, custom text is ignored in most browsers
+    const confirmationMessage = "Changes may not be saved.";
 
+    e.preventDefault(); // Some browsers require this
+    e.returnValue = confirmationMessage; // Standard way to trigger the dialog
+});
 </script>
 <script src="eq.js"></script>
 <!-- Tutorial overlay (single-page buttons + per-step dialogs) -->

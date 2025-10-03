@@ -29,21 +29,21 @@ async function startRecording() {
   const beep = new Audio("beep.mp3");
 beep.load();
 
-info.textContent = "Recording in 3";
+info.innerHTML = "Recording in 3<br><br>";
 beep.currentTime = 0; beep.play();
 await countdown(1);
 if (!recording) return;
 
-info.textContent = "Recording in 2";
+info.innerHTML = "Recording in 2<br><br>";
 beep.currentTime = 0; beep.play();
 await countdown(1);
 if (!recording) return;
 
-info.textContent = "Recording in 1";
+info.innerHTML = "Recording in 1<br><br>";
 beep.currentTime = 0; beep.play();
 await countdown(1);
 if (!recording) return;
-  info.textContent = "Recording...";
+  info.innerHTML = "Recording...<br><br>";
   status.textContent = "Recording...";
   if (!recording) return;
   pcmChunks = [];        

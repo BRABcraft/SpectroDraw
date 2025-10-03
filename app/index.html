@@ -503,6 +503,7 @@ let bpm = 120; let npo = 12;
 let noiseFloor = document.getElementById("noiseFloorCutoff").value; let a4p = 440;
 let dCutoff = document.getElementById("durationCutoff").value;
 let globalGain = 0;
+let playingTutorial = false;
 sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
 sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});

@@ -132,8 +132,8 @@
             id: 'done',
             label: 'Done',
             subtitle: 'Finish the tutorial',
-            target: null,
-            dialog: "That’s it! 🎉 You’ve completed the tutorial. Now go make something amazing.",
+            target: '#resetButton',
+            dialog: "That’s it! 🎉 You’ve completed the tutorial. Clicking this button resets the spectrogram to silence. Now go make something amazing.",
             preAction: function() {
                 const general = document.getElementById('settingsBtn');
                 if (general) general.click();
@@ -142,7 +142,7 @@
                 type: 'none'
             },
             showNext: true,
-            dialogOffset: { x: 408, y: 208 }
+            dialogOffset: { x: 708, y: 108 }
         }
     ];
 
@@ -178,6 +178,7 @@
     }
 
     function openStep(index) {
+        if (!playingTutorial) return;
         try {
 
             if (typeof index !== 'number' || index < 0 || index >= steps.length) index = 0;
@@ -186,19 +187,6 @@
             activeStepIndex = index;
             const s = steps[index];
             if (!s) return;
-            if (s.id === 'done') {
-                try {
-
-                    if (spotlightOverlay) {
-                        spotlightOverlay.remove();
-                        spotlightOverlay = null;
-                        _spotlightMaskId = null;
-                    }
-
-                    const mouseLoop = document.getElementById('mouseloop');
-                    if (mouseLoop) mouseLoop.remove();
-                } catch (e) {  }
-            }
 
             document.querySelectorAll('.tutorial-step-btn').forEach(b => b.classList.remove('active'));
 
@@ -207,10 +195,12 @@
 
             if (tdActions) tdActions.innerHTML = '';
 
-            const skipBtn = document.createElement('button');
-            skipBtn.textContent = 'Skip tutorial';
-            skipBtn.addEventListener('click', finishTutorial);
-            if (tdActions) tdActions.appendChild(skipBtn);
+            if (index != steps.length - 1) {
+                const skipBtn = document.createElement('button');
+                skipBtn.textContent = 'Skip tutorial';
+                skipBtn.addEventListener('click', finishTutorial);
+                if (tdActions) tdActions.appendChild(skipBtn);
+            }
 
             if (s.showNext) {
                 const nextBtn = document.createElement('button');
@@ -367,6 +357,8 @@
                 document.querySelector('#playPause').classList.add('tutorial-pulse-glow');
                 document.querySelector('#stop').classList.add('tutorial-pulse-glow');
                 document.querySelector('#exportMIDI').classList.remove('tutorial-pulse-glow');
+            } else if (step.id === 'done') {
+                document.querySelector('#resetButton').classList.add('tutorial-pulse-glow');
             }
 
         } catch (e) {
@@ -597,7 +589,7 @@
 
         // 🔑 Reset pulse glow on all possible elements
         document.querySelectorAll(
-            '#fileB, #presets, #rec, #exportMIDI, #playPause, #stop'
+            '#fileB, #presets, #rec, #exportMIDI, #playPause, #stop, #resetButton'
         ).forEach(el => el.classList.remove('tutorial-pulse-glow'));
 
         steps.forEach(s => {
@@ -1014,6 +1006,7 @@
     }
 
     function finishTutorial() {
+        playingTutorial = false;
 
         restoreHighlight();
         clearPollers();
@@ -1034,6 +1027,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const seen = localStorage.getItem('tutorialSeen') && false;
         if (!seen) {
+            playingTutorial = true;
             openStep(0);
         }
     });

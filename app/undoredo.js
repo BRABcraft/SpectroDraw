@@ -324,7 +324,7 @@ async function doUndo() {
   const entryMaxCols = entry.maxCols ?? entry.maxSize ?? entry.maxSizeCols ?? null;
   if (typeof entryMaxCols === 'number') {
     // call helper with columns; pass hop/fft if available in the entry
-    ensureMagsPhasesForSizeOrIndex(entryMaxCols, entry.hopSize, entry.fftSize);
+    //ensureMagsPhasesForSizeOrIndex(entryMaxCols, entry.hopSize, entry.fftSize);
   }
 
   if (entry.type === 'paint') {
@@ -386,7 +386,7 @@ async function doRedo() {
 
   const rentryMaxCols = rentry.maxCols ?? rentry.maxSize ?? null;
   if (typeof rentryMaxCols === 'number') {
-    ensureMagsPhasesForSizeOrIndex(rentryMaxCols, rentry.hopSize, rentry.fftSize);
+    //ensureMagsPhasesForSizeOrIndex(rentryMaxCols, rentry.hopSize, rentry.fftSize);
   }
 
   if (rentry.type === 'paint') {

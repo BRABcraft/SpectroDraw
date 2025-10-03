@@ -1,6 +1,7 @@
 (function() {
 
     const transitionTime = 820; 
+    const testingTutorial = false;
     const steps = [{
             id: 'spectrogram',
             label: 'Welcome to SpectroDraw!',
@@ -1050,10 +1051,19 @@
         }
         if (mouseLoop) mouseLoop.style.display = 'none';
         if (tutorialDialog) tutorialDialog.style.display = 'none';
+
+        // show replay box after 3 seconds unless the user opted out
+        try {
+            setTimeout(() => {
+                try {
+                    showReplayTutorialBox();
+                } catch (e) {}
+            }, 3000);
+        } catch (e) { console.warn('delayed replay show failed', e); }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const seen = localStorage.getItem('tutorialSeen');// && false;
+        const seen = localStorage.getItem('tutorialSeen') && !testingTutorial;
         if (!seen) {
             playingTutorial = true;
             openStep(0);
@@ -1064,8 +1074,136 @@
         }
     });
 
+    function showReplayTutorialBox() {
+        try {
+            // respect user's "don't show again"
+            if (localStorage.getItem('tutorialReplayHidden') === 'true' && !testingTutorial) return;
+
+            // don't create twice
+            if (document.getElementById('replayTutorialBox')) return;
+
+            const box = document.createElement('div');
+            box.id = 'replayTutorialBox';
+            // inline styles so it's self-contained
+            box.style.position = 'fixed';
+            box.style.top = '5px';
+            box.style.right = '20px';
+            box.style.zIndex = '100005';
+            box.style.display = 'flex';
+            box.style.alignItems = 'center';
+            box.style.gap = '8px';
+            box.style.padding = '8px 10px';
+            box.style.borderRadius = '10px';
+            box.style.boxShadow = '0 10px 30px rgba(0,0,0,0.35)';
+            box.style.background = 'rgba(22,22,22,0.95)';
+            box.style.color = '#fff';
+            box.style.fontSize = '13px';
+            box.style.opacity = '0';
+            box.style.transform = 'translateY(8px)';
+            box.style.transition = 'opacity 420ms ease, transform 420ms ease';
+            box.style.pointerEvents = 'auto';
+            box.setAttribute('role', 'dialog');
+            box.setAttribute('aria-label', 'Replay tutorial');
+
+            // button
+            const btn = document.createElement('button');
+            btn.id = 'replayTutorialBtn';
+            btn.type = 'button';
+            btn.textContent = 'Replay tutorial';
+            btn.style.border = 'none';
+            btn.style.padding = '6px 10px';
+            btn.style.borderRadius = '8px';
+            btn.style.cursor = 'pointer';
+            btn.style.fontSize = '13px';
+            btn.style.background = 'var(--accent-gradient)';
+            btn.style.color = '#000';
+            btn.style.boxShadow = '0 6px 18px rgba(31,142,241,0.15)';
+            // simple focus outline
+            btn.onfocus = () => btn.style.outline = '2px solid rgba(255,255,255,0.12)';
+            btn.onblur = () => btn.style.outline = 'none';
+
+            // close X
+            const close = document.createElement('button');
+            close.id = 'replayTutorialClose';
+            close.type = 'button';
+            close.innerHTML = '&times;';
+            close.title = "Don't show again";
+            close.setAttribute('aria-label', "Don't show this again");
+            close.style.border = 'none';
+            close.style.background = 'transparent';
+            close.style.color = 'rgba(255,255,255,0.9)';
+            close.style.fontSize = '16px';
+            close.style.cursor = 'pointer';
+            close.style.padding = '4px';
+            close.style.marginLeft = '2px';
+
+            box.appendChild(btn);
+            box.appendChild(close);
+            document.body.appendChild(box);
+
+            // small delay so CSS transition runs
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    box.style.opacity = '1';
+                    box.style.transform = 'translateY(0)';
+                });
+            });
+
+            // click handlers
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                try {
+                    // remove UI quickly
+                    box.style.opacity = '0';
+                    box.style.transform = 'translateY(8px)';
+                    setTimeout(() => { try { box.remove(); } catch (e) {} }, 420);
+
+                    // start tutorial
+                    playingTutorial = true;
+                    // don't clear the "tutorialSeen" flag — just open the tutorial
+                    try { openStep(0); document.getElementById("tutorialDialog").style.display = '';} catch (err) { console.warn('openStep failed', err); }
+                } catch (err) {
+                    console.warn('replay click error', err);
+                }
+            });
+
+            close.addEventListener('click', (e) => {
+                e.preventDefault();
+                try {
+                    // remember preference
+                    localStorage.setItem('tutorialReplayHidden', 'true');
+
+                    // hide and remove
+                    box.style.opacity = '0';
+                    box.style.transform = 'translateY(8px)';
+                    setTimeout(() => { try { box.remove(); } catch (e) {} }, 420);
+                } catch (err) {
+                    console.warn('replay close error', err);
+                }
+            });
+
+            // also remove if user starts the tutorial by other means
+            pollers.push({
+                type: 'cleanup',
+                fn: () => { try { const b = document.getElementById('replayTutorialBox'); if (b) b.remove(); } catch(e){} }
+            });
+
+        } catch (err) {
+            console.warn('showReplayTutorialBox error', err);
+        }
+    }
+
     window.showAppTutorial = function() {
         localStorage.removeItem('tutorialSeen');
+        // if you want manual replay to also reset the "don't show again" flag, uncomment:
+        // localStorage.removeItem('tutorialReplayHidden');
+
+        // remove any existing replay box (we're starting the tutorial)
+        const existing = document.getElementById('replayTutorialBox');
+        if (existing) {
+            try { existing.remove(); } catch (e) {}
+        }
+
         openStep(0);
     };
 

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FFT Guide — SpectroDraw</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon32x32.ico"/>
+  <style>
+    :root{
+      --page-bg: #0f172a;
+      --card-bg: rgba(0,0,0,0.55);
+      --muted: #9ca3af;
+      --text: #e5e7eb;
+      --accent: linear-gradient(90deg, #4f46e5, #9333ea, #ec4899);
+      --glass-blur: blur(10px);
+      --pad: 2rem;
+      --maxw: 1000px;
+      --accent-plain: #60a5fa;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: var(--page-bg);
+      color:var(--text);
+      line-height:1.65;
+      padding:4rem 2rem;
+      display:flex;
+      justify-content:center;
+    }
+
+    .page {
+      width:100%;
+      max-width:var(--maxw);
+    }
+
+    nav{
+      display:flex;
+      justify-content:flex-end;
+      gap:1.25rem;
+      padding:1rem 1.25rem;
+      background: var(--card-bg);
+      backdrop-filter: var(--glass-blur);
+      border-radius:0.6rem;
+      align-items:center;
+      margin-bottom:1.5rem;
+      border:1px solid rgba(255,255,255,0.03);
+    }
+
+    nav a{
+      color:var(--text);
+      text-decoration:none;
+      font-weight:600;
+      transition: color .18s ease, transform .12s ease;
+      font-size:0.95rem;
+    }
+
+    nav a:hover{ color:var(--accent-plain); transform:translateY(-1px) }
+
+    header{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      padding:1.25rem;
+      border-radius:0.6rem;
+      margin-bottom:1rem;
+      border:1px solid rgba(255,255,255,0.03);
+    }
+
+    h1,h2,h3{
+      font-weight:800;
+      margin:0.6rem 0;
+      background: var(--accent);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      letter-spacing:-0.3px;
+    }
+
+    h1{ font-size:1.9rem }
+    h2{ font-size:1.25rem; margin-top:1.25rem; margin-bottom:.6rem; }
+    h3{ font-size:1.05rem; margin-top:1rem; margin-bottom:.4rem; color:inherit }
+
+    .muted { color: var(--muted); font-size:0.95rem; }
+
+    .card{
+      background: var(--card-bg);
+      padding: var(--pad);
+      border-radius:0.75rem;
+      border:1px solid rgba(255,255,255,0.03);
+      margin-bottom:1rem;
+    }
+
+    p, li { color: #e6e7eb; font-size:0.98rem; margin:0 0 0.75rem 0; }
+    ul { margin:0.5rem 0 0.75rem 1.25rem; }
+    code { background: rgba(255,255,255,0.03); padding:0.12rem 0.35rem; border-radius:0.25rem; font-family: monospace; font-size:0.95rem; }
+    pre { background: rgba(0,0,0,0.45); padding:0.75rem; border-radius:0.5rem; overflow:auto; font-family: monospace; font-size:0.92rem; color:#e6eef8; }
+
+    .grid {
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:1rem;
+    }
+
+    .row { display:flex; gap:1rem; align-items:flex-start; }
+    .col { flex:1; }
+
+    .svg-demo { width:100%; height:170px; border-radius:0.5rem; overflow:hidden; border:1px solid rgba(255,255,255,0.03); background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06)); padding:0.6rem; }
+
+    footer { text-align:center; margin-top:1.25rem; padding-top:1rem; border-top:1px solid #111827; color:var(--muted); font-size:0.92rem; }
+
+    a { color:#60a5fa; }
+
+    /* small responsive */
+    @media (max-width:720px){
+      body{ padding:2rem 1rem }
+      h1{ font-size:1.5rem }
+      .svg-demo{ height:150px }
+    }
+
+    .badge { display:inline-block; padding:0.15rem 0.5rem; font-size:0.85rem; border-radius:999px; background:rgba(255,255,255,0.03); color:var(--muted); margin-right:.5rem; }
+    .note { background: rgba(96,165,250,0.06); color:#bfdeff; padding:0.6rem; border-radius:0.45rem; border:1px solid rgba(96,165,250,0.08); }
+
+    /* small faux UI for FFT parameters */
+    .fft-panel {
+      display:flex;
+      gap:1rem;
+      align-items:center;
+      flex-wrap:wrap;
+      max-width:780px;
+    }
+    .fft-control {
+      background: rgba(255,255,255,0.02);
+      padding:0.6rem 0.8rem;
+      border-radius:0.5rem;
+      border:1px solid rgba(255,255,255,0.03);
+      display:flex;
+      gap:0.6rem;
+      align-items:center;
+    }
+    .fft-label { font-weight:600; width:120px; font-size:0.95rem; color:var(--muted) }
+    .fft-value { font-family: monospace; min-width:60px; text-align:right }
+    .learn-link { margin-left: auto; font-size:0.95rem; display:flex; gap:0.5rem; align-items:center; }
+    .lock-btn {
+      display:inline-flex;
+      width:34px;
+      height:34px;
+      align-items:center;
+      justify-content:center;
+      border-radius:8px;
+      background: rgba(255,255,255,0.02);
+      border:1px solid rgba(255,255,255,0.03);
+      cursor:pointer;
+    }
+    .lock-btn.locked { background: linear-gradient(90deg,#0f172a,#0b1220); border:1px solid rgba(96,165,250,0.1) }
+    .muted-small { color:var(--muted); font-size:0.9rem; }
+
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav>
+      <a href="/">Home</a>
+      <a href="https://spectrodraw.com/app" target="_blank" rel="noopener">Launch App</a>
+      <a href="/docs">Docs</a>
+      <a href="/contact">Contact</a>
+    </nav>
+
+    <header class="card">
+      <h1>FFT — what it is & how it shapes spectrograms</h1>
+      <div class="muted">Last updated: October 3, 2025 · Practical guide for SpectroDraw users</div>
+      <p style="margin-top:.75rem">Short, practical: FFT + STFT are the building blocks of spectrograms in SpectroDraw. This page explains how <strong>FFT size</strong> (pitch resolution) and <strong>hop size</strong> (time resolution) affect the image you draw and why overlapping frames + phase differences can produce visible magnitude interference when you use full-phase drawing or playback.</p>
+    </header>
+
+    <section class="card">
+      <h2>Quick UI reference — "FFT parameters"</h2>
+      <p>In SpectroDraw you'll see these exact settings in the app's FFT controls. The labels we use in-app are shown here so the concepts map directly to the toggles you change:</p>
+
+      <div class="fft-panel" style="margin-top:0.5rem;">
+        <div class="fft-control" aria-hidden="true">
+          <div class="fft-label">Pitch resolution</div>
+          <div>
+            <div class="muted-small">FFT size (N)</div>
+            <div class="fft-value">2048</div>
+          </div>
+        </div>
+
+        <div class="fft-control" aria-hidden="true">
+          <div class="fft-label">Time resolution</div>
+          <div>
+            <div class="muted-small">Hop size</div>
+            <div class="fft-value">512</div>
+          </div>
+        </div>
+
+        <div class="fft-control" style="padding-right:0.5rem;">
+          <div class="fft-label">Lock</div>
+          <button id="lockToggle" class="lock-btn" title="Lock hop = fft">
+            <!-- lock icon (unlocked by default) -->
+            <svg id="lockIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M17 11H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2z" stroke="#cbd5e1" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 11V8a5 5 0 0 1 10 0v3" stroke="#cbd5e1" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="learn-link">
+          <a id="learnLink" href="#fft-details" style="text-decoration:none">Learn more</a>
+        </div>
+      </div>
+
+      <p class="muted-small" style="margin-top:0.6rem">Note: when the lock is enabled, the hop size is forced to equal the FFT size (hop = N). This eliminates overlap between frames (no overlap-add), which affects both the look of the spectrogram and how phase interacts during drawing & playback.</p>
+    </section>
+
+    <section id="fft-details" class="card">
+      <h2>What is the FFT?</h2>
+      <p>The <strong>Fast Fourier Transform (FFT)</strong> is a fast algorithm to compute the Discrete Fourier Transform (DFT). For audio, we apply the FFT to short windows of samples to get complex-valued bins (amplitude + phase). Repeating this over time (the STFT) turns audio into a time-frequency image — a spectrogram.</p>
+
+      <h3>Why this matters in SpectroDraw</h3>
+      <ul>
+        <li>FFT bins map to vertical pixels: changing FFT size changes how finely frequency is sampled (pitch resolution).</li>
+        <li>Hop size controls how many frames per second are produced — it maps to horizontal sampling (time resolution).</li>
+        <li>Phase is stored per bin — if you draw with full-phase editing or resynthesize, phase alignment between overlapping frames affects the audible & visible result.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>How the STFT (spectrogram) is produced — short</h2>
+      <ol>
+        <li>Break audio into frames of length <code>N</code> (FFT size), apply a window (Hann is common).</li>
+        <li>Compute FFT → complex bins (re + im) per frame → magnitude & phase.</li>
+        <li>Advance frame by <code>hop</code> samples and repeat. The overlap fraction = <code>1 - hop/N</code>.</li>
+        <li>Plot magnitudes (often dB) vs time & frequency → the spectrogram you draw on in SpectroDraw.</li>
+      </ol>
+
+      <div class="note" style="margin-top:0.5rem">
+        <strong>Formulas</strong><br>
+        <code>freq_resolution = sampleRate / N</code> — smaller steps between bins when N is larger.<br>
+        <code>time_window = N / sampleRate</code> — each analysis frame's duration.<br>
+        <code>overlap = 1 - (hop / N)</code> — overlap fraction between consecutive frames.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>FFT size vs Hop size — the tradeoffs</h2>
+      <p><strong>FFT size (N)</strong> controls pitch detail; larger N → narrower bin spacing (better pitch resolution), but each frame covers more time (poorer transient localization).</p>
+      <p><strong>Hop size</strong> controls how often frames are sampled in time. Smaller hop → more overlap → finer temporal sampling of magnitude & phase, and smoother animation when drawing or replaying.</p>
+
+      <h3>Recommended defaults for SpectroDraw</h3>
+      <ul>
+        <li>General-purpose: N = 2048 at 44.1 kHz, hop = N/4 (75% overlap).</li>
+        <li>Transient-focused: N = 512–1024, hop = N/4 or N/2.</li>
+        <li>High-pitch detail (harmonic work): increase N to 4096+ and accept slower updates.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Why overlapping frames + phase differences cause magnitude interference</h2>
+      <p>Magnitude-only display conceals phase. When two overlapping frames contain the same frequency but with different phases, their contributions in the time domain can add or cancel. That creates visible flicker or comb-like magnitude artifacts in the spectrogram when hop < N. If you lock hop = N (no overlap), overlapping-phase effects can't occur — frames are independent.</p>
+
+      <h3>Practical, concrete mental model</h3>
+      <p>Each FFT bin is a complex phasor: <code>R·e^{jθ}</code>. When windows overlap, the final time-domain signal is the sum of windowed frames. If two phasors pointing in similar directions overlap, they reinforce; if opposite, they cancel. That cancellation shows up in re-synthesized audio and can create dips or strange visual patterns when drawing with phase.</p>
+    </section>
+
+    <section class="card">
+      <h2>Try this experiment in SpectroDraw (guided)</h2>
+      <p>Follow these steps to directly see how overlap and phase change the result. This is designed to map to the app controls (Pitch resolution = FFT size, Time resolution = Hop size, Lock enforces hop = FFT size):</p>
+
+      <ol>
+        <li><strong>Set up:</strong> choose a mid-size FFT (e.g., 2048) and set Hop to a small value (e.g., 512) so frames overlap. Make sure "Full phase" drawing mode is enabled if you want phase-aware edits.</li>
+        <li><strong>Draw a steady tone line:</strong> draw a horizontal plateau (a single frequency band) while frames overlap. Notice how magnitude is continuous or may show small ripple depending on phase alignment.</li>
+        <li><strong>Now click the Lock (hop = FFT):</strong> this disables overlap so frames are adjacent but not overlapping. Draw the same tone again (or re-draw the same stroke). Observe differences: non-overlapped frames will not combine in the same way — you will often see sharper frame boundaries and less phase-based cancellation.</li>
+        <li><strong>Compare playback:</strong> play back the overlapped vs locked versions. Overlapped frames with varying phase can produce audible dips or beats; locked frames produce a different temporal feel (less overlap-add smoothing).</li>
+      </ol>
+
+      <p><em>Tip:</em> toggle the window type (Hann vs Rectangular) or change hop from N/4 → N/2 → N and see how both the visual smoothness and audible reconstruction change. If you plan to export audio after editing, prefer hop values & windows that are reconstruction-friendly (e.g., Hann with 50% overlap).</p>
+    </section>
+
+    <section class="card">
+      <h2>Short checklist for reliable results in SpectroDraw</h2>
+      <ul>
+        <li>Enable <strong>Full phase</strong> only when you understand overlap consequences — full-phase drawing preserves phase but can create cancellations when hop & window combine poorly.</li>
+        <li>If you want consistent magnitude-only painting behavior, consider locking hop = N (no overlap) or using magnitude-only drawing mode.</li>
+        <li>When exporting audio, use standard overlap-add-compatible pairs (Hann + 50% overlap) or use phase-vocoder style synthesis if changing time-base.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Further reading</h2>
+      <ul>
+        <li><a href="https://en.wikipedia.org/wiki/Fast_Fourier_transform" target="_blank" rel="noopener">FFT — Wikipedia</a></li>
+        <li><a href="https://ccrma.stanford.edu/~jos/pasp/Windowing.html" target="_blank" rel="noopener">Windowing and STFT — CCRMA</a></li>
+        <li><a href="https://dsp.stackexchange.com/" target="_blank" rel="noopener">DSP StackExchange</a></li>
+      </ul>
+    </section>
+
+    <footer>
+      © <span id="year"></span> SpectroDraw · FFT guide & notes. All rights reserved.
+    </footer>
+  </div>
+
+  <script>
+    // page interactions: toggle lock UI (purely visual helper)
+    const lockToggle = document.getElementById('lockToggle');
+    const lockIcon = document.getElementById('lockIcon');
+    let locked = false;
+
+    function renderLock() {
+      if (locked) {
+        lockToggle.classList.add('locked');
+        lockIcon.innerHTML = '<path d="M17 11H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2z" stroke="#60a5fa" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 11V8a5 5 0 0 1 10 0v3" stroke="#60a5fa" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>';
+        lockToggle.title = 'Locked — hop size will be set to FFT size';
+      } else {
+        lockToggle.classList.remove('locked');
+        lockIcon.innerHTML = '<path d="M17 11H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2z" stroke="#cbd5e1" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 11V8a5 5 0 0 1 10 0v3" stroke="#cbd5e1" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>';
+        lockToggle.title = 'Unlocked — hop size independent of FFT size';
+      }
+    }
+
+    lockToggle.addEventListener('click', () => {
+      locked = !locked;
+      renderLock();
+      // Note: this is only a UI demo. In SpectroDraw, the lock should be wired
+      // to the actual FFT parameter controls to force hop = fft.
+    });
+
+    // set year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    renderLock();
+  </script>
+</body>
+</html>

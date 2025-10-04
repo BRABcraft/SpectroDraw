@@ -1,371 +1,501 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SpectroDraw – Advanced Interactive Spectrogram Editor</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SpectroDraw — Interactive Spectrogram Editor</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="icon" href="/favicon32x32.ico"/>
   <style>
-    :root{
-      --bg-1: #111827;
-      --card: #1f2937;
-      --muted: #9ca3af;
-      --accent-a: #4f46e5;
-      --accent-b: #9333ea;
-      --accent-c: #ec4899;
-    }
+  :root{
+    --bg:#07080b;
+    --panel:#0f1720;
+    --muted:#9aa4b2;
+    --accent1:#4f46e5;
+    --accent2:#9333ea;
+    --accent3:#ec4899;
+    --glass: rgba(255,255,255,0.03);
+    --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+    --hero-image:url('/assets/spectrogram-hero.jpg'); /* 👈 replace with your spectrogram image */
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+    background: radial-gradient(circle at 8% 10%, rgba(79,70,229,0.06), transparent 20%), var(--bg);
+    color:#eef2ff;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    line-height:1.45;
+  }
+  a{color:inherit}
+  nav{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:1rem 2rem;
+    position:sticky;
+    top:0;
+    z-index:40;
+    backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+  }
+  .nav-left{display:flex;align-items:center;gap:1rem}
+  .brand{font-weight:800;letter-spacing:0.2px}
+  .nav-right{display:flex;gap:1rem;align-items:center}
+  .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95}
+  .nav-right a:hover{color:var(--accent1)}
 
-    body {
-      margin: 0;
-      font-family: 'Inter', sans-serif;
-      background: radial-gradient(circle at top left, #0b1220, #000);
-      color: #f9fafb;
-      line-height: 1.6;
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
-    }
+  /* ===== HERO (new Soundraw-style) ===== */
+  .hero {
+    position: relative;
+    min-height: 66vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: #eef2ff;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--hero-image);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: contrast(105%) saturate(110%) brightness(0.72);
+    transform: scale(1.02);
+    z-index: 0;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(6,8,12,0.55), rgba(6,8,12,0.65));
+    z-index: 1;
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1200px;
+    padding: 6% 5%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    text-align: center;
+  }
+  .hero-pre {
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-size: .78rem;
+    margin-bottom: .35rem;
+  }
+  .hero-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    justify-content: center;
+  }
+  .hero-svg { flex: 0 0 auto; width: 3.5rem; opacity: .95; }
+  @media(min-width:640px){ .hero-svg{ width: 5rem; } }
+  @media(min-width:1024px){ .hero-svg{ width: 7rem; } }
+  .hero-title-wrap { flex: 1 1 auto; display:flex; align-items:center; justify-content:center; }
+  .hero h1 {
+    margin: 0;
+    font-weight: 800;
+    line-height: 1.02;
+    background: var(--cta-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    font-size: 2rem;
+  }
+  @media(min-width:640px){ .hero h1{ font-size: 2.8rem; } }
+  @media(min-width:1024px){ .hero h1{ font-size: 4rem; } }
+  .hero-sub {
+    color: #dbe8ff;
+    max-width: 920px;
+    font-size: 1.05rem;
+    margin-top: .6rem;
+  }
+  .cta-wrap {
+    margin-top: 2rem;
+    display:flex;
+    gap: 1rem;
+    align-items:center;
+    justify-content:center;
+  }
+  .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  padding: 1.2rem 2.6rem;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+}
 
-    nav {
-      display: flex;
-      justify-content: flex-end;
-      gap: 1.5rem;
-      padding: 1rem 2rem;
-      background: rgba(0,0,0,0.45);
-      position: sticky;
-      top: 0;
-      backdrop-filter: blur(10px);
-      z-index: 50;
-    }
+.btn-primary {
+  position: relative;
+  background: var(--cta-grad);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1.2rem 2.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  overflow: hidden;
+  transition: transform .4s ease, box-shadow .6s ease, background .4s ease;
+  box-shadow:
+    0 0 50px rgba(79,70,229,0.5),
+    0 0 70px rgba(147,51,234,0.45),
+    inset 0 0 50px rgba(147,51,234,0.3);
+}
 
-    nav a {
-      color: #f9fafb;
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.2s ease;
-    }
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: rgba(7, 8, 11, 0.8);
+  border-radius: inherit;
+  z-index: 0;
+  backdrop-filter: blur(4px);
+  transition: background .5s ease, box-shadow .5s ease;
+}
 
-    nav a:hover { color: #60a5fa; }
+.btn-primary span {
+  position: relative;
+  z-index: 1;
+}
 
-    /* HERO */
-    .hero {
-      padding: 4rem 1.5rem 3rem;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 15px rgba(79,70,229,0.6),
+    0 0 25px rgba(147,51,234,0.7),
+    inset 0 0 60px rgba(147,51,234,0.8); /* concentrated inner glow */
+}
 
-    .hero-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 2rem;
-      align-items: center;
-      justify-items: center;
-    }
+.btn-primary:hover::before {
+  background: rgba(7, 8, 11, 0.3); /* more transparent to let the glow fill in */
+}
 
-    @media(min-width:900px){
-      .hero-grid { grid-template-columns: 520px 1fr; align-items:center; }
-      .hero { padding-top:6rem; }
-    }
+.btn-ghost {
+  background: transparent;
+  color: #e9f0ff;
+  padding: .7rem 1.2rem;
+  border-radius: 999px;
+}
 
-    .hero-image {
-      width: 100%;
-      max-width: 520px;
-      aspect-ratio: 16/9;
-      border-radius: 1rem;
-      overflow: hidden;
-      background: linear-gradient(180deg, rgba(79,70,229,0.15), rgba(147,51,234,0.08));
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border: 1px solid rgba(255,255,255,0.04);
-      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
-    }
 
-    /* inline SVG style inside placeholder */
-    .hero-image svg { width: 70%; height: 70%; opacity: 0.95; }
+  /* ===== Rest of your styles remain the same ===== */
+  section { padding:3.25rem 1rem; }
+  .container { max-width:1200px; margin:0 auto; }
+  .customize {
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:1.25rem;
+    align-items:center;
+  }
+  @media(min-width:920px){
+    .customize{grid-template-columns: 1fr 1fr; gap:2.25rem;}
+  }
+  .glow-panel{
+    border-radius:14px;
+    position:relative;
+    overflow:hidden;
+    min-height:200px;
+    border:1px solid rgba(255,255,255,0.03);
+    background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+    box-shadow: 0 14px 30px rgba(3,6,23,0.6);
+  }
+  .glow-panel:before{
+    content:"";
+    position:absolute;
+    inset:-30%;
+    background: conic-gradient(from 120deg, rgba(79,70,229,0.14), rgba(236,72,153,0.06), rgba(147,51,234,0.1));
+    filter: blur(60px);
+    opacity:0.9;
+    pointer-events:none;
+    transform: rotate(18deg);
+  }
+  .glow-media{
+    position:relative;
+    z-index:2;
+    padding:1rem;
+  }
+  .section-title { color:var(--muted); font-weight:700; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:0.4rem; font-size:0.8rem; }
+  .section-head { font-size:1.9rem; font-weight:800; margin:0 0 0.6rem 0; }
+  .section-copy{ color:#cbd5e1; max-width:62ch; margin-bottom:0.8rem; }
+  .tile-grid{display:grid;grid-template-columns: repeat(1,1fr);gap:1rem;}
+  @media(min-width:900px){ .tile-grid{ grid-template-columns: repeat(4,1fr); } }
+  .tile{border-radius:12px;overflow:hidden;min-height:160px;background:#07101a;border:1px solid rgba(255,255,255,0.03);position:relative;}
+  .tile img{ width:100%; height:100%; object-fit:cover; display:block; opacity:0.95; }
+  .carousel{display:flex;gap:1rem;overflow:auto;padding-bottom:0.25rem;}
+  .sample{min-width:180px;background:var(--panel);border-radius:10px;padding:0.6rem;border:1px solid rgba(255,255,255,0.03);}
+  .mission-card,.coming-card,.social-card{background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.01));border-radius:12px;padding:1rem;border:1px solid rgba(255,255,255,0.03);color:#dbe8ff;}
+  footer{padding:2rem 1rem;text-align:center;color:var(--muted);margin-top:2rem;border-top:1px solid rgba(255,255,255,0.02);}
+  .center{display:flex;align-items:center;justify-content:center}
+  .btn-youtube {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.6rem;
+  border-radius: 999px;
+  font-weight: 800;
+  text-decoration: none;
+  color: #000;
+  background: #fff;
+  font-size: 1rem;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
 
-    .hero h1 {
-      font-size: 3rem;
-      font-weight: 800;
-      margin: 0 0 0.5rem 0;
-      background: linear-gradient(135deg, var(--accent-a), var(--accent-b), var(--accent-c));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+.btn-youtube:hover {
+  background: #f0f0f0;
+  transform: translateY(-2px);
+}
 
-    .hero p {
-      font-size: 1.125rem;
-      max-width: 760px;
-      margin: 0 0 1rem 0;
-      color: #d1d5db;
-    }
+</style>
 
-    .cta-button {
-      display: inline-block;
-      margin-top: 1.25rem;
-      padding: 0.85rem 1.6rem;
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #fff;
-      background: linear-gradient(90deg, var(--accent-a), var(--accent-b), var(--accent-c));
-      border-radius: 9999px;
-      text-decoration: none;
-      transition: opacity 0.18s ease, transform 0.12s ease;
-    }
-    .cta-button:hover { opacity: 0.92; transform: translateY(-2px); }
-
-    /* FEATURES */
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 2rem;
-      padding: 3rem 1.5rem;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .feature-card {
-      background: var(--card);
-      border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 6px 20px rgba(2,6,23,0.6);
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-    .feature-card:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(2,6,23,0.65); }
-
-    .feature-card h3 {
-      font-size: 1.25rem;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    /* OUR MISSION */
-    .mission {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 2.25rem 1.5rem;
-    }
-
-    .mission .card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-      border: 1px solid rgba(255,255,255,0.04);
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-    }
-
-    .mission h2 {
-      margin: 0 0 0.5rem 0;
-      font-size: 1.6rem;
-      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .mission p { color: #d1d5db; margin: 0 0 0.75rem 0; }
-
-    .mission ul {
-      margin: 0.5rem 0 0 1.2rem;
-      color: #d1d5db;
-    }
-
-    /* COMING SOON */
-    .coming-soon {
-      max-width: 1000px;
-      margin: 1.5rem auto 0 auto;
-      padding: 1.5rem;
-      display: grid;
-      gap: 1rem;
-    }
-
-    .coming-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1rem;
-    }
-    @media(min-width:720px){
-      .coming-grid { grid-template-columns: 1fr 1fr; }
-    }
-
-    .coming-card {
-      background: var(--card);
-      border-radius: 10px;
-      padding: 1rem;
-      min-height: 120px;
-    }
-
-    .coming-card h3 { margin: 0 0 0.4rem 0; }
-    .coming-card p { color: #d1d5db; margin: 0; }
-
-    /* SOCIAL */
-    .social {
-      max-width: 900px;
-      margin: 2rem auto 3rem;
-      padding: 1rem 1.5rem;
-      display:flex;
-      gap:1rem;
-      align-items:center;
-      justify-content:center;
-      flex-direction:column;
-    }
-
-    @media(min-width:700px){
-      .social { flex-direction:row; justify-content:space-between; }
-    }
-
-    .social-left {
-      display:flex;
-      gap:1rem;
-      align-items:center;
-    }
-
-    .social-avatar {
-      width:72px;
-      height:72px;
-      border-radius:999px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:800;
-      font-size:20px;
-      background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
-      border: 3px solid rgba(0,0,0,0.25);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.45);
-    }
-
-    .social-info { text-align:left; }
-    .social-info h4 { margin:0 0 0.15rem 0; font-size:1.05rem; }
-    .social-meta { color: var(--muted); font-size:0.95rem; margin:0; }
-
-    /* FOOTER */
-    footer {
-      text-align: center;
-      padding: 2rem 1rem;
-      font-size: 0.9rem;
-      color: #9ca3af;
-      background: var(--bg-1);
-      margin-top: 2rem;
-    }
-
-  </style>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1440101122061357"
-     crossorigin="anonymous"></script>
 </head>
 <body>
   <nav>
-    <a href="/">Home</a>
-    <a href="/app">Launch App</a>
-    <a href="/privacy">Privacy Policy</a>
-    <a href="/terms">Terms</a>
+    <div class="nav-left">
+      <div class="brand">SpectroDraw</div>
+      <div style="opacity:.6;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+      <a href="/app">Launch App</a>
+      <a href="/docs">Docs</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/login">Sign in</a>
+    </div>
   </nav>
 
-  <section class="hero" aria-label="Hero">
-    <div class="hero-grid">
-      <div class="hero-image" role="img" aria-label="spectrogram placeholder">
-        <!-- inline placeholder SVG (replace with real hero later) -->
-        <svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <!-- HERO -->
+  <header class="hero" role="banner" aria-label="SpectroDraw hero">
+    <div class="hero-inner">
+      <!-- Top pretext (uppercase) -->
+      <div class="hero-pre center">The Fastest Interactive Spectrogram Editor for Creators &amp; Artists</div>
+
+      <!-- main row with left SVG, headline in center, right SVG -->
+      <div class="hero-row" role="presentation" aria-hidden="true">
+        <!-- left decorative SVG (you can replace or keep) -->
+        <svg class="hero-svg" viewBox="0 0 124 80" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">
           <defs>
-            <linearGradient id="g" x1="0" x2="1">
-              <stop offset="0" stop-color="#4f46e5" stop-opacity="0.95" />
-              <stop offset="1" stop-color="#ec4899" stop-opacity="0.95" />
-            </linearGradient>
+            <linearGradient id="gL1" x1="0" x2="1"><stop offset="0" stop-color="#29ABE2"/><stop offset="1" stop-color="#29ABE2" stop-opacity="0"/></linearGradient>
           </defs>
-          <rect width="640" height="360" rx="14" fill="url(#g)" opacity="0.14"/>
-          <!-- simple stylized spectrogram bars -->
-          <g transform="translate(40,40)">
-            <rect x="0" y="240" width="8" height="24" rx="3" fill="#ffffff" opacity="0.06"/>
-            <rect x="14" y="210" width="8" height="54" rx="3" fill="#ffffff" opacity="0.08"/>
-            <rect x="28" y="180" width="8" height="84" rx="3" fill="#fff" opacity="0.12"/>
-            <rect x="42" y="120" width="8" height="144" rx="3" fill="#fff" opacity="0.18"/>
-            <rect x="56" y="60" width="8" height="204" rx="3" fill="#fff" opacity="0.22"/>
-            <rect x="84" y="120" width="12" height="144" rx="3" fill="#fff" opacity="0.16"/>
-            <rect x="108" y="160" width="10" height="104" rx="3" fill="#fff" opacity="0.14"/>
-            <rect x="132" y="200" width="6" height="64" rx="3" fill="#fff" opacity="0.1"/>
-            <!-- hand-drawn stroke hint -->
-            <path d="M220 200 C260 110, 340 110, 380 200" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.12"/>
-          </g>
+          <g clip-path="url(#c1)"><path d="M1.28 79.55C0.04 78.66-0.26 76.5 0.21 74.87 1.42 70.78 7.15 71.45 11.07 68.40 21.54 60.25 16.01 27.75 12.22 18.04 9.79 11.32 11.56 9.15 12.99 8.36 15.75 7.67 16.34 9.50 19.59 19.70 22.43 28.65 29.99 52.40 35.64 52.40 38.70 52.37 42.19 43.41 44.75 36.86 48.39 27.49 51.87 18.72 57.95 18.78 64.60 18.93 68.21 29.71 72.04 41.12 73.88 46.61 77.31 56.84 79.34 57.11 80.29 56.65 81.72 51.89 82.75 48.42 87.56 32.33 92.60 24.43 98.99 16.36 106.22 7.25 117.87 -2.23 122.20 0.46 123.61 1.33 124.10 3.39 123.99 4.91 123.50 11.40 111.74 10.84 102.51 19.61 99.68 22.29 93.06 30.52 87.31 49.80 85.17 56.98 83.76 61.72 79.55 61.91 74.09 62.23 71.18 53.55 67.53 42.66 64.99 35.09 61.15 23.66 57.84 23.58 57.83 23.58 57.81 23.58 55.03 23.58 51.51 32.63 49.18 38.62 45.47 48.15 41.96 57.15 35.69 57.20 35.64 57.20 29.61 57.20 24.75 48.45 20.26 36.50 21.41 44.08 23.80 65.40 12.66 74.81 12.02 75.34 4.35 81.72 1.29 79.55Z" fill="url(#gL1)"/></g>
+          <defs><clipPath id="c1"><rect width="124" height="80" fill="white"/></clipPath></defs>
+        </svg>
+
+        <div class="hero-title-wrap" style="padding:0 0.75rem;">
+          <h1>
+            <span style="white-space:nowrap;display:block">Create & Customize</span>
+            <span style="white-space:nowrap;display:block">Royalty Free Music with AI</span>
+          </h1>
+        </div>
+
+        <!-- right decorative SVG -->
+        <svg class="hero-svg" viewBox="0 0 124 80" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="gL2" x1="0" x2="1"><stop offset="0" stop-color="#29ABE2"/><stop offset="1" stop-color="#29ABE2" stop-opacity="0"/></linearGradient>
+          </defs>
+          <g clip-path="url(#c2)"><path d="M122.71 79.55C123.96 78.66 124.26 76.5 123.79 74.87 122.58 70.78 116.85 71.45 112.93 68.40 102.46 60.25 107.99 27.75 111.78 18.04 114.21 11.32 112.44 9.15 111.01 8.36 108.25 7.67 107.66 9.50 104.41 19.70 101.57 28.65 94.00 52.40 88.36 52.40 85.30 52.37 81.81 43.41 79.25 36.86 75.61 27.49 72.13 18.72 66.05 18.78 59.40 18.93 55.79 29.71 51.96 41.12 50.12 46.61 46.69 56.84 44.66 57.11 43.70 56.65 42.28 51.89 41.25 48.42 36.44 32.33 31.40 24.43 25.00 16.36 17.78 7.25 6.13 -2.23 1.79 0.46 0.39 1.33 -0.10 3.39 0.01 4.91 0.50 11.40 12.26 10.84 21.49 19.61 24.32 22.29 30.94 30.52 36.69 49.80 38.83 56.98 40.24 61.72 44.45 61.91 49.91 62.23 52.82 53.55 56.47 42.66 59.01 35.09 62.84 23.66 66.16 23.58 66.17 23.58 66.19 23.58 68.97 23.58 72.49 32.63 74.82 38.62 78.53 48.15 82.04 57.15 88.31 57.20 94.39 57.20 99.25 48.45 103.74 36.50 102.59 44.08 100.20 65.40 111.34 74.81 111.98 75.34 119.65 81.72 122.71 79.55Z" fill="url(#gL2)"/></g>
+          <defs><clipPath id="c2"><rect width="124" height="80" fill="white" transform="matrix(-1 0 0 1 124 0)"/></clipPath></defs>
         </svg>
       </div>
 
-      <div class="hero-content">
-        <h1>SpectroDraw</h1>
-        <p>Turn sound into art — and art into sound. A spectrogram editor and audio tool that lets you draw, edit, and instantly hear your creations. Ideal for sound design, music creation, and teaching audio concepts visually.</p>
-        <a href="/app" class="cta-button">Launch App</a>
+      <!-- descriptive subtext -->
+      <p class="hero-sub center" style="margin-top:0.9rem;">
+        SpectroDraw’s interactive spectrogram lets you paint frequency content directly — perfect for sound designers, music makers, and educators. Convert to MIDI, remove harmonics, and export stems with precision.
+      </p>
+
+      <!-- CTA -->
+      <div class="cta-wrap" role="region" aria-label="primary actions">
+        <a href="/app" class="btn btn-primary" title="Try SpectroDraw for free"><span>Try it for free</span></a>
+      </div>
+    </div>
+  </header>
+
+  <!-- CUSTOMIZE SECTION -->
+  <section aria-labelledby="customize-heading">
+    <div class="container customize">
+      <div>
+        <div class="section-title">Edit &amp; Personalize</div>
+        <h2 id="customize-heading" class="section-head">Fine-tune frequency content — visually</h2>
+        <p class="section-copy">Use SpectroDraw’s tools (brush, eraser, harmonics filter, and overlay import) to craft textures and fx quickly — no deep DSP knowledge required.</p>
+        <div style="margin-top:1rem;">
+          <button class="btn btn-primary" onclick="location.href='/app'"><span>Start Creating</span></button>
+        </div>
+      </div>
+
+      <div class="glow-panel" aria-hidden="false">
+        <div class="glow-media">
+          <!-- replace with <video> or <img> real media -->
+          <video playsinline muted loop style="width:100%;border-radius:10px;display:block;" poster="" preload="none">
+            <source src="" type="video/mp4">
+            <!-- Fallback placeholder -->
+            <img alt="SpectroDraw preview" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400'%3E%3Crect width='800' height='400' fill='%230e1116'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23cbd5e1' font-family='Inter,Arial' font-size='18'%3EPreview video / GIF here%3C/text%3E%3C/svg%3E">
+          </video>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="features" aria-label="features">
-    <div class="feature-card">
-      <h3>Draw Your Audio</h3>
-      <p>Sketch directly on the spectrogram canvas and hear your strokes come alive as sound in real time.</p>
-    </div>
-    <div class="feature-card">
-      <h3>Advanced Audio Editing</h3>
-      <p>Includes a brush, line, rectangle, eraser, amplifier, and image overlay tools to create any sound.</p>
-    </div>
-    <div class="feature-card">
-      <h3>Midi export</h3>
-      <p>Export your sounds as MIDI, with advanced options like remove harmonics to achieve the best result.</p>
+  <!-- GENERATE / GRID SECTION -->
+  <section aria-labelledby="generate-heading">
+    <div class="container" style="display:grid;grid-template-columns:1fr;gap:1.25rem;">
+      <div style="display:flex;gap:1rem;align-items:center;flex-direction:column">
+        <div class="section-title">Spectral Workflows</div>
+        <h3 id="generate-heading" class="section-head" style="text-align:center">Generate and Export — Audio, Stems, and MIDI</h3>
+        <p class="section-copy" style="text-align:center">Export audio and MIDI that captures the spectral shape you’ve painted. Use it as a sound effect, an instrument, or a melodic source.</p>
+        <div style="margin-top:.9rem">
+          <a class="btn btn-primary" href="/app"><span>Start Generating</span></a>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem">
+        <div class="tile-grid">
+          <div class="tile"><img alt="Sample 1" src="https://picsum.photos/640/360?random=101"></div>
+          <div class="tile"><img alt="Sample 2" src="https://picsum.photos/640/360?random=102"></div>
+          <div class="tile"><img alt="Sample 3" src="https://picsum.photos/640/360?random=103"></div>
+          <div class="tile"><img alt="Sample 4" src="https://picsum.photos/640/360?random=104"></div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- OUR MISSION -->
-  <section class="mission" aria-labelledby="mission-heading">
-    <div class="card">
-      <h2 id="mission-heading">Our Mission</h2>
-      <p>SpectroDraw aims to make sound design and audio learning more visual, intuitive, and creative. We believe working with sound should be as direct as drawing — and accessible to creators, students, and sound designers of every level.</p>
+  <!-- MADE FOR / LICENSE NOTE -->
+  <section>
+    <div class="container" style="display:flex;flex-direction:column;align-items:center;gap:1rem">
+      <div class="section-title">Trusted By Creators</div>
+      <h3 class="section-head" style="text-align:center">Designed for sound designers & music creators</h3>
+      <p class="section-copy" style="text-align:center;max-width:68ch">SpectroDraw is built to accelerate creative workflows — from rapid fx prototyping to teaching audio concepts. Export clean MIDI, download stems, or bring your spectral edits into a DAW via the upcoming VST.</p>
+    </div>
+  </section>
 
-      <ul>
-        <li><strong>First interactive spectrogram editor:</strong> SpectroDraw is built around an interactive spectrogram — the first audio editor to make the spectrogram the native, editable surface.</li>
-        <li><strong>Faster sound design:</strong> Helps music creators and sound designers create sound effects more quickly and visually, by letting you paint and sculpt frequency content directly.</li>
-        <li><strong>Educational tool:</strong> A practical way to teach students how spectrograms represent sound and to demonstrate concepts like harmonics, timbre, and time-frequency tradeoffs.</li>
-        <li><strong>Accurate audio→MIDI:</strong> Convert songs to MIDI (sheet music) much more accurately than many other programs by leveraging spectrogram-based analysis and harmonic-removal options.</li>
-      </ul>
+  <!-- SAMPLE / CAROUSEL (lightweight placeholder) -->
+  <section>
+    <div class="container">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem;">
+        <div>
+          <div class="section-title">Hear SpectroDraw</div>
+          <div class="section-head">Examples & Samples</div>
+        </div>
+        <div><a class="btn btn-ghost" href="/samples">Browse all</a></div>
+      </div>
+
+      <div class="carousel" aria-hidden="false">
+        <div class="sample">
+          <img src="https://picsum.photos/320/200?random=201" alt="sample cover" style="width:100%;border-radius:8px;margin-bottom:.5rem">
+          <div style="font-weight:700">Spectral FX Pack</div>
+          <div style="color:var(--muted);font-size:.9rem">0:30 • FX</div>
+        </div>
+        <div class="sample">
+          <img src="https://picsum.photos/320/200?random=202" alt="sample cover" style="width:100%;border-radius:8px;margin-bottom:.5rem">
+          <div style="font-weight:700">Melodic Texture</div>
+          <div style="color:var(--muted);font-size:.9rem">0:22 • Instrument</div>
+        </div>
+        <div class="sample">
+          <img src="https://picsum.photos/320/200?random=203" alt="sample cover" style="width:100%;border-radius:8px;margin-bottom:.5rem">
+          <div style="font-weight:700">Noise Morph</div>
+          <div style="color:var(--muted);font-size:.9rem">0:18 • SFX</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OUR MISSION (kept from your earlier content) -->
+  <section>
+    <div class="container" style="max-width:900px;margin:0 auto">
+      <div class="mission-card">
+        <h3 style="margin-top:0">Our Mission</h3>
+        <p style="margin:.5rem 0 0">SpectroDraw aims to make sound design and audio learning more visual, intuitive, and creative. We believe working with sound should be as direct as drawing — accessible to creators, students, and sound designers of every level.</p>
+        <ul style="margin-top:.6rem">
+          <li><strong>First interactive spectrogram editor:</strong> an editable spectrogram as the native surface.</li>
+          <li><strong>Faster sound design:</strong> paint and sculpt frequency content directly.</li>
+          <li><strong>Educational tool:</strong> teach frequency, harmonics, and time-frequency concepts.</li>
+          <li><strong>Accurate audio → MIDI:</strong> convert songs to MIDI with improved harmonic filtering.</li>
+        </ul>
+      </div>
     </div>
   </section>
 
   <!-- COMING SOON -->
-  <section class="coming-soon" aria-labelledby="coming-heading">
-    <h2 id="coming-heading" style="margin:0 0 0.6rem 0; font-size:1.4rem; text-align:center; background:linear-gradient(90deg,var(--accent-a),var(--accent-b)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Coming Soon</h2>
-
-    <div class="coming-grid">
-      <div class="coming-card" aria-labelledby="vst-heading">
-        <h3 id="vst-heading">🔌 VST plugin</h3>
-        <p>Our goal is to turn SpectroDraw into a VST plugin so you can use it inside DAWs like FL Studio and Logic Pro — quickly create and modify sounds directly within your projects.</p>
+  <section>
+    <div class="container" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="coming-card">
+        <h4 style="margin:0">🔌 VST plugin</h4>
+        <p style="margin:.5rem 0 0">Our goal is to turn SpectroDraw into a VST plugin for DAWs like FL Studio and Logic Pro so you can modify sounds directly in your session.</p>
       </div>
-
-      <div class="coming-card" aria-labelledby="ios-heading">
-        <h3 id="ios-heading">📱 iOS App Store</h3>
-        <p>SpectroDraw will also be available on the iOS App Store — bring interactive spectrogram editing to your iPad and iPhone for on-the-go sound design and learning.</p>
+      <div class="coming-card">
+        <h4 style="margin:0">📱 iOS App</h4>
+        <p style="margin:.5rem 0 0">SpectroDraw will be available on the iOS App Store — interactive spectrogram editing on iPhone and iPad.</p>
       </div>
     </div>
   </section>
 
-  <!-- SOCIAL -->
-  <section class="social" aria-label="social">
-    <div class="social-left">
-      <div class="social-avatar" aria-hidden="true">RM</div>
-      <div class="social-info">
-        <h4>RandomMangos</h4>
-        <p class="social-meta">66,000 subscribers · RandomMangos has been making music for 5 years</p>
-      </div>
+  <!-- SOCIAL / FOOTER -->
+  <section>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:0.75rem;text-align:center">
+    <h1>My YouTube Channel</h1>
+    <!-- Profile image circle -->
+    <img src="/assets/randommangos.jpg" alt="RandomMangos" 
+        style="width:140px;height:140px;border-radius:999px;object-fit:cover;">
+
+    <!-- Name and subscriber count stacked -->
+    <div style="display:flex;flex-direction:column;gap:0.15rem">
+      <div style="font-weight:800;font-size:3rem">RandomMangos</div>
+      <div style="color:var(--muted);font-size:1.5rem;">66,000 subscribers</div>
     </div>
 
-    <div style="display:flex;gap:1rem;align-items:center;">
-      <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" class="cta-button" style="padding:0.6rem 1rem;font-weight:700;">YouTube</a>
-      <a href="/app" class="cta-button" style="padding:0.6rem 1rem;font-weight:700;background:transparent;border:1px solid rgba(255,255,255,0.06);">Launch App</a>
+    <!-- Paragraph -->
+    <p style="margin:0;color:#dbe8ff;max-width:680px;">
+      I have been making beats, remixes, EDM, and phonk since 2020. One thing I've always wanted is a tool that makes audio editing less complicated and more intuitive.
+      As a creator, I know how overwhelming traditional DAWs and audio editors can be, especially when you just want to experiment, remix, or shape sounds quickly.
+      That's why I made SpectroDraw, which can let you interact with audio visually and creatively, making the process of editing, remixing, and designing music much more accessible and fun for everyone.
+    </p>
+
+    <!-- Buttons (centered) -->
+    <div style="display:flex;gap:1.7rem;justify-content:center;margin-top:20px;">
+      <a class="btn btn-youtube" href="https://www.youtube.com/channel/UCGmPeEqdsLBMsfUK3DZOw2A" target="_blank" rel="noopener noreferrer">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="red" style="margin-right:8px;">
+          <path d="M23.498 6.186c-.275-1.033-1.08-1.847-2.113-2.124C19.6 3.5 12 3.5 12 3.5s-7.6 0-9.386.562c-1.033.277-1.838 1.091-2.113 2.124C0 7.972 0 12 0 12s0 4.028.501 5.814c.275 1.033 1.08 1.847 2.113 2.124C4.4 20.5 12 20.5 12 20.5s7.6 0 9.386-.562c1.033-.277 1.838-1.091 2.113-2.124C24 16.028 24 12 24 12s0-4.028-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+        YouTube
+      </a>
+      <a class="btn btn-primary" href="/app"><span>Launch App</span></a>
     </div>
-  </section>
+  </div>
+</section>
+
 
   <footer>
-    © <span id="year"></span> SpectroDraw. All rights reserved.
+    © <span id="year"></span> SpectroDraw · Built for creative sound design
   </footer>
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+    // Lightweight accessibility helpers for keyboard activation on .sample elements (no external JS).
+    document.querySelectorAll('.sample').forEach(el=>{
+      el.tabIndex = 0;
+      el.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter' || e.key === ' ') { el.querySelector('img')?.click(); }
+      });
+    });
   </script>
 </body>
 </html>

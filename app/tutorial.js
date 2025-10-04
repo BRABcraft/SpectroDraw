@@ -76,6 +76,20 @@
             dialogOffset: { x: 368, y: 500 }
         },
         {
+            id: 'changeFFT',
+            label: 'FFT parameters',
+            subtitle: 'These control the quality of the spectrogram',
+            target: '#fftParameters, #canvas, #timeline, #logscale, #freq',
+            dialog: "Play around with the pitch and time resolution and see how they\nshape audio quality and phase (color).",
+            waitFor: {
+                type: 'awaitNext'
+            }, 
+            showNext: true,
+            preAction: null,
+            mouseLoop: false,
+            dialogOffset: { x: 378, y: 128 }
+        },
+        {
             id: 'save',
             label: 'Download / Export',
             subtitle: 'Download Audio or Spectrogram',
@@ -324,15 +338,14 @@
                 document.querySelector('#rec').classList.add('tutorial-pulse-glow');
             } else if (step.id === 'midi') {
                 document.querySelector('#exportMIDI').classList.add('tutorial-pulse-glow');
-                document.querySelector('#fileB').classList.remove('tutorial-pulse-glow');
-                document.querySelector('#presets').classList.remove('tutorial-pulse-glow');
-                document.querySelector('#rec').classList.remove('tutorial-pulse-glow');
             } else if (step.id === 'playPause') {
                 document.querySelector('#playPause').classList.add('tutorial-pulse-glow');
                 document.querySelector('#stop').classList.add('tutorial-pulse-glow');
-                document.querySelector('#exportMIDI').classList.remove('tutorial-pulse-glow');
             } else if (step.id === 'done') {
                 document.querySelector('#resetButton').classList.add('tutorial-pulse-glow');
+            } else if (step.id === 'changeFFT') {
+                document.querySelector('#fftSize').classList.add('tutorial-pulse-glow');
+                document.querySelector('#hopSize').classList.add('tutorial-pulse-glow');
             }
         } catch (e) {
             console.warn('setupHighlightFor error', e);
@@ -439,6 +452,7 @@
                     setTimeout(() => {
                         try { node.remove(); } catch (e) {}
                     }, transitionTime + 40);
+                    // console.log('removed', node)
                 } catch (e) {
                     console.warn('spotlight: failed removing old hole', e);
                 }
@@ -522,7 +536,7 @@
             try { updateSpotlightMask([]); } catch (e) {}
         }
         document.querySelectorAll(
-            '#fileB, #presets, #rec, #exportMIDI, #playPause, #stop, #resetButton'
+            '#fileB, #presets, #rec, #exportMIDI, #playPause, #stop, #resetButton, #fftSize, #hopSize'
         ).forEach(el => el.classList.remove('tutorial-pulse-glow'));
         steps.forEach(s => {
             if (s._reposition) {
@@ -734,6 +748,13 @@
                     pollers.push({ type: 'event', node: input, ev: 'input', fn });
                     pollers.push({ type: 'event', node: input, ev: 'change', fn });
                 });
+            }
+            return;
+        }
+        if (w.type === 'awaitNext') {
+            if (step._nextBtn) {
+                step._nextBtn.disabled = false;
+                step._nextBtn.classList.remove('disabled');
             }
             return;
         }

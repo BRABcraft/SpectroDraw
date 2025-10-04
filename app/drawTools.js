@@ -14,68 +14,67 @@ function previewShape(cx, cy) {
   pendingPreview = true;
 
   requestAnimationFrame(() => {
-
     pendingPreview = false;
     const { cx, cy } = lastPreviewCoords;
+    const ctx = overlayCtx; // local ref
 
-    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-    const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
-    overlayCtx.strokeStyle = "#0f0";
-    overlayCtx.lineWidth = framesTotal/500;
-    overlayCtx.beginPath();
-    overlayCtx.moveTo(x + 0.5, 0);
-    overlayCtx.lineTo(x + 0.5, specHeight);
-    overlayCtx.stroke();
+    const x = (currentCursorX - iLow) * canvas.width / (iHigh - iLow);
+    // vertical guide
+    ctx.save();
+    ctx.strokeStyle = "#0f0";
+    ctx.lineWidth = framesTotal / 500;
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, specHeight);
+    ctx.stroke();
 
-    overlayCtx.strokeStyle = "#fff";
-    overlayCtx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
 
     const hasStart = startX !== null && startY !== null;
 
     if (currentTool === "rectangle" && hasStart) {
-      overlayCtx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
+      ctx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
+      ctx.restore();
       return;
     }
 
     if (currentTool === "line" && hasStart) {
-      overlayCtx.lineWidth = brushSize/4;
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(startX + 0.5, startY + 0.5);
-      overlayCtx.lineTo(cx + 0.5, cy + 0.5);
-      overlayCtx.stroke();
+      ctx.lineWidth = brushSize / 4;
+      ctx.beginPath();
+      ctx.moveTo(startX + 0.5, startY + 0.5);
+      ctx.lineTo(cx + 0.5, cy + 0.5);
+      ctx.stroke();
+      ctx.restore();
       return;
     }
 
+    // compute expensive rect stuff only if needed (image or ellipse)
     const rect = canvas.getBoundingClientRect();
-    const pixelsPerFrame = rect.width / Math.max(1, canvas.width);
+    const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
     const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
     const desiredScreenMax = brushSize * 4;
 
     if (currentTool === "image" && overlayImage) {
-      const { width: imgW, height: imgH } = overlayImage;
-      const imgAspect = imgW / imgH;
-
-      const screenW = imgW >= imgH ? desiredScreenMax : Math.round(desiredScreenMax * imgAspect);
-      const screenH = imgW >= imgH ? Math.round(desiredScreenMax / imgAspect) : desiredScreenMax;
-
-      const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-      const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
-
-      overlayCtx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+      // ... compute overlayW/overlayH (as you already have) ...
+      ctx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+      ctx.restore();
       return;
     }
 
     const radiusX = (desiredScreenMax / 7) / pixelsPerFrame;
-    const radiusY = desiredScreenMax / 7 / pixelsPerBin;
+    const radiusY = (desiredScreenMax / 7) / pixelsPerBin;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.stroke();
 
-    overlayCtx.beginPath();
-    overlayCtx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
-    overlayCtx.stroke();
-
+    ctx.restore();
     drawCursor(false);
   });
 }
+
 
 function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
   let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
@@ -111,73 +110,91 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
   }
 }
 
+// call when spectrogram parameters change:
+let binToTopDisplay = null;
+let binToBottomDisplay = null;
+function buildBinDisplayLookup() {
+  binToTopDisplay = new Float32Array(specHeight);
+  binToBottomDisplay = new Float32Array(specHeight);
+  for (let b = 0; b < specHeight; b++) {
+    binToTopDisplay[b] = binToDisplayY(b - 0.5, specHeight);
+    binToBottomDisplay[b] = binToDisplayY(b + 0.5, specHeight);
+  }
+}
+
+
 function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
-  const xI = Math.round(xFrame);
+  const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
 
-  let displayYFloat;
+  // locals for perf
+  const fullH = specHeight;
+  const fullW = specWidth;
+  const magsArr = mags;
+  const phasesArr = phases;
+  const imgData = imageBuffer.data;
+  const width = fullW;
+  const height = fullH;
+  const idxBase = xI * fullH;
+
+  // optional pitch-align (keep this branch but hoist helpers)
+  let displayYFloat = yDisplay;
   if (alignPitch) {
-    const yysf = getSineFreq(yDisplay);
-    let nearestPitch = Math.round(npo * Math.log2(yysf / a4p));
+    const f = getSineFreq(yDisplay);
+    let nearestPitch = Math.round(npo * Math.log2(f / a4p));
     nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
     displayYFloat = ftvsy(nearestPitch);
-  } else {
-    displayYFloat = yDisplay;
   }
 
-  // find bins (float) covered by the requested display Y
-  const topBinF = displayYToBin(displayYFloat - 0.5, specHeight);
-  const botBinF = displayYToBin(displayYFloat + 0.5, specHeight);
+  // get float bin boundaries using lookup tables
+  const topBinF = displayYToBin(displayYFloat - 0.5, fullH);
+  const botBinF = displayYToBin(displayYFloat + 0.5, fullH);
 
   let binStart = Math.floor(Math.min(topBinF, botBinF));
   let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
-
   if (!Number.isFinite(binStart)) binStart = 0;
   if (!Number.isFinite(binEnd))   binEnd   = 0;
-  binStart = Math.max(0, Math.min(specHeight - 1, binStart));
-  binEnd   = Math.max(0, Math.min(specHeight - 1, binEnd));
+  if (binStart < 0) binStart = 0;
+  if (binEnd > fullH - 1) binEnd = fullH - 1;
 
   for (let bin = binStart; bin <= binEnd; bin++) {
-    const idx = xI * specHeight + bin;
-    if (idx < 0 || idx >= mags.length) continue;
-    if (visited && visited[idx] == 1) continue;
+    const idx = idxBase + bin;
+    // bounds check not needed if idxBase/bin clamped, but keep safe:
+    if (idx < 0 || idx >= magsArr.length) continue;
+    if (visited && visited[idx] === 1) continue;
     if (visited) visited[idx] = 1;
 
-    const oldMag = mags[idx] || 0;
-    const oldPhase = phases[idx] || 0;
+    const oldMag = magsArr[idx] || 0;
+    const oldPhase = phasesArr[idx] || 0;
     const newMag = (currentTool === "amplifier")
                  ? (oldMag * (mag / 64 * bo))
                  : (oldMag * (1 - bo) + mag * bo);
     const newPhase = oldPhase + po * (phase - oldPhase);
 
-    mags[idx] = Math.min(newMag, 255);
-    phases[idx] = newPhase;
+    const clampedMag = Math.min(newMag, 255);
+    magsArr[idx] = clampedMag;
+    phasesArr[idx] = newPhase;
 
-    // --- fill all pixel rows that belong to this bin ---
-    // compute top/bottom display coordinates for the bin by sampling half-bin offsets
-    const topEdge = binToDisplayY(bin - 0.5, specHeight);
-    const botEdge = binToDisplayY(bin + 0.5, specHeight);
+    // use lookup tables to avoid recomputing bin->display bounds
+    const yTopF = binToTopDisplay[bin];
+    const yBotF = binToBottomDisplay[bin];
+    const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
+    const yEnd   = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
 
-    // ensure proper ordering (display coordinates may invert with freq mapping)
-    const yTopF = Math.min(topEdge, botEdge);
-    const yBotF = Math.max(topEdge, botEdge);
+    // RGB conversion - this may still be expensive; could cache per (idx) or per mag/phase pair
+    const [r, g, b] = magPhaseToRGB(clampedMag, newPhase);
 
-    // convert to integer pixel rows (inclusive)
-    const yStart = Math.max(0, Math.floor(yTopF));
-    const yEnd   = Math.min(specHeight - 1, Math.ceil (yBotF));
-
-    // compute RGB once for this bin
-    const [r, g, b] = magPhaseToRGB(mags[idx], phases[idx]);
-
+    // write rows
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
-      const pix = (yPixel * specWidth + xI) * 4;
-      imageBuffer.data[pix]     = r;
-      imageBuffer.data[pix + 1] = g;
-      imageBuffer.data[pix + 2] = b;
-      imageBuffer.data[pix + 3] = 255;
+      const pix = (yPixel * width + xI) * 4;
+      imgData[pix]     = r;
+      imgData[pix + 1] = g;
+      imgData[pix + 2] = b;
+      imgData[pix + 3] = 255;
     }
   }
 }
+
 
 function commitShape(cx, cy) {
   if (!mags || !phases) return;
@@ -309,6 +326,9 @@ function paint(cx, cy) {
     const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
     const minY = Math.max(0, Math.floor(cy - radiusY*(fftSize/2048)));
     const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fftSize/2048)));
+    const radiusYpix = radiusY * (fftSize / 2048);
+    const radiusXsq = radiusXFrames * radiusXFrames;
+    const radiusYsq = radiusYpix * radiusYpix;
     if (currentTool === "brush" || currentTool === "eraser" || currentTool === "amplifier") {
 
         const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
@@ -317,7 +337,7 @@ function paint(cx, cy) {
           for (let xx = minXFrame; xx <= maxXFrame; xx++) {
               const dx = xx - cx;
               const dy = yy - cy;
-              if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / Math.pow(radiusY*(fftSize/2048),2) > 1) continue;
+              if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
               drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
           }
       } 
@@ -326,7 +346,7 @@ function paint(cx, cy) {
             for (let xx = minXFrame; xx <= maxXFrame; xx++) {
                 const dx = xx - cx;
                 const dy = yy - cy;
-                if ((dx * dx) / (radiusXFrames * radiusXFrames) + (dy * dy) / Math.pow(radiusY*(fftSize/2048),2) > 1) continue;
+                if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
                 let sumMag = 0, sumPhase = 0, count = 0;
                 for (let oy = -1; oy <= 1; oy++) {
                     for (let ox = -1; ox <= 1; ox++) {

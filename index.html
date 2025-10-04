@@ -7,12 +7,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon32x32.ico"/>
   <style>
+    :root{
+      --bg-1: #111827;
+      --card: #1f2937;
+      --muted: #9ca3af;
+      --accent-a: #4f46e5;
+      --accent-b: #9333ea;
+      --accent-c: #ec4899;
+    }
+
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
-      background: radial-gradient(circle at top left, #111827, #000);
+      background: radial-gradient(circle at top left, #0b1220, #000);
       color: #f9fafb;
       line-height: 1.6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
     }
 
     nav {
@@ -20,10 +31,11 @@
       justify-content: flex-end;
       gap: 1.5rem;
       padding: 1rem 2rem;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.45);
       position: sticky;
       top: 0;
       backdrop-filter: blur(10px);
+      z-index: 50;
     }
 
     nav a {
@@ -33,117 +45,318 @@
       transition: color 0.2s ease;
     }
 
-    nav a:hover {
-      color: #60a5fa;
+    nav a:hover { color: #60a5fa; }
+
+    /* HERO */
+    .hero {
+      padding: 4rem 1.5rem 3rem;
+      max-width: 1200px;
+      margin: 0 auto;
     }
 
-    .hero {
-    text-align: center;
-    padding: 8rem 2rem 6rem;
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      align-items: center;
+      justify-items: center;
     }
+
+    @media(min-width:900px){
+      .hero-grid { grid-template-columns: 520px 1fr; align-items:center; }
+      .hero { padding-top:6rem; }
+    }
+
+    .hero-image {
+      width: 100%;
+      max-width: 520px;
+      aspect-ratio: 16/9;
+      border-radius: 1rem;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(79,70,229,0.15), rgba(147,51,234,0.08));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border: 1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+    }
+
+    /* inline SVG style inside placeholder */
+    .hero-image svg { width: 70%; height: 70%; opacity: 0.95; }
 
     .hero h1 {
-    font-size: 3.5rem;
-    font-weight: 800;
-    margin-bottom: 1rem;
-    background: linear-gradient(135deg, #4f46e5, #9333ea, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+      font-size: 3rem;
+      font-weight: 800;
+      margin: 0 0 0.5rem 0;
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-b), var(--accent-c));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .hero p {
-      font-size: 1.25rem;
-      max-width: 700px;
-      margin: 0 auto;
+      font-size: 1.125rem;
+      max-width: 760px;
+      margin: 0 0 1rem 0;
       color: #d1d5db;
-      -webkit-text-fill-color: #d1d5db;
     }
 
     .cta-button {
       display: inline-block;
-      margin-top: 2rem;
-      padding: 1rem 2rem;
-      font-size: 1.2rem;
+      margin-top: 1.25rem;
+      padding: 0.85rem 1.6rem;
+      font-size: 1.05rem;
       font-weight: 700;
       color: #fff;
-      background: linear-gradient(90deg, #4f46e5, #9333ea, #ec4899);
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-b), var(--accent-c));
       border-radius: 9999px;
       text-decoration: none;
-      transition: opacity 0.2s ease;
+      transition: opacity 0.18s ease, transform 0.12s ease;
     }
+    .cta-button:hover { opacity: 0.92; transform: translateY(-2px); }
 
-    .cta-button:hover {
-      opacity: 0.85;
-    }
-
+    /* FEATURES */
     .features {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 2rem;
-      padding: 4rem 2rem;
+      padding: 3rem 1.5rem;
       max-width: 1100px;
       margin: 0 auto;
     }
 
     .feature-card {
-      background: #1f2937;
+      background: var(--card);
       border-radius: 1rem;
-      padding: 2rem;
-      box-shadow: 0 0 25px rgba(0,0,0,0.3);
-      transition: transform 0.2s ease;
+      padding: 1.5rem;
+      box-shadow: 0 6px 20px rgba(2,6,23,0.6);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
-
-    .feature-card:hover {
-      transform: translateY(-4px);
-    }
+    .feature-card:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(2,6,23,0.65); }
 
     .feature-card h3 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      background: linear-gradient(90deg, #4f46e5, #9333ea);
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
+    /* OUR MISSION */
+    .mission {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 2.25rem 1.5rem;
+    }
+
+    .mission .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+
+    .mission h2 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.6rem;
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .mission p { color: #d1d5db; margin: 0 0 0.75rem 0; }
+
+    .mission ul {
+      margin: 0.5rem 0 0 1.2rem;
+      color: #d1d5db;
+    }
+
+    /* COMING SOON */
+    .coming-soon {
+      max-width: 1000px;
+      margin: 1.5rem auto 0 auto;
+      padding: 1.5rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .coming-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    @media(min-width:720px){
+      .coming-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .coming-card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1rem;
+      min-height: 120px;
+    }
+
+    .coming-card h3 { margin: 0 0 0.4rem 0; }
+    .coming-card p { color: #d1d5db; margin: 0; }
+
+    /* SOCIAL */
+    .social {
+      max-width: 900px;
+      margin: 2rem auto 3rem;
+      padding: 1rem 1.5rem;
+      display:flex;
+      gap:1rem;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+    }
+
+    @media(min-width:700px){
+      .social { flex-direction:row; justify-content:space-between; }
+    }
+
+    .social-left {
+      display:flex;
+      gap:1rem;
+      align-items:center;
+    }
+
+    .social-avatar {
+      width:72px;
+      height:72px;
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      font-size:20px;
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+      border: 3px solid rgba(0,0,0,0.25);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+    }
+
+    .social-info { text-align:left; }
+    .social-info h4 { margin:0 0 0.15rem 0; font-size:1.05rem; }
+    .social-meta { color: var(--muted); font-size:0.95rem; margin:0; }
+
+    /* FOOTER */
     footer {
       text-align: center;
-      padding: 2rem;
+      padding: 2rem 1rem;
       font-size: 0.9rem;
       color: #9ca3af;
-      background: #111827;
-      margin-top: 3rem;
+      background: var(--bg-1);
+      margin-top: 2rem;
     }
+
   </style>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1440101122061357"
      crossorigin="anonymous"></script>
 </head>
 <body>
   <nav>
-  <a href="/">Home</a>
-  <a href="/app">Launch App</a>
-  <a href="/privacy">Privacy Policy</a>
-  <a href="/terms">Terms</a>
-</nav>
+    <a href="/">Home</a>
+    <a href="/app">Launch App</a>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="/terms">Terms</a>
+  </nav>
 
-  <section class="hero">
-    <h1>SpectroDraw</h1>
-    <p>Turn sound into art — and art into sound.  
-    A spectrogram editor, audio tool, and VST plugin that lets you draw, edit, and instantly hear your creations.</p>
-    <a href="/app" class="cta-button">Launch App</a>
+  <section class="hero" aria-label="Hero">
+    <div class="hero-grid">
+      <div class="hero-image" role="img" aria-label="spectrogram placeholder">
+        <!-- inline placeholder SVG (replace with real hero later) -->
+        <svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="g" x1="0" x2="1">
+              <stop offset="0" stop-color="#4f46e5" stop-opacity="0.95" />
+              <stop offset="1" stop-color="#ec4899" stop-opacity="0.95" />
+            </linearGradient>
+          </defs>
+          <rect width="640" height="360" rx="14" fill="url(#g)" opacity="0.14"/>
+          <!-- simple stylized spectrogram bars -->
+          <g transform="translate(40,40)">
+            <rect x="0" y="240" width="8" height="24" rx="3" fill="#ffffff" opacity="0.06"/>
+            <rect x="14" y="210" width="8" height="54" rx="3" fill="#ffffff" opacity="0.08"/>
+            <rect x="28" y="180" width="8" height="84" rx="3" fill="#fff" opacity="0.12"/>
+            <rect x="42" y="120" width="8" height="144" rx="3" fill="#fff" opacity="0.18"/>
+            <rect x="56" y="60" width="8" height="204" rx="3" fill="#fff" opacity="0.22"/>
+            <rect x="84" y="120" width="12" height="144" rx="3" fill="#fff" opacity="0.16"/>
+            <rect x="108" y="160" width="10" height="104" rx="3" fill="#fff" opacity="0.14"/>
+            <rect x="132" y="200" width="6" height="64" rx="3" fill="#fff" opacity="0.1"/>
+            <!-- hand-drawn stroke hint -->
+            <path d="M220 200 C260 110, 340 110, 380 200" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.12"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="hero-content">
+        <h1>SpectroDraw</h1>
+        <p>Turn sound into art — and art into sound. A spectrogram editor and audio tool that lets you draw, edit, and instantly hear your creations. Ideal for sound design, music creation, and teaching audio concepts visually.</p>
+        <a href="/app" class="cta-button">Launch App</a>
+      </div>
+    </div>
   </section>
 
-  <section class="features">
+  <section class="features" aria-label="features">
     <div class="feature-card">
-      <h3>🎨 Draw Your Audio</h3>
+      <h3>Draw Your Audio</h3>
       <p>Sketch directly on the spectrogram canvas and hear your strokes come alive as sound in real time.</p>
     </div>
     <div class="feature-card">
-      <h3>⚡ Instant Playback</h3>
-      <p>Powered by fast DSP and WebAudio, every change you make is heard immediately — no rendering delays.</p>
+      <h3>Advanced Audio Editing</h3>
+      <p>Includes a brush, line, rectangle, eraser, amplifier, and image overlay tools to create any sound.</p>
     </div>
     <div class="feature-card">
-      <h3>🔌 VST Integration</h3>
-      <p>Use SpectroDraw inside your DAW as a VST plugin and expand your sound design toolkit.</p>
+      <h3>Midi export</h3>
+      <p>Export your sounds as MIDI, with advanced options like remove harmonics to achieve the best result.</p>
+    </div>
+  </section>
+
+  <!-- OUR MISSION -->
+  <section class="mission" aria-labelledby="mission-heading">
+    <div class="card">
+      <h2 id="mission-heading">Our Mission</h2>
+      <p>SpectroDraw aims to make sound design and audio learning more visual, intuitive, and creative. We believe working with sound should be as direct as drawing — and accessible to creators, students, and sound designers of every level.</p>
+
+      <ul>
+        <li><strong>First interactive spectrogram editor:</strong> SpectroDraw is built around an interactive spectrogram — the first audio editor to make the spectrogram the native, editable surface.</li>
+        <li><strong>Faster sound design:</strong> Helps music creators and sound designers create sound effects more quickly and visually, by letting you paint and sculpt frequency content directly.</li>
+        <li><strong>Educational tool:</strong> A practical way to teach students how spectrograms represent sound and to demonstrate concepts like harmonics, timbre, and time-frequency tradeoffs.</li>
+        <li><strong>Accurate audio→MIDI:</strong> Convert songs to MIDI (sheet music) much more accurately than many other programs by leveraging spectrogram-based analysis and harmonic-removal options.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- COMING SOON -->
+  <section class="coming-soon" aria-labelledby="coming-heading">
+    <h2 id="coming-heading" style="margin:0 0 0.6rem 0; font-size:1.4rem; text-align:center; background:linear-gradient(90deg,var(--accent-a),var(--accent-b)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Coming Soon</h2>
+
+    <div class="coming-grid">
+      <div class="coming-card" aria-labelledby="vst-heading">
+        <h3 id="vst-heading">🔌 VST plugin</h3>
+        <p>Our goal is to turn SpectroDraw into a VST plugin so you can use it inside DAWs like FL Studio and Logic Pro — quickly create and modify sounds directly within your projects.</p>
+      </div>
+
+      <div class="coming-card" aria-labelledby="ios-heading">
+        <h3 id="ios-heading">📱 iOS App Store</h3>
+        <p>SpectroDraw will also be available on the iOS App Store — bring interactive spectrogram editing to your iPad and iPhone for on-the-go sound design and learning.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL -->
+  <section class="social" aria-label="social">
+    <div class="social-left">
+      <div class="social-avatar" aria-hidden="true">RM</div>
+      <div class="social-info">
+        <h4>RandomMangos</h4>
+        <p class="social-meta">66,000 subscribers · RandomMangos has been making music for 5 years</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;align-items:center;">
+      <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" class="cta-button" style="padding:0.6rem 1rem;font-weight:700;">YouTube</a>
+      <a href="/app" class="cta-button" style="padding:0.6rem 1rem;font-weight:700;background:transparent;border:1px solid rgba(255,255,255,0.06);">Launch App</a>
     </div>
   </section>
 

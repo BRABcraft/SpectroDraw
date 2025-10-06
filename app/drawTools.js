@@ -58,7 +58,19 @@ function previewShape(cx, cy) {
     const desiredScreenMax = brushSize * 4;
 
     if (currentTool === "image" && overlayImage) {
-      // ... compute overlayW/overlayH (as you already have) ...
+      const imgW = overlayImage.width;
+      const imgH = overlayImage.height;
+      const imgAspect = imgW / imgH;
+      let screenW, screenH;
+      if (imgW >= imgH) {
+        screenW = desiredScreenMax;
+        screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
+      } else {
+        screenH = desiredScreenMax;
+        screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
+      }
+      overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+      overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
       ctx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
       ctx.restore();
       return;
@@ -122,7 +134,6 @@ function buildBinDisplayLookup() {
   }
 }
 
-
 function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
@@ -139,8 +150,8 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
 
   // optional pitch-align (keep this branch but hoist helpers)
   let displayYFloat = yDisplay;
+  const f = getSineFreq(yDisplay);
   if (alignPitch) {
-    const f = getSineFreq(yDisplay);
     let nearestPitch = Math.round(npo * Math.log2(f / a4p));
     nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
     displayYFloat = ftvsy(nearestPitch);
@@ -163,14 +174,26 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     if (idx < 0 || idx >= magsArr.length) continue;
     if (visited && visited[idx] === 1) continue;
     if (visited) visited[idx] = 1;
+    
+    let pd = (bin%2<1)?1:1-po;
 
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     const newMag = (currentTool === "amplifier")
                  ? (oldMag * (mag / 64 * bo))
                  : (oldMag * (1 - bo) + mag * bo);
-    const newPhase = oldPhase + po * (phase - oldPhase);
-
+    const type = phaseTextureEl.value;
+    let $phase;
+    if (type === 'Harmonics') {
+      $phase = (bin / specHeight * fftSize / 2);
+    } else if (type === 'Static') {
+      $phase = Math.random()*Math.PI;
+    } else if (type === 'Flat') {
+      $phase = phase;
+    }
+    const newPhase = (currentTool !== "amplifier")
+                   ? oldPhase * (1-po) + po * ($phase + phase*2)
+                   : oldPhase *po;
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
     phasesArr[idx] = newPhase;

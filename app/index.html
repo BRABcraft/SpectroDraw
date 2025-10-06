@@ -258,15 +258,6 @@
         <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
         <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="100">
       </div>
-      <div id="ev" class="slider-row" title="Background phase">
-        <label class="h2" for="phaseType">Background phase</label>
-        <select id="phaseType">
-          <option value="Static">Static</option>
-          <option value="Harmonics">Harmonics</option>
-          <option value="Fast sine">Fast sine</option>
-          <option value="Empty">Empty</option>
-        </select>
-      </div>
       <div id="brushSettings">
         <label class="h1">Brush settings</label>
         <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
@@ -280,18 +271,26 @@
             <input id="brushColor"  type="range" min="0" max="255" value="255">
             <input id="brushColorInput" type="number" value="255" min="0" max="255">
         </div>
+        <div id="ev" class="slider-row" title="Phase texture">
+          <label class="h2" for="phaseTexture">Phase texture</label>
+          <select id="phaseTexture">
+            <option value="Harmonics">Harmonics</option>
+            <option value="Static">Static</option>
+            <option value="Flat">Flat</option>
+          </select>
+        </div>
         <div class="slider-row" title="Phase">
-            <label class="h2">Brush Phase</label>
+            <label class="h2">Phase shift</label>
             <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
             <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
         </div>
         <div class="slider-row" title="Brightness strength">
-            <label class="h2">Brush Opacity</label>
+            <label class="h2">Opacity</label>
             <input id="brushOpacity"  type="range" min="0" max="100" value="100">
             <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
         </div>
         <div class="slider-row" title="Phase strength">
-            <label class="h2">Phase Opacity</label>
+            <label class="h2">Phase Strength</label>
             <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
             <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
         </div>
@@ -396,7 +395,7 @@
     });
   }
 
-  const sliders = [[document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput')],
+  const sliders = [[document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
                    [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
                    [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
                    [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
@@ -428,7 +427,7 @@ const brushColorEl=document.getElementById("brushColor");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
-const phaseTypeEl = document.getElementById("phaseType");
+const phaseTextureEl = document.getElementById("phaseTexture");
 const recordBtn = document.getElementById("rec");
 const preset = document.getElementById("presets");
 const es = document.getElementById("es");
@@ -534,6 +533,20 @@ let globalGain = 0;
 let playingTutorial = false;
 let currentFrame = 0;
 let lockHop = false;
+sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
+sliders[0][1].addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    let val = parseFloat(sliders[0][1].value);
+    const min = parseFloat(sliders[0][0].min);
+    const max = parseFloat(sliders[0][0].max);
+    if (isNaN(val)) val = 0;      
+    if (val < min) val = min;
+    if (val > max) val = max;
+    sliders[0][1].value = val;      
+    sliders[0][0].value = val;
+    initEmptyPCM();
+  }
+});
 sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
 sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
@@ -776,24 +789,15 @@ document.addEventListener('keydown', (event) => {
 
 function initEmptyPCM() {
     const sampleRateLocal = 48000;
-    const duration = emptyAudioLengthEl.value; 
-    const type = phaseTypeEl.value;
+    let duration = emptyAudioLengthEl.value; 
+    if (duration  < 0.01) duration = 10;
+    const type = phaseTextureEl.value;
     const length = sampleRateLocal * duration; 
     const tinyNoiseAmplitude = 0.0001; 
 
     const pcmArray = new Float32Array(length);
     for (let i = 0; i < length; i++) {
-      if (type === "Harmonics") {
-        let sum = 0;
-        const interval = 128;
-        for (let j = 1; j <= interval; j++) {
-          sum+=Math.sin(i*((Math.PI*j*(1024/interval))/1024))/interval;
-        }
-        pcmArray[i] = sum * tinyNoiseAmplitude;
-      }
-      else if (type === "Fast sine") pcmArray[i] = Math.sin(i / 1000) * tinyNoiseAmplitude;
-      else if (type === "Static") pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
-      else if (type === "Empty")  pcmArray[i] = 0;
+      pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
     }
 
     pcm = pcmArray;
@@ -880,21 +884,8 @@ document.addEventListener("touchend", e=>{changingLogScale=false;})
 
 emptyAudioLengthEl.addEventListener("input", ()=> {
   initEmptyPCM();
-
-  if (typeof drawTimeline === 'function') drawTimeline();
-  else console.warn("drawTimeline not available yet");
-
-  if (typeof drawLogScale === 'function') drawLogScale();
-  else console.warn("drawLogScale not available yet");
-
-  if (typeof drawYAxis === 'function') drawYAxis();
-  else console.warn("drawYAxis not available yet");
-
   iLow = 0;
   iHigh = framesTotal;
-});
-phaseTypeEl.addEventListener("input", ()=> {
-  initEmptyPCM();
 });
 
 </script>
@@ -1045,9 +1036,8 @@ function binToDisplayY(bin, h) {
     }
 }
 
-function displayYToBin(y, h) {
+function displayYToBin(y, h, s = getLogScaleSlider()) {
     if (!h) return 0;
-    const s = getLogScaleSlider();
     if (s <= 1.0000001) {
         return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
     } else {
@@ -1121,7 +1111,7 @@ function drawFrame(w,h) {
         try {
           playing = true;
           playPause.innerHTML = pauseHtml;
-          playPCM(false,currentFrame); 
+          playPCM(false,currentFrame<specWidth*0.8?currentFrame:0); 
         } catch (e) { console.warn("playPCM() failed after render:", e); }
         const playPauseEl = document.getElementById("playPause");
         if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
@@ -1131,7 +1121,7 @@ function drawFrame(w,h) {
           autoPlayOnFinish = false;
           playing = true;
           playPause.innerHTML = pauseHtml;
-          playPCM(true,currentFrame);
+          playPCM(true,currentFrame<specWidth*0.8?currentFrame:0);
       }
       status.style.display = "none";
       return false;

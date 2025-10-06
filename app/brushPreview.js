@@ -17,7 +17,7 @@ function updateBrushPreview() {
     let avg = Math.max(r,g,b);
     return [r,g,b].map(v => Math.round(avg + (v-avg)*factor));
   }
-  let rgb = adjustSaturation(magPhaseToRGB(brushColor/5*brushOpacity, penPhase),phaseOpacity);
+  let rgb = adjustSaturation(magPhaseToRGB(brushColor/5*brushOpacity, penPhase*2),phaseOpacity);
   const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
 
   if (currentTool === "eraser") {

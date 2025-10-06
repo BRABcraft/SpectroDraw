@@ -292,7 +292,7 @@ preset.addEventListener("change", async (e) => {
 
     status.textContent = `Loaded preset "${val}", ${pcm.length} samples @ ${sampleRate} Hz`;
     let t = pcm.length / sampleRate;
-    hopSizeEl.value = t<0.5?128:(t<5?512:1024);
+    hopSizeEl.value = lockHop?Math.pow(2,fftSizeEl.value):(t<0.5?128:(t<5?512:1024));
     restartRender(true);
     iLow = 0;
     iHigh = framesTotal;

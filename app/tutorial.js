@@ -145,7 +145,7 @@
             label: 'Done',
             subtitle: 'Finish the tutorial',
             target: '#resetButton',
-            dialog: "That’s it! 🎉 You’ve completed the tutorial. Clicking this button\nresets the spectrogram to silence. Now go make something amazing.",
+            dialog: "That’s it! 🎉 You’ve completed the tutorial. Clicking this button\nresets the spectrogram to silence. Now go make something\namazing.",
             preAction: function() {
                 const general = document.getElementById('settingsBtn');
                 if (general) general.click();

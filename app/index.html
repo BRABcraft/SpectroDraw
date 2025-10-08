@@ -845,6 +845,7 @@ function logScaleMouseDown(e,touch) {
   const rect= logscaleEl.getBoundingClientRect();
   changingLogScale = true;
   [startX, startY] = getMouseXY(e,touch);
+  buildBinDisplayLookup();
   renderFullSpectrogramToImage();
   drawLogScale();
 }
@@ -863,6 +864,7 @@ function logScaleMouseMove(e,touch) {
   if (logScaleVal < 1) logScaleVal = 1;
   if (logScaleVal > 2) logScaleVal = 2;
   [startX, startY] = getMouseXY(e,touch);
+  buildBinDisplayLookup();
   renderFullSpectrogramToImage();
   drawLogScale();
   drawYAxis();
@@ -1036,8 +1038,9 @@ function binToDisplayY(bin, h) {
     }
 }
 
-function displayYToBin(y, h, s = getLogScaleSlider()) {
+function displayYToBin(y, h) {
     if (!h) return 0;
+    const s = getLogScaleSlider();
     if (s <= 1.0000001) {
         return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
     } else {

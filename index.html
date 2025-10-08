@@ -15,19 +15,29 @@
     --accent3:#ec4899;
     --glass: rgba(255,255,255,0.03);
     --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
-    --hero-image:url('/assets/spectrogram-hero.jpg'); /* 👈 replace with your spectrogram image */
+    --hero-image:url('/assets/spectrogram-hero2.jpg'); /* 👈 replace with your spectrogram image */
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0;
-    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
-    background: radial-gradient(circle at 8% 10%, rgba(79,70,229,0.06), transparent 20%), var(--bg);
-    color:#eef2ff;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    line-height:1.45;
-  }
+  html, body {
+  height: 100%;
+}
+
+/* replace your body background with this */
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+  /* radial gradient layer + base color */
+  background-image:
+    radial-gradient(circle at 8% 10%, rgba(79,70,229,0.06) 0%, rgba(79,70,229,0.06) 20%, transparent 60%),
+    linear-gradient(#07080b, #07080b); /* fallback solid color */
+  background-repeat: no-repeat;
+  background-attachment: fixed;   /* anchor to viewport -> no jumping when page is taller */
+  background-size: cover;        /* scale to cover viewport */
+  color:#eef2ff;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.45;
+}
   a{color:inherit}
   nav{
     display:flex;
@@ -285,21 +295,13 @@
   </nav>
 
   <!-- HERO -->
-  <header class="hero" role="banner" aria-label="SpectroDraw hero">
+  <header class="hero" role="banner" aria-label="SpectroDraw hero" style="height: 700px;">
     <div class="hero-inner">
       <!-- Top pretext (uppercase) -->
-      <div class="hero-pre center">The Fastest Interactive Spectrogram Editor for Creators &amp; Artists</div>
+      <div class="hero-pre center">The World's First Spectrogram-Based Audio Editor</div>
 
       <!-- main row with left SVG, headline in center, right SVG -->
       <div class="hero-row" role="presentation" aria-hidden="true">
-        <!-- left decorative SVG (you can replace or keep) -->
-        <svg class="hero-svg" viewBox="0 0 124 80" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="gL1" x1="0" x2="1"><stop offset="0" stop-color="#29ABE2"/><stop offset="1" stop-color="#29ABE2" stop-opacity="0"/></linearGradient>
-          </defs>
-          <g clip-path="url(#c1)"><path d="M1.28 79.55C0.04 78.66-0.26 76.5 0.21 74.87 1.42 70.78 7.15 71.45 11.07 68.40 21.54 60.25 16.01 27.75 12.22 18.04 9.79 11.32 11.56 9.15 12.99 8.36 15.75 7.67 16.34 9.50 19.59 19.70 22.43 28.65 29.99 52.40 35.64 52.40 38.70 52.37 42.19 43.41 44.75 36.86 48.39 27.49 51.87 18.72 57.95 18.78 64.60 18.93 68.21 29.71 72.04 41.12 73.88 46.61 77.31 56.84 79.34 57.11 80.29 56.65 81.72 51.89 82.75 48.42 87.56 32.33 92.60 24.43 98.99 16.36 106.22 7.25 117.87 -2.23 122.20 0.46 123.61 1.33 124.10 3.39 123.99 4.91 123.50 11.40 111.74 10.84 102.51 19.61 99.68 22.29 93.06 30.52 87.31 49.80 85.17 56.98 83.76 61.72 79.55 61.91 74.09 62.23 71.18 53.55 67.53 42.66 64.99 35.09 61.15 23.66 57.84 23.58 57.83 23.58 57.81 23.58 55.03 23.58 51.51 32.63 49.18 38.62 45.47 48.15 41.96 57.15 35.69 57.20 35.64 57.20 29.61 57.20 24.75 48.45 20.26 36.50 21.41 44.08 23.80 65.40 12.66 74.81 12.02 75.34 4.35 81.72 1.29 79.55Z" fill="url(#gL1)"/></g>
-          <defs><clipPath id="c1"><rect width="124" height="80" fill="white"/></clipPath></defs>
-        </svg>
 
         <div class="hero-title-wrap" style="padding:0 0.75rem;">
           <h1>
@@ -307,20 +309,12 @@
             <span style="white-space:nowrap;display:block">Unique Sounds Visually</span>
           </h1>
         </div>
-
-        <!-- right decorative SVG -->
-        <svg class="hero-svg" viewBox="0 0 124 80" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="gL2" x1="0" x2="1"><stop offset="0" stop-color="#29ABE2"/><stop offset="1" stop-color="#29ABE2" stop-opacity="0"/></linearGradient>
-          </defs>
-          <g clip-path="url(#c2)"><path d="M122.71 79.55C123.96 78.66 124.26 76.5 123.79 74.87 122.58 70.78 116.85 71.45 112.93 68.40 102.46 60.25 107.99 27.75 111.78 18.04 114.21 11.32 112.44 9.15 111.01 8.36 108.25 7.67 107.66 9.50 104.41 19.70 101.57 28.65 94.00 52.40 88.36 52.40 85.30 52.37 81.81 43.41 79.25 36.86 75.61 27.49 72.13 18.72 66.05 18.78 59.40 18.93 55.79 29.71 51.96 41.12 50.12 46.61 46.69 56.84 44.66 57.11 43.70 56.65 42.28 51.89 41.25 48.42 36.44 32.33 31.40 24.43 25.00 16.36 17.78 7.25 6.13 -2.23 1.79 0.46 0.39 1.33 -0.10 3.39 0.01 4.91 0.50 11.40 12.26 10.84 21.49 19.61 24.32 22.29 30.94 30.52 36.69 49.80 38.83 56.98 40.24 61.72 44.45 61.91 49.91 62.23 52.82 53.55 56.47 42.66 59.01 35.09 62.84 23.66 66.16 23.58 66.17 23.58 66.19 23.58 68.97 23.58 72.49 32.63 74.82 38.62 78.53 48.15 82.04 57.15 88.31 57.20 94.39 57.20 99.25 48.45 103.74 36.50 102.59 44.08 100.20 65.40 111.34 74.81 111.98 75.34 119.65 81.72 122.71 79.55Z" fill="url(#gL2)"/></g>
-          <defs><clipPath id="c2"><rect width="124" height="80" fill="white" transform="matrix(-1 0 0 1 124 0)"/></clipPath></defs>
-        </svg>
       </div>
+
 
       <!-- descriptive subtext -->
       <p class="hero-sub center" style="margin-top:0.9rem;">
-        SpectroDraw’s interactive spectrogram lets you paint frequency content directly — perfect for sound designers, music makers, and educators. Convert to MIDI, remove harmonics, and export stems with precision.
+        SpectroDraw’s interactive spectrogram lets you paint frequency content directly — perfect for sound designers, music makers, and audio tinkerers. Create sound effects, convert to midi, and more.
       </p>
 
       <!-- CTA -->
@@ -331,8 +325,9 @@
   </header>
 
   <!-- CUSTOMIZE SECTION -->
-  <section aria-labelledby="customize-heading">
-    <div class="container customize">
+  <section aria-labelledby="customize-heading" style="padding: 100px 30px;">
+    <div style="display:flex; flex-direction:column; align-items:center; text-align:center; max-width:900px; margin:0 auto; gap:1.5rem;">
+      <!-- Text & Button -->
       <div>
         <div class="section-title">Edit &amp; Personalize</div>
         <h2 id="customize-heading" class="section-head">Fine-tune frequency content visually</h2>
@@ -342,26 +337,39 @@
         </div>
       </div>
 
-      <div class="glow-panel" aria-hidden="false">
-        <div class="glow-media">
-          <!-- replace with <video> or <img> real media -->
-          <video playsinline muted loop style="width:100%;border-radius:10px;display:block;" poster="" preload="none">
-            <source src="" type="video/mp4">
-            <!-- Fallback placeholder -->
-            <img alt="SpectroDraw preview" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400'%3E%3Crect width='800' height='400' fill='%230e1116'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23cbd5e1' font-family='Inter,Arial' font-size='18'%3EPreview video / GIF here%3C/text%3E%3C/svg%3E">
-          </video>
-        </div>
-      </div>
+      <!-- Video -->
+      <video
+        id="dbgVideo"
+        playsinline
+        muted
+        autoplay
+        loop
+        preload="metadata"
+        controlslist="nodownload nofullscreen noremoteplayback"
+        style="
+          width:100%;
+          border-radius:10px;
+          box-shadow: 0 0 80px rgb(0, 29, 245),
+                      0 0 120px rgba(229, 255, 0, 0.8);
+          outline: none; margin-top:30px;
+        "
+      >
+        <source src="/assets/freqedit.mp4" type="video/mp4">
+        Your browser doesn't support the video tag.
+      </video>
     </div>
   </section>
+
+
+
 
   <!-- GENERATE / GRID SECTION -->
   <section aria-labelledby="generate-heading">
     <div class="container" style="display:grid;grid-template-columns:1fr;gap:1.25rem;">
       <div style="display:flex;gap:1rem;align-items:center;flex-direction:column">
         <div class="section-title">Spectral Workflows</div>
-        <h3 id="generate-heading" class="section-head" style="text-align:center">Generate audio or MIDI from spectrogram</h3>
-        <p class="section-copy" style="text-align:center">Export audio or MIDI that captures the spectral shape you’ve painted. Use it as a sound effect, an instrument, or a melody.</p>
+        <h3 id="generate-heading" class="section-head" style="text-align:center">What can SpectroDraw create?</h3>
+        <p class="section-copy" style="text-align:center">With SpectroDraw, you can create any sound effect easily. You can also export your sounds as MIDI with robust note filtering to get clean results. </p>
         <div style="margin-top:.9rem">
           <a class="btn btn-primary" href="/app"><span>Start Generating</span></a>
         </div>
@@ -370,7 +378,7 @@
       <div style="margin-top:1rem">
         <div class="tile-grid">
           <div class="tile"><img alt="Bomb SFX" src="https://picsum.photos/640/360?random=101"></div>
-          <div class="tile"><img alt="Engine rev SFX" src="https://picsum.photos/640/360?random=102"></div>
+          <div class="tile"><img alt="Bird SFX" src="https://picsum.photos/640/360?random=102"></div>
           <div class="tile"><img alt="Midi sample 1" src="https://picsum.photos/640/360?random=103"></div>
           <div class="tile"><img alt="Midi sample 2" src="https://picsum.photos/640/360?random=104"></div>
         </div>

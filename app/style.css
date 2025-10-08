@@ -530,29 +530,6 @@ select {
   border-color: rgba(255,255,255,0.07);
 }
 
-/* arrow wrapper that will be positioned to target */
-.tutorial-arrow {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  right: -76px;
-  top: 50%;
-  transform-origin: 50% 50%;
-  pointer-events:none;
-  opacity: 0.95;
-}
-
-/* arrow - simple curved arrow built with border and transform */
-.tutorial-arrow svg { width:100%; height:100%; display:block; }
-.tutorial-arrow .loop {
-  transform-origin: 50% 50%;
-  animation: arrow-loop 2.2s linear infinite;
-}
-@keyframes arrow-loop {
-  0% { transform: rotate(0deg); opacity:1; }
-  50% { transform: rotate(6deg) translateY(-2px); opacity:0.95;}
-  100% { transform: rotate(0deg); opacity:1; }
-}
 
 /* small pulsing target marker for highlighted target */
 .tutorial-target-marker {
@@ -691,4 +668,10 @@ svg.tutorial-spotlight {
 
 svg.tutorial-spotlight.hide {
     opacity: 0;
+}
+
+.customize {
+  display: grid;
+  grid-template-columns: 1fr; /* force one column */
+  gap: 1.25rem;
 }

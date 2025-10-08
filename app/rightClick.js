@@ -494,6 +494,7 @@ function makeYAxisMenu(){
     logscaleEl.value = v;
     logScaleVal = v;
     logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
+    buildBinDisplayLookup();
     restartRender();
     drawYAxis();
   }, 1, 2);
@@ -579,6 +580,7 @@ function makeLogscaleMenu() {
     logScaleVal = val;
     slider.value = numberInput.value = val;
     logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
+    buildBinDisplayLookup();
     drawYAxis();
     restartRender();
   };

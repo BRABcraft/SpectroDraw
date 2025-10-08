@@ -191,9 +191,7 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     } else if (type === 'Flat') {
       $phase = phase;
     }
-    const newPhase = (currentTool !== "amplifier")
-                   ? oldPhase * (1-po) + po * ($phase + phase*2)
-                   : oldPhase *po;
+    const newPhase = oldPhase * (1-po) + po * ($phase + phase*2);
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
     phasesArr[idx] = newPhase;

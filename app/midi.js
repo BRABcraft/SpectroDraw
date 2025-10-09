@@ -45,14 +45,21 @@ function detectPitches(alignPitch) {
 
   pos += hop; x++;
   audioProcessed += hop;
-  if (x >= specWidth) { rendering = false; status.style.display = "none"; }
+  if (x >= specWidth && status) { rendering = false; status.style.display = "none"; }
   return detectedPitches;
 }
 // ---------- exportMidi: detect & merge, now adds startTime (seconds) ----------
 function exportMidi(opts = {}) {
-  // opts: { useVolumeControllers: true/false, downloadName: "...", minVelocityDb: -60, ... }
-  const velSplitTolerance = opts.velSplitTolerance ?? 40; // used only when useVolumeControllers == false
-  const minVelocityDb = (opts.minVelocityDb !== undefined) ? opts.minVelocityDb : -60;
+  const downloadName = opts.downloadName ?? "export.mid";
+  writeMidiFile(getNotes(), {downloadName});
+}
+function getNotes() {
+  return exportMidi2().notes;
+}
+
+function exportMidi2() {
+  const velSplitTolerance = 40; // used only when useVolumeControllers == false
+  const minVelocityDb = -60;
 
   pos = 0;
   x = 0;
@@ -220,10 +227,7 @@ function exportMidi(opts = {}) {
       i++;
     }
   }
-
-  // export - pass through option so writeMidiFile can emit CCs or not
-  const downloadName = opts.downloadName ?? "export.mid";
-  writeMidiFile(notes, { downloadName, velSplitTolerance });
+  return {notes};
 }
 
 

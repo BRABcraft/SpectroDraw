@@ -360,31 +360,698 @@ body{
     </div>
   </section>
 
+<!-- ===== GENERATE / GRID SECTION (REPLACEMENT) ===== -->
+<section aria-labelledby="generate-heading"></section>
+<!-- ===== UPDATED MIDI SECTION (with per-canvas scrub + float16 pcm) ===== -->
+<section id="midiSection" aria-labelledby="generate-heading" style="padding:40px 30px;">
+  <div class="container" style="max-width:1100px;margin:0 auto;">
+    <div style="display:flex;gap:1rem;align-items:center;flex-direction:column">
+      <div class="section-title">Spectral Workflows</div>
+      <h3 id="generate-heading" class="section-head" style="text-align:center">Create Clean MIDIs with ease</h3>
+      <p class="section-copy" style="text-align:center">Generate clean MIDIs from songs easily with automatic note filtering options.</p>
+    </div>
 
-
-
-  <!-- GENERATE / GRID SECTION -->
-  <section aria-labelledby="generate-heading">
-    <div class="container" style="display:grid;grid-template-columns:1fr;gap:1.25rem;">
-      <div style="display:flex;gap:1rem;align-items:center;flex-direction:column">
-        <div class="section-title">Spectral Workflows</div>
-        <h3 id="generate-heading" class="section-head" style="text-align:center">What can SpectroDraw create?</h3>
-        <p class="section-copy" style="text-align:center">With SpectroDraw, you can create any sound effect easily. You can also export your sounds as MIDI with robust note filtering to get clean results. </p>
-        <div style="margin-top:.9rem">
-          <a class="btn btn-primary" href="/app"><span>Start Generating</span></a>
+    <!-- two canvases side-by-side + arrow img between -->
+    <div class="midi-row" style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:20px;flex-wrap:wrap;">
+      <!-- LEFT: Original -->
+      <div class="midi-panel glow-panel" style="flex:1 1 440px; padding:16px; display:flex;flex-direction:column;align-items:stretch;gap:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-weight:700">Original</div>
         </div>
+
+        <!-- original canvas -->
+        <canvas id="originalCanvas" width="640" height="200"
+          style="width:100%;height:200px;border-radius:8px;background:#06070a;border:1px solid rgba(255,255,255,0.02)">
+        </canvas>
+
+        <!-- progress scrub for original -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input id="originalScrub" type="range" min="0" max="10" step="0.01" value="0"
+            style="flex:1" aria-label="Original scrub"/>
+          <div style="width:75px;text-align:right;color:var(--muted)" id="originalTime">0:00</div>
+        </div>
+
+        <!-- play + upload buttons side by side -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;">
+          <button id="playOriginalBtn" class="btn btn-primary" aria-label="Play Original"
+            style="font-size:15px;"><span>Play original</span></button>
+
+          <label for="audioUpload" class="btn btn-primary" style="cursor:pointer;font-size:15px;">
+            <span>Upload audio</span>
+            <input id="audioUpload" type="file" accept="audio/*" style="display:none" />
+          </label>
+        </div>
+
+        <!-- upload note -->
+        <div id="upload-note" style="color:var(--muted);font-size:0.9rem;text-align:center;"></div>
       </div>
 
-      <div style="margin-top:1rem">
-        <div class="tile-grid">
-          <div class="tile"><img alt="Bomb SFX" src="https://picsum.photos/640/360?random=101"></div>
-          <div class="tile"><img alt="Bird SFX" src="https://picsum.photos/640/360?random=102"></div>
-          <div class="tile"><img alt="Midi sample 1" src="https://picsum.photos/640/360?random=103"></div>
-          <div class="tile"><img alt="Midi sample 2" src="https://picsum.photos/640/360?random=104"></div>
+      <!-- placeholder arrow image between canvases (you said you'll update later) -->
+      <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;">
+        <img id="arrowImg" src="/assets/arrow-white.svg" alt="arrow" style="width:56px;height:56px;object-fit:contain;"/>
+      </div>
+
+      <!-- RIGHT: MIDI -->
+      <div class="midi-panel glow-panel" style="flex:1 1 440px; padding:16px; display:flex;flex-direction:column;align-items:stretch;gap:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-weight:700">MIDI</div>
+        </div>
+
+        <!-- midi canvas -->
+        <canvas id="midiCanvas" width="640" height="200" style="width:100%;height:200px;border-radius:8px;background:#06070a;border:1px solid rgba(255,255,255,0.02)"></canvas>
+
+        <!-- progress scrub for midi -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input id="midiScrub" type="range" min="0" max="10" step="0.01" value="0" style="flex:1" aria-label="MIDI scrub"/>
+          <div style="width:75px;text-align:right;color:var(--muted)" id="midiTime">0:00</div>
+        </div>
+
+        <!-- play/pause for midi -->
+        <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-top:6px;">
+          <!-- This button now plays the notes returned from getNotes() using a piano synth -->
+          <button id="midiPlayPause" class="btn btn-primary" aria-label="Play/Pause MIDI" style="font-size:15px;"><span>Play MIDI</span></button>
+
+          <div id="midi-time" style="color:var(--muted);font-size:0.95rem">0:00 / 0:10</div>
         </div>
       </div>
     </div>
-  </section>
+
+    <!-- try it yourself CTA (placed below the two canvases) -->
+    <div style="margin:68px 0 80px 0;display:flex;gap:1rem;align-items:center;justify-content:center;">
+      <a class="btn btn-primary" href="/app"><span>Try Yourself</span></a>
+    </div>
+  </div>
+
+  <!-- hidden audio elements used for playback / duration control -->
+  <audio id="originalAudio" preload="metadata" src="assets/default.mp3"></audio>
+  <audio id="midiAudio" preload="metadata" src="assets/default.mp3"></audio>
+</section>
+<script src="app/fft.js"></script>
+<script src="app/midi.js"></script>
+<script>
+  let pcm = null, x=0,pos=0,hop=1024,fftSize=1024,framesTotal=0,sampleRate=48000,noiseFloor=-30,a4p=440,npo=12;useVolumeControllers=false;
+  let dCutoff=0.05;specWidth=468;specHeight=1024;imageBuffer=null;midiSnapshot=null;
+  const ctx = originalCanvas.getContext("2d");
+(function(){
+  const MAX_SECONDS = 10.0;
+
+  const originalAudio = document.getElementById('originalAudio');
+  const midiAudio = document.getElementById('midiAudio');
+  const uploadInput = document.getElementById('audioUpload');
+  const midiFileName = document.getElementById('midi-file-name');
+  const notesPlayPauseBtn = document.getElementById('midiPlayPause'); // renamed for clarity in code
+  const playOriginalBtn = document.getElementById('playOriginalBtn'); // new button
+  const midiTime = document.getElementById('midi-time');
+  const originalScrub = document.getElementById('originalScrub');
+  const midiScrub = document.getElementById('midiScrub');
+  const originalTime = document.getElementById('originalTime');
+  const midiTimeDisplay = document.getElementById('midiTime');
+  const uploadNote = document.getElementById('upload-note');
+  const originalCanvas = document.getElementById('originalCanvas');
+  const midiCanvas = document.getElementById('midiCanvas');
+  const arrowImg = document.getElementById('arrowImg');
+
+  // set up resize so both canvases share the same pixel width (keeps them visually identical)
+  function resizeCanvases(){
+    const row = document.querySelector('.midi-row');
+    if(!row) return;
+    const style = getComputedStyle(row);
+    const gap = parseInt(style.gap || 12,10) || 12;
+    const arrowW = arrowImg ? (arrowImg.clientWidth || 56) : 56;
+    const totalW = row.clientWidth;
+    const availableForPanels = Math.max(0, totalW - arrowW - gap*2);
+    const panelW = Math.floor(availableForPanels / 2);
+
+    [originalCanvas, midiCanvas].forEach(c => {
+      c.style.width = '100%';
+      const pixelW = Math.max(32, panelW - 32);
+      c.width = pixelW;
+    });
+  }
+  window.addEventListener('resize', resizeCanvases);
+  setTimeout(resizeCanvases, 50);
+
+  // enforce 10s maximum during playback by pausing when hitting MAX_SECONDS
+  function enforceMaxDuringPlayback(audio){
+    function timeUpdateHandler(){
+      if(audio.currentTime >= MAX_SECONDS){
+        audio.pause();
+        audio.currentTime = MAX_SECONDS;
+      }
+    }
+    audio.addEventListener('timeupdate', timeUpdateHandler);
+  }
+  enforceMaxDuringPlayback(originalAudio);
+  enforceMaxDuringPlayback(midiAudio);
+
+  // ---------- NOTE PLAYBACK (WebAudio piano-like synth) ----------
+  let audioCtx = null;
+  let scheduledNodes = []; // holds {oscNodes:[], gainNode, stopAt}
+  let notesPlaying = false;
+  let notesStartTime = 0; // audioCtx.currentTime when notes started
+  let notesStartOffset = 0; // scrub offset in seconds when started
+  let notesProgressInterval = null;
+
+  function midiToFreq(m){
+    return 440 * Math.pow(2, (m - 69) / 12);
+  }
+
+  function stopScheduledNotes(){
+    if(!audioCtx) return;
+    for(const s of scheduledNodes){
+      try {
+        // cancel envelope and stop oscillators immediately
+        if(s.gain) {
+          s.gain.gain.cancelScheduledValues(audioCtx.currentTime);
+          s.gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        }
+        for(const o of s.oscNodes || []) {
+          try { o.stop(); } catch(e) {}
+          try { o.disconnect(); } catch(e) {}
+        }
+        if(s.gain && s.gain.disconnect) s.gain.disconnect();
+      } catch(e){}
+    }
+    scheduledNodes.length = 0;
+  }
+
+  function updateNotesButtonText(){
+    const span = notesPlayPauseBtn.querySelector('span');
+    span.textContent = notesPlaying ? 'Pause MIDI' : 'Play MIDI';
+  }
+  function updateOriginalButtonText(){
+    const span = playOriginalBtn.querySelector('span');
+    span.textContent = originalAudio && !originalAudio.paused ? 'Pause original' : 'Play original';
+  }
+
+  // update midi-time / midi-scrub either from midiAudio or from notes playback
+  function updateTimeDisplays(){
+    // original time (left)
+    originalTime.textContent = formatTime(Math.min(originalAudio.currentTime || 0, MAX_SECONDS));
+    if(!originalScrubSeeking){
+      originalScrub.value = Math.min(originalAudio.currentTime || 0, MAX_SECONDS);
+    }
+    drawOriginalPlayhead(originalAudio.currentTime || 0);
+    originalScrub.max = MAX_SECONDS;
+    midiScrub.max = MAX_SECONDS;
+
+    if(notesPlaying && audioCtx) {
+      const elapsed = Math.min(MAX_SECONDS, notesStartOffset + (audioCtx.currentTime - notesStartTime));
+      midiTimeDisplay.textContent = formatTime(elapsed);
+      midiTime.textContent = `${formatTime(elapsed)} / ${formatTime(MAX_SECONDS)}`;
+      midiScrub.value = elapsed;      
+      drawMidiPlayhead(elapsed);
+      // if we've reached MAX_SECONDS, stop
+      if(elapsed >= MAX_SECONDS) {
+        stopNotesPlayback();
+      }
+    } else {
+      // fallback to midiAudio element time for display (kept for compatibility)
+      const t = Math.min(midiAudio.currentTime || 0, MAX_SECONDS);
+      midiTimeDisplay.textContent = formatTime(t);
+      midiTime.textContent = `${formatTime(t)} / ${formatTime(MAX_SECONDS)}`;
+      midiScrub.value = t;
+      drawMidiPlayhead(t);
+    }
+  }
+
+  // Start notes playback from current midiScrub value
+  async function startNotesPlayback(){
+    const notes = (typeof getNotes === 'function') ? getNotes() : null;
+    if(!notes || !notes.length){
+      // no notes — inform user
+      uploadNote.textContent = 'No MIDI notes available to play.';
+      setTimeout(()=> uploadNote.textContent = '', 2400);
+      return;
+    }
+
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // ensure resume on user gesture
+    if(audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    // stop any previous scheduled notes
+    stopScheduledNotes();
+
+    notesPlaying = true;
+    notesStartOffset = Math.min(parseFloat(midiScrub.value || 0), MAX_SECONDS);
+    notesStartTime = audioCtx.currentTime;
+
+    // schedule each note that occurs after the offset
+    for(const note of notes){
+      const start = (typeof note.startTime === 'number') ? note.startTime : 0;
+      const dur = (typeof note.lengthSeconds === 'number') ? note.lengthSeconds : 0.5;
+      const noteEnd = start + dur;
+      if(noteEnd <= notesStartOffset) continue; // note finished before our offset
+      const relativeStart = Math.max(0, start - notesStartOffset);
+      const when = audioCtx.currentTime + relativeStart;
+      const freq = midiToFreq(Math.round(note.midiFloat || 60));
+      // create a piano-like voice: two detuned oscillators + gain envelope
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.connect(audioCtx.destination);
+
+      // oscillator 1
+      const osc1 = audioCtx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      // small detune for richness
+      osc1.detune.setValueAtTime(-8, audioCtx.currentTime);
+
+      // oscillator 2
+      const osc2 = audioCtx.createOscillator();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc2.detune.setValueAtTime(6, audioCtx.currentTime);
+
+      // simple ADSR values (piano-ish)
+      const attack = 0.006;
+      const decay = 0.18;
+      const sustainLevel = 0.24;
+      const release = 0.28;
+
+      const noteOn = when;
+      const noteOff = when + Math.max(0.01, dur);
+
+      // connect oscillators to gain
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+
+      // start oscillators slightly before noteOn to allow envelope (WebAudio scheduling)
+      const startTime = Math.max(audioCtx.currentTime, noteOn - 0.005);
+      try { osc1.start(startTime); } catch(e){}
+      try { osc2.start(startTime); } catch(e){}
+
+      // envelope
+      gainNode.gain.setValueAtTime(0.0001, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(1.0, noteOn + attack);
+      gainNode.gain.exponentialRampToValueAtTime(Math.max(0.0001, sustainLevel), noteOn + attack + decay);
+      // schedule release
+      gainNode.gain.setValueAtTime(gainNode.gain.value, Math.max(0,noteOff - release));
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, noteOff + 0.05);
+
+      // schedule stops slightly after noteOff
+      try { osc1.stop(noteOff + 0.1); } catch(e){}
+      try { osc2.stop(noteOff + 0.1); } catch(e){}
+
+      scheduledNodes.push({ oscNodes: [osc1, osc2], gain: gainNode, stopAt: noteOff + 0.1 });
+    }
+
+    // UI update loop for notes
+    notesProgressInterval = setInterval(updateTimeDisplays, 120);
+    updateNotesButtonText();
+  }
+
+  function stopNotesPlayback(){
+    // compute current elapsed and set scrub to it (so resume starts from here)
+    if(audioCtx && notesPlaying){
+      const elapsed = Math.min(MAX_SECONDS, notesStartOffset + (audioCtx.currentTime - notesStartTime));
+      midiScrub.value = elapsed;
+    }
+    notesPlaying = false;
+    stopScheduledNotes();
+    if(notesProgressInterval){ clearInterval(notesProgressInterval); notesProgressInterval = null; }
+    updateNotesButtonText();
+    updateTimeDisplays();
+  }
+
+  // notes Play/Pause button handler
+  notesPlayPauseBtn.addEventListener('click', async ()=>{
+    if(!notesPlaying){
+      await startNotesPlayback();
+    } else {
+      stopNotesPlayback();
+    }
+  });
+
+  // ---------- ORIGINAL PLAYBACK (reuses originalAudio element) ----------
+  playOriginalBtn.addEventListener('click', ()=>{
+    // toggle originalAudio play/pause
+    if(originalAudio.paused){
+      if(originalAudio.currentTime >= MAX_SECONDS) originalAudio.currentTime = 0;
+      originalAudio.play();
+    } else {
+      originalAudio.pause();
+    }
+    updateOriginalButtonText();
+  });
+
+  // Update original button text when originalAudio plays/pauses/ends
+  originalAudio.addEventListener('play', updateOriginalButtonText);
+  originalAudio.addEventListener('pause', updateOriginalButtonText);
+  originalAudio.addEventListener('ended', updateOriginalButtonText);
+
+  // format time helper
+  function formatTime(s){
+    s = Math.max(0, Math.min(s, MAX_SECONDS));
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60).toString().padStart(2,'0');
+    return `${m}:${sec}`;
+  }
+
+  // Keep existing midiAudio controls functioning (left as a fallback)
+  function updateMidiAudioButton(){
+    // not used directly, left for compatibility if you later decide midiAudio is used
+  }
+
+  // Update displays every time either audio element updates
+  originalAudio.addEventListener('timeupdate', updateTimeDisplays);
+  midiAudio.addEventListener('timeupdate', updateTimeDisplays);
+
+  // scrub interactions
+  let originalScrubSeeking = false;
+  let midiScrubSeeking = false;
+
+  originalScrub.addEventListener('input', ()=> {
+    originalScrubSeeking = true;
+    const t = parseFloat(originalScrub.value);
+    originalTime.textContent = formatTime(t);
+  });
+  originalScrub.addEventListener('change', ()=>{ 
+    originalScrubSeeking = false;
+    originalAudio.currentTime = Math.min(parseFloat(originalScrub.value), MAX_SECONDS);
+  });
+
+  midiScrub.addEventListener('input', ()=> {
+    midiScrubSeeking = true;
+    const t = parseFloat(midiScrub.value);
+    midiTimeDisplay.textContent = formatTime(t);
+  });
+  midiScrub.addEventListener('change', ()=> {
+    midiScrubSeeking = false;
+    // if notes were playing, stop (we'll resume from scrub when user hits Play)
+    if(notesPlaying){
+      stopNotesPlayback();
+    }
+    // If you want the scrub to control midiAudio element as well:
+    midiAudio.currentTime = Math.min(parseFloat(midiScrub.value), MAX_SECONDS);
+  });
+
+  // When metadata loads, ensure the UI reflects MAX_SECONDS (we clamp to MAX_SECONDS)
+  function onMetadataLoadedFor(audioElement){
+    updateTimeDisplays();
+  }
+  function displayYToBin(y, h) {
+    if (!h) return 0;
+    const s = 2.0;
+    if (s <= 1.0000001) {
+        return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
+    } else {
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        if (!isFinite(denom) || denom === 0) return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
+        const t = 1 - (y / (h - 1));
+        const raw = (Math.exp(t * denom) - 1) / a;
+        const clamped = Math.max(0, Math.min(h - 1, Math.round(raw)));
+        return clamped;
+    }
+  }
+  function magPhaseToRGB(mag, phase){
+    const h = (phase / (2*Math.PI) + 1) % 1; 
+    const s = 1;
+    const v = Math.min(mag/60,1);
+    const c = v*s;
+    const m = v - c;
+    const hp = h*6;
+    const x = c*(1-Math.abs(hp%2-1));
+    let r=0,g=0,b=0;
+    if(hp < 1){ r=c; g=x; b=0; }
+    else if(hp < 2){ r=x; g=c; b=0; }
+    else if(hp < 3){ r=0; g=c; b=x; }
+    else if(hp < 4){ r=0; g=x; b=c; }
+    else if(hp < 5){ r=x; g=0; b=c; }
+    else { r=c; g=0; b=x; }
+    return [Math.floor((r+m)*255), Math.floor((g+m)*255), Math.floor((b+m)*255)];
+  }
+  originalAudio.addEventListener('loadedmetadata', ()=>onMetadataLoadedFor(originalAudio));
+  midiAudio.addEventListener('loadedmetadata', ()=>onMetadataLoadedFor(midiAudio));
+  function drawOriginalPlayhead(timeSec){
+    if(!imageBuffer || !ctx) return;
+    const t = Math.max(0, Math.min(timeSec || 0, MAX_SECONDS));
+    // width is in spectrogram pixels (restartRender sets originalCanvas.width = framesTotal)
+    const w = originalCanvas.width || 1;
+    const x = Math.round((t / MAX_SECONDS) * (w - 1));
+
+    // redraw the spectrogram base then overlay playhead
+    ctx.putImageData(imageBuffer, 0, 0);
+
+    // thin bright line + faint glow
+    ctx.save();
+    ctx.globalAlpha = 1.0;
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(x, 0, 2, originalCanvas.height);
+    ctx.globalAlpha = 0.25;
+    ctx.fillRect(Math.max(0, x-4), 0, 9, originalCanvas.height);
+    ctx.restore();
+  }
+  function drawMidiPlayhead(timeSec){
+    if(!midiCanvas) return;
+    const mctx = midiCanvas.getContext('2d');
+    const t = Math.max(0, Math.min(timeSec || 0, MAX_SECONDS));
+    const w = midiCanvas.width || 1;
+    const x = Math.round((t / MAX_SECONDS) * (w - 1));
+
+    // restore notes layer snapshot if available (prevents ghosting)
+    if(midiSnapshot && midiSnapshot.width === midiCanvas.width && midiSnapshot.height === midiCanvas.height){
+      mctx.putImageData(midiSnapshot, 0, 0);
+    } else {
+      // if no snapshot, just clear and leave whatever is there
+      // (restartRender will produce a snapshot next time)
+    }
+
+    // draw thin bright line + faint glow similar to original playhead
+    mctx.save();
+    mctx.globalAlpha = 1.0;
+    mctx.fillStyle = 'rgba(255,255,255,0.12)';
+    mctx.fillRect(x, 0, 2, midiCanvas.height);
+    mctx.globalAlpha = 0.22;
+    mctx.fillRect(Math.max(0, x - 4), 0, 9, midiCanvas.height);
+    mctx.restore();
+  }
+  function restartRender(){
+    if(!pcm) return;
+    win = hann(fftSize);
+
+    framesTotal = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
+    const freqBins = Math.floor(fftSize / 2);
+    originalCanvas.width = framesTotal;
+    originalCanvas.height = freqBins;
+
+    specWidth = originalCanvas.width;
+    specHeight = originalCanvas.height;
+
+    imageBuffer = new ImageData(originalCanvas.width, originalCanvas.height);
+    specWidth = originalCanvas.width;
+    specHeight = originalCanvas.height;
+
+    mags = new Float32Array(specWidth * specHeight);
+    phases = new Float32Array(specWidth * specHeight);
+    for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
+
+    pos = 0; x = 0;
+
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,originalCanvas.width,originalCanvas.height);
+
+    const h = specHeight;
+    const w = specWidth;
+
+    for (let f = 0; f < specWidth; f++) {
+        const re = new Float32Array(fftSize);
+        const im = new Float32Array(fftSize);
+        for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
+        fft_inplace(re, im);
+
+        for (let bin = 0; bin < h; bin++) {
+            const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
+            const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
+            const idx = x * h + bin; 
+            mags[idx] = mag;
+            phases[idx] = phase;
+        }
+
+        for (let yy = 0; yy < h; yy+=4) {
+            const mappedBin = displayYToBin(yy, h);
+            const idx = x * h + mappedBin;
+            const mag = mags[idx] || 0;
+            const phase = phases[idx] || 0;
+            const [r, g, b] = magPhaseToRGB(mag, phase);
+            for (let i = 0; i < 4; i++) {       
+              const pix = ((yy+i) * w + x) * 4; 
+              imageBuffer.data[pix]     = r;
+              imageBuffer.data[pix + 1] = g;
+              imageBuffer.data[pix + 2] = b;
+              imageBuffer.data[pix + 3] = 255;
+            }
+        }
+        pos += hop; x++;
+    }
+    
+    ctx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+    ctx.putImageData(imageBuffer, 0, 0);
+    drawOriginalPlayhead(0);
+    const notes = (typeof getNotes === 'function') ? getNotes() : [];
+
+    // ---------------------- draw notes to midiCanvas ----------------------
+    midiCanvas.width = originalCanvas.width;
+    const mctx = midiCanvas.getContext('2d');
+
+    mctx.clearRect(0, 0, midiCanvas.width, midiCanvas.height);
+    mctx.fillStyle = '#06070a';
+    mctx.fillRect(0, 0, midiCanvas.width, midiCanvas.height);
+
+    if (!notes || notes.length === 0) return;
+
+    let minMidi = Infinity, maxMidi = -Infinity;
+    for (const n of notes) {
+      if (typeof n.midiFloat === 'number') {
+        minMidi = Math.min(minMidi, n.midiFloat);
+        maxMidi = Math.max(maxMidi, n.midiFloat);
+      }
+    }
+    if (!isFinite(minMidi) || !isFinite(maxMidi)) {
+      minMidi = 48; // C3
+      maxMidi = 84; // C6
+    }
+    if (minMidi === maxMidi) {
+      minMidi = Math.max(0, minMidi - 6);
+      maxMidi = Math.min(127, maxMidi + 6);
+    }
+    const pitchRange = maxMidi - minMidi;
+
+    const totalSeconds = 10.0;
+    const canvasW = midiCanvas.width;
+    const canvasH = midiCanvas.height;
+
+    const noteMinHeight = 6;
+    const bandHeight = Math.max(noteMinHeight, Math.round(canvasH / Math.min(48, pitchRange + 1) * 0.9));
+
+    for (const note of notes) {
+      const x = Math.round((note.startTime / totalSeconds) * canvasW);
+      const w = Math.max(1, Math.round((note.lengthSeconds / totalSeconds) * canvasW));
+
+      const pitchNorm = (note.midiFloat - minMidi) / (pitchRange || 1);
+      const yCenter = Math.round((1 - pitchNorm) * (canvasH - 1));
+      const h = bandHeight;
+      const y = Math.max(0, Math.min(canvasH - h, yCenter - Math.round(h / 2)));
+
+      const vel = (note.velocity == null) ? 64 : Number(note.velocity);
+      const alpha = Math.max(0.08, Math.min(1, vel / 127));
+
+      mctx.fillStyle = `rgba(120,255,200,${alpha})`;
+      mctx.fillRect(x, y, w, h);
+
+      mctx.strokeStyle = `rgba(20,40,60,${0.5 * alpha})`;
+      mctx.lineWidth = 1;
+      mctx.strokeRect(x + 0.5, y + 0.5, Math.max(1, w - 1), Math.max(1, h - 1));
+    }
+    try {
+      // capture the rendered notes layer so we can restore it before drawing the playhead later
+      midiSnapshot = mctx.getImageData(0, 0, midiCanvas.width, midiCanvas.height);
+    } catch (e) {
+      // getImageData can throw CORS exceptions in rare cases; ignore gracefully
+      midiSnapshot = null;
+    }
+
+    // draw initial midi playhead at 0
+    drawMidiPlayhead(0);
+  }
+  // Upload handling:
+  uploadInput.addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+
+    const url = URL.createObjectURL(file);
+    originalAudio.src = url;
+    midiAudio.src = url;
+
+    try{
+      const ab = await file.arrayBuffer();
+      const AC = window.OfflineAudioContext || window.AudioContext || window.webkitOfflineAudioContext || window.webkitAudioContext;
+      const audioCtxLocal = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtxLocal.decodeAudioData(ab.slice(0));
+      sampleRate = audioBuffer.sampleRate || 44100;
+      const ch0 = audioBuffer.numberOfChannels > 0 ? audioBuffer.getChannelData(0) : new Float32Array();
+
+      const maxLen = Math.min(ch0.length, sampleRate * MAX_SECONDS);
+      const floatSlice = ch0.subarray(0, maxLen);
+
+      pcm = new Float32Array(maxLen);
+      pcm.set(floatSlice);
+
+      originalAudio.load();
+      midiAudio.load();
+
+      originalAudio.currentTime = 0;
+      midiAudio.currentTime = 0;
+      midiAudio.pause();
+      updateTimeDisplays();
+      resizeCanvases();
+      restartRender();
+
+    }catch(err){
+      console.error('Failed to decode audio file', err);
+      uploadNote.textContent = 'Failed to decode audio — check file format.';
+    }
+  });
+
+  // Safety seek clamp
+  function clampSeek(audio){
+    if(audio.currentTime > MAX_SECONDS) audio.currentTime = MAX_SECONDS;
+    if(audio.currentTime < 0) audio.currentTime = 0;
+  }
+  originalAudio.addEventListener('seeked', ()=>clampSeek(originalAudio));
+  midiAudio.addEventListener('seeked', ()=>clampSeek(midiAudio));
+
+  // initial UI
+  updateTimeDisplays();
+  updateNotesButtonText();
+  updateOriginalButtonText();
+  // initial resize
+  // put this inside your IIFE after you set originalAudio, midiAudio, uploadInput, etc.
+  async function loadDefaultAsset() {
+    try {
+      const MAX_SECONDS = 10.0;
+      const resp = await fetch('assets/default.mp3');
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const ab = await resp.arrayBuffer();
+      const audioCtxLocal = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtxLocal.decodeAudioData(ab.slice(0));
+      sampleRate = audioBuffer.sampleRate || 44100;
+      const ch0 = audioBuffer.numberOfChannels > 0 ? audioBuffer.getChannelData(0) : new Float32Array();
+      const maxLen = Math.min(ch0.length, Math.floor(sampleRate * MAX_SECONDS));
+      pcm = new Float32Array(maxLen);
+      pcm.set(ch0.subarray(0, maxLen));
+
+      // make the <audio> elements use the same URL so UI playback still works
+      originalAudio.src = 'assets/default.mp3';
+      midiAudio.src = 'assets/default.mp3';
+      originalAudio.load();
+      midiAudio.load();
+
+      // make sure UI and canvases reflect the loaded audio
+      resizeCanvases();
+      restartRender();
+      updateTimeDisplays();
+    } catch (err) {
+      console.error('Failed to load default asset', err);
+      uploadNote.textContent = 'Failed to load default audio. Check assets/default.mp3.';
+    }
+  }
+
+  // call it once at end of setup
+  loadDefaultAsset();
+
+  setTimeout(resizeCanvases, 80);
+  setTimeout(restartRender, 80);
+})();
+</script>
+
+
+<link rel="stylesheet" type="text/css" href="homepageTimelineStyle.css">
+<script src="homepageTimeline.js"></script>
 
   <!-- MADE FOR / LICENSE NOTE -->
   <section>
@@ -394,37 +1061,6 @@ body{
       <p class="section-copy" style="text-align:center;max-width:68ch">SpectroDraw is built to accelerate creative workflows, from rapid fx prototyping to sheet music creation. Export clean MIDI, download stems, or bring your spectral edits into a DAW via the upcoming VST.</p>
       <div style="margin-top:.9rem">
         <a class="btn btn-primary" href="/app"><span>Launch App</span></a>
-      </div>
-    </div>
-  </section>
-
-  <!-- SAMPLE / CAROUSEL (lightweight placeholder) -->
-  <section>
-    <div class="container">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem;">
-        <div>
-          <div class="section-title">Hear SpectroDraw</div>
-          <div class="section-head">Examples & Samples</div>
-        </div>
-        <div><a class="btn btn-ghost" href="/samples">Browse all</a></div>
-      </div>
-
-      <div class="carousel" aria-hidden="false">
-        <div class="sample">
-          <img src="https://picsum.photos/320/200?random=201" alt="sample cover" style="width:100%;border-radius:8px;margin-bottom:.5rem">
-          <div style="font-weight:700">Nocturne in E flat major</div>
-          <div style="color:var(--muted);font-size:.9rem">0:30 • FX</div>
-        </div>
-        <div class="sample">
-          <img src="https://picsum.photos/320/200?random=202" alt="sample cover" style="width:100%;border-radius:8px;margin-bottom:.5rem">
-          <div style="font-weight:700">Mona lisa</div>
-          <div style="color:var(--muted);font-size:.9rem">0:22 • Instrument</div>
-        </div>
-        <div class="sample">
-          <img src="https://picsum.photos/320/200?random=203" alt="sample cover" style="width:100%;border-radius:8px;margin-bottom:.5rem">
-          <div style="font-weight:700">Pitch alignment demo</div>
-          <div style="color:var(--muted);font-size:.9rem">0:18 • SFX</div>
-        </div>
       </div>
     </div>
   </section>

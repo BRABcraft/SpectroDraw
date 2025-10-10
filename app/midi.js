@@ -1,12 +1,14 @@
-
-
 function dbToMag(db) {
   //Mag to db: return (20 * Math.log10(mag));
   return Math.pow(10, db / 20);
 }
 
+function complexMag(re, im) {
+  return Math.hypot(re || 0, im || 0);
+}
+
 function detectPitches(alignPitch) {
-  detectedPitches=[];
+  detectedPitches = [];
   if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
 
   const re = new Float32Array(fftSize);
@@ -14,10 +16,12 @@ function detectPitches(alignPitch) {
   for (let j = 0; j < fftSize; j++) { re[j] = (pcm[pos + j] || 0) * win[j]; im[j] = 0; }
   fft_inplace(re, im);
 
-  const factor = sampleRate / fftSize / 2; // Hz per bin
+  const factor = sampleRate / fftSize / 2; // Hz per bin (kept original)
 
   for (let bin = 0; bin < specHeight; bin++) {
-    const mag = Math.hypot(re[bin] || 0, im[bin] || 0)/256;
+    const reBin = (re[bin] || 0) / 256;
+    const imBin = (im[bin] || 0) / 256;
+    const mag = complexMag(reBin, imBin);
     if (mag <= dbToMag(noiseFloor)) continue;
 
     const freq = factor * bin;
@@ -27,19 +31,20 @@ function detectPitches(alignPitch) {
       // nearest pitch logic (keeps your prior intent)
       let nearestPitch = Math.round(npo * Math.log2(freq / a4p));
       nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
-      detectedPitch = Math.floor(nearestPitch / factor);
+      detectedPitch = Math.round(nearestPitch / factor);
     } else {
       detectedPitch = freq;
     }
     // per-frame integer velocity from this bin's magnitude
     const magToDb = m => 20 * Math.log10(Math.max(m, 1e-12));
     const db = magToDb(mag);
-    const t = mag//(db - noiseFloor) / (0 - noiseFloor);
+    const t = mag; // (db - noiseFloor) / (0 - noiseFloor); (kept simple as original)
     const velFrame = Math.round(Math.max(0, Math.min(1, t)));
 
     // ensure uniqueness per frame by pitch+velocity
-    if (!detectedPitches.some(([p, _m, v]) => p === detectedPitch && v === velFrame)) {
-      detectedPitches.push([detectedPitch, mag, velFrame]);
+    // Note: we push complex re/im instead of scalar mag so downstream can do vector sums
+    if (!detectedPitches.some(([p, _r, _i, v]) => p === detectedPitch && v === velFrame)) {
+      detectedPitches.push([detectedPitch, reBin, imBin, velFrame]);
     }
   }
 
@@ -58,7 +63,7 @@ function getNotes() {
 }
 
 function exportMidi2() {
-  const velSplitTolerance = 40; // used only when useVolumeControllers == false
+  const velSplitTolerance = 40; // used only when useVolumeControllers == false (kept original)
   const minVelocityDb = -60;
 
   pos = 0;
@@ -67,23 +72,28 @@ function exportMidi2() {
   let detectedPitches = [];
   audioProcessed = 0;
   for (let frame = 0; frame < w; frame++) {
-    detectedPitches.push(detectPitches(true)); // each entry: [detectedPitch, mag, velFrame]
+    detectedPitches.push(detectPitches(true)); // each entry: [detectedPitch, re, im, velFrame]
   }
+  // console.log(detectedPitches);
 
-  // compute global max magnitude (avoid divide-by-zero)
+  // compute global max magnitude (avoid divide-by-zero) using complex magnitudes
   let globalMaxMag = 0;
   for (const frameArr of detectedPitches) {
     for (const entry of frameArr) {
-      const mag = entry[1];
+      const reVal = entry[1], imVal = entry[2];
+      const mag = complexMag(reVal, imVal);
       if (mag > globalMaxMag) globalMaxMag = mag;
     }
   }
   if (globalMaxMag <= 0) globalMaxMag = 1e-12;
 
-  // mapping: magnitude -> MIDI velocity 1..127 using a dB perceptual scale
-  function mapMagToMidi(mag) {
+  // mapping: complex (re,im) -> MIDI velocity 1..127 using a dB perceptual scale
+  function mapComplexToMidi(reVal, imVal) {
+    // compute magnitude
+    const mag = complexMag(reVal, imVal);
     // normalize to 0..1 w.r.t global max
-    const amp = Math.max(0, mag) / globalMaxMag;
+    let amp = (Math.max(0, mag) / globalMaxMag);
+    amp = Math.min(1, Math.pow(amp, 2) * 1.4);
     // amplitude to dB relative to max
     const db = amp > 0 ? 20 * Math.log10(amp) : -1000;
     // clamp to [minVelocityDb, 0]
@@ -100,28 +110,34 @@ function exportMidi2() {
   // --- merge adjacent-frame detections into notes ---
   // final notes [{ midiFloat|freq, velocity, lengthFrames, lengthSeconds, startTime, velChanges: [{offsetFrames, vel}, ...] }, ...]
   const notes = [];
-  const active = []; // array of { midiRounded, startFrame, mags: [], velFrames: [{frame, vel}], midiFloat, seen }
+  const active = []; // array of { midiRounded, startFrame, reParts:[], imParts:[], velFrames: [{frame, re, im}], midiFloat, lastMag, seen }
   const factor = sampleRate / fftSize / 2;
 
-  function avg(arr) { return arr.reduce((s, v) => s + v, 0) / arr.length; }
+  function avgMagFromParts(reArr, imArr) {
+    if (!reArr || reArr.length === 0) return 0;
+    let s = 0;
+    for (let i = 0; i < reArr.length; i++) s += complexMag(reArr[i], imArr[i]);
+    return s / reArr.length;
+  }
 
   for (let frame = 0; frame < w; frame++) {
     // reset seen flag
     for (const a of active) a.seen = false;
 
-    for (const [detectedPitch, mag /*, velFrame */] of detectedPitches[frame]) {
+    for (const [detectedPitch, reVal, imVal /*, velFrame */] of detectedPitches[frame]) {
       const freq = detectedPitch * factor;
       if (freq <= 0) continue;
       const midiFloat = 69 + 12 * Math.log2(freq / a4p);
       const midiRounded = Math.round(midiFloat);
 
+      const mag = complexMag(reVal, imVal);
+
       // find an active entry with same midiRounded
       let match = null;
       for (const a of active) {
         if (a.midiRounded === midiRounded) {
-          // if we're preserving volume-splitting (old behavior), require velocity match within tolerance
+          // if we're preserving volume-splitting (old behavior), require velocity (magnitude) match within tolerance
           if (!useVolumeControllers) {
-            // compare against last magnitude-based "velocity" (store lastMag instead of lastVel)
             if (Math.abs(a.lastMag - mag) <= velSplitTolerance) {
               match = a;
               break;
@@ -138,9 +154,10 @@ function exportMidi2() {
       }
 
       if (match) {
-        match.mags.push(mag);
-        // store magnitude here; we'll map to MIDI later when compressing velFrames
-        match.velFrames.push({ frame, vel: mag });
+        match.reParts.push(reVal);
+        match.imParts.push(imVal);
+        // store complex magnitude info here; we'll map to MIDI later when compressing velFrames
+        match.velFrames.push({ frame, re: reVal, im: imVal });
         match.lastMag = mag;
         match.seen = true;
       } else {
@@ -148,8 +165,9 @@ function exportMidi2() {
         active.push({
           midiRounded,
           startFrame: frame,
-          mags: [mag],
-          velFrames: [{ frame, vel: mag }], // store mag
+          reParts: [reVal],
+          imParts: [imVal],
+          velFrames: [{ frame, re: reVal, im: imVal }], // store complex
           lastMag: mag,
           midiFloat,
           seen: true
@@ -163,13 +181,13 @@ function exportMidi2() {
       if (!a.seen) {
         const lengthFrames = frame - a.startFrame;
         // compress velFrames into changes relative to startFrame
-        const vf = a.velFrames.slice().sort((u,v)=>u.frame - v.frame);
+        const vf = a.velFrames.slice().sort((u, v) => u.frame - v.frame);
         const velChanges = [];
         let lastVel = null;
         for (const entry of vf) {
           const rel = entry.frame - a.startFrame;
-          // map the stored magnitude to MIDI here
-          const mapped = mapMagToMidi(entry.vel);
+          // map the stored complex to MIDI here
+          const mapped = mapComplexToMidi(entry.re, entry.im);
           if (lastVel === null || mapped !== lastVel) {
             velChanges.push({ offsetFrames: rel, vel: mapped });
             lastVel = mapped;
@@ -177,7 +195,8 @@ function exportMidi2() {
         }
         if (velChanges.length === 0) {
           // fallback: use average magnitude mapped to MIDI
-          velChanges.push({ offsetFrames: 0, vel: mapMagToMidi(avg(a.mags)) });
+          const avgMag = avgMagFromParts(a.reParts, a.imParts);
+          velChanges.push({ offsetFrames: 0, vel: mapComplexToMidi(avgMag, 0) });
         }
 
         notes.push({
@@ -196,18 +215,21 @@ function exportMidi2() {
   // finalize remaining active notes that extend to the end
   for (const a of active) {
     const lengthFrames = w - a.startFrame;
-    const vf = a.velFrames.slice().sort((u,v)=>u.frame - v.frame);
+    const vf = a.velFrames.slice().sort((u, v) => u.frame - v.frame);
     const velChanges = [];
     let lastVel = null;
     for (const entry of vf) {
       const rel = entry.frame - a.startFrame;
-      const mapped = mapMagToMidi(entry.vel);
+      const mapped = mapComplexToMidi(entry.re, entry.im);
       if (lastVel === null || mapped !== lastVel) {
         velChanges.push({ offsetFrames: rel, vel: mapped });
         lastVel = mapped;
       }
     }
-    if (velChanges.length === 0) velChanges.push({ offsetFrames: 0, vel: mapMagToMidi(avg(a.mags)) });
+    if (velChanges.length === 0) {
+      const avgMag = avgMagFromParts(a.reParts, a.imParts);
+      velChanges.push({ offsetFrames: 0, vel: mapComplexToMidi(avgMag, 0) });
+    }
 
     notes.push({
       midiFloat: a.midiFloat,
@@ -222,12 +244,34 @@ function exportMidi2() {
   let i = 0;
   while (i < notes.length) {
     if (notes[i].lengthSeconds < dCutoff) {
-      notes.splice(i,1);
+      notes.splice(i, 1);
     } else {
       i++;
     }
   }
-  return {notes};
+
+  if (midiAlignTime && notes.length > 0) {
+    const firstStart = notes[0].startTime + (hop/sampleRate) || 0;
+    const quant = (60 / midiBpm) / mSubBeat; // grid size in seconds per your spec
+    const threshold = quant / 2; // dCutoff/10
+
+    const kept = [];
+    for (const n of notes) {
+      const rel = (n.startTime - firstStart);
+      // positive modulo in [0, quant)
+      const rem = ((rel % quant) + quant) % quant;
+      // remove if remainder is greater than threshold
+      if (rem > threshold) {
+        // drop (off-grid)
+        continue;
+      }
+      kept.push(n);
+    }
+    // replace notes with filtered array
+    notes.length = 0;
+    notes.push(...kept);
+  }
+  return { notes };
 }
 
 
@@ -437,11 +481,13 @@ function writeMidiFile(notes, opts = {}) {
   return out;
 }
 function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultiplier = 4} = {}) {
-  snapshotMags = new Float32Array(mags);
-  snapshotPhases = new Float32Array(phases);
-  pos = 0;
-  x = 0;
-  audioProcessed = 0;
+  if (typeof snapshotMags !== "undefined") {
+    snapshotMags = new Float32Array(mags);
+    snapshotPhases = new Float32Array(phases);
+    pos = 0;
+    x = 0;
+    audioProcessed = 0;
+  }
 
   const h = specHeight;
 
@@ -529,13 +575,13 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
     audioProcessed += hop;
     if (x >= specWidth) break;
   }
-  newHistory();
-
-  recomputePCMForCols(0, specWidth);
-  restartRender();
-
-  startTime = performance.now();
-  audioProcessed = 0;
-  playPCM();
-  document.getElementById("playPause").innerHTML=pauseHtml;
+  if (typeof newHistory === "function") {
+    newHistory();
+    recomputePCMForCols(0, specWidth);
+    restartRender();
+    startTime = performance.now();
+    audioProcessed = 0;
+    playPCM();
+    document.getElementById("playPause").innerHTML=pauseHtml;
+  }
 }

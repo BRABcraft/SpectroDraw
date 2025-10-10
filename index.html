@@ -393,13 +393,11 @@ body{
 
         <!-- play + upload buttons side by side -->
         <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;">
-          <button id="playOriginalBtn" class="btn btn-primary" aria-label="Play Original"
-            style="font-size:15px;"><span>Play original</span></button>
-
           <label for="audioUpload" class="btn btn-primary" style="cursor:pointer;font-size:15px;">
             <span>Upload audio</span>
             <input id="audioUpload" type="file" accept="audio/*" style="display:none" />
           </label>
+          <button id="playOriginalBtn" class="btn btn-primary" aria-label="Play Original" style="font-size:15px;"><span>Play original</span></button>
         </div>
 
         <!-- upload note -->
@@ -449,11 +447,12 @@ body{
 <script src="app/fft.js"></script>
 <script src="app/midi.js"></script>
 <script>
-  let pcm = null, x=0,pos=0,hop=1024,fftSize=1024,framesTotal=0,sampleRate=48000,noiseFloor=-30,a4p=440,npo=12;useVolumeControllers=false;
-  let dCutoff=0.05;specWidth=468;specHeight=1024;imageBuffer=null;midiSnapshot=null;
+  let pcm = null, x=0,pos=0,hop=2048,fftSize=8192,framesTotal=0,sampleRate=48000,noiseFloor=-20,a4p=440,npo=12;useVolumeControllers=false;
+  let dCutoff=0.125;specWidth=468;specHeight=8192;imageBuffer=null;midiSnapshot=null;midiAlignTime=true;mSubBeat=4;midiBpm=124;
   const ctx = originalCanvas.getContext("2d");
 (function(){
   const MAX_SECONDS = 10.0;
+  let effectiveDuration = MAX_SECONDS; // <-- use this for all UI/playhead mapping (min(MAX_SECONDS, actual audio length))
 
   const originalAudio = document.getElementById('originalAudio');
   const midiAudio = document.getElementById('midiAudio');
@@ -491,12 +490,28 @@ body{
   window.addEventListener('resize', resizeCanvases);
   setTimeout(resizeCanvases, 50);
 
-  // enforce 10s maximum during playback by pausing when hitting MAX_SECONDS
+  // update effectiveDuration from pcm or audio metadata
+  function updateEffectiveDuration(){
+    if(pcm && pcm.length && sampleRate){
+      effectiveDuration = Math.min(MAX_SECONDS, pcm.length / sampleRate);
+    } else if (originalAudio && isFinite(originalAudio.duration) && originalAudio.duration > 0){
+      effectiveDuration = Math.min(MAX_SECONDS, originalAudio.duration);
+    } else if (midiAudio && isFinite(midiAudio.duration) && midiAudio.duration > 0){
+      effectiveDuration = Math.min(MAX_SECONDS, midiAudio.duration);
+    } else {
+      effectiveDuration = MAX_SECONDS;
+    }
+    // update scrub ranges and displays to reflect new duration
+    originalScrub.max = effectiveDuration;
+    midiScrub.max = effectiveDuration;
+  }
+
+  // enforce max during playback: now uses effectiveDuration (so short files end naturally)
   function enforceMaxDuringPlayback(audio){
     function timeUpdateHandler(){
-      if(audio.currentTime >= MAX_SECONDS){
+      if(audio.currentTime >= effectiveDuration){
         audio.pause();
-        audio.currentTime = MAX_SECONDS;
+        audio.currentTime = effectiveDuration;
       }
     }
     audio.addEventListener('timeupdate', timeUpdateHandler);
@@ -513,14 +528,13 @@ body{
   let notesProgressInterval = null;
 
   function midiToFreq(m){
-    return 440 * Math.pow(2, (m - 69) / 12);
+    return 440 * Math.pow(2, (m - 57) / 12);
   }
 
   function stopScheduledNotes(){
     if(!audioCtx) return;
     for(const s of scheduledNodes){
       try {
-        // cancel envelope and stop oscillators immediately
         if(s.gain) {
           s.gain.gain.cancelScheduledValues(audioCtx.currentTime);
           s.gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -546,30 +560,33 @@ body{
 
   // update midi-time / midi-scrub either from midiAudio or from notes playback
   function updateTimeDisplays(){
+    // ensure effectiveDuration is current
+    updateEffectiveDuration();
+
     // original time (left)
-    originalTime.textContent = formatTime(Math.min(originalAudio.currentTime || 0, MAX_SECONDS));
+    originalTime.textContent = formatTime(Math.min(originalAudio.currentTime || 0, effectiveDuration), effectiveDuration);
     if(!originalScrubSeeking){
-      originalScrub.value = Math.min(originalAudio.currentTime || 0, MAX_SECONDS);
+      originalScrub.value = Math.min(originalAudio.currentTime || 0, effectiveDuration);
     }
     drawOriginalPlayhead(originalAudio.currentTime || 0);
-    originalScrub.max = MAX_SECONDS;
-    midiScrub.max = MAX_SECONDS;
+    originalScrub.max = effectiveDuration;
+    midiScrub.max = effectiveDuration;
 
     if(notesPlaying && audioCtx) {
-      const elapsed = Math.min(MAX_SECONDS, notesStartOffset + (audioCtx.currentTime - notesStartTime));
-      midiTimeDisplay.textContent = formatTime(elapsed);
-      midiTime.textContent = `${formatTime(elapsed)} / ${formatTime(MAX_SECONDS)}`;
+      const elapsed = Math.min(effectiveDuration, notesStartOffset + (audioCtx.currentTime - notesStartTime));
+      midiTimeDisplay.textContent = formatTime(elapsed, effectiveDuration);
+      midiTime.textContent = `${formatTime(elapsed, effectiveDuration)} / ${formatTime(effectiveDuration, effectiveDuration)}`;
       midiScrub.value = elapsed;      
       drawMidiPlayhead(elapsed);
-      // if we've reached MAX_SECONDS, stop
-      if(elapsed >= MAX_SECONDS) {
+      // if we've reached effectiveDuration, stop
+      if(elapsed >= effectiveDuration) {
         stopNotesPlayback();
       }
     } else {
       // fallback to midiAudio element time for display (kept for compatibility)
-      const t = Math.min(midiAudio.currentTime || 0, MAX_SECONDS);
-      midiTimeDisplay.textContent = formatTime(t);
-      midiTime.textContent = `${formatTime(t)} / ${formatTime(MAX_SECONDS)}`;
+      const t = Math.min(midiAudio.currentTime || 0, effectiveDuration);
+      midiTimeDisplay.textContent = formatTime(t, effectiveDuration);
+      midiTime.textContent = `${formatTime(t, effectiveDuration)} / ${formatTime(effectiveDuration, effectiveDuration)}`;
       midiScrub.value = t;
       drawMidiPlayhead(t);
     }
@@ -577,9 +594,10 @@ body{
 
   // Start notes playback from current midiScrub value
   async function startNotesPlayback(){
+    try { if(typeof removeHarmonics === 'function') removeHarmonics(); } catch(e){}
+
     const notes = (typeof getNotes === 'function') ? getNotes() : null;
     if(!notes || !notes.length){
-      // no notes — inform user
       uploadNote.textContent = 'No MIDI notes available to play.';
       setTimeout(()=> uploadNote.textContent = '', 2400);
       return;
@@ -596,67 +614,56 @@ body{
     stopScheduledNotes();
 
     notesPlaying = true;
-    notesStartOffset = Math.min(parseFloat(midiScrub.value || 0), MAX_SECONDS);
+    // start from scrub position but clamp to effectiveDuration
+    notesStartOffset = Math.min(parseFloat(midiScrub.value || 0), effectiveDuration);
     notesStartTime = audioCtx.currentTime;
 
-    // schedule each note that occurs after the offset
+    // ADSR values
+    const attack = 0.006;
+    const decay = 0.18;
+    const sustainLevel = 0.24;
+    const release = 0.28;
+    const minFloor = 0.0001; // small floor for exponential ramps
+
     for(const note of notes){
       const start = (typeof note.startTime === 'number') ? note.startTime : 0;
       const dur = (typeof note.lengthSeconds === 'number') ? note.lengthSeconds : 0.5;
       const noteEnd = start + dur;
       if(noteEnd <= notesStartOffset) continue; // note finished before our offset
+
       const relativeStart = Math.max(0, start - notesStartOffset);
       const when = audioCtx.currentTime + relativeStart;
       const freq = midiToFreq(Math.round(note.midiFloat || 60));
-      // create a piano-like voice: two detuned oscillators + gain envelope
+
+      const vel = note.velocity;
+      const velNorm = Math.max(0.01, Math.min(1, vel / 127));
+      const peakGain = velNorm;
+
       const gainNode = audioCtx.createGain();
-      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(minFloor, audioCtx.currentTime);
       gainNode.connect(audioCtx.destination);
 
-      // oscillator 1
-      const osc1 = audioCtx.createOscillator();
-      osc1.type = 'sawtooth';
-      osc1.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      // small detune for richness
-      osc1.detune.setValueAtTime(-8, audioCtx.currentTime);
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';              // simple sine oscillator per request
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
-      // oscillator 2
-      const osc2 = audioCtx.createOscillator();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      osc2.detune.setValueAtTime(6, audioCtx.currentTime);
-
-      // simple ADSR values (piano-ish)
-      const attack = 0.006;
-      const decay = 0.18;
-      const sustainLevel = 0.24;
-      const release = 0.28;
+      osc.connect(gainNode);
 
       const noteOn = when;
       const noteOff = when + Math.max(0.01, dur);
 
-      // connect oscillators to gain
-      osc1.connect(gainNode);
-      osc2.connect(gainNode);
-
-      // start oscillators slightly before noteOn to allow envelope (WebAudio scheduling)
       const startTime = Math.max(audioCtx.currentTime, noteOn - 0.005);
-      try { osc1.start(startTime); } catch(e){}
-      try { osc2.start(startTime); } catch(e){}
+      try { osc.start(startTime); } catch(e){}
 
-      // envelope
-      gainNode.gain.setValueAtTime(0.0001, startTime);
-      gainNode.gain.exponentialRampToValueAtTime(1.0, noteOn + attack);
-      gainNode.gain.exponentialRampToValueAtTime(Math.max(0.0001, sustainLevel), noteOn + attack + decay);
-      // schedule release
-      gainNode.gain.setValueAtTime(gainNode.gain.value, Math.max(0,noteOff - release));
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, noteOff + 0.05);
+      gainNode.gain.setValueAtTime(minFloor, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(Math.max(minFloor, peakGain), noteOn + attack);
+      gainNode.gain.exponentialRampToValueAtTime(Math.max(minFloor, peakGain * sustainLevel), noteOn + attack + decay);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, Math.max(audioCtx.currentTime, noteOff - release));
+      gainNode.gain.exponentialRampToValueAtTime(minFloor, noteOff + 0.05);
 
-      // schedule stops slightly after noteOff
-      try { osc1.stop(noteOff + 0.1); } catch(e){}
-      try { osc2.stop(noteOff + 0.1); } catch(e){}
+      try { osc.stop(noteOff + 0.1); } catch(e){}
 
-      scheduledNodes.push({ oscNodes: [osc1, osc2], gain: gainNode, stopAt: noteOff + 0.1 });
+      scheduledNodes.push({ oscNodes: [osc], gain: gainNode, stopAt: noteOff + 0.1 });
     }
 
     // UI update loop for notes
@@ -664,10 +671,10 @@ body{
     updateNotesButtonText();
   }
 
+
   function stopNotesPlayback(){
-    // compute current elapsed and set scrub to it (so resume starts from here)
     if(audioCtx && notesPlaying){
-      const elapsed = Math.min(MAX_SECONDS, notesStartOffset + (audioCtx.currentTime - notesStartTime));
+      const elapsed = Math.min(effectiveDuration, notesStartOffset + (audioCtx.currentTime - notesStartTime));
       midiScrub.value = elapsed;
     }
     notesPlaying = false;
@@ -690,7 +697,7 @@ body{
   playOriginalBtn.addEventListener('click', ()=>{
     // toggle originalAudio play/pause
     if(originalAudio.paused){
-      if(originalAudio.currentTime >= MAX_SECONDS) originalAudio.currentTime = 0;
+      if(originalAudio.currentTime >= effectiveDuration) originalAudio.currentTime = 0;
       originalAudio.play();
     } else {
       originalAudio.pause();
@@ -703,9 +710,9 @@ body{
   originalAudio.addEventListener('pause', updateOriginalButtonText);
   originalAudio.addEventListener('ended', updateOriginalButtonText);
 
-  // format time helper
-  function formatTime(s){
-    s = Math.max(0, Math.min(s, MAX_SECONDS));
+  // format time helper (now takes a max param)
+  function formatTime(s, max = MAX_SECONDS){
+    s = Math.max(0, Math.min(s, max));
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60).toString().padStart(2,'0');
     return `${m}:${sec}`;
@@ -727,30 +734,29 @@ body{
   originalScrub.addEventListener('input', ()=> {
     originalScrubSeeking = true;
     const t = parseFloat(originalScrub.value);
-    originalTime.textContent = formatTime(t);
+    originalTime.textContent = formatTime(t, effectiveDuration);
   });
   originalScrub.addEventListener('change', ()=>{ 
     originalScrubSeeking = false;
-    originalAudio.currentTime = Math.min(parseFloat(originalScrub.value), MAX_SECONDS);
+    originalAudio.currentTime = Math.min(parseFloat(originalScrub.value), effectiveDuration);
   });
 
   midiScrub.addEventListener('input', ()=> {
     midiScrubSeeking = true;
     const t = parseFloat(midiScrub.value);
-    midiTimeDisplay.textContent = formatTime(t);
+    midiTimeDisplay.textContent = formatTime(t, effectiveDuration);
   });
   midiScrub.addEventListener('change', ()=> {
     midiScrubSeeking = false;
-    // if notes were playing, stop (we'll resume from scrub when user hits Play)
     if(notesPlaying){
       stopNotesPlayback();
     }
-    // If you want the scrub to control midiAudio element as well:
-    midiAudio.currentTime = Math.min(parseFloat(midiScrub.value), MAX_SECONDS);
+    midiAudio.currentTime = Math.min(parseFloat(midiScrub.value), effectiveDuration);
   });
 
-  // When metadata loads, ensure the UI reflects MAX_SECONDS (we clamp to MAX_SECONDS)
+  // When metadata loads, ensure the UI reflects effectiveDuration
   function onMetadataLoadedFor(audioElement){
+    updateEffectiveDuration();
     updateTimeDisplays();
   }
   function displayYToBin(y, h) {
@@ -789,10 +795,10 @@ body{
   midiAudio.addEventListener('loadedmetadata', ()=>onMetadataLoadedFor(midiAudio));
   function drawOriginalPlayhead(timeSec){
     if(!imageBuffer || !ctx) return;
-    const t = Math.max(0, Math.min(timeSec || 0, MAX_SECONDS));
+    const t = Math.max(0, Math.min(timeSec || 0, effectiveDuration));
     // width is in spectrogram pixels (restartRender sets originalCanvas.width = framesTotal)
     const w = originalCanvas.width || 1;
-    const x = Math.round((t / MAX_SECONDS) * (w - 1));
+    const x = Math.round((t / Math.max(1e-8, effectiveDuration)) * (w - 1));
 
     // redraw the spectrogram base then overlay playhead
     ctx.putImageData(imageBuffer, 0, 0);
@@ -809,16 +815,13 @@ body{
   function drawMidiPlayhead(timeSec){
     if(!midiCanvas) return;
     const mctx = midiCanvas.getContext('2d');
-    const t = Math.max(0, Math.min(timeSec || 0, MAX_SECONDS));
+    const t = Math.max(0, Math.min(timeSec || 0, effectiveDuration));
     const w = midiCanvas.width || 1;
-    const x = Math.round((t / MAX_SECONDS) * (w - 1));
+    const x = Math.round((t / Math.max(1e-8, effectiveDuration)) * (w - 1));
 
     // restore notes layer snapshot if available (prevents ghosting)
     if(midiSnapshot && midiSnapshot.width === midiCanvas.width && midiSnapshot.height === midiCanvas.height){
       mctx.putImageData(midiSnapshot, 0, 0);
-    } else {
-      // if no snapshot, just clear and leave whatever is there
-      // (restartRender will produce a snapshot next time)
     }
 
     // draw thin bright line + faint glow similar to original playhead
@@ -904,24 +907,12 @@ body{
 
     if (!notes || notes.length === 0) return;
 
-    let minMidi = Infinity, maxMidi = -Infinity;
-    for (const n of notes) {
-      if (typeof n.midiFloat === 'number') {
-        minMidi = Math.min(minMidi, n.midiFloat);
-        maxMidi = Math.max(maxMidi, n.midiFloat);
-      }
-    }
-    if (!isFinite(minMidi) || !isFinite(maxMidi)) {
-      minMidi = 48; // C3
-      maxMidi = 84; // C6
-    }
-    if (minMidi === maxMidi) {
-      minMidi = Math.max(0, minMidi - 6);
-      maxMidi = Math.min(127, maxMidi + 6);
-    }
+    let minMidi = 0, maxMidi = 127;
+    
     const pitchRange = maxMidi - minMidi;
 
-    const totalSeconds = 10.0;
+    // use effectiveDuration here (instead of fixed 10s)
+    const totalSeconds = effectiveDuration;
     const canvasW = midiCanvas.width;
     const canvasH = midiCanvas.height;
 
@@ -929,15 +920,15 @@ body{
     const bandHeight = Math.max(noteMinHeight, Math.round(canvasH / Math.min(48, pitchRange + 1) * 0.9));
 
     for (const note of notes) {
-      const x = Math.round((note.startTime / totalSeconds) * canvasW);
-      const w = Math.max(1, Math.round((note.lengthSeconds / totalSeconds) * canvasW));
+      const x = Math.round((note.startTime / Math.max(1e-8,totalSeconds)) * canvasW);
+      const w = Math.max(1, Math.round((note.lengthSeconds / Math.max(1e-8,totalSeconds)) * canvasW));
 
       const pitchNorm = (note.midiFloat - minMidi) / (pitchRange || 1);
       const yCenter = Math.round((1 - pitchNorm) * (canvasH - 1));
       const h = bandHeight;
       const y = Math.max(0, Math.min(canvasH - h, yCenter - Math.round(h / 2)));
 
-      const vel = (note.velocity == null) ? 64 : Number(note.velocity);
+      const vel = note.velocity;
       const alpha = Math.max(0.08, Math.min(1, vel / 127));
 
       mctx.fillStyle = `rgba(120,255,200,${alpha})`;
@@ -951,7 +942,6 @@ body{
       // capture the rendered notes layer so we can restore it before drawing the playhead later
       midiSnapshot = mctx.getImageData(0, 0, midiCanvas.width, midiCanvas.height);
     } catch (e) {
-      // getImageData can throw CORS exceptions in rare cases; ignore gracefully
       midiSnapshot = null;
     }
 
@@ -975,11 +965,14 @@ body{
       sampleRate = audioBuffer.sampleRate || 44100;
       const ch0 = audioBuffer.numberOfChannels > 0 ? audioBuffer.getChannelData(0) : new Float32Array();
 
-      const maxLen = Math.min(ch0.length, sampleRate * MAX_SECONDS);
+      const maxLen = Math.min(ch0.length, Math.floor(sampleRate * MAX_SECONDS));
       const floatSlice = ch0.subarray(0, maxLen);
 
       pcm = new Float32Array(maxLen);
       pcm.set(floatSlice);
+
+      // update effectiveDuration based on pcm length
+      updateEffectiveDuration();
 
       originalAudio.load();
       midiAudio.load();
@@ -999,7 +992,7 @@ body{
 
   // Safety seek clamp
   function clampSeek(audio){
-    if(audio.currentTime > MAX_SECONDS) audio.currentTime = MAX_SECONDS;
+    if(audio.currentTime > effectiveDuration) audio.currentTime = effectiveDuration;
     if(audio.currentTime < 0) audio.currentTime = 0;
   }
   originalAudio.addEventListener('seeked', ()=>clampSeek(originalAudio));
@@ -1010,10 +1003,8 @@ body{
   updateNotesButtonText();
   updateOriginalButtonText();
   // initial resize
-  // put this inside your IIFE after you set originalAudio, midiAudio, uploadInput, etc.
   async function loadDefaultAsset() {
     try {
-      const MAX_SECONDS = 10.0;
       const resp = await fetch('assets/default.mp3');
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const ab = await resp.arrayBuffer();
@@ -1024,6 +1015,9 @@ body{
       const maxLen = Math.min(ch0.length, Math.floor(sampleRate * MAX_SECONDS));
       pcm = new Float32Array(maxLen);
       pcm.set(ch0.subarray(0, maxLen));
+
+      // set effectiveDuration from pcm
+      updateEffectiveDuration();
 
       // make the <audio> elements use the same URL so UI playback still works
       originalAudio.src = 'assets/default.mp3';
@@ -1048,6 +1042,7 @@ body{
   setTimeout(restartRender, 80);
 })();
 </script>
+
 
 
 <link rel="stylesheet" type="text/css" href="homepageTimelineStyle.css">

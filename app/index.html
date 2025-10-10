@@ -337,6 +337,19 @@
         <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
         <input id="durationCutoffInput" type="number" value="0.05" min="0" max="1">
       </div>
+      <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</button>
+      <div id="matOptions">
+        <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
+          <label class="h2">BPM</label>
+          <input id="midiBpm" type="range" min="0.001" max="500" step="0.01" value="120">
+          <input id="midiBpmInput" type="number" value="120" min="0.001" max="5000">
+        </div>
+        <div id ="subBeatDiv" class="slider-row" title="Sub beats">
+          <label class="h2">Sub beats</label>
+          <input id="subBeat" type="range" min="1" max="24" step="1" value="8">
+          <input id="subBeatInput" type="number" value="8" min="1" max="24">
+        </div>
+      </div>
       <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
       <!--Export button-->
       <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>
@@ -406,7 +419,9 @@
                    [document.getElementById('bpm'), document.getElementById('bpmInput')],
                    [document.getElementById('a4Pitch'), document.getElementById('a4PitchInput'), true],
                    [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
-                   [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true]];
+                   [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
+                   [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
+                   [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -440,6 +455,10 @@ const alignPitchBtn = document.getElementById("alignPitch");
 const a4PitchDiv = document.getElementById("a4PitchDiv");
 const alignTimeBtn = document.getElementById("alignTime");
 const bpmDiv = document.getElementById("bpmDiv");
+const midiAlignTimeBtn = document.getElementById("midiAlignTime");
+const matOptions = document.getElementById("matOptions");
+const midiBpmDiv = document.getElementById("midiBpmDiv");
+const subBeatDiv = document.getElementById("subBeatDiv");
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {
   process(inputs) {
@@ -512,8 +531,8 @@ let trueScaleVal=false;
 let overlayImage = null;
 let useHz = false;
 let autoPlayOnFinish = true;
-let alignPitch=false;let alignTime=false;
-let subBeat = 1;
+let alignPitch=false;let alignTime=false;midiAlignTime=true;
+let subBeat = 1;mSubBeat=16;midiBpm=120;
 let useVolumeControllers = false;
 
 let startX = null, startY = null;
@@ -618,6 +637,15 @@ sliders[11][1].addEventListener('keydown', (e) => {
     updateEQ();
   }
 });
+sliders[11][0].addEventListener('input', () => {globalGain = parseFloat(sliders[11][0].value); sliders[11][1].value = globalGain; updateEQ();});
+sliders[11][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[11][1].value);const min = parseFloat(sliders[11][0].min);const max = parseFloat(sliders[11][0].max);
+    if (isNaN(val)) val = globalGain;if (val < min) val = min;if (val > max) val = max;sliders[11][1].value = val;sliders[11][0].value = val;globalGain = val;updateEQ();}});
+sliders[12][0].addEventListener('input', () => {midiBpm = parseFloat(sliders[12][0].value); sliders[12][1].value = midiBpm;});
+sliders[12][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[12][1].value);const min = parseFloat(sliders[12][0].min);const max = parseFloat(sliders[12][0].max);
+    if (isNaN(val)) val = midiBpm;if (val < min) val = min;if (val > max) val = max;sliders[12][1].value = val;sliders[12][0].value = val;midiBpm = val;}}); 
+sliders[13][0].addEventListener('input', () => {mSubBeat = parseFloat(sliders[13][0].value); sliders[13][1].value = midiBpm;});
+sliders[13][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[13][1].value);const min = parseFloat(sliders[13][0].min);const max = parseFloat(sliders[13][0].max);
+    if (isNaN(val)) val = mSubBeat;if (val < min) val = min;if (val > max) val = max;sliders[13][1].value = val;sliders[13][0].value = val;mSubBeat = val;}});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -679,6 +707,7 @@ yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisM
 uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--accent-gradient)";});
 alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; a4PitchDiv.style.display=alignPitch?"block":"none";});
 alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
+midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
 overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;

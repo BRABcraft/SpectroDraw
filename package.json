@@ -1,5 +1,18 @@
 {
   "dependencies": {
     "@spotify/basic-pitch": "^1.0.1"
+  },
+  "name": "spectrodraw",
+  "description": "spectrodraw.com",
+  "version": "1.0.0",
+  "main": "homepageTimeline.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.25.10"
   }
 }

@@ -445,6 +445,10 @@ body{
   <audio id="midiAudio" preload="metadata" src="assets/default.mp3"></audio>
 </section>
 <script src="app/fft.js"></script>
+<!-- <script type="module" src="public/bundle.js"></script> -->
+ <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+
+<!-- then load your midi.js (non-module is fine) -->
 <script src="app/midi.js"></script>
 <script>
   let pcm = null, x=0,pos=0,hop=2048,fftSize=8192,framesTotal=0,sampleRate=48000,noiseFloor=-20,a4p=440,npo=12;useVolumeControllers=false;
@@ -596,8 +600,27 @@ body{
   async function startNotesPlayback(){
     try { if(typeof removeHarmonics === 'function') removeHarmonics(); } catch(e){}
 
-    const notes = (typeof getNotes === 'function') ? getNotes() : null;
-    if(!notes || !notes.length){
+    // handle getNotes possibly returning a Promise
+    let notes = null;
+    try {
+      if (typeof getNotes === 'function') {
+        const maybe = getNotes();
+        if (maybe && typeof maybe.then === 'function') {
+          // it's a Promise — await it
+          notes = await maybe;
+        } else {
+          // synchronous array/return
+          notes = maybe;
+        }
+      } else {
+        notes = null;
+      }
+    } catch (err) {
+      console.warn('Error loading notes:', err);
+      notes = null;
+    }
+
+    if(!notes || !Array.isArray(notes) || notes.length === 0){
       uploadNote.textContent = 'No MIDI notes available to play.';
       setTimeout(()=> uploadNote.textContent = '', 2400);
       return;
@@ -605,9 +628,9 @@ body{
 
     if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    // ensure resume on user gesture
+    // ensure resume on user gesture (this handler is triggered by a user click)
     if(audioCtx.state === 'suspended') {
-      await audioCtx.resume();
+      try { await audioCtx.resume(); } catch(e) { console.warn('audioCtx.resume() failed:', e); }
     }
 
     // stop any previous scheduled notes
@@ -833,7 +856,7 @@ body{
     mctx.fillRect(Math.max(0, x - 4), 0, 9, midiCanvas.height);
     mctx.restore();
   }
-  function restartRender(){
+   async function restartRender(){
     if(!pcm) return;
     win = hann(fftSize);
 
@@ -895,7 +918,32 @@ body{
     ctx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
     ctx.putImageData(imageBuffer, 0, 0);
     drawOriginalPlayhead(0);
-    const notes = (typeof getNotes === 'function') ? getNotes() : [];
+
+    // --- FIX: handle possible Promise from getNotes() ---
+    let notes = [];
+    try {
+      if (typeof getNotes === 'function') {
+        const maybe = getNotes();
+        // if getNotes() returned a Promise, await it
+        if (maybe && typeof maybe.then === 'function') {
+          try {
+            notes = await maybe;
+            if (!Array.isArray(notes)) notes = [];
+          } catch (e) {
+            console.warn('await getNotes() failed, falling back to empty notes:', e);
+            notes = [];
+          }
+        } else {
+          // synchronous result
+          notes = maybe || [];
+        }
+      } else {
+        notes = [];
+      }
+    } catch (err) {
+      console.warn('Error obtaining notes, using empty array:', err);
+      notes = [];
+    }
 
     // ---------------------- draw notes to midiCanvas ----------------------
     midiCanvas.width = originalCanvas.width;
@@ -918,7 +966,7 @@ body{
 
     const noteMinHeight = 6;
     const bandHeight = Math.max(noteMinHeight, Math.round(canvasH / Math.min(48, pitchRange + 1) * 0.9));
-
+    // console.log(notes);
     for (const note of notes) {
       const x = Math.round((note.startTime / Math.max(1e-8,totalSeconds)) * canvasW);
       const w = Math.max(1, Math.round((note.lengthSeconds / Math.max(1e-8,totalSeconds)) * canvasW));

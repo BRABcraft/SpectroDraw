@@ -445,14 +445,10 @@ body{
   <audio id="midiAudio" preload="metadata" src="assets/default.mp3"></audio>
 </section>
 <script src="app/fft.js"></script>
-<!-- <script type="module" src="public/bundle.js"></script> -->
- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-
-<!-- then load your midi.js (non-module is fine) -->
+<script>let pcm = null, x=0,pos=0,hop=2048,fftSize=8192,framesTotal=0,sampleRate=48000,noiseFloor=-20,a4p=440,npo=12;useVolumeControllers=false;
+  let dCutoff=0.125;specWidth=468;specHeight=8192;imageBuffer=null;midiSnapshot=null;midiAlignTime=true;mSubBeat=4;midiBpm=124;</script>
 <script src="app/midi.js"></script>
 <script>
-  let pcm = null, x=0,pos=0,hop=2048,fftSize=8192,framesTotal=0,sampleRate=48000,noiseFloor=-20,a4p=440,npo=12;useVolumeControllers=false;
-  let dCutoff=0.125;specWidth=468;specHeight=8192;imageBuffer=null;midiSnapshot=null;midiAlignTime=true;mSubBeat=4;midiBpm=124;
   const ctx = originalCanvas.getContext("2d");
 (function(){
   const MAX_SECONDS = 10.0;
@@ -532,7 +528,7 @@ body{
   let notesProgressInterval = null;
 
   function midiToFreq(m){
-    return 440 * Math.pow(2, (m - 57) / 12);
+    return 440 * Math.pow(2, (m - 69) / 12);
   }
 
   function stopScheduledNotes(){

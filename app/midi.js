@@ -1,71 +1,223 @@
-// ---------- BasicPitch loader (replace original basicPitchReady block) ----------
 let BasicPitchPkg = null;
 let bpInstance = null;
 let tf = null;
+let bpInstancePromise = null;   
+let tfReadyPromise = null;
+// Call this early (on page load or user interaction or requestIdleCallback)
+// modelUrl should be your hosted model.json URL (the same you used before)
+const DEFAULT_MODEL_URL = 'https://cdn.jsdelivr.net/gh/BRABcraft/SpectroDraw@main/node_modules/@spotify/basic-pitch/model/model.json';
+const DEFAULT_IDB_KEY = 'basicpitch-v1';
 
-/**
- * Try to load BasicPitch from multiple possible sources:
- * 1) window.__BASIC_PITCH__ (glue script creates this)
- * 2) window.BasicPitch (older global name)
- * 3) require('@spotify/basic-pitch') (if running in a bundler that supports require)
- * 4) dynamic import('@spotify/basic-pitch') (ESM specifier - works with native ESM-aware bundlers)
- * 5) dynamic import from CDNs (esm.sh, skypack) - works on a plain static site
- * 6) poll for window.__BASIC_PITCH__ for a short time (if another script sets it)
- */
+function createWorkerFromText(workerText) {
+  const blob = new Blob([workerText], { type: 'application/javascript' });
+  const url = URL.createObjectURL(blob);
+  const w = new Worker(url);
+  // revoke object URL when the worker terminates
+  w._blobUrl = url;
+  const origTerminate = w.terminate.bind(w);
+  w.terminate = function() {
+    try { URL.revokeObjectURL(url); } catch (e) {}
+    origTerminate();
+  };
+  return w;
+}
+
+// If you saved the worker to a file, use new Worker('/basicpitch-preload-worker.js')
+// otherwise, inline the worker source string here:
+const BASICPITCH_PRELOAD_WORKER_SRC = `/* worker code from basicpitch-preload-worker.js (same as saved file) */
+${(() => {/* placeholder */}).toString()}`;
+const worker = createWorkerFromText(BASICPITCH_PRELOAD_WORKER_SRC);
+
+worker.postMessage({ 
+  type: 'init', 
+  BasicPitchPkgImport: 'https://esm.sh/@spotify/basic-pitch' 
+});
+
+worker.onmessage = (e) => {
+  const msg = e.data;
+  if (msg.type === 'ready') {
+    console.log('BasicPitch worker ready');
+  }
+  if (msg.type === 'notes') {
+    console.log('Received notes from worker', msg.notes);
+    // optionally: call your existing handler here
+  }
+  if (msg.type === 'error') {
+    console.error('BasicPitch worker error:', msg.detail);
+  }
+};
+
+// Convenience function to send PCM to worker
+function analyzePCM(pcmFloat32, sampleRate, hop = 512) {
+  worker.postMessage({ 
+    type: 'processAudio', 
+    pcmFloat32, 
+    sampleRate, 
+    hopSamples: hop 
+  });
+}
+
+// --- simpler: create worker from URL (recommended if you can host the worker file) ---
+async function preloadBasicPitchModelInWorker(modelUrl = DEFAULT_MODEL_URL, idbKey = DEFAULT_IDB_KEY, opts = {}) {
+  // opts.workerUrl: optional - if set, uses that URL instead of inlining
+  return new Promise((resolve, reject) => {
+    let worker;
+    if (opts.workerUrl) {
+      worker = new Worker(opts.workerUrl);
+    } else {
+      // inline worker: generate text from the worker file contents
+      // For brevity in this snippet, we'll fetch the worker file via network if provided in opts.workerFetchUrl
+      if (opts.workerFetchUrl) {
+        // load worker script text from given URL then create worker
+        fetch(opts.workerFetchUrl).then(r => r.text()).then(text => {
+          worker = createWorkerFromText(text);
+          start(worker);
+        }).catch(err => reject(err));
+        return;
+      } else {
+        // If you didn't host the worker file, create worker from the string provided below.
+        // NOTE: to keep this snippet concise, I'm embedding the same worker code inline:
+        const workerCode = `// inlined worker (same code as basicpitch-preload-worker.js)
+self.addEventListener('message', async (ev) => {
+  const msg = ev.data || {};
+  if (msg && msg.type === 'preload') {
+    const modelUrl = msg.modelUrl;
+    const idbKey = msg.idbKey || 'basicpitch-v1';
+    if (!modelUrl) { self.postMessage({ type: 'status', status: 'error', detail: 'no modelUrl supplied' }); return; }
+    try {
+      if (typeof self.tf === 'undefined') {
+        try { importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js'); } catch (e) { self.postMessage({ type: 'status', status: 'error', detail: 'importScripts(tfjs) failed: ' + String(e) }); return; }
+      }
+      if (typeof self.tf === 'undefined') { self.postMessage({ type: 'status', status: 'error', detail: 'tf not available after importScripts' }); return; }
+      try {
+        const mdl = await self.tf.loadGraphModel('indexeddb://' + idbKey);
+        self.postMessage({ type: 'status', status: 'already', detail: 'model already in indexeddb', idbKey });
+        if (mdl && typeof mdl.dispose === 'function') mdl.dispose();
+        return;
+      } catch (eAlready) {}
+      self.postMessage({ type: 'status', status: 'loading', detail: 'loading modelUrl ' + modelUrl });
+      const graphModel = await self.tf.loadGraphModel(modelUrl);
+      try {
+        await graphModel.save('indexeddb://' + idbKey);
+        self.postMessage({ type: 'status', status: 'saved', detail: 'model saved to indexeddb://' + idbKey, idbKey });
+      } catch (saveErr) {
+        self.postMessage({ type: 'status', status: 'error', detail: 'save to indexeddb failed: ' + String(saveErr) });
+      } finally {
+        if (graphModel && typeof graphModel.dispose === 'function') graphModel.dispose();
+      }
+    } catch (err) {
+      self.postMessage({ type: 'status', status: 'error', detail: String(err && err.message ? err.message : err) });
+    }
+  }
+});`;
+        worker = createWorkerFromText(workerCode);
+      }
+    }
+
+    function start(w) {
+      const timeout = setTimeout(() => {
+        // in case worker hangs, reject after some time
+        // but don't automatically terminate (caller can choose)
+      }, opts.timeout || 60_000);
+
+      const cleanup = (res, err) => {
+        try { w.removeEventListener('message', onMsg); } catch (e) {}
+        try { w.terminate(); } catch (e) {}
+        clearTimeout(timeout);
+        if (err) reject(err); else resolve(res);
+      };
+
+      function onMsg(e) {
+        const data = e.data || {};
+        if (data && data.type === 'status') {
+          if (data.status === 'already') {
+            cleanup({ status: 'already', idbKey, detail: data.detail }, null);
+          } else if (data.status === 'saved') {
+            cleanup({ status: 'saved', idbKey, detail: data.detail }, null);
+          } else if (data.status === 'error') {
+            cleanup(null, new Error(data.detail || 'worker error'));
+          } else if (data.status === 'loading') {
+            // you can surface progress if you want. ignore for final resolution
+            console.log('worker:', data.detail || 'loading');
+          }
+        }
+      }
+      w.addEventListener('message', onMsg);
+      w.postMessage({ type: 'preload', modelUrl, idbKey });
+    }
+
+    // if worker created from URL - start immediately
+    if (worker && typeof worker.postMessage === 'function') start(worker);
+  });
+}
+
+// Small convenience to query whether model is already in indexeddb (uses tf in main thread)
+async function isModelInIndexedDB(idbKey = DEFAULT_IDB_KEY) {
+  // load tf on demand on main thread to check
+  if (typeof window === 'undefined') return false;
+  if (typeof window.tf === 'undefined') {
+    // load tfjs on main thread via script tag - non-blocking but necessary for tf.loadGraphModel
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js';
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Failed to load main-thread tfjs'));
+      document.head.appendChild(s);
+    }).catch(() => { return false; });
+    if (typeof window.tf === 'undefined') return false;
+  }
+  try {
+    const mdl = await window.tf.loadGraphModel('indexeddb://' + idbKey);
+    if (mdl && typeof mdl.dispose === 'function') mdl.dispose();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function yieldToUI(frames = 1) {
+  for (let i = 0; i < frames; i++) {
+    await new Promise(r => requestAnimationFrame(r));
+  }
+}
 let basicPitchReady = (async function loadBasicPitch() {
   if (BasicPitchPkg !== null) return BasicPitchPkg;
-  // quick helper
-  function setAndLog(pkg, source) {
+  const setAndLog = (pkg, source) => {
     BasicPitchPkg = pkg && pkg.__esModule ? (pkg.default || pkg) : (pkg || null);
     if (BasicPitchPkg) console.log(`BasicPitch: loaded from ${source}`, !!BasicPitchPkg);
     return BasicPitchPkg;
+  };
+  if (typeof window !== 'undefined') {
+    if (window.__BASIC_PITCH__) return setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__');
+    if (window.BasicPitch) return setAndLog(window.BasicPitch, 'window.BasicPitch');
   }
-
-  // 0) If running in browser, check commonly used globals (glue script)
-  try {
-    if (typeof window !== 'undefined') {
-      if (window.__BASIC_PITCH__) return setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__');
-      if (window.BasicPitch) return setAndLog(window.BasicPitch, 'window.BasicPitch');
+  if (typeof require === 'function') {
+    try {
+      console.log('BasicPitch: trying require()');
+      const mod = require('@spotify/basic-pitch');
+      if (mod) return setAndLog(mod, 'require()');
+    } catch (err) {
+      console.warn('BasicPitch: require() failed:', err && err.message);
     }
-  } catch (e) {}
-
-  // 1) Try CommonJS require (bundlers / electron-like envs)
-  try {
-    if (typeof require === 'function') {
-      try {
-        console.log('BasicPitch: trying require()');
-        const mod = require('@spotify/basic-pitch');
-        return setAndLog(mod, 'require()');
-      } catch (err) {
-        console.warn('BasicPitch: require() failed:', err && err.message);
-      }
-    }
-  } catch (err) {
-    console.warn('BasicPitch: require check threw:', err && err.message);
   }
-
-  // 2) Try dynamic import with plain specifier (works with bundlers/native ESM when server/resolver supports it)
-  try {
-    if (typeof window !== 'undefined') {
+  await yieldToUI();
+  if (typeof window !== 'undefined') {
+    try {
       console.log('BasicPitch: trying dynamic import("@spotify/basic-pitch")');
-      try {
-        const imported = await import('@spotify/basic-pitch');
-        if (imported) return setAndLog(imported, 'dynamic import(@spotify/basic-pitch)');
-      } catch (err) {
-        console.warn('BasicPitch: dynamic import(@spotify/basic-pitch) failed:', err && err.message);
-      }
+      const imported = await import('@spotify/basic-pitch');
+      if (imported) return setAndLog(imported, 'dynamic import(@spotify/basic-pitch)');
+    } catch (err) {
+      console.warn('BasicPitch: dynamic import(@spotify/basic-pitch) failed:', err && err.message);
     }
-  } catch (err) {
-    console.warn('BasicPitch: dynamic import threw:', err && err.message);
   }
-
-  // 3) Try a few ESM CDN fallbacks (useful for pure static sites)
   const cdnCandidates = [
     'https://esm.sh/@spotify/basic-pitch',
     'https://cdn.skypack.dev/@spotify/basic-pitch',
-    'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch' // may or may not expose ESM shape
+    'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch'
   ];
   for (const url of cdnCandidates) {
+    await yieldToUI(); 
     try {
       console.log('BasicPitch: trying CDN import()', url);
       const imported = await import(url);
@@ -74,66 +226,40 @@ let basicPitchReady = (async function loadBasicPitch() {
       console.warn(`BasicPitch: CDN import failed (${url}):`, err && err.message);
     }
   }
-
-  // 4) Poll for a global set by a glue script (some pages set window.__BASIC_PITCH__ asynchronously)
   if (typeof window !== 'undefined') {
-    const waitMs = 3000; // total time to wait
-    const intervalMs = 120;
-    const maxTries = Math.ceil(waitMs / intervalMs);
+    const waitMs = 3000, intervalMs = 120, maxTries = Math.ceil(waitMs / intervalMs);
     for (let i = 0; i < maxTries; i++) {
-      if (window.__BASIC_PITCH__) {
-        return setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__ (polled)');
-      }
-      if (window.BasicPitch) {
-        return setAndLog(window.BasicPitch, 'window.BasicPitch (polled)');
-      }
-      // small delay
+      if (window.__BASIC_PITCH__) return setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__ (polled)');
+      if (window.BasicPitch) return setAndLog(window.BasicPitch, 'window.BasicPitch (polled)');
       await new Promise(r => setTimeout(r, intervalMs));
     }
   }
-
   console.warn('BasicPitch: not available — will use legacy pipeline.');
   return null;
 })();
-
-
-// ---------------------- helper functions ----------------------
-function dbToMag(db) {
-  return Math.pow(10, db / 20);
-}
-function complexMag(re, im) {
-  return Math.hypot(re || 0, im || 0);
-}
-
-// convert pcm Float32Array -> AudioBuffer (uses OfflineAudioContext when available)
+const dbToMag = db => Math.pow(10, db / 20);
+const complexMag = (re, im) => Math.hypot(re || 0, im || 0);
 function pcmToAudioBuffer(pcmFloat32, sampleRate) {
   const length = pcmFloat32.length;
-  try {
-    const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, length, sampleRate);
-    const buffer = ctx.createBuffer(1, length, sampleRate);
-    buffer.getChannelData(0).set(pcmFloat32);
-    return buffer;
-  } catch (e) {
-    // fallback to regular AudioContext (may require user gesture)
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) throw e;
-    const actx = new AC();
-    const buffer = actx.createBuffer(1, length, sampleRate);
-    buffer.getChannelData(0).set(pcmFloat32);
-    return buffer;
+  if (typeof window === 'undefined') throw new Error('No window available to create AudioBuffer');
+  const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (OfflineCtx) {
+    try {
+      const ctx = new OfflineCtx(1, length, sampleRate);
+      const buffer = ctx.createBuffer(1, length, sampleRate);
+      buffer.getChannelData(0).set(pcmFloat32);
+      return buffer;
+    } catch (err) {
+      console.warn('pcmToAudioBuffer: OfflineAudioContext creation failed, falling back to AudioContext:', err && err.message);
+    }
   }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error('No AudioContext available');
+  const actx = new AC();
+  const buffer = actx.createBuffer(1, length, sampleRate);
+  buffer.getChannelData(0).set(pcmFloat32);
+  return buffer;
 }
-// Resample helpers ---------------------------------------------------------
-
-/**
- * Resample Float32Array pcm to target sample rate using OfflineAudioContext if available,
- * otherwise fall back to a simple linear-interpolation resampler.
- *
- * @param {Float32Array} pcm - mono PCM [-1..1]
- * @param {number} srcRate - original sample rate (e.g. 48000)
- * @param {number} targetRate - desired sample rate (e.g. 22050)
- * @returns {Promise<{pcm: Float32Array, sampleRate: number}>}
- */
 async function resampleToTargetSampleRate(pcm, srcRate, targetRate) {
   if (!pcm || !(pcm instanceof Float32Array) || pcm.length === 0) {
     return { pcm: new Float32Array(0), sampleRate: targetRate };
@@ -141,135 +267,142 @@ async function resampleToTargetSampleRate(pcm, srcRate, targetRate) {
   if (!isFinite(srcRate) || !isFinite(targetRate) || srcRate <= 0 || targetRate <= 0) {
     throw new Error('Invalid sample rates for resampling');
   }
-  if (Math.round(srcRate) === Math.round(targetRate)) {
-    // no resampling needed
-    return { pcm, sampleRate: srcRate };
-  }
-
-  // Try OfflineAudioContext resampling first (higher quality)
-  try {
-    if (typeof window !== 'undefined' && (window.OfflineAudioContext || window.webkitOfflineAudioContext)) {
-      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-
-      // Create an AudioBuffer with the source sample rate
-      // Use the AudioBuffer constructor (widely supported) or fallback to OfflineAudioContext.createBuffer
-      let srcBuffer;
+  if (Math.round(srcRate) === Math.round(targetRate)) return { pcm, sampleRate: srcRate };
+  if (typeof window !== 'undefined') {
+    const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (OfflineCtx) {
       try {
-        srcBuffer = new AudioBuffer({ length: pcm.length, numberOfChannels: 1, sampleRate: srcRate });
+        let srcBuffer;
+        try {
+          srcBuffer = new AudioBuffer({ length: pcm.length, numberOfChannels: 1, sampleRate: srcRate });
+        } catch (e) {
+          const tmp = new OfflineCtx(1, pcm.length, srcRate);
+          srcBuffer = tmp.createBuffer(1, pcm.length, srcRate);
+        }
         srcBuffer.getChannelData(0).set(pcm);
-      } catch (e) {
-        // Safari older engines may not allow AudioBuffer ctor; use OfflineAudioContext to create buffer instead
-        const tmpCtx = new OfflineCtx(1, pcm.length, srcRate);
-        srcBuffer = tmpCtx.createBuffer(1, pcm.length, srcRate);
-        srcBuffer.getChannelData(0).set(pcm);
+        const targetLen = Math.ceil(srcBuffer.duration * targetRate);
+        const offline = new OfflineCtx(1, targetLen, targetRate);
+        const src = offline.createBufferSource();
+        src.buffer = srcBuffer;
+        src.connect(offline.destination);
+        src.start(0);
+        const rendered = await offline.startRendering();
+        const out = new Float32Array(rendered.length);
+        out.set(rendered.getChannelData(0));
+        return { pcm: out, sampleRate: targetRate };
+      } catch (err) {
+        console.warn('resampleToTargetSampleRate: OfflineAudioContext resample failed, falling back to linear resampler:', err && err.message);
       }
-
-      // Create an OfflineAudioContext at the target rate with appropriate length
-      const targetLen = Math.ceil(srcBuffer.duration * targetRate);
-      const offline = new OfflineCtx(1, targetLen, targetRate);
-
-      const src = offline.createBufferSource();
-      src.buffer = srcBuffer;
-      src.connect(offline.destination);
-      src.start(0);
-
-      const rendered = await offline.startRendering(); // Promise<AudioBuffer>
-      const out = new Float32Array(rendered.length);
-      out.set(rendered.getChannelData(0));
-      return { pcm: out, sampleRate: targetRate };
     }
-  } catch (err) {
-    console.warn('resampleToTargetSampleRate: OfflineAudioContext resample failed, falling back to linear resampler:', err && err.message);
-    // fall through to linear
   }
-
-  // Linear interpolation resampler (fast, OK quality)
-  function linearResample(input, inRate, outRate) {
+  async function linearResampleChunked(input, inRate, outRate, chunkSize = 64 * 1024) {
     const ratio = inRate / outRate;
     const outLen = Math.max(1, Math.round(input.length / ratio));
     const out = new Float32Array(outLen);
-    for (let i = 0; i < outLen; i++) {
-      const idx = i * ratio;
-      const i0 = Math.floor(idx);
-      const i1 = Math.min(input.length - 1, i0 + 1);
-      const frac = idx - i0;
-      out[i] = input[i0] * (1 - frac) + input[i1] * frac;
+    const chunkCount = Math.ceil(outLen / chunkSize);
+    for (let chunk = 0; chunk < chunkCount; chunk++) {
+      const start = chunk * chunkSize;
+      const end = Math.min(outLen, start + chunkSize);
+      for (let i = start; i < end; i++) {
+        const idx = i * ratio;
+        const i0 = Math.floor(idx);
+        const i1 = Math.min(input.length - 1, i0 + 1);
+        const frac = idx - i0;
+        out[i] = input[i0] * (1 - frac) + input[i1] * frac;
+      }
+      await yieldToUI();
     }
     return out;
   }
-
   try {
-    const out = linearResample(pcm, srcRate, targetRate);
+    const out = await linearResampleChunked(pcm, srcRate, targetRate);
     return { pcm: out, sampleRate: targetRate };
   } catch (err) {
     console.warn('resampleToTargetSampleRate: linear resampling failed:', err && err.message);
-    // return empty on catastrophic failure
     return { pcm: new Float32Array(0), sampleRate: targetRate };
   }
 }
-
-
-// ---------------------- BasicPitch runner (best-effort across API shapes) ----------------------
+async function ensureTF() {
+  if (tf) return tf;
+  if (tfReadyPromise) return tfReadyPromise;
+  tfReadyPromise = (async () => {
+    const TF_KERNEL_ALREADY_REGISTERED_RE = /The kernel .* for backend .* is already registered/i;
+    const origWarn = console.warn;
+    console.warn = (...args) => {
+      try {
+        const first = args.length ? (typeof args[0] === 'string' ? args[0] : String(args[0])) : '';
+        if (TF_KERNEL_ALREADY_REGISTERED_RE.test(first)) return;
+      } catch (e) {}
+      return origWarn.apply(console, args);
+    };
+    if (BasicPitchPkg && BasicPitchPkg.tf) {
+      if (typeof window !== 'undefined') window.tf = BasicPitchPkg.tf;
+      tf = BasicPitchPkg.tf;
+      console.log('ensureTF: detected tf exposed on BasicPitchPkg');
+      console.warn = origWarn;
+      return tf;
+    }
+    if (typeof window !== 'undefined' && window.tf) {
+      tf = window.tf;
+      console.log('ensureTF: tf already present on window');
+      console.warn = origWarn;
+      return tf;
+    }
+    await yieldToUI();
+    const CDN = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js';
+    const timeoutMs = 5000;
+    const pollInterval = 100;
+    if (typeof window !== 'undefined') {
+      if (!window.__TFJS_INJECTED_ONCE__) window.__TFJS_INJECTED_ONCE__ = false;
+    }
+    const alreadyScript = typeof document !== 'undefined' && Array.from(document.scripts).some(s =>
+      !!(s.src && (s.src.includes('tensorflow') || s.src.includes('tfjs')))
+    );
+    if (!alreadyScript && !(typeof window !== 'undefined' && window.__TFJS_INJECTED_ONCE__)) {
+      if (typeof window !== 'undefined') window.__TFJS_INJECTED_ONCE__ = true;
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = CDN;
+        s.async = true;
+        s.crossOrigin = 'anonymous';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Failed to load tfjs from CDN: ' + CDN));
+        document.head.appendChild(s);
+      }).catch(e => console.warn('ensureTF: failed to append tf script:', e && e.message));
+    } else {
+      console.log('ensureTF: tf script present or flagged; waiting for global tf');
+    }
+    const start = performance.now();
+    await new Promise((resolve, reject) => {
+      (function poll() {
+        if (typeof window !== 'undefined' && window.tf) { tf = window.tf; return resolve(); }
+        if ((performance.now() - start) > timeoutMs) return reject(new Error('tfjs did not appear within timeout (' + timeoutMs + 'ms).'));
+        setTimeout(poll, pollInterval);
+      })();
+    }).catch(e => { console.warn('ensureTF: poll failed:', e && e.message); });
+    await yieldToUI();
+    if (typeof window !== 'undefined' && window.tf) {
+      tf = window.tf;
+      if (typeof tf.ready === 'function') await tf.ready().catch(()=>{});
+    }
+    console.warn = origWarn;
+    console.log('ensureTF: tf assigned and ready (if supported)');
+    return tf;
+  })();
+  return tfReadyPromise;
+}
 async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples }) {
   if (!BasicPitchPkg) throw new Error('BasicPitch package not found');
-
-  // small inspector
-  const inspect = obj => {
-    try { return obj && typeof obj === 'object' ? Object.keys(obj).slice(0, 20) : typeof obj; } catch (e) { return typeof obj; }
-  };
-
-  // Ensure tf is available BEFORE instantiating the model (BasicPitch often expects tf global present)
-  async function ensureTF() {
-    if (typeof window !== 'undefined' && typeof window.tf !== 'undefined') {
-      // already present globally
-      console.log('tf already present on window');
-      return;
-    }
-    if (typeof tf !== 'undefined') {
-      console.log('tf already present in scope');
-      return;
-    }
-    // load CDN only if not present
-    try {
-      await new Promise((resolve, reject) => {
-        // do not inject if script already present in DOM
-        const exists = Array.from(document.scripts).some(s => s.src && s.src.includes('tensorflow'));
-        if (exists) return resolve();
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js';
-        s.async = true;
-        s.onload = () => {
-          // make sure global available
-          if (typeof window !== 'undefined' && window.tf) resolve();
-          else resolve(); // still resolve, we'll be defensive later
-        };
-        s.onerror = () => reject(new Error('Failed to load tfjs from CDN'));
-        document.head.appendChild(s);
-      });
-      console.log('ensureTF: tfjs loaded or present.');
-    } catch (e) {
-      console.warn('ensureTF: failed to load tfjs automatically; BasicPitch may fail if tf is required.', e && e.message);
-    }
-  }
-
-  // Resolve possible exported shapes
+  const inspect = obj => (obj && typeof obj === 'object') ? Object.keys(obj).slice(0,20) : typeof obj;
   const BProot = BasicPitchPkg && BasicPitchPkg.default ? BasicPitchPkg.default : BasicPitchPkg;
   console.log('BasicPitchPkg summary:', inspect(BasicPitchPkg));
   console.log('Resolved BP root summary:', inspect(BProot));
-
-  // decide candidate class/factory
   let BasicPitchClass = null;
   if (BProot && typeof BProot === 'object' && typeof BProot.BasicPitch === 'function') {
     BasicPitchClass = BProot.BasicPitch;
-    console.log('Using BProot.BasicPitch as class/factory.');
   } else if (typeof BProot === 'function') {
     BasicPitchClass = BProot;
-    console.log('Using BProot (callable) as class/factory.');
-  } else {
-    console.log('BProot does not expose a class; will try using helpers if present.', inspect(BProot));
   }
-
-  // Validate inputs
   if (!pcmFloat32 || !(pcmFloat32 instanceof Float32Array) || pcmFloat32.length === 0) {
     console.warn('BasicPitch runner: pcmFloat32 invalid/empty; returning []');
     return [];
@@ -278,96 +411,94 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
     console.warn('BasicPitch runner: invalid sampleRate', sampleRate);
     return [];
   }
-  hopSamples = hopSamples || (typeof hop === 'number' ? hop : 512);
-
-  // ensure TF before instantiating
+  const hop = hopSamples || 512;
   await ensureTF();
-
-  // Instantiate / load bpInstance
+  if (typeof window !== 'undefined' && window.tf) {
+    tf = window.tf;
+    if (typeof tf.ready === 'function') await tf.ready().catch(()=>{});
+  }
+  const tfRef = tf || (typeof window !== 'undefined' ? window.tf : null);
   if (!bpInstance) {
-    try {
-      if (BasicPitchClass && typeof BasicPitchClass.create === 'function') {
-        console.log('BasicPitch: calling BasicPitchClass.create()');
-        bpInstance = await BasicPitchClass.create();
-        console.log('BasicPitch: created via BasicPitchClass.create()');
-      } else if (BasicPitchClass && typeof BasicPitchClass === 'function') {
-        try {
-          console.log('BasicPitch: attempting new BasicPitchClass()');
-          bpInstance = new BasicPitchClass();
-          console.log('BasicPitch: bpInstance assigned from new BasicPitchClass()');
-        } catch (errNew) {
-          console.warn('BasicPitch: new BasicPitchClass() failed:', errNew && errNew.message);
-          // try static create on the constructor if available
-          if (typeof BasicPitchClass.create === 'function') {
-            bpInstance = await BasicPitchClass.create();
-            console.log('BasicPitch: bpInstance created via BasicPitchClass.create() fallback');
-          } else if (BProot && typeof BProot.create === 'function') {
-            bpInstance = await BProot.create();
-            console.log('BasicPitch: bpInstance created via BProot.create() fallback');
-          } else {
-            // fallback to using the object directly
-            bpInstance = BProot;
-            console.log('BasicPitch: fallback - using BProot as instance');
+    if (bpInstancePromise) {
+      bpInstance = await bpInstancePromise;
+    } else {
+      bpInstancePromise = (async () => {
+        const MODEL_JSON_URL = 'https://cdn.jsdelivr.net/gh/BRABcraft/SpectroDraw@main/node_modules/@spotify/basic-pitch/model/model.json';
+        const tryCreateWithUrl = async (cls, url) => {
+          if (!cls || typeof cls.create !== 'function') return null;
+          console.log('BasicPitch: attempting class.create({ modelUrl }) ...');
+          try {
+            return await cls.create({ modelUrl: url });
+          } catch (e) {
+            console.warn('BasicPitch: create({modelUrl}) failed:', e && e.message);
+            return null;
+          }
+        };
+        if (BasicPitchClass) {
+          await yieldToUI(); 
+          bpInstance = await tryCreateWithUrl(BasicPitchClass, MODEL_JSON_URL);
+        }
+        if (!bpInstance) {
+          if (!tfRef) throw new Error('tfjs not available; cannot load TF model');
+          await yieldToUI();
+
+          let loadedModel;
+          try {
+            loadedModel = await tfRef.loadGraphModel('indexeddb://basicpitch-v1');
+            console.log('Loaded BasicPitch model from IndexedDB');
+          } catch (err) {
+            console.warn('Failed to load model from IndexedDB, loading from network...', err);
+            loadedModel = await tfRef.loadGraphModel(MODEL_JSON_URL);
+            try { await loadedModel.save('indexeddb://basicpitch-v1'); } catch(e){console.warn('Saving model to IndexedDB failed', e);}
+          }
+
+          if (BasicPitchClass && typeof BasicPitchClass === 'function') {
+            try {
+              bpInstance = new BasicPitchClass(loadedModel);
+            } catch(e) {
+              console.warn('BasicPitchClass creation failed', e);
+              if (typeof BProot === 'function') bpInstance = BProot(loadedModel);
+            }
           }
         }
-      } else if (BProot && typeof BProot.create === 'function') {
-        bpInstance = await BProot.create();
-        console.log('BasicPitch: bpInstance created via BProot.create()');
-      } else {
-        bpInstance = BProot;
-        console.log('BasicPitch: no class detected, using BProot directly as instance');
+        if (!bpInstance && BProot) bpInstance = BProot;
+        if (!bpInstance) throw new Error('Failed to produce a BasicPitch instance');
+        return bpInstance;
+      })();
+      try {
+        bpInstance = await bpInstancePromise;
+      } finally {
+        bpInstancePromise = null;
       }
-    } catch (err) {
-      console.warn('BasicPitch: Failed to instantiate BasicPitch:', err && err.message);
-      throw new Error('Failed to instantiate BasicPitch: ' + (err && err.message));
     }
-  } else {
-    console.log('BasicPitch: using existing bpInstance', inspect(bpInstance));
   }
-
-  // If bpInstance exists but internal model seems missing, try common init methods
   async function initializeIfNeeded(instance) {
-    try {
-      if (!instance) return;
-      // If instance has .model property and it's defined, assume ready
-      if (instance.model) return;
-      const initNames = ['create', 'load', 'init', 'prepare', 'initialize', 'setup'];
-      for (const name of initNames) {
-        if (typeof instance[name] === 'function') {
-          console.log(`BasicPitch: attempting instance.${name}() to initialize model...`);
-          const res = instance[name]();
-          const awaited = res instanceof Promise ? await res : res;
-          if (awaited && awaited !== instance && typeof awaited === 'object') {
-            bpInstance = awaited;
-            instance = bpInstance;
-            console.log('BasicPitch: instance init returned new instance; replaced bpInstance');
-          }
-          // once called, break out — don't call multiple init funcs
-          return;
+    if (!instance) return;
+    if (instance.model) return;
+    const initNames = ['create', 'load', 'init', 'prepare', 'initialize', 'setup'];
+    for (const name of initNames) {
+      if (typeof instance[name] === 'function') {
+        console.log(`BasicPitch: attempting instance.${name}() to initialize model...`);
+        const res = instance[name]();
+        const awaited = res instanceof Promise ? await res : res;
+        if (awaited && awaited !== instance && typeof awaited === 'object') {
+          bpInstance = awaited;
+          instance = bpInstance;
+          console.log('BasicPitch: instance init returned new instance; replaced bpInstance');
         }
+        return;
       }
-    } catch (e) {
-      console.warn('BasicPitch: instance initialization attempt failed:', e && e.message);
     }
   }
-
   await initializeIfNeeded(bpInstance);
-
-  // Ensure sampleRate BasicPitch expects 22050
   const BP_REQUIRED_SR = 22050;
   if (Math.round(sampleRate) !== BP_REQUIRED_SR) {
-    try {
-      console.log(`Resampling from ${sampleRate} -> ${BP_REQUIRED_SR}...`);
-      const res = await resampleToTargetSampleRate(pcmFloat32, sampleRate, BP_REQUIRED_SR);
-      pcmFloat32 = res.pcm;
-      sampleRate = res.sampleRate;
-      console.log('Resampling done, new length:', pcmFloat32.length, 'new sampleRate:', sampleRate);
-    } catch (err) {
-      console.warn('Resample to 22050 failed, continuing with original sampleRate:', err && err.message);
-    }
+    console.log(`Resampling from ${sampleRate} -> ${BP_REQUIRED_SR}...`);
+    const res = await resampleToTargetSampleRate(pcmFloat32, sampleRate, BP_REQUIRED_SR);
+    pcmFloat32 = res.pcm;
+    sampleRate = res.sampleRate;
+    console.log('Resampling done, new length:', pcmFloat32.length, 'new sampleRate:', sampleRate);
   }
-
-  // Convert to AudioBuffer
   let audioBuffer;
   try {
     audioBuffer = pcmToAudioBuffer(pcmFloat32, sampleRate);
@@ -376,12 +507,9 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
     console.warn('BasicPitch runner: pcmToAudioBuffer failed:', err && err.message);
     return [];
   }
-
-  // attempt to call model APIs; if we hit "execute undefined" style errors, try one init + retry
   const frames = [], onsets = [], contours = [];
   let rawResult = null;
-
-  async function callModel() {
+  const callModel = async () => {
     if (bpInstance && typeof bpInstance.evaluateModel === 'function') {
       await bpInstance.evaluateModel(audioBuffer,
         (fChunk, oChunk, cChunk) => {
@@ -392,213 +520,172 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
         (_progress) => {}
       );
       rawResult = { frames, onsets, contours };
-      console.log('BasicPitch: evaluateModel produced lengths', frames.length, onsets.length, contours.length);
       return;
     }
     if (bpInstance && typeof bpInstance.transcribe === 'function') {
       rawResult = await bpInstance.transcribe(audioBuffer);
-      console.log('BasicPitch: transcribe returned keys', rawResult && Object.keys(rawResult||{}));
       return;
     }
     if (bpInstance && typeof bpInstance.predict === 'function') {
       rawResult = await bpInstance.predict(audioBuffer);
-      console.log('BasicPitch: predict returned keys', rawResult && Object.keys(rawResult||{}));
       return;
     }
     if (typeof BProot === 'function') {
-      try {
-        rawResult = await BProot(audioBuffer);
-        console.log('BasicPitch: BProot(audioBuffer) returned keys', rawResult && Object.keys(rawResult||{}));
-        return;
-      } catch (e) {
+      rawResult = await BProot(audioBuffer).catch(e => {
         console.warn('BasicPitch: BProot(audioBuffer) threw', e && e.message);
-      }
+        return null;
+      });
+      return;
     }
     console.log('BasicPitch: no model API found on bpInstance; keys:', inspect(bpInstance));
-  }
-
-  // First try
+  };
   try {
     await callModel();
   } catch (err) {
     console.warn('BasicPitch runner: model call threw:', err && err.message);
-    // if appears uninitialized (common error 'execute' or 'model undefined'), attempt instance initialization then retry once
-    const msg = (err && err.message) ? err.message.toLowerCase() : '';
-    console.log(bpInstance);
-    const likelyUninitialized = msg.includes('execute') || msg.includes('model') || msg.includes('undefined');
-    if (likelyUninitialized) {
-      console.log('BasicPitch runner: model appears uninitialized — trying instance init then retrying once.');
-      await initializeIfNeeded(bpInstance);
-      try {
-        await callModel();
-      } catch (err2) {
-        console.warn('BasicPitch runner: retry after initialization failed:', err2 && err2.message);
-      }
-    }
+    await initializeIfNeeded(bpInstance);
+    try { await callModel(); } catch (err2) { console.warn('BasicPitch runner: retry after initialization failed:', err2 && err2.message); }
   }
-
-  // If returned notes directly
   if (rawResult && Array.isArray(rawResult.notes) && rawResult.notes.length) {
     return rawResult.notes.map(normalizeNoteFromModel);
   }
-
   const framesFromRaw = rawResult && rawResult.frames ? rawResult.frames : frames;
   const onsetsFromRaw = rawResult && rawResult.onsets ? rawResult.onsets : onsets;
   const contoursFromRaw = rawResult && rawResult.contours ? rawResult.contours : contours;
-
-  // Try helpers pipeline if present
   const helpers = BasicPitchPkg || {};
-  const outToNotes = (helpers && (helpers.outputToNotesPoly || helpers.output_to_notes_poly)) || (bpInstance && bpInstance.outputToNotesPoly) || null;
-  const addBends = (helpers && (helpers.addPitchBendsToNoteEvents || helpers.add_pitch_bends_to_note_events)) || (bpInstance && bpInstance.addPitchBendsToNoteEvents) || null;
-  const framesToTime = (helpers && (helpers.noteFramesToTime || helpers.note_frames_to_time)) || (bpInstance && bpInstance.noteFramesToTime) || null;
-
-  if (outToNotes && addBends && framesToTime && framesFromRaw && framesFromRaw.length) {
+  const outToNotes =
+    (helpers && (helpers.outputToNotesPoly || helpers.output_to_notes_poly)) ||
+    (bpInstance && bpInstance.outputToNotesPoly) ||
+    null;
+  const addBends =
+    (helpers && (helpers.addPitchBendsToNoteEvents || helpers.add_pitch_bends_to_note_events)) ||
+    (bpInstance && bpInstance.addPitchBendsToNoteEvents) ||
+    null;
+  const framesToTime =
+    (helpers && (helpers.noteFramesToTime || helpers.note_frames_to_time)) ||
+    (bpInstance && bpInstance.noteFramesToTime) ||
+    null;
+  if (outToNotes && framesFromRaw && framesFromRaw.length) {
     try {
-      const polyNotesFrames = outToNotes(framesFromRaw, onsetsFromRaw || [], 0.25, 0.25, 8);
-      const notesWithBends = addBends(contoursFromRaw || [], polyNotesFrames);
-      const notesTimed = framesToTime(notesWithBends);
-      return Array.isArray(notesTimed) ? notesTimed.map(normalizeNoteFromModel) : [];
+      let polyNotes = outToNotes(framesFromRaw, onsetsFromRaw || [], 0.5, 0.3, 5);
+      if (addBends && contoursFromRaw) {
+        try { polyNotes = addBends(contoursFromRaw, polyNotes); } catch (e) { console.warn('BasicPitch: addPitchBendsToNoteEvents failed:', e && e.message); }
+      }
+      let timedNotes;
+      if (framesToTime) {
+        timedNotes = framesToTime(polyNotes);
+      } else {
+        const FFT_HOP = 256;
+        const AUDIO_SAMPLE_RATE = 22050;
+        const ANNOTATIONS_FPS = Math.floor(AUDIO_SAMPLE_RATE / FFT_HOP);
+        const ANNOT_N_FRAMES = ANNOTATIONS_FPS * 2; 
+        const AUDIO_N_SAMPLES = AUDIO_SAMPLE_RATE * 2 - FFT_HOP;
+        const WINDOW_OFFSET = (FFT_HOP / AUDIO_SAMPLE_RATE) * (ANNOT_N_FRAMES - AUDIO_N_SAMPLES / FFT_HOP) + 0.0018;
+        const modelFrameToTimeFallback = (frame) => (frame * FFT_HOP) / AUDIO_SAMPLE_RATE - WINDOW_OFFSET * Math.floor(frame / ANNOT_N_FRAMES);
+        timedNotes = polyNotes.map(n => ({
+          pitchMidi: n.pitchMidi,
+          amplitude: n.amplitude,
+          pitchBends: n.pitchBends,
+          startTimeSeconds: modelFrameToTimeFallback(n.startFrame),
+          durationSeconds: modelFrameToTimeFallback(n.startFrame + n.durationFrames) - modelFrameToTimeFallback(n.startFrame)
+        }));
+      }
+      return timedNotes.map(nt => {
+        const velocity = (typeof nt.amplitude === 'number')
+          ? Math.max(1, Math.min(127, Math.round(nt.amplitude * 127)))
+          : 100;
+        return normalizeNoteFromModel({
+          midiFloat: nt.pitchMidi,
+          freq: null,
+          velocity,
+          lengthSeconds: nt.durationSeconds,
+          startTime: nt.startTimeSeconds,
+          velChanges: [{ offsetFrames: 0, vel: velocity }],
+          pitchBends: nt.pitchBends
+        });
+      });
     } catch (e) {
       console.warn('BasicPitch helper pipeline failed:', e && e.message);
     }
   }
-
-  // fallback naive mapping
-  if (framesFromRaw && framesFromRaw.length) {
-    try {
-      const fallbackNotes = framesOnsetsContoursToNotes(framesFromRaw, onsetsFromRaw, contoursFromRaw, { sampleRate, hopSamples });
-      return Array.isArray(fallbackNotes) ? fallbackNotes.map(normalizeNoteFromModel) : [];
-    } catch (e) {
-      console.warn('BasicPitch fallback frames->notes failed:', e && e.message);
-    }
-  }
-
-  throw new Error('BasicPitch produced no usable output');
+  return [];
 }
-
-
-// Normalize model note to the shape writeMidiFile expects
 function normalizeNoteFromModel(n) {
   const copy = Object.assign({}, n);
-
-  if (typeof copy.lengthFrames !== 'number') {
-    if (typeof copy.lengthSeconds === 'number') {
-      copy.lengthFrames = Math.round((copy.lengthSeconds * sampleRate) / hop);
-    } else if (typeof copy.endTime === 'number' && typeof copy.startTime === 'number') {
-      copy.lengthSeconds = copy.endTime - copy.startTime;
-      copy.lengthFrames = Math.round((copy.lengthSeconds * sampleRate) / hop);
-    } else {
-      copy.lengthFrames = 0;
-    }
-  }
-
-  if (typeof copy.lengthSeconds !== 'number' && typeof copy.lengthFrames === 'number') {
-    copy.lengthSeconds = (copy.lengthFrames * hop) / sampleRate;
-  }
-
-  if (!Array.isArray(copy.velChanges)) {
-    const vel = typeof copy.velocity === 'number' ? copy.velocity : 100;
-    copy.velChanges = [{ offsetFrames: 0, vel }];
-  } else {
-    copy.velChanges = copy.velChanges.map(vc => {
-      const cpy = Object.assign({}, vc);
-      if (typeof cpy.offsetFrames !== 'number') {
-        if (typeof cpy.offsetSeconds === 'number') {
-          cpy.offsetFrames = Math.round((cpy.offsetSeconds * sampleRate) / hop);
-        } else cpy.offsetFrames = 0;
+  try {
+    if (typeof copy.lengthFrames !== 'number') {
+      if (typeof copy.lengthSeconds === 'number') {
+        copy.lengthFrames = Math.round((copy.lengthSeconds * sampleRate) / hop);
+      } else if (typeof copy.endTime === 'number' && typeof copy.startTime === 'number') {
+        copy.lengthSeconds = copy.endTime - copy.startTime;
+        copy.lengthFrames = Math.round((copy.lengthSeconds * sampleRate) / hop);
       } else {
-        cpy.offsetFrames = Math.round(cpy.offsetFrames);
+        copy.lengthFrames = 0;
       }
-      if (typeof cpy.vel !== 'number') cpy.vel = 100;
-      return cpy;
-    });
-  }
-
-  if (typeof copy.midiFloat !== 'number') {
-    if (typeof copy.freq === 'number') {
-      copy.midiFloat = 69 + 12 * Math.log2(copy.freq / a4p);
-    } else if (typeof copy.midi === 'number') {
-      copy.midiFloat = copy.midi;
-    } else if (typeof copy.midiRounded === 'number') {
-      copy.midiFloat = copy.midiRounded;
-    } else {
-      copy.midiFloat = 60;
     }
+    if (typeof copy.lengthSeconds !== 'number' && typeof copy.lengthFrames === 'number') {
+      copy.lengthSeconds = (copy.lengthFrames * hop) / sampleRate;
+    }
+    if (!Array.isArray(copy.velChanges)) {
+      const vel = typeof copy.velocity === 'number' ? copy.velocity : 100;
+      copy.velChanges = [{ offsetFrames: 0, vel }];
+    } else {
+      copy.velChanges = copy.velChanges.map(vc => {
+        const cpy = Object.assign({}, vc);
+        if (typeof cpy.offsetFrames !== 'number') {
+          if (typeof cpy.offsetSeconds === 'number') {
+            cpy.offsetFrames = Math.round((cpy.offsetSeconds * sampleRate) / hop);
+          } else cpy.offsetFrames = 0;
+        } else {
+          cpy.offsetFrames = Math.round(cpy.offsetFrames);
+        }
+        if (typeof cpy.vel !== 'number') cpy.vel = 100;
+        return cpy;
+      });
+    }
+    if (typeof copy.midiFloat !== 'number') {
+      if (typeof copy.freq === 'number') {
+        copy.midiFloat = 69 + 12 * Math.log2(copy.freq / a4p);
+      } else if (typeof copy.midi === 'number') {
+        copy.midiFloat = copy.midi;
+      } else if (typeof copy.midiRounded === 'number') {
+        copy.midiFloat = copy.midiRounded;
+      } else {
+        copy.midiFloat = 60;
+      }
+    }
+    if (typeof copy.startTime !== 'number' && typeof copy.startFrame === 'number') {
+      copy.startTime = (copy.startFrame * hop) / sampleRate;
+    } else {
+      copy.startTime = copy.startTime || 0;
+    }
+    if (typeof copy.velocity !== 'number') {
+      copy.velocity = copy.velChanges && copy.velChanges.length ? copy.velChanges[0].vel : 100;
+    }
+  } catch (e) {
+    copy.lengthFrames = copy.lengthFrames || 0;
+    copy.lengthSeconds = copy.lengthSeconds || 0;
+    copy.velChanges = copy.velChanges || [{ offsetFrames: 0, vel: 100 }];
+    copy.midiFloat = typeof copy.midiFloat === 'number' ? copy.midiFloat : 60;
+    copy.startTime = typeof copy.startTime === 'number' ? copy.startTime : 0;
+    copy.velocity = typeof copy.velocity === 'number' ? copy.velocity : 100;
   }
-
-  if (typeof copy.startTime !== 'number' && typeof copy.startFrame === 'number') {
-    copy.startTime = (copy.startFrame * hop) / sampleRate;
-  } else {
-    copy.startTime = copy.startTime || 0;
-  }
-
-  if (typeof copy.velocity !== 'number') {
-    copy.velocity = copy.velChanges && copy.velChanges.length ? copy.velChanges[0].vel : 100;
-  }
-
   return copy;
 }
-
-// Very small fallback mapping (frames->notes) if helpers are absent
-function framesOnsetsContoursToNotes(frames, onsets, contours, { sampleRate, hopSamples }) {
-  const notes = [];
-  const nFrames = frames ? frames.length : 0;
-  if (!nFrames) return notes;
-  const nBins = frames[0] ? frames[0].length : (specHeight || 128);
-  const factor = sampleRate / (fftSize || (hopSamples * 2)) / 2;
-
-  for (let t = 0; t < nFrames; t++) {
-    const onsetVal = onsets && onsets[t] ? onsets[t] : 0;
-    if (onsetVal < 0.25) continue;
-    const magRow = frames[t];
-    if (!magRow) continue;
-    let bestIdx = 0; let bestVal = -Infinity;
-    for (let b = 0; b < magRow.length; b++) {
-      if (magRow[b] > bestVal) { bestVal = magRow[b]; bestIdx = b; }
-    }
-    const freq = bestIdx * factor;
-    if (!isFinite(freq) || freq <= 0) continue;
-    const midiFloat = 69 + 12 * Math.log2(freq / a4p);
-    let endFrame = t + 1;
-    while (endFrame < nFrames && frames[endFrame] && frames[endFrame][bestIdx] > 0.1 * bestVal) endFrame++;
-    const lengthFrames = endFrame - t;
-    const vel = Math.max(1, Math.min(127, Math.round(100 * Math.min(1, bestVal || 0))));
-    notes.push({
-      midiFloat,
-      velocity: vel,
-      lengthFrames,
-      lengthSeconds: (lengthFrames * hopSamples) / sampleRate,
-      startTime: (t * hopSamples) / sampleRate,
-      velChanges: [{ offsetFrames: 0, vel }]
-    });
-  }
-  return notes;
-}
-
-// ---------------------- LEGACY PIPELINE (inlined) ----------------------
-// I inlined your original detectPitches() and exportMidi2() implementation here
-// so the fallback is self-contained. These functions assume the globals used
-// in your original code exist (pcm, sampleRate, fftSize, win, hop, specWidth, specHeight, etc.)
-
-// your original detectPitches (unchanged except using local scope)
 function detectPitchesLegacy(alignPitch) {
   detectedPitches = [];
   console.log('detectedPitcheslegacy');
   if (pos + fftSize > pcm.length) { rendering = false; if(status) status.style.display = "none"; return false; }
-
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
   for (let j = 0; j < fftSize; j++) { re[j] = (pcm[pos + j] || 0) * win[j]; im[j] = 0; }
   fft_inplace(re, im);
-
-  const factor = sampleRate / fftSize / 2; // Hz per bin (kept original)
-
+  const factor = sampleRate / fftSize / 2; 
   for (let bin = 0; bin < specHeight; bin++) {
     const reBin = (re[bin] || 0) / 256;
     const imBin = (im[bin] || 0) / 256;
     const mag = complexMag(reBin, imBin);
     if (mag <= dbToMag(noiseFloor)) continue;
-
     const freq = factor * bin;
     if (freq <= 0) continue;
     let detectedPitch;
@@ -613,33 +700,27 @@ function detectPitchesLegacy(alignPitch) {
     const db = magToDb(mag);
     const t = mag;
     const velFrame = Math.round(Math.max(0, Math.min(1, t)));
-
     if (!detectedPitches.some(([p, _r, _i, v]) => p === detectedPitch && v === velFrame)) {
       detectedPitches.push([detectedPitch, reBin, imBin, velFrame]);
     }
   }
-
   pos += hop; x++;
   audioProcessed += hop;
   if (x >= specWidth && status) { rendering = false; status.style.display = "none"; }
   return detectedPitches;
 }
-
-// Inlined export/merge pipeline (your exportMidi2 body, unchanged except function name)
 function exportMidiLegacy() {
   console.log('exportmidilegacy');
-  const velSplitTolerance = 40; // used only when useVolumeControllers == false (kept original)
+  const velSplitTolerance = 40; 
   const minVelocityDb = -60;
-
   pos = 0;
   x = 0;
   const w = specWidth; const h = specHeight;
   let detectedPitches = [];
   audioProcessed = 0;
   for (let frame = 0; frame < w; frame++) {
-    detectedPitches.push(detectPitchesLegacy(true)); // each entry: [detectedPitch, re, im, velFrame]
+    detectedPitches.push(detectPitchesLegacy(true)); 
   }
-
   let globalMaxMag = 0;
   for (const frameArr of detectedPitches) {
     for (const entry of frameArr) {
@@ -649,7 +730,6 @@ function exportMidiLegacy() {
     }
   }
   if (globalMaxMag <= 0) globalMaxMag = 1e-12;
-
   function mapComplexToMidi(reVal, imVal) {
     const mag = complexMag(reVal, imVal);
     let amp = (Math.max(0, mag) / globalMaxMag);
@@ -663,29 +743,23 @@ function exportMidiLegacy() {
     if (midi < 1) midi = 1;
     return midi;
   }
-
   const notes = [];
   const active = [];
   const factor = sampleRate / fftSize / 2;
-
   function avgMagFromParts(reArr, imArr) {
     if (!reArr || reArr.length === 0) return 0;
     let s = 0;
     for (let i = 0; i < reArr.length; i++) s += complexMag(reArr[i], imArr[i]);
     return s / reArr.length;
   }
-
   for (let frame = 0; frame < w; frame++) {
     for (const a of active) a.seen = false;
-
     for (const [detectedPitch, reVal, imVal] of detectedPitches[frame]) {
       const freq = detectedPitch * factor;
       if (freq <= 0) continue;
       const midiFloat = 69 + 12 * Math.log2(freq / a4p);
       const midiRounded = Math.round(midiFloat);
-
       const mag = complexMag(reVal, imVal);
-
       let match = null;
       for (const a of active) {
         if (a.midiRounded === midiRounded) {
@@ -702,7 +776,6 @@ function exportMidiLegacy() {
           }
         }
       }
-
       if (match) {
         match.reParts.push(reVal);
         match.imParts.push(imVal);
@@ -722,7 +795,6 @@ function exportMidiLegacy() {
         });
       }
     }
-
     for (let i = active.length - 1; i >= 0; i--) {
       const a = active[i];
       if (!a.seen) {
@@ -742,7 +814,6 @@ function exportMidiLegacy() {
           const avgMag = avgMagFromParts(a.reParts, a.imParts);
           velChanges.push({ offsetFrames: 0, vel: mapComplexToMidi(avgMag, 0) });
         }
-
         notes.push({
           midiFloat: a.midiFloat,
           velocity: velChanges[0].vel,
@@ -755,7 +826,6 @@ function exportMidiLegacy() {
       }
     }
   }
-
   for (const a of active) {
     const lengthFrames = w - a.startFrame;
     const vf = a.velFrames.slice().sort((u, v) => u.frame - v.frame);
@@ -773,7 +843,6 @@ function exportMidiLegacy() {
       const avgMag = avgMagFromParts(a.reParts, a.imParts);
       velChanges.push({ offsetFrames: 0, vel: mapComplexToMidi(avgMag, 0) });
     }
-
     notes.push({
       midiFloat: a.midiFloat,
       velocity: velChanges[0].vel,
@@ -783,7 +852,6 @@ function exportMidiLegacy() {
       velChanges
     });
   }
-
   let i = 0;
   while (i < notes.length) {
     if (notes[i].lengthSeconds < dCutoff) {
@@ -792,12 +860,10 @@ function exportMidiLegacy() {
       i++;
     }
   }
-
   if (midiAlignTime && notes.length > 0) {
     const firstStart = notes[0].startTime + (hop/sampleRate) || 0;
     const quant = (60 / midiBpm) / mSubBeat;
     const threshold = quant / 2;
-
     const kept = [];
     for (const n of notes) {
       const rel = (n.startTime - firstStart);
@@ -812,27 +878,20 @@ function exportMidiLegacy() {
   }
   return { notes };
 }
-
-// ---------------------- Public API: getNotes() and exportMidi() ----------------------
-// getNotes() returns the array of notes (same format as legacy)
-// exportMidi(opts) writes the file using your existing writeMidiFile()
-
 async function getNotes() {
-  // wait for the loader probe to finish (it may set BasicPitchPkg or decide legacy fallback)
   try {
     await basicPitchReady;
-  } catch (e) {
-    // ignore - basicPitchReady should never throw, but be defensive
-  }
-
+  } catch (e) {}
+  await yieldToUI();
   try {
     if (BasicPitchPkg) {
       const hopSamples = typeof hop === 'number' ? hop : (fftSize ? (fftSize / 4) : 512);
+      await yieldToUI();
       const notes = await runBasicPitchAndReturnNotes({ pcmFloat32: pcm, sampleRate, hopSamples });
       return notes;
     }
-    // fallback directly to legacy
     const out = exportMidiLegacy();
+    console.log(out.notes);
     return out.notes;
   } catch (err) {
     console.warn('BasicPitch inference failed — falling back to legacy pipeline:', err);
@@ -840,35 +899,20 @@ async function getNotes() {
     return out.notes;
   }
 }
-
 async function exportMidi(opts = {}) {
   const downloadName = opts.downloadName ?? "export.mid";
   const notes = await getNotes();
   writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });
   return notes;
 }
-
-// ---------------------- Your writeMidiFile() and removeHarmonics() ----------------------
-// Paste your original writeMidiFile and removeHarmonics implementations here
-// (I assume they are already present in this file — keep them unchanged).
-// If they're not present, copy them from your previous code into this location.
-
-
-
-
-// ---------- writeMidiFile: uses note.startTime to schedule events ----------
 function writeMidiFile(notes, opts = {}) {
-  // options
   const ppq = opts.ppq ?? 480;
   const tempoBPM = opts.tempoBPM ?? 120;
   const channel = opts.channel ?? 0;
   const a4 = opts.a4 ?? 440;
-  const pitchBendRange = opts.pitchBendRange ?? 2; // semitones (+/-)
+  const pitchBendRange = opts.pitchBendRange ?? 2; 
   const downloadName = opts.downloadName ?? "output.mid";
-
-  // helper: write variable length quantity into given array
   function writeVarLen(value, out) {
-    // value is integer >= 0
     let buffer = value & 0x7f;
     while ((value >>= 7) > 0) {
       buffer <<= 8;
@@ -880,32 +924,20 @@ function writeMidiFile(notes, opts = {}) {
       else break;
     }
   }
-
-  // push helpers
   const bytes = [];
   function pushU16BE(v) { bytes.push((v >> 8) & 0xff, v & 0xff); }
   function pushU32BE(v) { bytes.push((v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff); }
-
-  // Header chunk (format 0 single track)
-  bytes.push(0x4d,0x54,0x68,0x64); // "MThd"
+  bytes.push(0x4d,0x54,0x68,0x64); 
   pushU32BE(6);
-  pushU16BE(0); // format 0
-  pushU16BE(1); // 1 track
+  pushU16BE(0); 
+  pushU16BE(1); 
   pushU16BE(ppq);
-
-  // track bytes collector
   const track = [];
-
-  // tempo meta
   const microsecondsPerQuarter = Math.round(60000000 / tempoBPM);
   writeVarLen(0, track);
   track.push(0xFF, 0x51, 0x03);
   track.push((microsecondsPerQuarter >> 16) & 0xff, (microsecondsPerQuarter >> 8) & 0xff, microsecondsPerQuarter & 0xff);
-
-  // program change (optional)
   writeVarLen(0, track); track.push(0xC0 | channel, 0);
-
-  // set pitch bend range via RPN (delta 0)
   function pushControl(changeController, value) {
     writeVarLen(0, track);
     track.push(0xB0 | (channel & 0x0f), changeController & 0x7f, value & 0x7f);
@@ -917,8 +949,6 @@ function writeMidiFile(notes, opts = {}) {
   pushControl(0x26, 0x00);
   pushControl(0x65, 127);
   pushControl(0x64, 127);
-
-  // utility: convert frequency to midiFloat (not strictly used if notes already provide midiFloat)
   function freqToMidiFloat(freq, npo) {
     if (!freq || freq <= 0) return null;
     if (npo && npo > 0) {
@@ -928,11 +958,7 @@ function writeMidiFile(notes, opts = {}) {
       return 69 + 12 * Math.log2(freq / a4);
     }
   }
-
-  // compute ticks per second for tick conversions
   const ticksPerSec = ppq * (tempoBPM / 60);
-
-  // helper: produce 14-bit pitch bend from fractional midi relative to base
   function midiFloatToPitchBend(midiFloat, baseMidi, rangeSemitones) {
     const semitoneOffset = midiFloat - baseMidi;
     const normalized = semitoneOffset / rangeSemitones;
@@ -940,20 +966,14 @@ function writeMidiFile(notes, opts = {}) {
     const value = Math.round(8192 + clamped * 8192);
     return Math.max(0, Math.min(16383, value));
   }
-
-  // Build compact event list: arrays [tick, order, type, a, b, extra...]
-  // order: cc(-1) -> pitch-bend(0) -> note-on(1) -> note-off(2) for stable ordering
   const events = [];
   for (let i = 0, L = notes.length; i < L; ++i) {
     const note = notes[i];
     if (!note || typeof note.lengthSeconds !== "number") continue;
-
     const startTime = (typeof note.startTime === 'number') ? note.startTime : 0;
     const startTick = Math.max(0, Math.round(startTime * ticksPerSec));
     const lengthTicks = Math.max(1, Math.round(note.lengthSeconds * ticksPerSec));
     const endTick = startTick + lengthTicks;
-
-    // derive midiFloat
     let midiFloat = null;
     if (typeof note.midiFloat === "number") midiFloat = note.midiFloat;
     else if (typeof note.freq === "number") {
@@ -963,59 +983,43 @@ function writeMidiFile(notes, opts = {}) {
       continue;
     }
     if (!Number.isFinite(midiFloat)) continue;
-
     let baseMidi = Math.round(midiFloat);
     baseMidi = Math.max(0, Math.min(127, baseMidi));
     const pb14 = midiFloatToPitchBend(midiFloat, baseMidi, pitchBendRange);
     const pbLSB = pb14 & 0x7f;
     const pbMSB = (pb14 >> 7) & 0x7f;
-
     const velocity = (typeof note.velocity === 'number') ? Math.max(1, Math.min(127, note.velocity)) : 100;
-
-    // If velChanges exists and useVolumeControllers is true, create CC events; otherwise rely on note.velocity and possibly split earlier
     const velChanges = Array.isArray(note.velChanges) ? note.velChanges : [{ offsetFrames: 0, vel: velocity }];
-
     if (useVolumeControllers) {
-      // emit initial CC at startTick with first vel
       const initialCC = Math.max(0, Math.min(127, Math.round(velChanges[0].vel)));
-      events.push([startTick, -1, 'cc', 0x07, initialCC]); // controller #7 (channel volume)
-
-      // emit CC changes for each subsequent change (skip offset=0 already emitted)
+      events.push([startTick, -1, 'cc', 0x07, initialCC]); 
       for (let vc = 0; vc < velChanges.length; vc++) {
         const c = velChanges[vc];
-        if (c.offsetFrames === 0) continue; // already emitted
+        if (c.offsetFrames === 0) continue; 
         const offsetSeconds = (c.offsetFrames * hop) / sampleRate;
         const changeTick = startTick + Math.round(offsetSeconds * ticksPerSec);
         const ccval = Math.max(0, Math.min(127, Math.round(c.vel)));
         events.push([changeTick, -1, 'cc', 0x07, ccval]);
       }
-
-      // push pitch-bend, note-on, note-off as before
       events.push([startTick, 0, 'pb', pbLSB, pbMSB]);
       events.push([startTick, 1, 'on', baseMidi, Math.max(1, Math.min(127, Math.round(velChanges[0].vel)))]);
       events.push([endTick,   2, 'off', baseMidi, 0]);
     } else {
-      // not using volume controllers: fallback to single note-on velocity (notes were split earlier based on velocity)
       events.push([startTick, 0, 'pb', pbLSB, pbMSB]);
       events.push([startTick, 1, 'on', baseMidi, velocity]);
       events.push([endTick,   2, 'off', baseMidi, 0]);
     }
   }
-
-  // sort events - numeric comparator
   events.sort(function(a,b){
     if (a[0] < b[0]) return -1;
     if (a[0] > b[0]) return  1;
     return a[1] - b[1];
   });
-
-  // write events with proper delta times (iterative)
   let lastTick = 0;
   for (let i = 0; i < events.length; ++i) {
     const ev = events[i];
     const delta = Math.max(0, ev[0] - lastTick);
     writeVarLen(delta, track);
-
     const type = ev[2];
     if (type === 'pb') {
       track.push(0xE0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
@@ -1024,29 +1028,19 @@ function writeMidiFile(notes, opts = {}) {
     } else if (type === 'off') {
       track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, 0x00);
     } else if (type === 'cc') {
-      // Control Change: ev[3] = controller, ev[4] = value
       track.push(0xB0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     }
-
     lastTick = ev[0];
   }
-
-  // End of track meta
   writeVarLen(0, track);
   track.push(0xFF, 0x2F, 0x00);
-
-  // Write track chunk header + bytes
-  bytes.push(0x4d,0x54,0x72,0x6b); // "MTrk"
+  bytes.push(0x4d,0x54,0x72,0x6b); 
   pushU32BE(track.length);
-  
   const totalLen = bytes.length + track.length;
   const out = new Uint8Array(totalLen);
-
   let k = 0;
   for (let i = 0; i < bytes.length; ++i) out[k++] = bytes[i];
   for (let i = 0; i < track.length; ++i) out[k++] = track[i];
-
-  // optional download
   if (downloadName) {
     const blob = new Blob([out], { type: "audio/midi" });
     const url = URL.createObjectURL(blob);
@@ -1058,7 +1052,6 @@ function writeMidiFile(notes, opts = {}) {
     a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 5000);
   }
-
   return out;
 }
 function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultiplier = 4} = {}) {
@@ -1069,9 +1062,7 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
     x = 0;
     audioProcessed = 0;
   }
-
   const h = specHeight;
-
   function median(arr) {
     const a = Array.from(arr).sort((a, b) => a - b);
     const mid = Math.floor(a.length / 2);
@@ -1081,9 +1072,7 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
     const diffs = arr.map(v => Math.abs(v - med));
     return median(diffs);
   }
-
-  const factor = sampleRate / fftSize; // Hz per bin
-
+  const factor = sampleRate / fftSize; 
   for (let frame = 0; frame < specWidth; frame++) {
     const re = new Float32Array(fftSize);
     const im = new Float32Array(fftSize);
@@ -1092,16 +1081,13 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
       im[j] = 0;
     }
     fft_inplace(re, im);
-
     const fmags = new Float32Array(h);
     for (let bin = 0; bin < h; bin++) {
       fmags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0) / 256;
     }
-
     const med = median(fmags);
     const m = mad(fmags, med) || 1e-12;
     const threshold = med + peakMadMultiplier * m;
-
     const peaks = [];
     for (let bin = 1; bin < h; bin++) {
       const mag = fmags[bin];
@@ -1110,10 +1096,8 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
       }
     }
     peaks.sort((a, b) => b.mag - a.mag);
-
     const suppressed = new Array(h).fill(false);
     const suppressedBinsThisFrame = [];
-
     function suppressBin(binIndex) {
       if (suppressed[binIndex]) return;
       const mirror = (fftSize - binIndex) % fftSize;
@@ -1124,10 +1108,8 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
       if (mirror < h) suppressed[mirror] = true;
       suppressedBinsThisFrame.push(binIndex);
     }
-
-    // === New simplified loop ===
     for (const peak of peaks) {
-      if (suppressed[peak.bin]) continue; // already removed as harmonic
+      if (suppressed[peak.bin]) continue; 
       const baseFreq = peak.freq;
       for (const q of peaks) {
         if (q.bin === peak.bin) continue;
@@ -1140,17 +1122,15 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
         }
       }
     }
-
     const processedMags = new Float32Array(h);
     for (let bin = 0; bin < h; bin++) {
       if (suppressed[bin]) {
-        processedMags[bin] = 0//fmags[bin] / 100000;
+        processedMags[bin] = 0
       } else {
         processedMags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0);
       }
     }
     mags.set(processedMags,frame*specHeight);
-
     pos += hop;
     x++;
     audioProcessed += hop;
@@ -1173,19 +1153,19 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
     writeMidiFile,
     removeHarmonics
   };
-
-  // CommonJS / Node
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }
-
-  // AMD
   if (typeof define === 'function' && define.amd) {
     define(() => api);
   }
-
-  // Browser global
   if (typeof window !== 'undefined') {
     window.MIDI = Object.assign(window.MIDI || {}, api);
   }
 })();
+
+if (!localStorage.getItem('basicPitchPreloadDone')) {
+  preloadBasicPitchModelInWorker(MODEL_JSON_URL, 'basicpitch-v1')
+    .then(() => localStorage.setItem('basicPitchPreloadDone', '1'))
+    .catch(err => console.warn(err));
+}

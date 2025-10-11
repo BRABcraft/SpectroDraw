@@ -3,16 +3,24 @@ let bpInstance = null;
 let tf = null;
 let bpInstancePromise = null;   
 let tfReadyPromise = null;
-// Call this early (on page load or user interaction or requestIdleCallback)
-// modelUrl should be your hosted model.json URL (the same you used before)
+const gpbl = document.getElementById('globalProgressBar');
+const gpfl = document.getElementById('globalProgressFill');
+const gpt = document.getElementById('gpt');
+const mInfo = document.getElementById("mouseInfo");
+function setGlobalProgress(pct) {
+  if (pct == null || typeof pct !== 'number') return;
+  if (pct >= 0 && pct <= 1) pct = pct * 100;
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  try {
+    if (gpfl) {gpfl.style.width = pct + '%';gpbl.style.display = "block";} else {mInfo.innerHTML = `Processing: ${pct}%<br><br>`}
+  } catch (e) {  }
+}
 const DEFAULT_MODEL_URL = 'https://cdn.jsdelivr.net/gh/BRABcraft/SpectroDraw@main/node_modules/@spotify/basic-pitch/model/model.json';
 const DEFAULT_IDB_KEY = 'basicpitch-v1';
-
 function createWorkerFromText(workerText) {
   const blob = new Blob([workerText], { type: 'application/javascript' });
   const url = URL.createObjectURL(blob);
   const w = new Worker(url);
-  // revoke object URL when the worker terminates
   w._blobUrl = url;
   const origTerminate = w.terminate.bind(w);
   w.terminate = function() {
@@ -21,18 +29,13 @@ function createWorkerFromText(workerText) {
   };
   return w;
 }
-
-// If you saved the worker to a file, use new Worker('/basicpitch-preload-worker.js')
-// otherwise, inline the worker source string here:
-const BASICPITCH_PRELOAD_WORKER_SRC = `/* worker code from basicpitch-preload-worker.js (same as saved file) */
-${(() => {/* placeholder */}).toString()}`;
+const BASICPITCH_PRELOAD_WORKER_SRC = `
+${(() => {}).toString()}`;
 const worker = createWorkerFromText(BASICPITCH_PRELOAD_WORKER_SRC);
-
 worker.postMessage({ 
   type: 'init', 
   BasicPitchPkgImport: 'https://esm.sh/@spotify/basic-pitch' 
 });
-
 worker.onmessage = (e) => {
   const msg = e.data;
   if (msg.type === 'ready') {
@@ -40,14 +43,11 @@ worker.onmessage = (e) => {
   }
   if (msg.type === 'notes') {
     console.log('Received notes from worker', msg.notes);
-    // optionally: call your existing handler here
   }
   if (msg.type === 'error') {
     console.error('BasicPitch worker error:', msg.detail);
   }
 };
-
-// Convenience function to send PCM to worker
 function analyzePCM(pcmFloat32, sampleRate, hop = 512) {
   worker.postMessage({ 
     type: 'processAudio', 
@@ -56,28 +56,20 @@ function analyzePCM(pcmFloat32, sampleRate, hop = 512) {
     hopSamples: hop 
   });
 }
-
-// --- simpler: create worker from URL (recommended if you can host the worker file) ---
 async function preloadBasicPitchModelInWorker(modelUrl = DEFAULT_MODEL_URL, idbKey = DEFAULT_IDB_KEY, opts = {}) {
-  // opts.workerUrl: optional - if set, uses that URL instead of inlining
   return new Promise((resolve, reject) => {
     let worker;
     if (opts.workerUrl) {
       worker = new Worker(opts.workerUrl);
     } else {
-      // inline worker: generate text from the worker file contents
-      // For brevity in this snippet, we'll fetch the worker file via network if provided in opts.workerFetchUrl
       if (opts.workerFetchUrl) {
-        // load worker script text from given URL then create worker
         fetch(opts.workerFetchUrl).then(r => r.text()).then(text => {
           worker = createWorkerFromText(text);
           start(worker);
         }).catch(err => reject(err));
         return;
       } else {
-        // If you didn't host the worker file, create worker from the string provided below.
-        // NOTE: to keep this snippet concise, I'm embedding the same worker code inline:
-        const workerCode = `// inlined worker (same code as basicpitch-preload-worker.js)
+        const workerCode = `
 self.addEventListener('message', async (ev) => {
   const msg = ev.data || {};
   if (msg && msg.type === 'preload') {
@@ -113,20 +105,15 @@ self.addEventListener('message', async (ev) => {
         worker = createWorkerFromText(workerCode);
       }
     }
-
     function start(w) {
       const timeout = setTimeout(() => {
-        // in case worker hangs, reject after some time
-        // but don't automatically terminate (caller can choose)
       }, opts.timeout || 60_000);
-
       const cleanup = (res, err) => {
         try { w.removeEventListener('message', onMsg); } catch (e) {}
         try { w.terminate(); } catch (e) {}
         clearTimeout(timeout);
         if (err) reject(err); else resolve(res);
       };
-
       function onMsg(e) {
         const data = e.data || {};
         if (data && data.type === 'status') {
@@ -137,7 +124,6 @@ self.addEventListener('message', async (ev) => {
           } else if (data.status === 'error') {
             cleanup(null, new Error(data.detail || 'worker error'));
           } else if (data.status === 'loading') {
-            // you can surface progress if you want. ignore for final resolution
             console.log('worker:', data.detail || 'loading');
           }
         }
@@ -145,18 +131,12 @@ self.addEventListener('message', async (ev) => {
       w.addEventListener('message', onMsg);
       w.postMessage({ type: 'preload', modelUrl, idbKey });
     }
-
-    // if worker created from URL - start immediately
     if (worker && typeof worker.postMessage === 'function') start(worker);
   });
 }
-
-// Small convenience to query whether model is already in indexeddb (uses tf in main thread)
 async function isModelInIndexedDB(idbKey = DEFAULT_IDB_KEY) {
-  // load tf on demand on main thread to check
   if (typeof window === 'undefined') return false;
   if (typeof window.tf === 'undefined') {
-    // load tfjs on main thread via script tag - non-blocking but necessary for tf.loadGraphModel
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js';
@@ -175,68 +155,11 @@ async function isModelInIndexedDB(idbKey = DEFAULT_IDB_KEY) {
     return false;
   }
 }
-
 async function yieldToUI(frames = 1) {
   for (let i = 0; i < frames; i++) {
     await new Promise(r => requestAnimationFrame(r));
   }
 }
-let basicPitchReady = (async function loadBasicPitch() {
-  if (BasicPitchPkg !== null) return BasicPitchPkg;
-  const setAndLog = (pkg, source) => {
-    BasicPitchPkg = pkg && pkg.__esModule ? (pkg.default || pkg) : (pkg || null);
-    if (BasicPitchPkg) console.log(`BasicPitch: loaded from ${source}`, !!BasicPitchPkg);
-    return BasicPitchPkg;
-  };
-  if (typeof window !== 'undefined') {
-    if (window.__BASIC_PITCH__) return setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__');
-    if (window.BasicPitch) return setAndLog(window.BasicPitch, 'window.BasicPitch');
-  }
-  if (typeof require === 'function') {
-    try {
-      console.log('BasicPitch: trying require()');
-      const mod = require('@spotify/basic-pitch');
-      if (mod) return setAndLog(mod, 'require()');
-    } catch (err) {
-      console.warn('BasicPitch: require() failed:', err && err.message);
-    }
-  }
-  await yieldToUI();
-  if (typeof window !== 'undefined') {
-    try {
-      console.log('BasicPitch: trying dynamic import("@spotify/basic-pitch")');
-      const imported = await import('@spotify/basic-pitch');
-      if (imported) return setAndLog(imported, 'dynamic import(@spotify/basic-pitch)');
-    } catch (err) {
-      console.warn('BasicPitch: dynamic import(@spotify/basic-pitch) failed:', err && err.message);
-    }
-  }
-  const cdnCandidates = [
-    'https://esm.sh/@spotify/basic-pitch',
-    'https://cdn.skypack.dev/@spotify/basic-pitch',
-    'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch'
-  ];
-  for (const url of cdnCandidates) {
-    await yieldToUI(); 
-    try {
-      console.log('BasicPitch: trying CDN import()', url);
-      const imported = await import(url);
-      if (imported) return setAndLog(imported, `cdn:${url}`);
-    } catch (err) {
-      console.warn(`BasicPitch: CDN import failed (${url}):`, err && err.message);
-    }
-  }
-  if (typeof window !== 'undefined') {
-    const waitMs = 3000, intervalMs = 120, maxTries = Math.ceil(waitMs / intervalMs);
-    for (let i = 0; i < maxTries; i++) {
-      if (window.__BASIC_PITCH__) return setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__ (polled)');
-      if (window.BasicPitch) return setAndLog(window.BasicPitch, 'window.BasicPitch (polled)');
-      await new Promise(r => setTimeout(r, intervalMs));
-    }
-  }
-  console.warn('BasicPitch: not available — will use legacy pipeline.');
-  return null;
-})();
 const dbToMag = db => Math.pow(10, db / 20);
 const complexMag = (re, im) => Math.hypot(re || 0, im || 0);
 function pcmToAudioBuffer(pcmFloat32, sampleRate) {
@@ -391,7 +314,7 @@ async function ensureTF() {
   })();
   return tfReadyPromise;
 }
-async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples }) {
+async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples }, progressCb = () => {}) {
   if (!BasicPitchPkg) throw new Error('BasicPitch package not found');
   const inspect = obj => (obj && typeof obj === 'object') ? Object.keys(obj).slice(0,20) : typeof obj;
   const BProot = BasicPitchPkg && BasicPitchPkg.default ? BasicPitchPkg.default : BasicPitchPkg;
@@ -405,10 +328,12 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
   }
   if (!pcmFloat32 || !(pcmFloat32 instanceof Float32Array) || pcmFloat32.length === 0) {
     console.warn('BasicPitch runner: pcmFloat32 invalid/empty; returning []');
+    setGlobalProgress(0);
     return [];
   }
   if (!sampleRate || !isFinite(sampleRate)) {
     console.warn('BasicPitch runner: invalid sampleRate', sampleRate);
+    setGlobalProgress(0);
     return [];
   }
   const hop = hopSamples || 512;
@@ -441,7 +366,6 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
         if (!bpInstance) {
           if (!tfRef) throw new Error('tfjs not available; cannot load TF model');
           await yieldToUI();
-
           let loadedModel;
           try {
             loadedModel = await tfRef.loadGraphModel('indexeddb://basicpitch-v1');
@@ -451,7 +375,6 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
             loadedModel = await tfRef.loadGraphModel(MODEL_JSON_URL);
             try { await loadedModel.save('indexeddb://basicpitch-v1'); } catch(e){console.warn('Saving model to IndexedDB failed', e);}
           }
-
           if (BasicPitchClass && typeof BasicPitchClass === 'function') {
             try {
               bpInstance = new BasicPitchClass(loadedModel);
@@ -505,6 +428,7 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
     console.log('BasicPitch runner: created AudioBuffer length', audioBuffer && audioBuffer.length);
   } catch (err) {
     console.warn('BasicPitch runner: pcmToAudioBuffer failed:', err && err.message);
+    setGlobalProgress(0);
     return [];
   }
   const frames = [], onsets = [], contours = [];
@@ -516,25 +440,40 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
           if (Array.isArray(fChunk)) frames.push(...fChunk);
           if (Array.isArray(oChunk)) onsets.push(...oChunk);
           if (Array.isArray(cChunk)) contours.push(...cChunk);
+          try { progressCb(0.5); } catch (e) {}
         },
-        (_progress) => {}
+        (rawProgress) => {
+          try {
+            let pct = null;
+            if (typeof rawProgress === 'number') pct = rawProgress;
+            else if (rawProgress && typeof rawProgress.progress === 'number') pct = rawProgress.progress;
+            else if (rawProgress && typeof rawProgress.processed === 'number' && typeof rawProgress.total === 'number' && rawProgress.total > 0) pct = rawProgress.processed / rawProgress.total;
+            if (pct != null && isFinite(pct)) progressCb(Math.max(0, Math.min(1, pct)) * 100);
+          } catch (e) {  }
+        }
       );
       rawResult = { frames, onsets, contours };
       return;
     }
     if (bpInstance && typeof bpInstance.transcribe === 'function') {
+      try { progressCb(5); } catch (e) {}
       rawResult = await bpInstance.transcribe(audioBuffer);
+      try { progressCb(90); } catch (e) {}
       return;
     }
     if (bpInstance && typeof bpInstance.predict === 'function') {
+      try { progressCb(5); } catch (e) {}
       rawResult = await bpInstance.predict(audioBuffer);
+      try { progressCb(90); } catch (e) {}
       return;
     }
     if (typeof BProot === 'function') {
+      try { progressCb(5); } catch (e) {}
       rawResult = await BProot(audioBuffer).catch(e => {
         console.warn('BasicPitch: BProot(audioBuffer) threw', e && e.message);
         return null;
       });
+      try { progressCb(90); } catch (e) {}
       return;
     }
     console.log('BasicPitch: no model API found on bpInstance; keys:', inspect(bpInstance));
@@ -547,6 +486,7 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
     try { await callModel(); } catch (err2) { console.warn('BasicPitch runner: retry after initialization failed:', err2 && err2.message); }
   }
   if (rawResult && Array.isArray(rawResult.notes) && rawResult.notes.length) {
+    try { progressCb(100); } catch(e){}
     return rawResult.notes.map(normalizeNoteFromModel);
   }
   const framesFromRaw = rawResult && rawResult.frames ? rawResult.frames : frames;
@@ -567,6 +507,7 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
     null;
   if (outToNotes && framesFromRaw && framesFromRaw.length) {
     try {
+      try { progressCb(92); } catch(e){}
       let polyNotes = outToNotes(framesFromRaw, onsetsFromRaw || [], 0.5, 0.3, 5);
       if (addBends && contoursFromRaw) {
         try { polyNotes = addBends(contoursFromRaw, polyNotes); } catch (e) { console.warn('BasicPitch: addPitchBendsToNoteEvents failed:', e && e.message); }
@@ -590,7 +531,7 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
           durationSeconds: modelFrameToTimeFallback(n.startFrame + n.durationFrames) - modelFrameToTimeFallback(n.startFrame)
         }));
       }
-      return timedNotes.map(nt => {
+      const output = timedNotes.map(nt => {
         const velocity = (typeof nt.amplitude === 'number')
           ? Math.max(1, Math.min(127, Math.round(nt.amplitude * 127)))
           : 100;
@@ -604,10 +545,13 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
           pitchBends: nt.pitchBends
         });
       });
+      try { progressCb(100); } catch(e){}
+      return output;
     } catch (e) {
       console.warn('BasicPitch helper pipeline failed:', e && e.message);
     }
   }
+  try { progressCb(100); } catch(e){}
   return [];
 }
 function normalizeNoteFromModel(n) {
@@ -674,7 +618,6 @@ function normalizeNoteFromModel(n) {
 }
 function detectPitchesLegacy(alignPitch) {
   detectedPitches = [];
-  console.log('detectedPitcheslegacy');
   if (pos + fftSize > pcm.length) { rendering = false; if(status) status.style.display = "none"; return false; }
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
@@ -709,8 +652,7 @@ function detectPitchesLegacy(alignPitch) {
   if (x >= specWidth && status) { rendering = false; status.style.display = "none"; }
   return detectedPitches;
 }
-function exportMidiLegacy() {
-  console.log('exportmidilegacy');
+function exportMidiLegacy(progressCb = () => {}) {
   const velSplitTolerance = 40; 
   const minVelocityDb = -60;
   pos = 0;
@@ -719,7 +661,11 @@ function exportMidiLegacy() {
   let detectedPitches = [];
   audioProcessed = 0;
   for (let frame = 0; frame < w; frame++) {
-    detectedPitches.push(detectPitchesLegacy(true)); 
+    detectedPitches.push(detectPitchesLegacy(true));
+    try {
+      const pct = Math.round(((frame + 1) / Math.max(1, w)) * 100);
+      progressCb(pct);
+    } catch (e) {}
   }
   let globalMaxMag = 0;
   for (const frameArr of detectedPitches) {
@@ -876,18 +822,93 @@ function exportMidiLegacy() {
     notes.length = 0;
     notes.push(...kept);
   }
+  try { progressCb(100); } catch(e){}
   return { notes };
 }
 async function getNotes() {
+  if (!useMidiAI) {
+    const out = exportMidiLegacy();
+    return out.notes;
+  }
   try {
-    await basicPitchReady;
-  } catch (e) {}
-  await yieldToUI();
-  try {
+    if (!BasicPitchPkg) {
+      if (gpt) gpt.innerText="Loading model, might take a while..."; else mInfo.innerHTML="Loading model, might take a while...<br><br>";
+      console.log('BasicPitch: initializing...');
+      const setAndLog = (pkg, source) => {
+        BasicPitchPkg = pkg && pkg.__esModule ? (pkg.default || pkg) : (pkg || null);
+        if (BasicPitchPkg) console.log(`BasicPitch: loaded from ${source}`, !!BasicPitchPkg);
+        return BasicPitchPkg;
+      };
+      if (typeof window !== 'undefined') {
+        if (window.__BASIC_PITCH__) setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__');
+        else if (window.BasicPitch) setAndLog(window.BasicPitch, 'window.BasicPitch');
+      }
+      if (!BasicPitchPkg && typeof require === 'function') {
+        try {
+          console.log('BasicPitch: trying require()');
+          const mod = require('@spotify/basic-pitch');
+          if (mod) setAndLog(mod, 'require()');
+        } catch (err) {
+          console.warn('BasicPitch: require() failed:', err && err.message);
+        }
+      }
+      if (!BasicPitchPkg && typeof window !== 'undefined') {
+        await yieldToUI();
+        try {
+          console.log('BasicPitch: trying dynamic import("@spotify/basic-pitch")');
+          const imported = await import('@spotify/basic-pitch');
+          if (imported) setAndLog(imported, 'dynamic import(@spotify/basic-pitch)');
+        } catch (err) {
+          console.warn('BasicPitch: dynamic import("@spotify/basic-pitch") failed:', err && err.message);
+        }
+      }
+      if (!BasicPitchPkg && typeof window !== 'undefined') {
+        const cdnCandidates = [
+          'https://esm.sh/@spotify/basic-pitch',
+          'https://cdn.skypack.dev/@spotify/basic-pitch',
+          'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch'
+        ];
+        for (const url of cdnCandidates) {
+          await yieldToUI();
+          try {
+            console.log('BasicPitch: trying CDN import()', url);
+            const imported = await import(url);
+            if (imported) {
+              setAndLog(imported, `cdn:${url}`);
+              break;
+            }
+          } catch (err) {
+            console.warn(`BasicPitch: CDN import failed (${url}):`, err && err.message);
+          }
+        }
+      }
+      if (!BasicPitchPkg && typeof window !== 'undefined') {
+        const waitMs = 3000, intervalMs = 120, maxTries = Math.ceil(waitMs / intervalMs);
+        for (let i = 0; i < maxTries; i++) {
+          if (window.__BASIC_PITCH__) {
+            setAndLog(window.__BASIC_PITCH__, 'window.__BASIC_PITCH__ (polled)');
+            break;
+          }
+          if (window.BasicPitch) {
+            setAndLog(window.BasicPitch, 'window.BasicPitch (polled)');
+            break;
+          }
+          await new Promise(r => setTimeout(r, intervalMs));
+        }
+      }
+      if (!BasicPitchPkg) {
+        console.warn('BasicPitch: not available — will use legacy pipeline.');
+      }
+    }
+    await yieldToUI();
     if (BasicPitchPkg) {
+      if (gpt) gpt.innerText=""; else mInfo.innerHTML="Model loaded<br><br>";
       const hopSamples = typeof hop === 'number' ? hop : (fftSize ? (fftSize / 4) : 512);
       await yieldToUI();
-      const notes = await runBasicPitchAndReturnNotes({ pcmFloat32: pcm, sampleRate, hopSamples });
+      const notes = await runBasicPitchAndReturnNotes({ pcmFloat32: pcm, sampleRate, hopSamples },
+        (pct) => { try { setGlobalProgress(pct); } catch(e){} });
+      try { setGlobalProgress(100); } catch(e){}
+      gpbl.style.display = "none";
       return notes;
     }
     const out = exportMidiLegacy();
@@ -899,9 +920,35 @@ async function getNotes() {
     return out.notes;
   }
 }
+function filterNotes() {
+  if (useMidiAI) {
+    let i = 0;
+    while (i < notes.length) if (notes[i].lengthSeconds < dCutoff) notes.splice(i, 1); else i++;
+    const tQdivision = (typeof tQd !== "undefined") ? parseInt(tQd.value):4;
+    for (i = 0; i < notes.length; i++) {
+      let original = notes[i].startTime;
+      const factor = 60/tQTempo/tQdivision;
+      let quantized = Math.floor(original/factor)*factor;
+      let final = original + (quantized-original) * (tQStrength/100);
+      notes[i].startTime = final;
+    }
+    i = 0;
+    let storage = [];
+    while (i < notes.length) {
+      let a = notes[i].startTime; b = notes[i].midiFloat;
+      if (storage.includes([a,b])) {
+        notes.splice(i, 1);
+      } else {
+        i++;
+        storage.push([a,b])
+      }
+    };
+  }
+}
 async function exportMidi(opts = {}) {
   const downloadName = opts.downloadName ?? "export.mid";
-  const notes = await getNotes();
+  let notes = await getNotes();
+  filterNotes();
   writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });
   return notes;
 }
@@ -1163,7 +1210,6 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
     window.MIDI = Object.assign(window.MIDI || {}, api);
   }
 })();
-
 if (!localStorage.getItem('basicPitchPreloadDone')) {
   preloadBasicPitchModelInWorker(MODEL_JSON_URL, 'basicpitch-v1')
     .then(() => localStorage.setItem('basicPitchPreloadDone', '1'))

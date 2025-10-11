@@ -305,10 +305,18 @@
       <label class="h1">Brush Alignment</label>
       <!--Auto align pitch-->
       <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
-      <div id ="a4PitchDiv" class="slider-row" title="A4 pitch" style="display:none;">
-        <label class="h2">A4 Pitch</label>
-        <input id="a4Pitch" type="range" min="415.304" max="466.163" step="0.01" value="440">
-        <input id="a4PitchInput" type="number" value="440">
+      <div id="a4PitchDiv" style="display:none;">
+        <div class="slider-row" title="A4 pitch">
+          <label class="h2">A4 Pitch</label>
+          <input id="a4Pitch" type="range" min="415.304" max="466.163" step="0.01" value="440">
+          <input id="a4PitchInput" type="number" value="440">
+        </div>
+        <!--Notes per octave (achieve with pitch bends)-->
+        <div class="slider-row" title="Notes Per Octave">
+          <label class="h2">Notes per octave</label>
+          <input id="npo" type="range" min="1" max="48" step="1" value="12">
+          <input id="npoInput" type="number" value="12" min="1" max="384">
+        </div>
       </div>
       <!--Auto align time-->
       <button class="leftBtn" id="alignTime" title="Auto align time (k)">Auto Align Time</button>
@@ -317,40 +325,67 @@
         <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
         <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
       </div>
-      <label class="h1">MIDI Export</label>
       <!--Remove harmonics button-->
       <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics" onClick="removeHarmonics()">Remove Harmonics</button>
-      <!--Notes per octave (achieve with pitch bends)-->
-      <div class="slider-row" title="Notes Per Octave">
-        <label class="h2">Notes per octave</label>
-        <input id="npo" type="range" min="1" max="48" step="1" value="12">
-        <input id="npoInput" type="number" value="12" min="1" max="384">
-      </div>
-      <!--Noise floor cutoff-->
-      <div class="slider-row" title="Noise floor cutoff">
-        <label class="h2">Noise floor (dB)</label>
-        <input id="noiseFloorCutoff" type="range" min="-50" max="0" step="0.1" value="-30">
-        <input id="noiseFloorCutoffInput" type="number" value="-30" min="-50" max="0">
-      </div>
+      <label class="h1">MIDI Export</label>
+      <input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</button>
       <div class="slider-row" title="Duration cutoff">
         <label class="h2">Duration cutoff (secs)</label>
         <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
         <input id="durationCutoffInput" type="number" value="0.05" min="0" max="1">
       </div>
-      <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</button>
-      <div id="matOptions">
-        <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
-          <label class="h2">BPM</label>
-          <input id="midiBpm" type="range" min="0.001" max="500" step="0.01" value="120">
-          <input id="midiBpmInput" type="number" value="120" min="0.001" max="5000">
+      <div id="nonAiMidiDiv">
+        <!--Noise floor cutoff-->
+        <div class="slider-row" title="Noise floor cutoff">
+          <label class="h2">Noise floor (dB)</label>
+          <input id="noiseFloorCutoff" type="range" min="-50" max="0" step="0.1" value="-30">
+          <input id="noiseFloorCutoffInput" type="number" value="-30" min="-50" max="0">
         </div>
-        <div id ="subBeatDiv" class="slider-row" title="Sub beats">
-          <label class="h2">Sub beats</label>
-          <input id="subBeat" type="range" min="1" max="24" step="1" value="8">
-          <input id="subBeatInput" type="number" value="8" min="1" max="24">
+        <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</button>
+        <div id="matOptions">
+          <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
+            <label class="h2">BPM</label>
+            <input id="midiBpm" type="range" min="0.001" max="500" step="0.01" value="120">
+            <input id="midiBpmInput" type="number" value="120" min="0.001" max="5000">
+          </div>
+          <div id ="subBeatDiv" class="slider-row" title="Sub beats">
+            <label class="h2">Sub beats</label>
+            <input id="subBeat" type="range" min="1" max="24" step="1" value="8">
+            <input id="subBeatInput" type="number" value="8" min="1" max="24">
+          </div>
+        </div>
+        <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
+      </div>
+      <div id="AiMidiDiv" style="display:none;">
+        <label class="h1">Time Quantize</label>
+        <div class="slider-row" title="Time quantize strength">
+          <label class="h2">Strength</label>
+          <input id="tQs" type="range" min="0" max="100" step="1" value="0">
+          <input id="tQsInput" type="number" value="0" min="0" max="100">
+        </div>
+        <div class="slider-row" title="Time quantize strength">
+          <label class="h2">Tempo</label>
+          <input id="tQt" type="range" min="1" max="300" step="1" value="120">
+          <input id="tQtInput" type="number" value="120" min="1" max="300">
+        </div>
+        <div class="slider-row" title="Phase texture">
+          <label class="h2" for="tQd">Time division</label>
+          <select id="tQd">
+            <option value="1">1/1</option>
+            <option value="2">1/2</option>
+            <option value="3">1/3</option>
+            <option value="4">1/4</option>
+            <option value="5">1/5</option>
+            <option value="6">1/6</option>
+            <option value="7">1/7</option>
+            <option value="8" selected="selected">1/8</option>
+            <option value="12">1/12</option>
+            <option value="16">1/16</option>
+            <option value="24">1/24</option>
+            <option value="32">1/32</option>
+          </select>
         </div>
       </div>
-      <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
       <!--Export button-->
       <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>
     </div>
@@ -421,7 +456,9 @@
                    [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
                    [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
                    [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
-                   [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true]];
+                   [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
+                   [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
+                   [document.getElementById('tQt'), document.getElementById('tQtInput'), true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -456,9 +493,15 @@ const a4PitchDiv = document.getElementById("a4PitchDiv");
 const alignTimeBtn = document.getElementById("alignTime");
 const bpmDiv = document.getElementById("bpmDiv");
 const midiAlignTimeBtn = document.getElementById("midiAlignTime");
+const useAIEl = document.getElementById("useMidiAI");
+const nonAIMidiOptions = document.getElementById("nonAiMidiDiv");
 const matOptions = document.getElementById("matOptions");
 const midiBpmDiv = document.getElementById("midiBpmDiv");
 const subBeatDiv = document.getElementById("subBeatDiv");
+const AIMidiOptions = document.getElementById("AiMidiDiv");
+const tQs = document.getElementById("tQs");
+const tQt = document.getElementById("tQt");
+const tQd = document.getElementById("tQd");
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {
   process(inputs) {
@@ -531,8 +574,9 @@ let trueScaleVal=false;
 let overlayImage = null;
 let useHz = false;
 let autoPlayOnFinish = true;
-let alignPitch=false;let alignTime=false;midiAlignTime=true;
+let alignPitch=false;let alignTime=false;midiAlignTime=true;useMidiAI=true;
 let subBeat = 1;mSubBeat=16;midiBpm=120;
+let tQTempo=120;tQStrength=0;
 let useVolumeControllers = false;
 
 let startX = null, startY = null;
@@ -623,29 +667,20 @@ sliders[10][1].addEventListener('keydown', (e) => {
   }
 });
 sliders[11][0].addEventListener('input', () => {globalGain = parseFloat(sliders[11][0].value); sliders[11][1].value = globalGain; updateEQ();});
-sliders[11][1].addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    let val = parseFloat(sliders[11][1].value);
-    const min = parseFloat(sliders[11][0].min);
-    const max = parseFloat(sliders[11][0].max);
-    if (isNaN(val)) val = globalGain;      
-    if (val < min) val = min;
-    if (val > max) val = max;
-    sliders[11][1].value = val;      
-    sliders[11][0].value = val;      
-    globalGain = val;
-    updateEQ();
-  }
-});
-sliders[11][0].addEventListener('input', () => {globalGain = parseFloat(sliders[11][0].value); sliders[11][1].value = globalGain; updateEQ();});
 sliders[11][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[11][1].value);const min = parseFloat(sliders[11][0].min);const max = parseFloat(sliders[11][0].max);
     if (isNaN(val)) val = globalGain;if (val < min) val = min;if (val > max) val = max;sliders[11][1].value = val;sliders[11][0].value = val;globalGain = val;updateEQ();}});
 sliders[12][0].addEventListener('input', () => {midiBpm = parseFloat(sliders[12][0].value); sliders[12][1].value = midiBpm;});
 sliders[12][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[12][1].value);const min = parseFloat(sliders[12][0].min);const max = parseFloat(sliders[12][0].max);
     if (isNaN(val)) val = midiBpm;if (val < min) val = min;if (val > max) val = max;sliders[12][1].value = val;sliders[12][0].value = val;midiBpm = val;}}); 
-sliders[13][0].addEventListener('input', () => {mSubBeat = parseFloat(sliders[13][0].value); sliders[13][1].value = midiBpm;});
+sliders[13][0].addEventListener('input', () => {mSubBeat = parseFloat(sliders[13][0].value); sliders[13][1].value = mSubBeat;});
 sliders[13][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[13][1].value);const min = parseFloat(sliders[13][0].min);const max = parseFloat(sliders[13][0].max);
     if (isNaN(val)) val = mSubBeat;if (val < min) val = min;if (val > max) val = max;sliders[13][1].value = val;sliders[13][0].value = val;mSubBeat = val;}});
+sliders[14][0].addEventListener('input', () => {tQStrength = parseFloat(sliders[14][0].value); sliders[14][1].value = tQStrength; updateEQ();});
+sliders[14][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[14][1].value);const min = parseFloat(sliders[14][0].min);const max = parseFloat(sliders[14][0].max);
+    if (isNaN(val)) val = tQStrength;if (val < min) val = min;if (val > max) val = max;sliders[14][1].value = val;sliders[11][0].value = val;tQStrength = val;}});
+sliders[15][0].addEventListener('input', () => {tQTempo = parseFloat(sliders[15][0].value); sliders[15][1].value = tQTempo;});
+sliders[15][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[15][1].value);const min = parseFloat(sliders[15][0].min);const max = parseFloat(sliders[15][0].max);
+    if (isNaN(val)) val = tQTempo;if (val < min) val = min;if (val > max) val = max;sliders[15][1].value = val;sliders[15][0].value = val;tQTempo = val;}});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -708,6 +743,7 @@ uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uv
 alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; a4PitchDiv.style.display=alignPitch?"block":"none";});
 alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
 midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
+useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});
 overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;

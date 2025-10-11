@@ -9,7 +9,6 @@ self.addEventListener('message', async (ev) => {
       return;
     }
     try {
-
       if (typeof self.tf === 'undefined') {
         try {
           importScripts(TF_CDN);
@@ -22,26 +21,19 @@ self.addEventListener('message', async (ev) => {
         self.postMessage({ type: 'status', status: 'error', detail: 'tf not available after importScripts' });
         return;
       }
-
       try {
         const mdl = await self.tf.loadGraphModel('indexeddb://' + idbKey);
-
         self.postMessage({ type: 'status', status: 'already', detail: 'model already in indexeddb', idbKey });
-
         if (mdl && typeof mdl.dispose === 'function') mdl.dispose();
         return;
       } catch (eAlready) {
-
       }
       self.postMessage({ type: 'status', status: 'loading', detail: 'loading modelUrl ' + modelUrl });
-
       const graphModel = await self.tf.loadGraphModel(modelUrl);
-
       try {
         await graphModel.save('indexeddb://' + idbKey);
         self.postMessage({ type: 'status', status: 'saved', detail: 'model saved to indexeddb://' + idbKey, idbKey });
       } catch (saveErr) {
-
         self.postMessage({ type: 'status', status: 'error', detail: 'save to indexeddb failed: ' + String(saveErr) });
       } finally {
         if (graphModel && typeof graphModel.dispose === 'function') graphModel.dispose();

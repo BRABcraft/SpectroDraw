@@ -208,11 +208,21 @@
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
       <div id="fftParameters">
         <label class="h1">FFT Parameters
-          <a id="fftLearnMore" class="learn-more" href="/fft" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
+          <a id="fftLearnMore" class="learn-more" href="/faq/fft" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
         </label>
         <div class="slider-row">
-          <label class="h2" title="An exponent of 2, height of spectrogram in pixels.">Pitch resolution:</label>
-          <input id="fftSize" type="number" value="12" step="1" min="6" max="14" style="margin-left: 102px;">
+          <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
+          <select id="fftSize" style="margin-left:87px;">
+            <option value="16384">16384</option>
+            <option value="8192">8192</option>
+            <option value="4096" selected>4096</option>
+            <option value="2048">2048</option>
+            <option value="1024">1024</option>
+            <option value="512">512</option>
+            <option value="256">256</option>
+            <option value="128">128</option>
+            <option value="64">64</option>
+          </select>
         </div>
         <div class="slider-row" style="align-items:center;">
           <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
@@ -757,15 +767,15 @@ function toggleLockHop() {
     lockHopBtn.innerHTML=unlockHTML;
     hopSize.classList.remove("disabled");
     hopSizeEl.value = ogHSv;
+    iLow = 0; iHigh = Math.max(1, Math.floor((pcm.length - fftSize) / ogHSv) + 1);
     restartRender();
-    iLow = 0; iHigh = specWidth;
   } else {
     lockHopBtn.innerHTML=lockHTML;
     hopSize.classList.add("disabled");
     ogHSv = hopSizeEl.value;
-    hopSizeEl.value = Math.pow(2,fftSizeEl.value);
+    hopSizeEl.value = fftSizeEl.value;
+    iLow = 0; iHigh = Math.max(1, Math.floor((pcm.length - fftSize) / fftSizeEl.value) + 1);
     restartRender();
-    iLow = 0; iHigh = specWidth;
   }
   lockHop = !lockHop;
 }
@@ -958,17 +968,16 @@ emptyAudioLengthEl.addEventListener("input", ()=> {
 </script>
 <script src="recordingAndPresets.js"></script>
 <script>
-if (lockHop) hopSizeEl.value = Math.pow(2,fftSizeEl.value);
+if (lockHop) hopSizeEl.value = parseInt(fftSizeEl.value);
 fftSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();
-  if (lockHop) hopSizeEl.value = Math.pow(2,fftSizeEl.value);
+  if (lockHop) hopSizeEl.value = parseInt(fftSizeEl.value);
 });
 hopSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();});
 
 function restartRender(autoPlay){
     if(!pcm) return;
     autoPlayOnFinish = !!playing || !!autoPlay;
-    const exponent = Math.max(6, Math.min(14, parseInt(fftSizeEl.value)||10));
-    fftSize = 1 << exponent;
+    fftSize = parseInt(fftSizeEl.value);
     hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
     win = hann(fftSize);
 

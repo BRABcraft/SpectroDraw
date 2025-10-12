@@ -8,35 +8,36 @@
   <link rel="icon" href="/favicon32x32.ico"/>
   <style>
     body {
-      margin: 0;
-      font-family: 'Inter', sans-serif;
-      background: #0f172a;
-      color: #f9fafb;
+      background: radial-gradient(ellipse at top, #0b0c14 0%, #090a10 100%);
+      color: #e2e8f0;
+      font-family: "Inter", sans-serif;
+      margin: 0; /* ensure no default margin */
+    }
+
+    main {
+      text-align: left;
       line-height: 1.7;
-      padding: 2rem;
+      padding-left: 20rem;
+      padding-right: 20rem;
     }
 
-    nav {
-      display: flex;
-      justify-content: flex-end;
-      gap: 1.5rem;
-      padding: 1rem 2rem;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(10px);
-      border-radius: 0.5rem;
-      margin-bottom: 2rem;
+    nav{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:1rem 2rem;
+        position:sticky;
+        top:0;
+        z-index:40;
+        backdrop-filter: blur(8px);
+        background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+        border-bottom: 1px solid rgba(255,255,255,0.02);
     }
-
-    nav a {
-      color: #f9fafb;
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.2s ease;
-    }
-
-    nav a:hover {
-      color: #60a5fa;
-    }
+    .nav-left{display:flex;align-items:center;gap:1rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;}
+    .nav-right{display:flex;gap:1rem;align-items:center}
+    .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95}
+    .nav-right a:hover{color:var(--accent1)}
 
     h1, h2, h3, h4 {
       font-weight: 700;
@@ -69,13 +70,20 @@
 </head>
 <body>
   <nav>
-    <a href="/">Home</a>
-    <a href="/app">Launch App</a>
-    <a href="/privacy">Privacy Policy</a>
-    <a href="/terms">Terms</a>
+    <div class="nav-left">
+        <a href="/" class="brand">SpectroDraw</a>
+        <div style="opacity:.6;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+        <a href="/app">Launch App</a>
+        <a href="/faq">FAQ</a>
+        <a href="/pricing">Spectrodraw Pro</a>
+        <a href="/login">Sign in</a>
+    </div>
   </nav>
+  <main>
 
-  <h1>Terms of Service</h1>
+  <h1 style="text-align:center;">Terms of Service</h1>
   <p>Last updated: September 24, 2025</p>
 
   <h2>Usage Restrictions</h2>
@@ -96,8 +104,11 @@
   <p>The company is not liable for any damages or losses resulting from the use of this plugin. Use at your own risk.</p>
 
   <footer>
-    © <span id="year"></span> SpectroDraw. All rights reserved.
+    <p>© 2025 SpectroDraw. All rights reserved.</p>
+    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:white;">Terms</a>
   </footer>
+  </main>
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();

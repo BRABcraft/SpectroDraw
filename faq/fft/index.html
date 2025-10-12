@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>How the FFT Turns Sound into Pictures — A Clear, Conversational Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#07080b;
+      --panel:#0f1720;
+      --muted:#9aa4b2;
+      --accent1:#4f46e5;
+      --accent2:#9333ea;
+      --accent3:#ec4899;
+      --glass: rgba(255,255,255,0.03);
+      --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+    }
+    nav{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:1rem 2rem;
+    position:sticky;
+    top:0;
+    z-index:40;
+    backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+  }
+  .nav-left{display:flex;align-items:center;gap:1rem}
+  .brand{font-weight:800;letter-spacing:0.2px}
+  .nav-right{display:flex;gap:1rem;align-items:center}
+  .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95}
+  .nav-right a:hover{color:var(--accent1)}
+    html,body{height:100%;margin:0;background:radial-gradient(ellipse at top, #0b0c14 0%, #090a10 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;line-height:1.6}
+    .wrap{max-width:980px;margin:48px auto;padding:28px;}
+    h1{font-size:1.8rem;margin:0 0 .6rem;background:linear-gradient(90deg,var(--accent),#e96bf9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .lede{color:#dbe8ff;margin:8px 0 20px;font-size:1.05rem}
+    p{margin:12px 0;color:#d0d9e9}
+    strong{color:#fff}
+    figure{margin:18px 0;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.02)}
+    figure img{display:block;width:100%;height:auto}
+    figcaption{padding:10px 12px;color:var(--muted);font-size:.95rem;background:rgba(255,255,255,0.01)}
+    .section{padding:8px 0}
+    .muted{color:var(--muted)}
+    .note{background:rgba(255,255,255,0.01);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);margin-top:12px;color:#e8eefc}
+    .two-col{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:820px){.two-col{grid-template-columns:1fr 1fr}}
+    pre{background:#061018;padding:12px;border-radius:8px;overflow:auto;color:#cfe3ff}
+    .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(124,92,255,0.14);color:var(--accent);font-weight:700}
+    header.hero {
+      position: relative;
+      min-height: 38vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      color: #eef2ff;
+      padding: 48px 20px;
+    }
+    .title {
+      font-size:2rem;
+      font-weight:800;
+      margin:6px 0 12px 0;
+      background: var(--cta-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+    .lede {
+      color:#dbe8ff;
+      max-width:72ch;
+      font-size:1.05rem;
+      margin-bottom:18px;
+    }
+    h2 { color:#fff; margin-top:18px; font-size:1.45rem; }
+    h3 { color:#e8eefc; margin-top:14px; font-size:1.15rem; }
+    footer{ padding:2rem 1rem; text-align:center; color:var(--muted); margin-top:2rem; border-top:1px solid rgba(255,255,255,0.02); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-left">
+      <div class="brand">SpectroDraw</div>
+      <div style="opacity:.6;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+      <a href="/app">Launch App</a>
+      <a href="/faq">FAQ</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/login">Sign in</a>
+    </div>
+  </nav>
+
+  <!-- hero -->
+  <header class="hero" role="banner" aria-label="FFT hero">
+    <div style="max-width:1100px;text-align:center;">
+      <div class="badge">FAQ • Audio Fundamentals</div>
+      <h1 class="title">What Is FFT (Fast Fourier Transform)?</h1>
+      <p class="lede">Learn how spectrograms are made with FFT.</p>
+      <div style="color:var(--muted);font-weight:700">Estimated read: 6 min • Author: SpectroDraw • Published: October 11, 2025</div>
+    </div>
+  </header>
+  <main class="wrap" role="main" aria-labelledby="title">
+    <h3>So, we're trying to represent sound as an image. Where do we even start?</h3>
+
+    <figure aria-hidden="true">
+      <!-- first illustrative image -->
+      <img src="https://picsum.photos/1200/480?random=201" alt="Abstract image suggesting sound waves and frequency bars">
+    </figure>
+
+    <p class="lede">
+      First of all, we need to know how sound is represented. All digital audio is represented as a long stream of numbers. Each number is a <strong>sample</strong>. Think of samples like the grooves on a record — but represented digitally.
+    </p>
+
+    <section class="section">
+      <h2>What is a sample?</h2>
+      <p>
+        When a speaker vibrates, it produces compression waves in the air. When these waves hit your eardrums, they vibrate your eardrums and produce a signal to your brain that allows you to hear. A <strong>sample</strong> represents the positition of your speaker at an instant of time. More specifically, it's a number between -1.0 to 1.0 representing the electrical signal sent to your speakers.
+      </p>
+      <figure>
+        <img src="https://picsum.photos/1100/420?random=202" alt="Audio sample visualization">
+        <figcaption>Samples represent the position of your speaker at a particular instant.</figcaption>
+      </figure>
+      <p>
+        As you can imagine, you will need lots and lots of samples every second to allow your speaker to produce the unique and complex sounds of everyday life. For example, if you wanted to play a pitch at 440 hertz, you would need at least <strong>880</strong> samples each second to represent the up and down vibrations of your speaker. <strong>A common sample rate is 44100 samples per second.</strong> This allows any sound up to 22050 hertz to be represented.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Frames</h2>
+      <p>
+        Now that we've established how digitally audio is structured, we need to find a way to convert it to an image that displays the audio's frequency information. We can do this by analyzing short chunks, or <strong>frames</strong> of samples and determining how closely they match to various sine frequencies. Common frame sizes are 1024, 2048, and 4096 samples. We will call our frame size <strong>N</strong>.
+      </p>
+      <p>Example:<br>If sample rate is 44100 and N is 1024, then each frame will last 1024/44100 = 0.02 seconds.</p>
+      <p>The result of the analysis of our frame will be a set of N frequency coefficients, <strong>or "bins" for short</strong>. Each bin represents the strength of a sine wave that with bin number waves within the frame:</p>
+      <p>
+        Expressed in hertz, each bin will have a frequency of (bin index + 0.5) * (Sample rate / 2) / N.
+      </p>
+      <figure>
+        <img src="https://picsum.photos/1100/420?random=202" alt="Illustration of waves within each frame of different bins">
+        <figcaption>A frame is a short slice of the waveform. We analyze each slice separately to see what frequencies (bins) live inside it.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section">
+      <h2>Obtaining the "Frequency Coefficients"</h2>
+      <p>In short, frequency coefficients are obtained by comparing the samples within the frame to a sine wave at each frequency. For each frequency, we overlay the sine wave, multiply the sample values by that sine wave, then add up all the multiplied samples to get the frequency coefficient.</p>
+      <figure>
+        <img src="https://picsum.photos/1100/420?random=203" alt="Illustration of matching a waveform to a sine wave">
+        <figcaption>Each frame is checked against a family of sine waves. The match scores build the spectrogram.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section">
+      <h2>The FFT (Fast Fourier Transform) Algorithm</h2>
+      <p>If we literally compare every frequency to every sample in the frame, we do N × N multiplications per frame. That’s because for each of the N candidate frequencies we inspect all N samples. For N = 4096 that’s sixteen million multiplications for a single frame. However, there's a faster way to do this.</p>
+      <p>The Fast Fourier Transform (FFT) is a clever algorithm that performs these frequency coefficient calculations efficiently. Instead of doing N × N independent operations, FFT does about N × log₂(N). For N = 4096, thats a difference between 16 million and 50,000 calculations: over 300 times faster.</p>
+      <figure>
+        <img src="https://picsum.photos/1100/420?random=204" alt="Abstract depiction of algorithm speedup">
+        <figcaption>FFT reuses partial results so total work is dramatically lower.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section">
+      <h2>How Does FFT Work?</h2>
+      <p>The Fast Fourier Transform (FFT) algorithm exploits the symmetry and periodicity of sine and cosine waves to drastically reduce the number of redundant calculations required by the Discrete Fourier Transform (DFT). This "divide and conquer" approach transforms the signal from the time domain to the frequency domain with much greater efficiency.</p>
+      <h3>Symmetry</h3>
+      <h4>The FFT takes advantage of two primary symmetries in sinusoidal functions:</h4>
+      <p><strong>Even symmetry of cosines:</strong> A cosine wave is symmetric around the y-axis, meaning cos(x) = cos(-x).</p>
+      <p><strong>Odd symmetry of sines:</strong> A sine wave is anti-symmetric around the origin, meaning sin(-x)=-sin(x).</p>
+      <p>The DFT involves correlating a signal with sine and cosine waves at different frequencies. When the FFT divides the signal into smaller segments, these symmetries allow it to reuse many of the complex multiplication results. For example, if a certain calculation is required at one frequency, the FFT can reuse that same result for another frequency that exhibits a symmetrical or anti-symmetrical relationship.</p>
+      <h3>Periodicity</h3>
+      <p>Another key property is the periodicity of the complex exponential function \(e^{-j2\pi kn/N}\), which is at the heart of the DFT equation. This function contains sine and cosine terms that repeat their values over time.</p>
+      <p><strong>Redundant calculations:</strong> The FFT's "divide and conquer" strategy separates the input data into even and odd indices. This exposes repeated computations, which the algorithm reuses to perform the calculation for the full dataset.<p>
+      <p><strong>Recursive decomposition:</strong> The FFT algorithm recursively breaks down a large DFT into smaller and smaller DFTs. The results from these smaller calculations are then efficiently combined, again using the properties of periodicity and symmetry, to produce the final result. For optimal performance, the input signal length is typically a power of two, which makes this recursive division most efficient. <p>
+      <h3>This video by 3Blue1Brown provides an excellent visualization of FFT:</h3>
+      <iframe width="928" height="522" src="https://www.youtube.com/embed/spUNpyF58BY" title="But what is the Fourier Transform?  A visual introduction." frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </section>
+
+    <section aria-labelledby="extra-info">
+      <h2 id="extra-info">Notes on FFT Parameters</h2>
+      <p>In SpectroDraw, you can control the <strong>pitch resolution</strong> and <strong>time resolution</strong>. Note that the pitch resolution represents N as an exponent of 2 (A pitch resolution of 12 would mean N = 2^12=4096), and the time resolution represents hop.</p>
+      <img src="/assets/fftParameters.jpg" alt="FFT Parameters">
+
+      <p><strong>Why must pitch resolution be a power of 2?</strong> The FFT splits the problem cleanly in half at every stage. If N is a power of two, you can halve N exactly the same number of times until you reach tiny base cases. That makes the code simple, memory-friendly, and extremely fast in practice. </p>
+
+      <p><strong>Why lock the time resolution?</strong> The time resolution represents the number of samples each frame is spaced out by. Locking the time resolution makes each frame spaced out by the frame size, preventing frames from overlapping. Overlapping frames leads to phases interferening with magnitudes, making painted areas quieter. Locking time resolution is ideal if you want to paint with a flat phase.</p>
+      <div style="display:flex; gap:10px; justify-content:center; text-align:center;">
+      <div style="flex:1;">
+        <div style="font-weight:bold; margin-bottom:6px;color:white;">Locked Time Resolution:</div>
+          <img src="/assets/lockedTime.jpg" alt="Flat phase with locked time resolution"
+              style="width:100%; border-radius:8px; object-fit:cover;border-radius:20px;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:bold; margin-bottom:6px;color:white;">Unlocked Time Resolution:</div>
+          <img src="/assets/unlockedTime.jpg" alt="Flat phase without locked time resolution"
+              style="width:100%; border-radius:8px; object-fit:cover;border-radius:20px;">
+        </div>
+      </div>
+      <p><strong>Why not lock the time resolution?</strong> In most cases, you wouldn't care about drawing flat phases. So, you would ideally want the time resolution to be less than the pitch resolution, leading to higher quality audio.</p>
+    </section>
+  </main>
+  <footer>
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener" style="color:#cfe3ff">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:white;">Terms</a>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

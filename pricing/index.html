@@ -10,12 +10,16 @@
      crossorigin="anonymous"></script>
   <style>
     body {
-      background: radial-gradient(ellipse at top, #0b0c14 0%, #090a10 100%);
-      color: #e2e8f0;
-      font-family: "Inter", sans-serif;
-      text-align: center;
-      padding: 4rem 1rem;
-    }
+        background: radial-gradient(ellipse at top, #0b0c14 0%, #090a10 100%);
+        color: #e2e8f0;
+        font-family: "Inter", sans-serif;
+        text-align: center;
+        margin: 0; /* ensure no default margin */
+        }
+
+        main {
+        padding: 4rem 1rem; /* move padding here instead */
+        }
     nav{
         display:flex;
         justify-content:space-between;
@@ -135,11 +139,12 @@
     </div>
     <div class="nav-right">
         <a href="/app">Launch App</a>
-        <a href="/about">About</a>
+        <a href="/faq">FAQ</a>
         <a href="/pricing">Spectrodraw Pro</a>
         <a href="/login">Sign in</a>
     </div>
   </nav>
+  <main>
   <h1>Upgrade To Pro</h1>
   <p class="subtitle">Choose the plan that fits your workflow.</p>
 
@@ -184,7 +189,7 @@
         <li><span class="check">✔</span> Advanced Brush Texturing</li>
         <li><span class="check">✔</span> Effect Automation</li>
       </ul>
-      <a href="/buy-pro" class="btn btn-primary">Get Pro Free</a>
+      <a href="/buy-pro" class="btn btn-primary">Claim early access</a>
     </div>
   </div>
 
@@ -193,5 +198,6 @@
     <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
     <a href="/terms" style="color:white;">Terms</a>
   </footer>
+  </main>
 </body>
 </html>

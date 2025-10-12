@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>How the FFT Turns Sound into Pictures — A Clear, Conversational Guide</title>
+  <title>FFT - SpectroDraw</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -108,7 +108,7 @@
 
     <figure aria-hidden="true">
       <!-- first illustrative image -->
-      <img src="https://picsum.photos/1200/480?random=201" alt="Abstract image suggesting sound waves and frequency bars">
+      <img src="/assets/fft0.jpg" alt="Abstract image suggesting sound waves and frequency bars">
     </figure>
 
     <p class="lede">
@@ -121,7 +121,7 @@
         When a speaker vibrates, it produces compression waves in the air. When these waves hit your eardrums, they vibrate your eardrums and produce a signal to your brain that allows you to hear. A <strong>sample</strong> represents the positition of your speaker at an instant of time. More specifically, it's a number between -1.0 to 1.0 representing the electrical signal sent to your speakers.
       </p>
       <figure>
-        <img src="https://picsum.photos/1100/420?random=202" alt="Audio sample visualization">
+        <img src="/assets/fft1.gif" alt="Audio sample visualization">
         <figcaption>Samples represent the position of your speaker at a particular instant.</figcaption>
       </figure>
       <p>
@@ -140,7 +140,7 @@
         Expressed in hertz, each bin will have a frequency of (bin index + 0.5) * (Sample rate / 2) / N.
       </p>
       <figure>
-        <img src="https://picsum.photos/1100/420?random=202" alt="Illustration of waves within each frame of different bins">
+        <img src="/assets/fft2.jpg" alt="Illustration of waves within each frame of different bins">
         <figcaption>A frame is a short slice of the waveform. We analyze each slice separately to see what frequencies (bins) live inside it.</figcaption>
       </figure>
     </section>
@@ -149,7 +149,7 @@
       <h2>Obtaining the "Frequency Coefficients"</h2>
       <p>In short, frequency coefficients are obtained by comparing the samples within the frame to a sine wave at each frequency. For each frequency, we overlay the sine wave, multiply the sample values by that sine wave, then add up all the multiplied samples to get the frequency coefficient.</p>
       <figure>
-        <img src="https://picsum.photos/1100/420?random=203" alt="Illustration of matching a waveform to a sine wave">
+        <img src="/assets/fft3.jpg" alt="Illustration of matching a waveform to a sine wave">
         <figcaption>Each frame is checked against a family of sine waves. The match scores build the spectrogram.</figcaption>
       </figure>
     </section>
@@ -159,8 +159,8 @@
       <p>If we literally compare every frequency to every sample in the frame, we do N × N multiplications per frame. That’s because for each of the N candidate frequencies we inspect all N samples. For N = 4096 that’s sixteen million multiplications for a single frame. However, there's a faster way to do this.</p>
       <p>The Fast Fourier Transform (FFT) is a clever algorithm that performs these frequency coefficient calculations efficiently. Instead of doing N × N independent operations, FFT does about N × log₂(N). For N = 4096, thats a difference between 16 million and 50,000 calculations: over 300 times faster.</p>
       <figure>
-        <img src="https://picsum.photos/1100/420?random=204" alt="Abstract depiction of algorithm speedup">
-        <figcaption>FFT reuses partial results so total work is dramatically lower.</figcaption>
+        <img src="/assets/fft-butterfly.svg" alt="Abstract depiction of algorithm speedup">
+        <figcaption>FFT reuses partial results so total work is dramatically lower. <a href="https://lloydrochester.com/post/dsp/fast-fourier-transform/#google_vignette" style="color:rgb(0, 157, 255)">Source</a></figcaption>
       </figure>
     </section>
 

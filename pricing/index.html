@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpectroDraw – Pricing</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon32x32.ico"/>
+  <style>
+    body {
+      background: radial-gradient(ellipse at top, #0b0c14 0%, #090a10 100%);
+      color: #e2e8f0;
+      font-family: "Inter", sans-serif;
+      text-align: center;
+      padding: 4rem 1rem;
+    }
+    nav{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:1rem 2rem;
+        position:sticky;
+        top:0;
+        z-index:40;
+        backdrop-filter: blur(8px);
+        background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+        border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .nav-left{display:flex;align-items:center;gap:1rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;}
+    .nav-right{display:flex;gap:1rem;align-items:center}
+    .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95}
+    .nav-right a:hover{color:var(--accent1)}
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    p.subtitle {
+      font-size: 1.25rem;
+      color: #94a3b8;
+      margin-bottom: 4rem;
+    }
+    .pricing-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .plan {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 1.5rem;
+      padding: 2.5rem 2rem;
+      flex: 1;
+      min-width: 280px;
+      max-width: 400px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .plan:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 40px rgba(99,102,241,0.25);
+    }
+    .plan h2 {
+      font-size: 2rem;
+      margin-bottom: 0.25rem;
+    }
+    .plan p.price {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: #6366f1;
+    }
+    .plan p.price small {
+      display: block;
+      font-size: 1rem;
+      color: #94a3b8;
+      margin-top: 0.25rem;
+    }
+    .features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 2rem 0;
+      text-align: left;
+    }
+    .features li {
+      margin: 0.6rem 0;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .check {
+      color: #10b981; /* green */
+      font-weight: bold;
+    }
+    .cross {
+      color: #ef4444; /* red */
+      font-weight: bold;
+    }
+    .btn {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      border-radius: 9999px;
+      text-decoration: none;
+      font-weight: 600;
+      color: white;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    .btn-outline {
+      border: 1px solid #6366f1;
+      color: #6366f1;
+    }
+    footer {
+      margin-top: 4rem;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+    <nav>
+    <div class="nav-left">
+        <a href="/" class="brand">SpectroDraw</a>
+        <div style="opacity:.6;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+        <a href="/app">Launch App</a>
+        <a href="/about">About</a>
+        <a href="/pricing">Spectrodraw Pro</a>
+        <a href="/login">Sign in</a>
+    </div>
+  </nav>
+  <h1>Upgrade To Pro</h1>
+  <p class="subtitle">Choose the plan that fits your workflow.</p>
+
+  <div class="pricing-grid">
+    <!-- Free Plan -->
+    <div class="plan">
+      <h2>Free</h2>
+      <p class="price">$0</p>
+      <ul class="features">
+        <li><span class="check">✔</span> AI-powered MIDI Conversion</li>
+        <li><span class="check">✔</span> Adjustable Spectrogram Resolution</li>
+        <li><span class="check">✔</span> Spectrogram Painting Tools</li>
+        <li><span class="check">✔</span> Equalizer</li>
+        <li><span class="cross">✖</span> Stereo Support</li>
+        <li><span class="cross">✖</span> Undo History Timeline</li>
+        <li><span class="cross">✖</span> Cloner Tool</li>
+        <li><span class="cross">✖</span> Harmonics Modifier</li>
+        <li><span class="cross">✖</span> Region Selection</li>
+        <li><span class="cross">✖</span> Advanced Brush Texturing</li>
+        <li><span class="cross">✖</span> Effect Automation</li>
+      </ul>
+      <a href="/app" class="btn btn-outline">Start for Free</a>
+    </div>
+
+    <!-- Pro Plan -->
+    <div class="plan" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);">
+      <h2>Pro</h2>
+      <p class="price">
+        <span style="text-decoration:line-through; opacity:0.7;">$20.00</span> Free
+        <small>Limited-time early access</small>
+      </p>
+      <ul class="features">
+        <li><span class="check">✔</span> AI-powered MIDI Conversion</li>
+        <li><span class="check">✔</span> Adjustable Spectrogram Resolution</li>
+        <li><span class="check">✔</span> Spectrogram Painting Tools</li>
+        <li><span class="check">✔</span> Equalizer</li>
+        <li><span class="check">✔</span> Stereo Support</li>
+        <li><span class="check">✔</span> Undo History Timeline</li>
+        <li><span class="check">✔</span> Cloner Tool</li>
+        <li><span class="check">✔</span> Harmonics Modifier</li>
+        <li><span class="check">✔</span> Region Selection</li>
+        <li><span class="check">✔</span> Advanced Brush Texturing</li>
+        <li><span class="check">✔</span> Effect Automation</li>
+      </ul>
+      <a href="/buy-pro" class="btn btn-primary">Get Pro Free</a>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 SpectroDraw. All rights reserved.</p>
+    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:white;">Terms</a>
+  </footer>
+</body>
+</html>

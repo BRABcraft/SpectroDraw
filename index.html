@@ -363,9 +363,9 @@ body{
   text-align: center;
 }
 
-.card-content h4 {
+.card-content h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 2rem;
   font-weight: 800;
 }
 
@@ -411,7 +411,7 @@ body{
     </div>
     <div class="nav-right">
       <a href="/app">Launch App</a>
-      <a href="/docs">Docs</a>
+      <a href="/about">About</a>
       <a href="/pricing">Pricing</a>
       <a href="/login">Sign in</a>
     </div>
@@ -590,7 +590,7 @@ body{
 <section class="feature-section" aria-labelledby="mission-heading" id="mission">
   <div class="section-title">About</div>
   <h2 id="mission-heading" class="section-head">Our Mission</h2>
-  <p class="feature-mission-copy">
+  <p class="feature-mission-copy" style="font-size:25px">
     Our mission is to make sound design as natural and creative as drawing on a canvas — turning audio editing into
     an intuitive, visual experience accessible to everyone. Paint frequencies, sculpt harmonics, and transform audio into creative ideas fast.
   </p>
@@ -600,22 +600,106 @@ body{
     <div class="feature-animate" aria-hidden="true"></div>
 
     <!-- large illustrative image (picsum placeholder) -->
-    <img src="https://picsum.photos/seed/mission/1200/540" alt="Abstract representation of spectrogram" style="width:100%;max-width:1100px;border-radius:12px;box-shadow:0 20px 60px rgba(3,6,23,0.6);">
+    <img src="assets/mission.jpg" alt="Abstract representation of spectrogram" style="width:100%;max-width:1100px;margin-top:80px;border-radius:12px;box-shadow: 0 0 80px rgba(243, 242, 244,0.5),
+                      0 0 120px rgba(174, 0, 255, 0.4);">
   </div>
 
-  <p style="max-width:900px;color:#cbd5e1;">
+  <p style="max-width:900px;color:#cbd5e1;font-size:25px">
     We believe spectral editing should be immediate and playful — for students learning audio concepts, sound designers
     prototyping effects, and producers exploring new textures. Accurate audio → MIDI, DAW-friendly exports, and platform parity are core goals.
   </p>
 </section>
+<section class="feature-section" id="spectrodraw-pro">
+  <div class="section-title">Coming Soon</div>
+  <h2 class="section-head">SpectroDraw Pro</h2>
+  <p class="section-copy" style="max-width:72ch;">
+    Take your sound design further with SpectroDraw Pro, the next evolution of our interactive spectrogram editor. With precision brush controls and advanced spectral tools, you can literally paint any sound you can imagine, from engine sounds to cinematic effects.
+  </p>
 
+  <div class="feature-visual">
+    <div class="feature-animate"></div>
+  </div>
+
+  <div style="overflow-x:auto; width:100%; max-width:900px; margin-top:2rem;">
+    <table style="width:100%; border-collapse:collapse; text-align:center; color:#e2e8f0; font-size:1.1rem;">
+      <thead>
+        <tr style="background:rgba(255,255,255,0.04);">
+          <th style="padding:1rem; text-align:left; font-weight:700;">Feature</th>
+          <th style="padding:1rem;">Basic</th>
+          <th style="padding:1rem;">Pro</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:0.9rem; text-align:left;">AI-powered MIDI Conversion</td>
+          <td>✅</td>
+          <td>✅</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,0.02);">
+          <td style="padding:0.9rem; text-align:left;">Adjustable Spectrogram Resolution</td>
+          <td>✅</td>
+          <td>✅</td>
+        </tr>
+        <tr>
+          <td style="padding:0.9rem; text-align:left;">Spectrogram Painting Tools</td>
+          <td>✅</td>
+          <td>✅</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,0.02);">
+          <td style="padding:0.9rem; text-align:left;">Equalizer</td>
+          <td>✅</td>
+          <td>✅</td>
+        </tr>
+        <tr>
+          <td style="padding:0.9rem; text-align:left;">Stereo Support</td>
+          <td>❌</td>
+          <td>✅</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,0.02);">
+          <td style="padding:0.9rem; text-align:left;">Undo History Timeline</td>
+          <td>❌</td>
+          <td>✅</td>
+        </tr>
+        <tr>
+          <td style="padding:0.9rem; text-align:left;">Cloner Tool</td>
+          <td>❌</td>
+          <td>✅</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,0.02);">
+          <td style="padding:0.9rem; text-align:left;">Harmonics Modifier</td>
+          <td>❌</td>
+          <td>✅</td>
+        </tr>
+        <tr>
+          <td style="padding:0.9rem; text-align:left;">Region Selection</td>
+          <td>❌</td>
+          <td>✅</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,0.02);">
+          <td style="padding:0.9rem; text-align:left;">Advanced Brush Texturing</td>
+          <td>❌</td>
+          <td>✅</td>
+        </tr>
+        <tr>
+          <td style="padding:0.9rem; text-align:left;">Effect Automation</td>
+          <td>❌</td>
+          <td>✅</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:2.5rem; display:flex; justify-content:center; gap:1rem;">
+    <a class="btn btn-primary" href="/pro"><span>Reserve Free Ticket</span></a>
+    <a class="btn btn-ghost" href="/pricing"><span>View Pricing</span></a>
+  </div>
+</section>
 <!-- COMING SOON: VST plugin + iOS app (bigger side-by-side cards with images) -->
 <section class="feature-section" aria-labelledby="coming-heading" id="coming-soon">
   <div class="section-title">Coming Soon</div>
   <h2 id="coming-heading" class="section-head">VST Plugin &amp; iOS App</h2>
   <p class="section-copy" style="max-width:72ch;">
-    We're building a native VST to bring SpectroDraw straight into your DAW and a polished iOS app for mobile
-    spectrogram editing on iPhone and iPad. Below are previews — big, detailed, and ready to showcase workflows.
+    SpectroDraw started as a web app — but soon, you’ll be able to use it anywhere. We’re bringing it to your favorite DAWs as a VST plugin, and to iPhone and iPad with a powerful iOS app for on-the-go spectrogram editing.
   </p>
 
   <div class="feature-grid" role="list">
@@ -623,13 +707,14 @@ body{
     <article class="feature-card" role="listitem" aria-label="SpectroDraw VST plugin preview">
       <div class="card-media">
         <div class="card-badge">Desktop • VST</div>
-        <img src="https://picsum.photos/seed/vst/1200/900" alt="Preview of SpectroDraw VST plugin UI">
+        <img src="assets/vstdemo.webp" alt="Preview of SpectroDraw VST plugin UI">
       </div>
       <div class="card-content">
-        <h4>🔌 VST plugin</h4>
-        <p>Drop SpectroDraw directly into your session in Logic, Ableton, FL Studio and more — edit spectral content without leaving your DAW.</p>
+        <h2>VST plugin</h2>
+        <p>Bring SpectroDraw directly into your favorite DAW like Logic, Ableton, and FL Studio. Edit spectral content and create samples without leaving your DAW.</p>
         <div class="card-cta">
-          <a class="btn btn-primary" href="/vst"><span>Request Beta</span></a>
+          <!--Waitlist: email subscription-->
+          <a class="btn btn-primary" href="/vst"><span>Join waitlist</span></a>
           <a class="btn btn-ghost" href="#learn-more-vst">Learn more</a>
         </div>
       </div>
@@ -639,10 +724,10 @@ body{
     <article class="feature-card" role="listitem" aria-label="SpectroDraw iOS app preview">
       <div class="card-media">
         <div class="card-badge">Mobile • iOS</div>
-        <img src="https://picsum.photos/seed/ios/1200/900" alt="SpectroDraw iOS app preview">
+        <img src="assets/iosdemo.jpg" alt="SpectroDraw iOS app preview">
       </div>
       <div class="card-content">
-        <h4>📱 iOS App</h4>
+        <h2>iOS App</h2>
         <p>Interactive spectrogram editing on the go — draw, edit, and export while capturing ideas on iPhone and iPad.</p>
         <div class="card-cta">
           <a class="btn btn-primary" href="/ios"><span>Join waitlist</span></a>
@@ -652,6 +737,64 @@ body{
     </article>
   </div>
 </section>
+<!-- ===== LEARN MORE: VST PLUGIN ===== -->
+<section class="feature-section" id="learn-more-vst" aria-labelledby="learn-more-vst-heading">
+  <div class="section-title">VST Plugin</div>
+  <h2 id="learn-more-vst-heading" class="section-head">SpectroDraw VST — Bring visual editing into your DAW</h2>
+  <p class="feature-mission-copy">
+    The SpectroDraw VST plugin brings the power of visual sound editing directly into your favorite DAW. Just like the web app, it will offer both free and premium versions — with exclusive DAW-integrated features such as enhanced sampling tools and advanced synthesis capabilities.
+  </p>
+
+  <div class="feature-visual">
+    <div class="feature-animate"></div>
+    <img src="assets/vstdemo2.jpg" alt="SpectroDraw VST plugin mockup" 
+      style="border-radius:16px;box-shadow:0 0 80px rgba(79,70,229,0.4),0 0 120px rgba(147,51,234,0.35);margin-top:60px;width:100%;">
+  </div>
+
+  <p class="feature-mission-copy">
+    The plugin will support EQ automation, MIDI output, and advanced spectrogram-based modulation — giving producers a new dimension of control.  
+    <br><br>
+    <strong>Formats:</strong> VST3 / AU / AAX  
+    <br>
+    <strong>Compatibility:</strong> macOS, Windows  
+  </p>
+
+  <div class="card-cta" style="margin-top:1.25rem;">
+    <a class="btn btn-primary" href="/vst"><span>Join VST Waitlist</span></a>
+    <a class="btn btn-ghost" href="#coming-soon"><span>Back to Overview</span></a>
+  </div>
+</section>
+
+
+<!-- ===== LEARN MORE: iOS APP ===== -->
+<section class="feature-section" id="learn-more-ios" aria-labelledby="learn-more-ios-heading">
+  <div class="section-title">iOS App</div>
+  <h2 id="learn-more-ios-heading" class="section-head">SpectroDraw iOS — Edit anywhere, anytime</h2>
+  <p class="feature-mission-copy">
+    The upcoming SpectroDraw iOS app brings the full power of spectral editing to your pocket. Ideal for live spectral analysis, audio quality improvement, and sound effect creation.
+  </p>
+
+  <div class="feature-visual">
+    <div class="feature-animate"></div>
+    <h4 style="margin:0; color:#888;">(Not a real picture of the app.)</h4>
+    <img src="assets/iosdemo.jpg" alt="SpectroDraw iOS app preview" 
+      style="border-radius:16px;box-shadow:0 0 80px rgba(236,72,153,0.4),0 0 120px rgba(79,70,229,0.35);margin-top:60px;width:100%;">
+  </div>
+  
+  <p class="feature-mission-copy">
+    Designed with touch-first precision, the iOS version includes gesture-based brushes, spectral zooming, and live mic analysis.  
+    <br><br>
+    <strong>Devices:</strong> iPhone, iPad  
+    <br>
+    <strong>Sync:</strong> iCloud / SpectroCloud  
+  </p>
+
+  <div class="card-cta" style="margin-top:1.25rem;">
+    <a class="btn btn-primary" href="/ios"><span>Join iOS Waitlist</span></a>
+    <a class="btn btn-ghost" href="#coming-soon"><span>Back to Overview</span></a>
+  </div>
+</section>
+
   <!-- SOCIAL / FOOTER -->
   <section>
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.75rem;text-align:center">
@@ -683,17 +826,11 @@ body{
   </div>
 </section>
   <footer>
-    © <span id="year"></span> SpectroDraw · Built for creative sound design
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a>(© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:white;">Terms</a>
   </footer>
-  <footer>
-  <small>
-    Pitch detection powered by
-    <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">
-      Basic Pitch
-    </a>
-    (© Spotify AB, Apache 2.0)
-  </small>
-</footer>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
     document.querySelectorAll('.sample').forEach(el=>{

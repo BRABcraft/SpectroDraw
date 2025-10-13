@@ -129,6 +129,16 @@
       color: #64748b;
       font-size: 0.9rem;
     }
+    footer{
+      padding:2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+      margin-top:2rem;
+      border-top:1px solid var(--soft-border);
+      font-size:.95rem
+    }
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
   </style>
 </head>
 <body>
@@ -192,12 +202,16 @@
       <a href="/buy-pro" class="btn btn-primary">Claim early access</a>
     </div>
   </div>
-
+  </main>
   <footer>
-    <p>© 2025 SpectroDraw. All rights reserved.</p>
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
     <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
     <a href="/terms" style="color:white;">Terms</a>
   </footer>
-  </main>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>

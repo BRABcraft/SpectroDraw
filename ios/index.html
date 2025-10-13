@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FFT - SpectroDraw</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#07080b;
+      --panel:#0f1720;
+      --muted:#9aa4b2;
+      --text:#e6eefc;
+      --accent1:#4f46e5;
+      --accent2:#9333ea;
+      --accent3:#ec4899;
+      --soft-border: rgba(255,255,255,0.04);
+      --card-glow: 0 6px 30px rgba(147,51,234,0.12);
+      --glass-2: rgba(255,255,255,0.02);
+      --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
+      color:var(--text);
+      font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+      line-height:1.6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    nav{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:1rem 2rem;
+      position:sticky;
+      top:0;
+      z-index:40;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));
+      border-bottom: 1px solid var(--soft-border);
+    }
+    .nav-left{display:flex;align-items:center;gap:1rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;font-size:1.05rem}
+    .nav-right{display:flex;gap:1rem;align-items:center}
+    .nav-right a{
+      font-weight:600;
+      text-decoration:none;
+      color:#dfe7ff;
+      opacity:0.95;
+      padding:.45rem .6rem;
+      border-radius:8px
+    }
+    .nav-right a:hover{
+      color:white;
+      background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
+      box-shadow:0 8px 30px rgba(79,70,229,0.12);
+    }
+
+    header.hero{
+      position:relative;
+      padding:56px 20px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      overflow:hidden;
+    }
+    .hero-inner{
+      max-width:980px;
+      width:100%;
+      text-align:center;
+      padding:28px;
+      border-radius:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      box-shadow:var(--card-glow);
+      border:1px solid var(--glass-2);
+    }
+    .title{
+      font-size:2.1rem;
+      font-weight:800;
+      margin:6px 0 8px 0;
+      background:var(--cta-grad);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      text-shadow:0 8px 30px rgba(147,51,234,0.08);
+    }
+
+    main{
+      padding:36px 20px;
+      max-width:1100px;
+      margin:0 auto 36px;
+    }
+    .wrap{max-width:980px;margin:18px auto;padding:24px;}
+    p{margin:12px 0;color:#d0d9e9}
+    strong{color:#fff}
+    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
+    .section:first-of-type{border-top:0;padding-top:8px}
+
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    footer{
+      padding:2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+      margin-top:2rem;
+      border-top:1px solid var(--soft-border);
+      font-size:.95rem
+    }
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-left">
+      <a href="/" class="brand">SpectroDraw</a>
+      <div style="opacity:.75;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+      <a href="/app">Launch App</a>
+      <a href="/faq">FAQ</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/login">Sign in</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-inner fade-in">
+      <h1 class="title">IOS Waitlist</h1>
+    </div>
+  </header>
+
+  <main class="wrap">
+  </main>
+    
+  <footer>
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:white;">Terms</a>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

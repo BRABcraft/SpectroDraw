@@ -1,0 +1,7 @@
+{
+  "name": "spectrodraw",                 // change this to a unique name
+  "compatibility_date": "2025-10-13",
+  "assets": {
+    "directory": "./"                 // <- path to your static site folder
+  }
+}

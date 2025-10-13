@@ -589,7 +589,7 @@ function normalizeNoteFromModel(n) {
     }
     if (typeof copy.midiFloat !== 'number') {
       if (typeof copy.freq === 'number') {
-        copy.midiFloat = 69 + 12 * Math.log2(copy.freq / a4p);
+        copy.midiFloat = 69 + 12 * Math.log2(copy.freq / startOnP);
       } else if (typeof copy.midi === 'number') {
         copy.midiFloat = copy.midi;
       } else if (typeof copy.midiRounded === 'number') {
@@ -633,8 +633,8 @@ function detectPitchesLegacy(alignPitch) {
     if (freq <= 0) continue;
     let detectedPitch;
     if (alignPitch) {
-      let nearestPitch = Math.round(npo * Math.log2(freq / a4p));
-      nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
+      let nearestPitch = Math.round(npo * Math.log2(freq / startOnP));
+      nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
       detectedPitch = Math.round(nearestPitch / factor);
     } else {
       detectedPitch = freq;
@@ -703,7 +703,7 @@ function exportMidiLegacy(progressCb = () => {}) {
     for (const [detectedPitch, reVal, imVal] of detectedPitches[frame]) {
       const freq = detectedPitch * factor;
       if (freq <= 0) continue;
-      const midiFloat = 69 + 12 * Math.log2(freq / a4p);
+      const midiFloat = 69 + 12 * Math.log2(freq / startOnP);
       const midiRounded = Math.round(midiFloat);
       const mag = complexMag(reVal, imVal);
       let match = null;

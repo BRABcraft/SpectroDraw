@@ -152,8 +152,8 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   let displayYFloat = yDisplay;
   const f = getSineFreq(yDisplay);
   if (alignPitch) {
-    let nearestPitch = Math.round(npo * Math.log2(f / a4p));
-    nearestPitch = a4p * Math.pow(2, nearestPitch / npo);
+    let nearestPitch = Math.round(npo * Math.log2(f / startOnP));
+    nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
     displayYFloat = ftvsy(nearestPitch);
   }
 
@@ -180,7 +180,7 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     const newMag = (currentTool === "amplifier")
-                 ? (oldMag * (mag / 64 * bo))
+                 ? (oldMag * (mag / 64 * amp))
                  : (oldMag * (1 - bo) + mag * bo);
     const type = phaseTextureEl.value;
     let $phase;
@@ -369,8 +369,8 @@ function paint(cx, cy) {
                 const dy = yy - cy;
                 if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
                 let sumMag = 0, sumPhase = 0, count = 0;
-                for (let oy = -1; oy <= 1; oy++) {
-                    for (let ox = -1; ox <= 1; ox++) {
+                for (let oy = -blurRadius; oy <= blurRadius; oy++) {
+                    for (let ox = -blurRadius; ox <= blurRadius; ox++) {
                         const nx = xx + ox, ny = yy + oy;
                         if (nx < 0 || ny < 0 || nx >= fullW || ny >= fullH) continue;
                         const nidx = nx * fullH + displayYToBin(ny, fullH);

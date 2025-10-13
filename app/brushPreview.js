@@ -28,7 +28,7 @@ function updateBrushPreview() {
     pctx.stroke();
   } else if (currentTool === "blur") {
     let gradient = pctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius*1.5);
-    gradient.addColorStop(0, 'white');  // center
+    gradient.addColorStop(1-blurRadius/10, 'white');  // center
     gradient.addColorStop(1, 'black');  // edge
     pctx.fillStyle = gradient;
     pctx.lineWidth = 2;
@@ -65,8 +65,8 @@ function updateBrushPreview() {
     }
   } else if (currentTool === "amplifier") {
     pctx.font = "12px Arial";
-    pctx.fillStyle = brushColor.toString(16).padStart(2,'0')+"0000";
-    pctx.fillText((((brushColor / 255) * 128)/64 * brushOpacity).toFixed(1)+"x", centerX-10, centerY+5);
+    pctx.fillStyle = amp.toString(16).padStart(2,'0')+"0000";
+    pctx.fillText((amp * brushOpacity).toFixed(1)+"x", centerX-10, centerY+5);
     pctx.strokeStyle = color;
     pctx.lineWidth = 1;
     pctx.beginPath();

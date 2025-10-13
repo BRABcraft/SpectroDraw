@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Basic Features - SpectroDraw</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#07080b;
+      --panel:#0f1720;
+      --muted:#9aa4b2;
+      --text:#e6eefc;
+      --accent1:#4f46e5;
+      --accent2:#9333ea;
+      --accent3:#ec4899;
+      --glass: rgba(255,255,255,0.03);
+      --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+      --soft-border: rgba(255,255,255,0.04);
+      --card-glow: 0 6px 30px rgba(147,51,234,0.12);
+      --icon-glow: 0 8px 30px rgba(79,70,229,0.12);
+      --glass-2: rgba(255,255,255,0.02);
+    }
+
+    /* Layout */
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:
+      radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
+      color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;line-height:1.6;
+      -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+    }
+
+    nav{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:1rem 2rem;
+      position:sticky;
+      top:0;
+      z-index:40;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));
+      border-bottom: 1px solid var(--soft-border);
+    }
+    .nav-left{display:flex;align-items:center;gap:1rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;font-size:1.05rem}
+    .nav-right{display:flex;gap:1rem;align-items:center}
+    .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95;padding:.45rem .6rem;border-radius:8px}
+    .nav-right a:hover{color:white;background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));box-shadow:var(--icon-glow)}
+
+    /* Header hero */
+    header.hero {
+      position: relative;
+      padding: 56px 20px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      overflow:hidden;
+    }
+    .hero-inner{max-width:980px;width:100%;text-align:center;padding:28px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));box-shadow:var(--card-glow);border:1px solid var(--glass-2)}
+    .title {
+      font-size:2.1rem;
+      font-weight:800;
+      margin:6px 0 8px 0;
+      background: var(--cta-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      text-shadow: 0 8px 30px rgba(147,51,234,0.08);
+    }
+    .lede { color:#dbe8ff; max-width:72ch; margin:0 auto 8px; font-size:1.05rem; }
+
+    /* Main content */
+    main{padding:36px 20px; max-width:1100px; margin:0 auto 36px;}
+    .wrap{max-width:980px;margin:18px auto;padding:24px;}
+    h1{font-size:1.6rem;margin:12px 0 .4rem;color:white}
+    h2 { color:#fff; margin-top:28px; font-size:1.25rem; letter-spacing:0.2px; }
+    h3 { color:#e8eefc; margin-top:14px; font-size:1.05rem; }
+    p{margin:12px 0;color:#d0d9e9}
+    strong{color:#fff}
+
+    /* Sections and separators */
+    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
+    .section:first-of-type{border-top:0;padding-top:8px}
+    .muted{color:var(--muted)}
+    .note{background:rgba(255,255,255,0.01);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);margin-top:12px;color:#e8eefc}
+
+    /* Tools grid */
+    .tool-row{display:flex;gap:20px;align-items:center;margin:18px 0;padding:18px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));border:1px solid var(--glass-2);box-shadow: 0 6px 20px rgba(0,0,0,0.6)}
+    .tool-left{flex:0 0 68px;display:flex;align-items:center;justify-content:center}
+    .tool-right{flex:1}
+    .tool p{margin:0;font-size:15px}
+    .icon{
+      background:linear-gradient(90deg, #c8c5fb, #d4c3fc, #f5bdd9);
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-width:56px;
+      min-height:56px;
+      box-shadow:var(--icon-glow);
+      transition:transform .18s ease, box-shadow .18s ease;
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    #piano {
+      background:none;margin-top:15px;
+    }
+    .icon svg{width:26px;height:26px}
+    .icon:hover{transform:translateY(-4px) scale(1.02); box-shadow:0 12px 40px rgba(79,70,229,0.16)}
+
+    /* Images and layout */
+    .illustration{border-radius:14px;overflow:hidden;border:1px solid var(--soft-border);box-shadow:0 10px 30px rgba(0,0,0,0.6);max-width:48%;height:auto;display:block;object-fit:cover}
+    .media-row{display:flex;gap:20px;align-items:center;margin:12px 0;flex-wrap:wrap}
+    .media-row img{max-width:48%;border-radius:12px}
+    .full{max-width:100%}
+    .muted-caption{color:#98a6b9;margin-top:6px;font-size:.9rem}
+
+    /* Small screens */
+    @media (max-width:820px){
+      .tool-row{flex-direction:row}
+      .illustration,.media-row img{max-width:100%}
+      .tool-left{flex:0 0 56px}
+    }
+
+    /* Animations */
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    .float{animation:float 6s ease-in-out infinite}
+    @keyframes float{0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+
+    /* subtle glow around highlighted things */
+    .glow-strong{box-shadow:0 8px 50px rgba(147,51,234,0.12);border:1px solid rgba(147,51,234,0.06)}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(124,92,255,0.12);color:var(--accent1);font-weight:700}
+    pre{background:#061018;padding:12px;border-radius:8px;overflow:auto;color:#cfe3ff}
+
+    /* Footer */
+    footer{ padding:2rem 1rem; text-align:center; color:var(--muted); margin-top:2rem; border-top:1px solid var(--soft-border); font-size:.95rem }
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-left">
+      <a href="/" class="brand">SpectroDraw</a>
+      <div style="opacity:.75;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+      <a href="/app">Launch App</a>
+      <a href="/faq">FAQ</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/login">Sign in</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-inner fade-in">
+      <div class="badge">Coming Soon!</div>
+      <h1 class="title">Spectrodraw Pro Features</h1>
+    </div>
+  </header>
+
+  <main class="wrap" style="text-align:center;">
+
+    <h1>Coming soon!</h1>
+    <h3>Planned features include:</h3> 
+    <p> Stereo Support<br>
+        Undo History Timeline<br>
+        Cloner Tool<br>
+        Harmonics Modifier<br>
+        Region Selection<br>
+        Advanced Brush Texturing<br>
+        Effect Automation</p>
+  </main>
+
+  <footer>
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener" style="color:#cfe3ff">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:white;">Terms</a>
+  </footer>
+
+  <script>
+    // Set year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // small micro-interactions (no external libs)
+    document.querySelectorAll('.tool-row').forEach((el,i)=>{
+      el.style.animationDelay = (i*60)+'ms';
+    });
+  </script>
+</body>
+</html>

@@ -29,7 +29,7 @@
     border-bottom: 1px solid rgba(255,255,255,0.02);
   }
   .nav-left{display:flex;align-items:center;gap:1rem}
-  .brand{font-weight:800;letter-spacing:0.2px}
+  .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;}
   .nav-right{display:flex;gap:1rem;align-items:center}
   .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95}
   .nav-right a:hover{color:var(--accent1)}
@@ -83,7 +83,7 @@
 <body>
   <nav>
     <div class="nav-left">
-      <div class="brand">SpectroDraw</div>
+      <a href="/" class="brand">SpectroDraw</a>
       <div style="opacity:.6;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
     </div>
     <div class="nav-right">
@@ -156,7 +156,7 @@
 
     <section class="section">
       <h2>The FFT (Fast Fourier Transform) Algorithm</h2>
-      <p>If we literally compare every frequency to every sample in the frame, we do N × N multiplications per frame. That’s because for each of the N candidate frequencies we inspect all N samples. For N = 4096 that’s sixteen million multiplications for a single frame. However, there's a faster way to do this.</p>
+      <p>The process we described above is known as the MDCT (Modified Discrete Cosine Transform) and is popular in audio compression. However, it is too slow for a live-updating software like SpectroDraw. If we literally compare every frequency to every sample in the frame, we do N × N multiplications per frame. That’s because for each of the N candidate frequencies we inspect all N samples. For N = 4096 that’s sixteen million multiplications for a single frame. However, there's a faster way to do this.</p>
       <p>The Fast Fourier Transform (FFT) is a clever algorithm that performs these frequency coefficient calculations efficiently. Instead of doing N × N independent operations, FFT does about N × log₂(N). For N = 4096, thats a difference between 16 million and 50,000 calculations: over 300 times faster.</p>
       <figure>
         <img src="/assets/fft-butterfly.svg" alt="Abstract depiction of algorithm speedup">
@@ -173,20 +173,21 @@
       <p><strong>Odd symmetry of sines:</strong> A sine wave is anti-symmetric around the origin, meaning sin(-x)=-sin(x).</p>
       <p>The DFT involves correlating a signal with sine and cosine waves at different frequencies. When the FFT divides the signal into smaller segments, these symmetries allow it to reuse many of the complex multiplication results. For example, if a certain calculation is required at one frequency, the FFT can reuse that same result for another frequency that exhibits a symmetrical or anti-symmetrical relationship.</p>
       <h3>Periodicity</h3>
-      <p>Another key property is the periodicity of the complex exponential function \(e^{-j2\pi kn/N}\), which is at the heart of the DFT equation. This function contains sine and cosine terms that repeat their values over time.</p>
+      <p>Another key property is the periodicity of the complex exponential function e<sup>(-j*2&pi;*kn)/N</sup>, which is at the heart of the DFT equation. This function contains sine and cosine terms that repeat their values over time.</p>
       <p><strong>Redundant calculations:</strong> The FFT's "divide and conquer" strategy separates the input data into even and odd indices. This exposes repeated computations, which the algorithm reuses to perform the calculation for the full dataset.<p>
       <p><strong>Recursive decomposition:</strong> The FFT algorithm recursively breaks down a large DFT into smaller and smaller DFTs. The results from these smaller calculations are then efficiently combined, again using the properties of periodicity and symmetry, to produce the final result. For optimal performance, the input signal length is typically a power of two, which makes this recursive division most efficient. <p>
       <h3>This video by 3Blue1Brown provides an excellent visualization of FFT:</h3>
       <iframe width="928" height="522" src="https://www.youtube.com/embed/spUNpyF58BY" title="But what is the Fourier Transform?  A visual introduction." frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
     </section>
 
-    <section aria-labelledby="extra-info">
+    <section aria-labelledby="extra-info" id="notes">
       <h2 id="extra-info">Notes on FFT Parameters</h2>
       <p>In SpectroDraw, you can control the <strong>pitch resolution</strong> and <strong>time resolution</strong>. Note that the pitch resolution represents N as an exponent of 2 (A pitch resolution of 12 would mean N = 2^12=4096), and the time resolution represents hop.</p>
       <img src="/assets/fftParameters.jpg" alt="FFT Parameters">
 
       <p><strong>Why must pitch resolution be a power of 2?</strong> The FFT splits the problem cleanly in half at every stage. If N is a power of two, you can halve N exactly the same number of times until you reach tiny base cases. That makes the code simple, memory-friendly, and extremely fast in practice. </p>
-
+      <p><strong>What is Phase?</strong> You may have noticed that phase is linked to the color of the brush. Due to the FFT using the roots of unity (e<sup>ix</sup>), a real and imaginary part is produced, which are converted into a magnitude and phase component. <strong>While the magnitude represents the intensity of the frequency, phase represents the phase shift of the frequency's sine wave. </strong>Both are neccesary values
+        to ensure the image can be converted back to audio losslessly. This is a feature mostly unique to spectrodraw, as most other non-interactive spectrograms do not display phase.</p>
       <p><strong>Why lock the time resolution?</strong> The time resolution represents the number of samples each frame is spaced out by. Locking the time resolution makes each frame spaced out by the frame size, preventing frames from overlapping. Overlapping frames leads to phases interferening with magnitudes, making painted areas quieter. Locking time resolution is ideal if you want to paint with a flat phase.</p>
       <div style="display:flex; gap:10px; justify-content:center; text-align:center;">
       <div style="flex:1;">

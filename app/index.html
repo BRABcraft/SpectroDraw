@@ -208,7 +208,7 @@
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
       <div id="fftParameters">
         <label class="h1">FFT Parameters
-          <a id="fftLearnMore" class="learn-more" href="/faq/fft" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
+          <a id="fftLearnMore" class="learn-more" href="/faq/fft/#notes" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
         </label>
         <div class="slider-row">
           <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
@@ -276,10 +276,20 @@
           <input id="brushSize" type="range" min="1" max="200" value="40">
           <input id="brushSizeInput" type="number" value="10" min="1" max="200">
         </div>
-        <div class="slider-row" title="Brightness">
+        <div class="slider-row" title="Brightness" id="brushColorDiv">
             <label class="h2">Brush Brightness</label>
             <input id="brushColor"  type="range" min="0" max="255" value="255">
             <input id="brushColorInput" type="number" value="255" min="0" max="255">
+        </div>
+        <div class="slider-row" title="Blur Radius" style="display:none;" id="blurRadiusDiv">
+            <label class="h2">Blur Radius</label>
+            <input id="blurRadius"  type="range" min="0" max="10" value="1.5" step="0.1">
+            <input id="blurRadiusInput" type="number" value="1.5" min="0" max="10">
+        </div>
+        <div class="slider-row" title="Blur Radius" style="display:none;" id="amplifyDiv">
+            <label class="h2">Amplifier</label>
+            <input id="amp"  type="range" min="0" max="2" value="2" step="0.01">
+            <input id="ampInput" type="number" value="2" min="0" max="2">
         </div>
         <div id="ev" class="slider-row" title="Phase texture">
           <label class="h2" for="phaseTexture">Phase texture</label>
@@ -315,11 +325,11 @@
       <label class="h1">Brush Alignment</label>
       <!--Auto align pitch-->
       <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
-      <div id="a4PitchDiv" style="display:none;">
-        <div class="slider-row" title="A4 pitch">
-          <label class="h2">A4 Pitch</label>
-          <input id="a4Pitch" type="range" min="415.304" max="466.163" step="0.01" value="440">
-          <input id="a4PitchInput" type="number" value="440">
+      <div id="startOnPitchDiv" style="display:none;">
+        <div class="slider-row" title="Base Pitch">
+          <label class="h2">Base Hz</label>
+          <input id="startOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
+          <input id="startOnPitchInput" type="number" value="440">
         </div>
         <!--Notes per octave (achieve with pitch bends)-->
         <div class="slider-row" title="Notes Per Octave">
@@ -462,13 +472,15 @@
                    [document.getElementById('npo'), document.getElementById('npoInput')],
                    [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
                    [document.getElementById('bpm'), document.getElementById('bpmInput')],
-                   [document.getElementById('a4Pitch'), document.getElementById('a4PitchInput'), true],
+                   [document.getElementById('startOnPitch'), document.getElementById('startOnPitchInput'), true],
                    [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
                    [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
                    [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
                    [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
                    [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
-                   [document.getElementById('tQt'), document.getElementById('tQtInput'), true]];
+                   [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
+                   [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
+                   [document.getElementById('amp'), document.getElementById('ampInput')]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -486,6 +498,8 @@ const brushSizeEl=document.getElementById("brushSize");
 const brushOpacityEl=document.getElementById("brushOpacity");
 const phaseOpacityEl=document.getElementById("phaseOpacity");
 const brushColorEl=document.getElementById("brushColor");
+const blurRadiusEl=document.getElementById("blurRadius");
+const ampEl=document.getElementById("amp");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
@@ -499,7 +513,7 @@ const yctx=yAxis.getContext("2d");
 const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
 const alignPitchBtn = document.getElementById("alignPitch");
-const a4PitchDiv = document.getElementById("a4PitchDiv");
+const startOnPitchDiv = document.getElementById("startOnPitchDiv");
 const alignTimeBtn = document.getElementById("alignTime");
 const bpmDiv = document.getElementById("bpmDiv");
 const midiAlignTimeBtn = document.getElementById("midiAlignTime");
@@ -595,12 +609,14 @@ let cx_ = null, cy_ = null;
 let brushSize=parseInt(brushSizeEl.value);
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
 let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
-let brushColor=parseInt(brushColorEl.value); 
+let brushColor=parseInt(brushColorEl.value);
+let blurRadius=parseInt(blurRadiusEl.value);
+let amp=parseInt(ampEl.value);
 let penPhase=parseInt(penPhaseEl.value)/10000;
 let currentTool = "brush";
 let currentPanel = "0";
 let bpm = 120; let npo = 12;
-let noiseFloor = document.getElementById("noiseFloorCutoff").value; let a4p = 440;
+let noiseFloor = document.getElementById("noiseFloorCutoff").value; let startOnP = 440;
 let dCutoff = document.getElementById("durationCutoff").value;
 let globalGain = 0;
 let playingTutorial = false;
@@ -648,18 +664,18 @@ sliders[7][1].addEventListener('keydown', (e) => {
 });
 sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);drawCursor(true);});
 sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);drawCursor(true);});
-sliders[9][0].addEventListener('input', () => {a4p = parseFloat(sliders[9][0].value); sliders[9][1].value = a4p;});
+sliders[9][0].addEventListener('input', () => {startOnP = parseFloat(sliders[9][0].value); sliders[9][1].value = startOnP;});
 sliders[9][1].addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     let val = parseFloat(sliders[9][1].value);
     const min = parseFloat(sliders[9][0].min);
     const max = parseFloat(sliders[9][0].max);
-    if (isNaN(val)) val = a4p;      
+    if (isNaN(val)) val = startOnP;      
     if (val < min) val = min;
     if (val > max) val = max;
     sliders[9][1].value = val;      
     sliders[9][0].value = val;      
-    a4p = val;
+    startOnP = val;
   }
 });
 sliders[10][0].addEventListener('input', () => {dCutoff = parseFloat(sliders[10][0].value); sliders[10][1].value = dCutoff;});
@@ -691,6 +707,10 @@ sliders[14][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
 sliders[15][0].addEventListener('input', () => {tQTempo = parseFloat(sliders[15][0].value); sliders[15][1].value = tQTempo;});
 sliders[15][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[15][1].value);const min = parseFloat(sliders[15][0].min);const max = parseFloat(sliders[15][0].max);
     if (isNaN(val)) val = tQTempo;if (val < min) val = min;if (val > max) val = max;sliders[15][1].value = val;sliders[15][0].value = val;tQTempo = val;}});
+sliders[16][0].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][0].value); updateBrushPreview();});
+sliders[16][1].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][1].value); updateBrushPreview();});
+sliders[17][0].addEventListener("input", ()=>{amp  =  (sliders[17][0].value); updateBrushPreview();});
+sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); updateBrushPreview();});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -741,6 +761,19 @@ toolButtons.forEach(btn => {
     toolButtons.forEach(b => b.style.background = "");
     btn.style.background = "#4af"; 
     if(currentTool === "image") overlayFile.click();
+    if (currentTool === "blur") {
+      document.getElementById("brushColorDiv").style.display="none";
+      document.getElementById("blurRadiusDiv").style.display="flex";
+      document.getElementById("amplifyDiv").style.display="none";
+    } else if (currentTool === "amplifier") {
+      document.getElementById("brushColorDiv").style.display="none";
+      document.getElementById("blurRadiusDiv").style.display="none";
+      document.getElementById("amplifyDiv").style.display="flex";
+    } else {
+      document.getElementById("brushColorDiv").style.display="flex";
+      document.getElementById("blurRadiusDiv").style.display="none";
+      document.getElementById("amplifyDiv").style.display="none";
+    }
     updateBrushPreview();
   });
 });
@@ -750,7 +783,7 @@ fileB.addEventListener("click", () => {
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
 uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--accent-gradient)";});
-alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; a4PitchDiv.style.display=alignPitch?"block":"none";});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; startOnPitchDiv.style.display=alignPitch?"block":"none";});
 alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
 midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
 useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});

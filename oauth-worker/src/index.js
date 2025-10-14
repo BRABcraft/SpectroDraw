@@ -15,6 +15,7 @@ export default {
       googleAuthUrl.searchParams.set("client_id", client_id);
       googleAuthUrl.searchParams.set("redirect_uri", redirect_uri);
       googleAuthUrl.searchParams.set("scope", scope);
+      googleAuthUrl.searchParams.set("prompt", "select_account"); // always show account chooser
       if (state) googleAuthUrl.searchParams.set("state", state); // Forward the state
 
       return Response.redirect(googleAuthUrl.toString(), 302);
@@ -22,9 +23,24 @@ export default {
 
     if (url.pathname === "/callback") {
       const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state"); // get it back here
+      const state = url.searchParams.get("state");
 
-      if (!code) return new Response("Missing authorization code", { status: 400 });
+      // Handle user cancel: redirect back to Google account chooser
+      if (!code) {
+        const redirect_uri = `${url.origin}/callback`;
+        const client_id = env.GOOGLE_CLIENT_ID;
+        const scope = "openid email profile";
+
+        const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+        googleAuthUrl.searchParams.set("response_type", "code");
+        googleAuthUrl.searchParams.set("client_id", client_id);
+        googleAuthUrl.searchParams.set("redirect_uri", redirect_uri);
+        googleAuthUrl.searchParams.set("scope", scope);
+        googleAuthUrl.searchParams.set("prompt", "select_account");
+        if (state) googleAuthUrl.searchParams.set("state", state);
+
+        return Response.redirect(googleAuthUrl.toString(), 302);
+      }
 
       // Exchange code for tokens
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {

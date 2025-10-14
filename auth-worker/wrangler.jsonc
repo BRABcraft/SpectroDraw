@@ -1,0 +1,23 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "auth-worker",
+	"main": "src/index.js",
+	"compatibility_date": "2025-10-11",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"kv_namespaces": [
+		{
+			"binding": "USERS",
+			"id": "c5e9d190dd1e449b8444f8258c22f856"
+		},
+		{
+			"binding": "SESSIONS",
+			"id": "bcbfb4180e174b95adb0ad9a346c9f5d"
+		}
+	],
+}

@@ -1,0 +1,128 @@
+nav{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:1rem 2rem;
+    position:sticky;
+    top:0;
+    z-index:40;
+    backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+  }
+  .nav-left{display:flex;align-items:center;gap:1rem}
+  .brand{font-weight:800;letter-spacing:0.2px}
+  .nav-right{display:flex;gap:1rem;align-items:center}
+  .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95}
+  .nav-right a:hover{color:var(--accent1)}
+.brand { font-weight:700; font-size:18px; }
+  .tagline { opacity:.7; margin-left:.6rem; color:var(--muted); font-size:13px; }
+
+  .nav-right { display:flex; align-items:center; gap:12px; }
+
+  .nav-link {
+    color: #dfe7ff;
+    text-decoration: none;
+    font-weight:600;
+    padding:6px 10px;
+    border-radius:8px;
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.02); }
+
+  .nav-btn {
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background: transparent;
+    font-weight:600;
+    color:#dfe7ff;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size: 15px;
+    padding:6px 10px;
+    font-family: Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+  }
+
+  /* account button internals */
+  .acct-avatar { display:inline-flex; width:20px; height:20px; margin-right:6px; opacity:0.95; }
+  .acct-email { max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px; color:var(--muted); }
+  .acct-arrow { margin-left:6px; font-size:12px; color:var(--muted); }
+
+  /* account menu */
+  .account-menu {
+    position:absolute;
+    right:0;
+    top:calc(100% + 8px);
+    background:#111111;
+    border-radius:10px;
+    min-width:160px;
+    padding:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.6);
+    border:1px solid rgba(255,255,255,0.03);
+    z-index:1200;
+  }
+  .menu-item {
+    display:block;
+    width:100%;
+    text-align:left;
+    padding:8px 12px;
+    border-radius:8px;
+    color:#fff;
+    background:transparent;
+    text-decoration:none;
+    font-size:14px;
+    margin:2px 0;
+    cursor:pointer;
+  }
+  .menu-item:hover { background: rgba(255,255,255,0.03); }
+
+  /* modal styles kept as before */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  .modal-overlay[aria-hidden="false"] {
+    display: block;
+    background: transparent;
+    pointer-events: auto;
+  }
+  .modal {
+    position: fixed;
+    top: 56px;
+    right: 16px;
+    width: 380px;
+    max-width: calc(100% - 32px);
+    background: #111111;
+    color: #fff;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+  .modal-close {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+  }
+  h2 { margin:0 0 8px 0; font-size:18px; }
+  .field { display:flex; flex-direction:column; margin-bottom:12px; }
+  .label-text { font-size:13px; margin-bottom:6px; color:var(--muted); }
+  input[type="email"], input[type="text"], input[type="password"] {
+    padding:10px; border-radius:8px; border:1px solid #fff; background: #181818; color: #fff; font-size:14px; outline:none;
+  }
+  .primary { width:100%; padding:10px 12px; border-radius:8px; border:none; font-weight:600; margin-top:6px; cursor:pointer; background:#fff; color:#000;}
+  .aux { display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:10px; }
+  .link-btn { background: transparent; border: none; color: var(--accent); cursor: pointer; font-size:13px; text-decoration: underline; padding:6px; }
+  .google { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:1px solid var(--input-border); background: transparent; cursor:pointer; color:#fff; font-weight:600; }
+  .g-icon { display:inline-flex; width:18px; height:18px; }
+  .error { color:#ff6b6b; margin-top:8px; }
+  @media (max-width:420px){ .modal { right:12px; left:12px; top: 56px; width: auto; } }

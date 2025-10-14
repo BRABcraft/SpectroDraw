@@ -832,6 +832,8 @@ async function getNotes() {
   }
   try {
     if (!BasicPitchPkg) {
+      const uploadNote = document.getElementById('upload-note');
+      if (uploadNote) uploadNote.textContent = "";
       if (gpt) gpt.innerText="Loading model, might take a while..."; else mInfo.innerHTML="Loading model, might take a while...<br><br>";
       console.log('BasicPitch: initializing...');
       const setAndLog = (pkg, source) => {

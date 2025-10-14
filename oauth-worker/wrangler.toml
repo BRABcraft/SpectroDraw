@@ -1,0 +1,11 @@
+name = "oauth-worker"
+main = "index.js"
+compatibility_date = "2025-10-13"
+
+# account_id = "YOUR_ACCOUNT_ID"
+workers_dev = false  # we're using a custom domain
+
+# Routes for custom domain
+[[routes]]
+pattern = "spectrodraw.com/oauth/*"
+script = "oauth-worker"

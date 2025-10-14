@@ -406,18 +406,418 @@ body{
 </style>
 </head>
 <body>
-  <nav>
-    <div class="nav-left">
-      <div class="brand">SpectroDraw</div>
-      <div style="opacity:.6;margin-left:.6rem;color:var(--muted)">Interactive Spectrogram Editor</div>
-    </div>
-    <div class="nav-right">
-      <a href="/app">Launch App</a>
-      <a href="/faq">FAQ</a>
-      <a href="/pricing">Pricing</a>
-      <a href="/login">Sign in</a>
-    </div>
-  </nav>
+  <nav class="nav">
+  <div class="nav-left">
+    <div class="brand">SpectroDraw</div>
+    <div class="tagline">Interactive Spectrogram Editor</div>
+  </div>
+  <div class="nav-right">
+    <a href="/app" class="nav-link">Launch App</a>
+    <a href="/faq" class="nav-link">FAQ</a>
+    <a href="/pricing" class="nav-link">Pricing</a>
+
+    <span id="user-info" class="nav-user" style="display:none;"></span>
+    <button id="logout-btn" class="nav-btn" style="display:none;">Logout</button>
+
+    <button id="login-btn" class="nav-btn">Sign in</button>
+  </div>
+</nav>
+
+<!-- Login/Signup panel -->
+<div id="login-panel" class="modal-overlay" aria-hidden="true">
+  <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <button class="modal-close" aria-label="Close">&times;</button>
+
+    <h2 id="login-title">Sign in</h2>
+
+    <form id="login-form" autocomplete="on">
+      <div class="field">
+        <label class="label-text" for="email">Email</label>
+        <input id="email" name="email" type="email" required placeholder="you@example.com" />
+      </div>
+
+      <!-- username only for signup (hidden in login mode) -->
+      <div class="field signup-only" style="display:none;">
+        <label class="label-text" for="username">Username</label>
+        <input id="username" name="username" type="text" placeholder="pick-a-username" />
+      </div>
+
+      <div class="field">
+        <label class="label-text" for="password">Password</label>
+        <input id="password" name="password" type="password" required placeholder="Password" />
+      </div>
+
+      <div class="field signup-only" style="display:none;">
+        <label class="label-text" for="confirm-password">Confirm Password</label>
+        <input id="confirm-password" name="confirm-password" type="password" placeholder="Confirm password" />
+      </div>
+
+      <button id="primary-btn" type="submit" class="primary">Sign in</button>
+
+      <div class="aux">
+        <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
+        <button id="google-login" type="button" class="google">
+          <!-- inline Google "G" logo -->
+          <span class="g-icon" aria-hidden="true">
+            <img src="/assets/Google__G__logo.svg">
+          </span>
+          <span id="google-btn-text">Log in with Google</span>
+        </button>
+      </div>
+
+      <div id="login-error" role="alert" class="error" style="display:none;"></div>
+    </form>
+  </div>
+</div>
+
+<style>
+
+  .brand { font-weight:700; font-size:18px; }
+  .tagline { opacity:.7; margin-left:.6rem; color:var(--muted); font-size:13px; }
+
+  .nav-btn {
+    background: transparent;
+    font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size: 16px;
+    font-family: Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+  }
+  .nav-user { color: var(--muted); margin-right:6px; font-size:14px; }
+
+  /* overlay but top-right anchored modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    z-index: 1000;
+    pointer-events: none; /* allow clicks outside modal to pass (we'll still close on overlay click) */
+  }
+  .modal-overlay[aria-hidden="false"] {
+    display: block;
+    background: transparent; /* no dim - matches top-right popup feel; change if you want dim */
+    pointer-events: auto;
+  }
+
+  .modal {
+    position: fixed;
+    top: 56px; /* adjust to sit under nav */
+    right: 16px;
+    width: 380px;
+    max-width: calc(100% - 32px);
+    background: #111111;
+    color: #fff;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .modal-close {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  h2 { margin:0 0 8px 0; font-size:18px; }
+
+  .field { display:flex; flex-direction:column; margin-bottom:12px; }
+  .label-text { font-size:13px; margin-bottom:6px; color:var(--muted); }
+
+  input[type="email"], input[type="text"], input[type="password"] {
+    padding:10px; border-radius:8px;
+    border:1px solid #fff;
+    background: #181818;
+    color: #fff;
+    font-size:14px;
+    outline: none;
+  }
+  input::placeholder { color: rgba(255,255,255,0.35); }
+
+  .primary {
+    width:100%;
+    padding:10px 12px;
+    border-radius:8px;
+    border:none;
+    font-weight:600;
+    margin-top:6px;
+    cursor:pointer;
+    background: #fff;
+    color: #000;
+  }
+
+  .aux {
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:10px;
+  }
+  .link-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size:13px;
+    text-decoration: underline;
+    padding:6px;
+  }
+
+  .google {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid var(--input-border);
+    background: transparent;
+    cursor:pointer;
+    color:#fff;
+    font-weight:600;
+  }
+  .g-icon { display:inline-flex; width:18px; height:18px; }
+
+  .error { color:#ff6b6b; margin-top:8px; }
+
+  @media (max-width:420px){
+    .modal { right:12px; left:12px; top: 56px; width: auto; }
+  }
+</style>
+
+<script>
+  (function () {
+    const oauthUrl = "https://oauth.spectrodraw.com/login/";
+    const loginBtn = document.getElementById('login-btn');
+    const panel = document.getElementById('login-panel');
+    const modal = document.getElementById('login-modal');
+    const closeBtn = modal.querySelector('.modal-close');
+    const emailInput = document.getElementById('email');
+    const usernameField = document.querySelector('.signup-only#username') || document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
+    const form = document.getElementById('login-form');
+    const googleBtn = document.getElementById('google-login');
+    const googleBtnText = document.getElementById('google-btn-text');
+    const toggleSignup = document.getElementById('toggle-signup');
+    const signupOnlyElems = document.querySelectorAll('.signup-only');
+    const primaryBtn = document.getElementById('primary-btn');
+    const loginError = document.getElementById('login-error');
+
+    const userInfoSpan = document.getElementById('user-info');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    let isSignup = false;
+
+    // open OAuth popup centered like before
+    function openOAuthPopup() {
+      const width = 500, height = 600;
+      const left = (screen.width / 2) - (width / 2);
+      const top = (screen.height / 2) - (height / 2);
+      window.open(
+        oauthUrl,
+        "Login with Google",
+        `width=${width},height=${height},top=${top},left=${left}`
+      );
+    }
+
+    function openPanel() {
+      panel.setAttribute('aria-hidden', 'false');
+      // default focus on email
+      setTimeout(() => emailInput.focus(), 50);
+      // close on esc
+      document.addEventListener('keydown', escHandler);
+    }
+
+    function closePanel() {
+      panel.setAttribute('aria-hidden', 'true');
+      loginError.style.display = 'none';
+      document.removeEventListener('keydown', escHandler);
+      loginBtn.focus();
+    }
+
+    function escHandler(e) {
+      if (e.key === 'Escape') closePanel();
+    }
+
+    // click sign-in opens the panel
+    loginBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openPanel();
+    });
+
+    // close buttons
+    closeBtn.addEventListener('click', closePanel);
+    // close when clicking outside modal (panel area is whole viewport)
+    panel.addEventListener('click', (e) => {
+      if (e.target === panel) closePanel();
+    });
+
+    // toggle signup mode (no navigation)
+    toggleSignup.addEventListener('click', (e) => {
+      e.preventDefault();
+      setSignupMode(!isSignup);
+    });
+
+    function setSignupMode(on) {
+      isSignup = !!on;
+      signupOnlyElems.forEach(el => {
+        el.style.display = isSignup ? 'flex' : 'none';
+      });
+      primaryBtn.textContent = isSignup ? 'Sign up' : 'Sign in';
+      googleBtnText.textContent = isSignup ? 'Sign up with Google' : 'Log in with Google';
+      toggleSignup.textContent = isSignup ? 'Back to login' : 'New? Sign up';
+      // update title
+      document.getElementById('login-title').textContent = isSignup ? 'Create account' : 'Sign in';
+      // simple validations toggles
+      if (isSignup) {
+        document.getElementById('username').setAttribute('required', 'required');
+        document.getElementById('confirm-password').setAttribute('required', 'required');
+      } else {
+        document.getElementById('username').removeAttribute('required');
+        document.getElementById('confirm-password').removeAttribute('required');
+      }
+      // focus first field
+      setTimeout(() => emailInput.focus(), 50);
+    }
+
+    // google button opens OAuth popup (same worker)
+    googleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openOAuthPopup();
+    });
+
+    // form submit handler for login or signup
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.style.display = 'none';
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        showError('Please enter email and password.');
+        return;
+      }
+
+      if (isSignup) {
+        const username = (document.getElementById('username').value || '').trim();
+        const confirm = (document.getElementById('confirm-password').value || '');
+        if (!username) { showError('Please choose a username.'); return; }
+        if (password !== confirm) { showError('Passwords do not match.'); return; }
+
+        try {
+          // replace '/auth/signup' with your real endpoint
+          const res = await fetch('/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, username, password })
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            showError(text || 'Sign up failed.');
+            return;
+          }
+          const data = await res.json();
+          if (data && data.user) {
+            setLoggedInState(data.user);
+            closePanel();
+          } else if (data && data.redirect) {
+            window.location.href = data.redirect;
+          } else {
+            showError('Unexpected response from server.');
+          }
+        } catch (err) {
+          showError(err.message || 'Network error.');
+        }
+      } else {
+        // login flow
+        try {
+          const res = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            showError(text || 'Login failed.');
+            return;
+          }
+          const data = await res.json();
+          if (data && data.user) {
+            setLoggedInState(data.user);
+            closePanel();
+          } else if (data && data.redirect) {
+            window.location.href = data.redirect;
+          } else {
+            showError('Unexpected response from server.');
+          }
+        } catch (err) {
+          showError(err.message || 'Network error.');
+        }
+      }
+    });
+
+    function showError(msg) {
+      loginError.textContent = msg;
+      loginError.style.display = '';
+    }
+
+    // update UI to logged-in state
+    function setLoggedInState(user) {
+      userInfoSpan.textContent = `Logged in as ${user.email || user.name || 'user'}`;
+      userInfoSpan.style.display = 'inline-block';
+      loginBtn.style.display = 'none';
+      logoutBtn.style.display = 'inline-block';
+    }
+
+    // logout handler
+    logoutBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch('/auth/logout', { method: 'POST' });
+        // regardless of response, clear UI
+      } catch (err) {
+        // ignore network errors here
+      } finally {
+        userInfoSpan.style.display = 'none';
+        logoutBtn.style.display = 'none';
+        loginBtn.style.display = 'inline-block';
+      }
+    });
+
+    // on page load: detect ?user=... param as before
+    (function readUserFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('user')) {
+        try {
+          const user = JSON.parse(decodeURIComponent(params.get('user')));
+          if (user && (user.email || user.name)) setLoggedInState(user);
+        } catch (e) { /* ignore parse errors */ }
+      }
+    })();
+
+    // OPTIONAL: allow OAuth popup to postMessage back after success
+    window.addEventListener('message', (ev) => {
+      try {
+        if (!ev.data || !ev.data.type) return;
+        if (ev.data.type === 'oauth-success' && ev.data.user) {
+          setLoggedInState(ev.data.user);
+          closePanel();
+        }
+      } catch (e) { /* ignore bad messages */ }
+    });
+
+    // initialize in login mode
+    setSignupMode(false);
+  })();
+</script>
+
+
   <!-- HERO -->
   <header class="hero" role="banner" aria-label="SpectroDraw hero" style="height: 700px;">
     <div class="hero-inner">

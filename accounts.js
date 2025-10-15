@@ -186,6 +186,7 @@
       localStorage.setItem('spectrodraw_user', JSON.stringify(user));
     } catch (e) { /* ignore storage error */ }
     setLoggedInState(user);
+    window.location.reload();
   }
 
   // account button toggles menu

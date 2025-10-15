@@ -16,6 +16,7 @@
       --accent3:#ec4899;
       --soft-border: rgba(255,255,255,0.04);
       --card-glow: 0 6px 30px rgba(147,51,234,0.12);
+      --card-glow2: 0 6px 30px rgba(255, 255, 255, 0.5);
       --glass-2: rgba(255,255,255,0.02);
       --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
     }
@@ -113,6 +114,10 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
+    .star {font-size:28px;padding:none;margin-top:-5px;border:1px solid transparent;background:transparent;cursor:pointer;color:white;}
+    button:not(.star, .nav-btn, .primary, .google, .link-btn, .modal-close) {padding:.55rem .9rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;color:white;}
+    button:disabled{background:#555;color:#333;cursor:not-allowed;}
+    a{color:#cfe3ff;}
   </style>
 </head>
 <body>
@@ -191,8 +196,461 @@
     </div>
   </header>
 
-  <main class="wrap">
-  </main>
+<main class="wrap">
+  <!-- Placeholder text body the user will fill later -->
+  <section class="section body-copy">
+    <h2>Why early access matters</h2>
+    <p id="body-placeholder">[Write your promotional / explanatory copy here — the text that explains the early-access deal, what users get, expectations, etc.]</p>
+  </section>
+  <!-- Progress / "checkout" style flow -->
+  <section class="section" aria-labelledby="progress-title" style="margin-top:18px;">
+    <div id="requireSignin" style="font-size:.95rem;color:var(--muted);">You must be signed in to claim Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signin-cta" href="#">Sign up</a></div>
+    <h3 id="progress-title" style="margin:0 0 20px 0;">Claim SpectroDraw Pro for Free — complete these 2 quick steps</h3>
+    <div id="progress-wrap" style="display:flex;flex-direction:column;gap:18px;align-items:stretch;">
+      <!-- Visual progress bar (same as before) -->
+      <div id="progress-bar" style="position:relative;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div class="node" data-step="1" style="flex:1;text-align:center;">
+            <div class="node-circle" id="node-1" style="width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:1px solid var(--soft-border);">1</div>
+            <div style="margin-top:8px;font-weight:700">Write a review</div>
+            <div style="color:var(--muted);font-size:.9rem">Star rating + text</div>
+          </div>
+          <div style="flex-basis:20%;height:6px;align-self:center;">
+            <div id="connector-1" style="width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,0.03);overflow:hidden;">
+              <div id="connector-1-fill" style="width:0%;height:100%;border-radius:999px;background:var(--accent1);transition:width .4s ease;"></div>
+            </div>
+          </div>
+          <div class="node" data-step="2" style="flex:1;text-align:center;">
+            <div class="node-circle" id="node-2" style="width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:1px solid var(--soft-border);">2</div>
+            <div style="margin-top:8px;font-weight:700">Share with a friend</div>
+            <div style="color:var(--muted);font-size:.9rem">Send invite or copy link</div>
+          </div>
+          <div style="flex-basis:20%;height:6px;align-self:center;">
+            <div id="connector-2" style="width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,0.03);overflow:hidden;">
+              <div id="connector-2-fill" style="width:0%;height:100%;border-radius:999px;background:var(--accent2);transition:width .4s ease;"></div>
+            </div>
+          </div>
+          <div class="node" data-step="3" style="flex:1;text-align:center;">
+            <div class="node-circle" id="node-3" style="width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:1px solid var(--soft-border);">3</div>
+            <div style="margin-top:8px;font-weight:700">Claim Pro</div>
+            <div style="color:var(--muted);font-size:.9rem">Activate for your account</div>
+          </div>
+        </div>
+        <!--REVIEW-->
+        <section id="inline-review" class="section" aria-label="Write a review" style="margin-top:18px;">
+          <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
+            <!-- Left: image drag/upload square -->
+            <div id="image-area" style="flex:0 0 220px;max-width:220px;">
+              <label for="review-image-input" style="display:block;font-weight:700;margin-bottom:8px;text-align:center;">Upload images (Optional)</label>
+              <div id="image-drop" tabindex="0" role="button"
+                style="width:220px;height:280px;border-radius:12px;border:2px dashed var(--soft-border);background:rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;">
+                <div id="image-preview" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.95rem;padding:12px;box-sizing:border-box; text-align:center;">
+                  Drag & drop an image here or click to select
+                </div>
+                <!-- hidden file input -->
+                <input id="review-image" type="file" accept="image/*" multiple style="display:none" />
+              </div>
+            </div>
+
+            <!-- Right: stars top, text + actions below -->
+            <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <label style="display:block;font-weight:700;margin-bottom:8px;">Your rating</label>
+                <div id="star-wrap-inline" style="display:flex;align-items:center;gap:8px;">
+                  <div id="stars-inline" role="radiogroup" aria-label="Star rating" style="display:inline-flex;gap:6px;">
+                    <button type="button" class="star" data-value="1" aria-checked="false" role="radio" title="1 star">☆</button>
+                    <button type="button" class="star" data-value="2" aria-checked="false" role="radio" title="2 stars">☆</button>
+                    <button type="button" class="star" data-value="3" aria-checked="false" role="radio" title="3 stars">☆</button>
+                    <button type="button" class="star" data-value="4" aria-checked="false" role="radio" title="4 stars">☆</button>
+                    <button type="button" class="star" data-value="5" aria-checked="false" role="radio" title="5 stars">☆</button>
+                  </div>
+                  <div id="selected-rating-inline" style="color:var(--muted);font-size:.95rem;">No rating yet</div>
+                </div>
+              </div>
+
+              <div>
+                <label for="review-text-inline" style="display:block;font-weight:700;margin-bottom:8px;">Your review</label>
+                <textarea id="review-text" name="review" rows="6" placeholder="Share a few details to help others (and us) improve..." style="width:100%;height:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--soft-border);color:var(--text);resize:vertical;font-family:'Inter', 'Segoe UI', sans-serif;"></textarea>
+              </div>
+
+              <!-- Actions area (moved here, aligned to right of image input) -->
+              <div id="actions" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+                <div style="flex:1;margin-top:-6px;">
+                  <div id="review-error" role="alert" style="display:none;color:#ffb4b4;align-self:center"></div>
+                  <button id="submit-review" type="button" style="width:100%;margin-top:6px;">Submit review</button>
+                </div>
+                <button id="claim-btn" type="button" disabled>Next Step</button>
+                <div id="progress-legend" style="min-width:220px;font-size:.95rem;color:var(--muted);display:flex;gap:8px;align-items:center;">
+                  <div id="progress-percent" style="font-weight:700">0%</div>
+                  <div style="color:var(--muted)">complete</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+  <!-- KEEP the Share modal/section as before (unchanged) -->
+  <div id="share-modal" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;z-index:80;">
+    <div style="width:min(640px,96%);background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));padding:18px;border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0;">Share SpectroDraw</h3>
+        <button id="close-share" aria-label="Close" style="background:transparent;border:0;font-size:20px;cursor:pointer">&times;</button>
+      </div>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+        <p style="margin:0;color:var(--muted)">Invite a friend by email (required to prove you shared). We will send them a short invite message with a tracking link. You can also copy the public share link or use your device's native share dialog.</p>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="invite-email" type="email" placeholder="friend@example.com" style="flex:1;padding:.55rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;color:var(--text)"/>
+          <button id="send-invite" type="button">Send invite</button>
+        </div>
+        <div id="invite-result" style="color:var(--muted);font-size:.95rem"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="share-link" readonly value="https://spectrodraw.com/?ref=early-access-claim" style="flex:1;padding:.55rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;color:var(--text)"/>
+          <button id="copy-link" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Copy</button>
+          <button id="native-share" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Share</button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <button id="close-share-2" type="button" style="padding:.55rem .9rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+  <!-- Updated JS for inline review (put before closing body tag) -->
+  <script>
+    (function(){
+      const stateKey = 'sd_earlyAccess_progress_v1';
+      let progress = {
+        loggedIn: false,
+        reviewSubmitted: false,
+        shareSent: false,
+        claimed: false,
+        rating: 0,
+        reviewText: '',
+        inviteEmails: []
+      };
+
+      // Elements
+      const openReviewBtn = document.getElementById('open-review');
+      const submitReviewBtn = document.getElementById('submit-review');
+      const starsInline = document.querySelectorAll('#stars-inline .star');
+      const selectedRatingInline = document.getElementById('selected-rating-inline');
+      const reviewText = document.getElementById('review-text');
+      const reviewImageInput = document.getElementById('review-image');
+      const imageDrop = document.getElementById('image-drop');
+      const imagePreview = document.getElementById('image-preview');
+      const reviewError = document.getElementById('review-error');
+
+      // Other elements from earlier progress UI
+      const progressPercentEl = document.getElementById('progress-percent');
+      const claimBtn = document.getElementById('claim-btn');
+      const node1 = document.getElementById('node-1');
+      const node2 = document.getElementById('node-2');
+      const node3 = document.getElementById('node-3');
+      const connector1Fill = document.getElementById('connector-1-fill');
+      const connector2Fill = document.getElementById('connector-2-fill');
+
+      // share modal controls (unchanged)
+      const openShareBtn = document.getElementById('open-share');
+      const shareModal = document.getElementById('share-modal');
+      const closeShareBtn = document.getElementById('close-share');
+      const closeShare2Btn = document.getElementById('close-share-2');
+      const inviteEmailInput = document.getElementById('invite-email');
+      const sendInviteBtn = document.getElementById('send-invite');
+      const inviteResult = document.getElementById('invite-result');
+      const copyLinkBtn = document.getElementById('copy-link');
+      const shareLinkInput = document.getElementById('share-link');
+      const nativeShareBtn = document.getElementById('native-share');
+
+      // load/save state
+      function loadState(){ try{ const raw = localStorage.getItem(stateKey); if(raw) Object.assign(progress, JSON.parse(raw)); }catch(e){} }
+      function saveState(){ try{ localStorage.setItem(stateKey, JSON.stringify(progress)); }catch(e){} }
+
+      // auth check (same as before)
+      async function checkAuth(){
+        progress.loggedIn = document.getElementById('signup-link').style.display == 'none';
+        saveState();
+        render();
+      }
+
+      function render(){
+        const percent = Math.round(((progress.reviewSubmitted?1:0) + (progress.shareSent?1:0)) / 2 * 100 * 0.9) + (progress.claimed ? 10 : 0);
+        progressPercentEl.textContent = percent + '%';
+
+        setNodeState(node1, progress.reviewSubmitted);
+        setNodeState(node2, progress.shareSent);
+        setNodeState(node3, progress.claimed);
+
+        connector1Fill.style.width = progress.reviewSubmitted ? '100%' : '0%';
+        connector2Fill.style.width = (progress.reviewSubmitted && progress.shareSent) ? '100%' : '0%';
+
+        if(progress.loggedIn && progress.reviewSubmitted && progress.shareSent && !progress.claimed){
+          claimBtn.disabled = false;
+          claimBtn.style.cursor = 'pointer';
+        } else {
+          claimBtn.disabled = true;
+          claimBtn.style.cursor = 'not-allowed';
+        }
+
+        const statusEl = document.getElementById('requireSignin');
+        if(!progress.loggedIn){
+          statusEl.style.display = "block";
+          const newSignin = document.getElementById('signin-cta');
+          if(newSignin) newSignin.addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signin-link').click(); });
+        } else {
+          statusEl.style.display = "none";
+        }
+
+        // populate UI with saved rating text
+        updateStarUI();
+        if(progress.reviewText && !reviewText.value) reviewText.value = progress.reviewText;
+        saveState();
+      }
+
+      function setNodeState(el, done){
+        if(!el) return;
+        if(done){
+          el.style.background = 'linear-gradient(90deg,var(--accent1),var(--accent2))';
+          el.style.color = '#fff';
+        } else {
+          el.style.background = 'rgba(255,255,255,0.02)';
+          el.style.color = 'inherit';
+        }
+      }
+
+      // Star interactions (inline stars)
+      document.querySelectorAll('#stars-inline .star').forEach(s => {
+        s.addEventListener('click', () => {
+          const v = parseInt(s.dataset.value, 10);
+          progress.rating = v;
+          updateStarUI();
+        });
+      });
+
+      function updateStarUI(){
+        document.querySelectorAll('#stars-inline .star').forEach(s => {
+          if(parseInt(s.dataset.value,10) <= progress.rating) s.textContent = '★';
+          else s.textContent = '☆';
+        });
+        selectedRatingInline.textContent = progress.rating ? progress.rating + ' / 5' : 'No rating yet';
+      }
+
+      // Image drag & drop + click-to-select
+      imageDrop.addEventListener('click', ()=> reviewImageInput.click());
+      imageDrop.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reviewImageInput.click(); } });
+
+      imageDrop.addEventListener('dragover', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'rgba(79,70,229,0.9)'; });
+      imageDrop.addEventListener('dragleave', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'var(--soft-border)'; });
+      imageDrop.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        imageDrop.style.borderColor = 'var(--soft-border)';
+        const files = e.dataTransfer.files;
+        if(files && files[0]) {
+          handleFiles(files);
+        }
+      });
+
+      reviewImageInput.addEventListener('change', (e)=>{
+        const files = e.target.files;
+        if(files && files[0]) handleFiles(files);
+      });
+
+      function handleFiles(files){
+        // show first image as preview; allow multiple to be accepted but only first displayed
+        const file = files[0];
+        if(!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          imagePreview.style.backgroundImage = `url(${ev.target.result})`;
+          imagePreview.style.backgroundSize = 'cover';
+          imagePreview.style.backgroundPosition = 'center';
+          imagePreview.textContent = '';
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // Submit review (POST to /api/reviews)
+      submitReviewBtn.addEventListener('click', async ()=>{
+        reviewError.style.display = 'none';
+        if(!progress.rating){
+          reviewError.style.display = 'block';
+          reviewError.textContent = 'Please select a star rating before submitting.';
+          return;
+        }
+        if(!progress.loggedIn){
+          reviewError.style.display = 'block';
+          reviewError.textContent = 'You must be signed in to submit a review.';
+          return;
+        }
+
+        submitReviewBtn.disabled = true;
+        submitReviewBtn.textContent = 'Submitting...';
+
+        const fd = new FormData();
+        fd.append('rating', progress.rating);
+        fd.append('text', reviewText.value || '');
+        // if file input has files, append first (or multiple if you want)
+        const file = document.getElementById('review-image').files && document.getElementById('review-image').files[0];
+        if(file) fd.append('image', file);
+
+        try {
+          const res = await fetch('/api/reviews', {
+            method: 'POST',
+            credentials: 'include',
+            body: fd
+          });
+          if(!res.ok){
+            const err = await res.json().catch(()=>({message:'Failed to submit review'}));
+            throw new Error(err.message || 'Failed to submit review');
+          }
+          // mark completed
+          progress.reviewSubmitted = true;
+          progress.reviewText = reviewText.value || '';
+          saveState();
+          render();
+          // give user quick visual confirmation
+          submitReviewBtn.textContent = 'Submitted ✓';
+          setTimeout(()=>{ submitReviewBtn.textContent = 'Submit review'; }, 1500);
+        } catch(err) {
+          reviewError.style.display = 'block';
+          reviewError.textContent = 'Error: ' + err.message;
+        } finally {
+          submitReviewBtn.disabled = false;
+        }
+      });
+
+      // Share modal logic (kept from earlier)
+      //openShareBtn.addEventListener('click', ()=>{ shareModal.style.display='flex'; shareModal.setAttribute('aria-hidden','false'); });
+      //closeShareBtn.addEventListener('click', ()=>{ shareModal.style.display='none'; shareModal.setAttribute('aria-hidden','true'); });
+      //closeShare2Btn.addEventListener('click', ()=>{ shareModal.style.display='none'; shareModal.setAttribute('aria-hidden','true'); });
+
+      sendInviteBtn.addEventListener('click', async ()=>{
+        const email = inviteEmailInput.value.trim();
+        inviteResult.style.color = 'var(--muted)';
+        inviteResult.textContent = '';
+        if(!email || !/^\S+@\S+\.\S+$/.test(email)){
+          inviteResult.style.color = '#ffb4b4';
+          inviteResult.textContent = 'Enter a valid email address.';
+          return;
+        }
+        sendInviteBtn.disabled = true;
+        sendInviteBtn.textContent = 'Sending...';
+        try {
+          const res = await fetch('/api/share/invite', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            credentials:'include',
+            body: JSON.stringify({email})
+          });
+          if(!res.ok) {
+            const j = await res.json().catch(()=>({message:'Failed to send invite'}));
+            throw new Error(j.message || 'Failed to send invite');
+          }
+          const j = await res.json();
+          if(j.sent){
+            progress.shareSent = true;
+            progress.inviteEmails.push(email);
+            inviteResult.style.color = '#b7ffd6';
+            inviteResult.textContent = 'Invite sent! Thank you — this proves you shared.';
+            inviteEmailInput.value = '';
+            saveState();
+            render();
+          } else {
+            throw new Error(j.message || 'Invite not sent');
+          }
+        } catch(err){
+          inviteResult.style.color = '#ffb4b4';
+          inviteResult.textContent = 'Error: ' + err.message;
+        } finally {
+          sendInviteBtn.disabled = false;
+          sendInviteBtn.textContent = 'Send invite';
+        }
+      });
+
+      copyLinkBtn.addEventListener('click', async ()=>{
+        try{
+          await navigator.clipboard.writeText(shareLinkInput.value);
+          inviteResult.style.color = '#b7ffd6';
+          inviteResult.textContent = 'Copied share link to clipboard.';
+        }catch(e){
+          inviteResult.style.color = '#ffb4b4';
+          inviteResult.textContent = 'Unable to copy automatically — highlight and copy manually.';
+        }
+      });
+
+      nativeShareBtn.addEventListener('click', async ()=>{
+        if(navigator.share){
+          try{
+            await navigator.share({
+              title: 'SpectroDraw — interactive spectrogram editor',
+              text: 'Claim SpectroDraw Pro via early access — try it!',
+              url: shareLinkInput.value
+            });
+            inviteResult.style.color = '#b7ffd6';
+            inviteResult.textContent = 'Thanks — if you also sent an invite email (above), that will unlock Pro.';
+          }catch(e){
+            inviteResult.style.color = '#ffb4b4';
+            inviteResult.textContent = 'Share cancelled or failed.';
+          }
+        } else {
+          inviteResult.style.color = '#ffb4b4';
+          inviteResult.textContent = 'Native share not available — copy the link instead.';
+        }
+      });
+
+      // Claim action unchanged
+      claimBtn.addEventListener('click', async ()=>{
+        if(claimBtn.disabled) return;
+        claimBtn.disabled = true;
+        claimBtn.textContent = 'Claiming...';
+        try{
+          const res = await fetch('/api/claim', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+              proof: {
+                reviewSubmitted: progress.reviewSubmitted,
+                shareSentEmails: progress.inviteEmails.slice(-3),
+              }
+            })
+          });
+          if(!res.ok) {
+            const j = await res.json().catch(()=>({message:'Unable to claim'}));
+            throw new Error(j.message || 'Unable to claim');
+          }
+          const j = await res.json();
+          if(j.claimed){
+            progress.claimed = true;
+            render();
+            claimBtn.textContent = 'Claimed ✓';
+            claimBtn.disabled = true;
+            claimBtn.style.cursor = 'default';
+          } else {
+            throw new Error(j.message || 'Server denied claim');
+          }
+        }catch(err){
+          alert('Claim failed: ' + err.message + '. Make sure you are signed in and completed the required steps.');
+          claimBtn.disabled = false;
+          claimBtn.textContent = 'Claim SpectroDraw Pro';
+        }
+      });
+
+      // init
+      loadState();
+      render();
+      checkAuth();
+
+      // debug
+      window.sdEarlyAccess = {
+        getState: ()=>progress,
+        setLoggedIn: (v)=>{ progress.loggedIn = !!v; saveState(); render(); }
+      };
+
+    })();
+  </script>
     
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>

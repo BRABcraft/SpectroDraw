@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "spectrodraw-api",
+  "main": "src/index.js",
+  "compatibility_date": "2025-10-11",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": "./public"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "api.spectrodraw.com/*",
+      "zone_name": "spectrodraw.com"
+    }
+  ]
+}

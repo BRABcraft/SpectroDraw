@@ -18,5 +18,17 @@
       "pattern": "api.spectrodraw.com/*",
       "zone_name": "spectrodraw.com"
     }
+  ],
+
+  // KV namespace bindings used by your worker code
+  "kv_namespaces": [
+    {
+      "binding": "USERS",
+      "id": "c5e9d190dd1e449b8444f8258c22f856"   // <-- replace with your USERS namespace id
+    },
+    {
+      "binding": "SESSIONS",
+      "id": "bcbfb4180e174b95adb0ad9a346c9f5d"   // <-- replace with your SESSIONS namespace id
+    }
   ]
 }

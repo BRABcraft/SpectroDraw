@@ -270,3 +270,25 @@
   // Keep modal initialized in sign-in mode
   setSignupMode(false);
 })();
+window.addEventListener('message', async (ev) => {
+  if (!ev.data || ev.data.type !== 'oauth-success') return;
+  const user = ev.data.user;
+  try {
+    const res = await fetch('https://auth.spectrodraw.com/auth/session', { // <--- auth worker domain
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, username: user.name || user.email })
+    });
+    if (!res.ok) throw new Error('Session creation failed');
+    // UI changes:
+    localStorage.setItem('spectrodraw_user', JSON.stringify(user)); // still okay for UI, but not for security
+    document.getElementById('signup-link').style.display = 'none';
+    document.getElementById('signin-link').style.display = 'none';
+    const accountWrap = document.getElementById('account-wrap');
+    accountWrap.style.display = 'block';
+    document.getElementById('account-email').textContent = user.email;
+  } catch (err) {
+    console.error('auth session error', err);
+  }
+});

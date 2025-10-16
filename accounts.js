@@ -214,13 +214,35 @@
   myProductsLink.addEventListener('click', () => { closeAccountMenu(); });
 
   // restore user from storage on load
-  (function restoreUserFromStorage() {
+  (async function restoreUserFromStorage() {
     try {
-      const stored = localStorage.getItem('spectrodraw_user');
+      const stored = (() => {
+        try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
+      })();
+
       if (stored) {
-        const user = JSON.parse(stored);
+        let user = null;
+        try { user = JSON.parse(stored); } catch (e) { user = { email: stored }; }
+        
         if (user && (user.email || user.name)) {
           setLoggedInState(user);
+
+          // Attempt to create/restore server session by posting to auth-worker.
+          // Send the raw stored localStorage value in the header so the worker can use it if desired.
+          try {
+            await fetch('https://api.spectrodraw.com/auth/session', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Spectrodraw-User': stored
+              },
+              body: JSON.stringify({ email: user.email, username: user.name || user.email })
+            });
+            // ignore response — session cookie (Set-Cookie) will be handled by browser
+          } catch (err) {
+            console.warn('restoreUserFromStorage: session creation failed', err);
+          }
         } else {
           setLoggedOutState();
         }
@@ -249,7 +271,7 @@
     }
   })();
 
-  // receive oauth-success from popup
+  // receive oauth-success from popup (popup -> opener)
   window.addEventListener('message', (ev) => {
     try {
       if (!ev.data || !ev.data.type) return;
@@ -270,19 +292,36 @@
   // Keep modal initialized in sign-in mode
   setSignupMode(false);
 })();
+
+// Bottom listener: OAuth popup -> parent (create session at api.spectrodraw.com)
+// Modified to send X-Spectrodraw-User header containing the localStorage value (if available)
 window.addEventListener('message', async (ev) => {
   if (!ev.data || ev.data.type !== 'oauth-success') return;
-  const user = ev.data.user;
+  const user = ev.data.user; // { email, name, ... }
+
   try {
-    const res = await fetch('https://auth.spectrodraw.com/auth/session', { // <--- auth worker domain
+    // Ensure localStorage has the user (defensive)
+    try { localStorage.setItem('spectrodraw_user', JSON.stringify(user)); } catch (e) { /* ignore */ }
+
+    // Read the stored value (if accessible)
+    let stored = null;
+    try { stored = localStorage.getItem('spectrodraw_user'); } catch (e) { stored = null; }
+
+    // POST to auth-worker to create a real session cookie
+    const res = await fetch('https://api.spectrodraw.com/auth/session', {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',            // important — accept Set-Cookie
+      headers: {
+        'Content-Type': 'application/json',
+        // Send the localStorage value (or fallback to the user JSON)
+        'X-Spectrodraw-User': stored || JSON.stringify(user)
+      },
       body: JSON.stringify({ email: user.email, username: user.name || user.email })
     });
     if (!res.ok) throw new Error('Session creation failed');
-    // UI changes:
-    localStorage.setItem('spectrodraw_user', JSON.stringify(user)); // still okay for UI, but not for security
+
+    // Success: browser now has session cookie for .spectrodraw.com
+    // update UI
     document.getElementById('signup-link').style.display = 'none';
     document.getElementById('signin-link').style.display = 'none';
     const accountWrap = document.getElementById('account-wrap');

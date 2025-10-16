@@ -289,43 +289,41 @@
           </div>
         </section>
         <!--SHARE-->
+        <!--SHARE (replace previous inline-share)-->
         <section id="inline-share" class="section" aria-label="Share with a friend" style="display:none; margin-top:18px;">
           <div style="display:flex;flex-direction:column;gap:12px;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow);">
             <div style="display:flex;justify-content:space-between;align-items:center;">
-              <h3 style="margin:0;">Share SpectroDraw — unlock the next step</h3>
-              <div style="display:flex;gap:8px;">
-                <button id="close-share" aria-label="Close share" style="background:transparent;border:0;font-size:18px;cursor:pointer">✕</button>
+              <h3 style="margin:0;">Share SpectroDraw</h3>
+              <div>
+                <button id="close-share" aria-label="Close" style="background:transparent;border:0;font-size:20px;cursor:pointer">&times;</button>
               </div>
             </div>
 
-            <p id="share-instructions" style="margin:0;color:var(--muted)">
-              Choose a social service below. We'll ask you to sign in to that service and open a post composer pre-filled with text and a link.
-            </p>
+            <p style="margin:0;color:var(--muted)">Share the product to unlock your claim. Click a social button below — if you're logged in to that service the composer will be pre-filled.</p>
 
-            <!-- Social Buttons Row -->
             <div id="social-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-              <button class="social-btn" data-provider="twitter" title="Share on Twitter">Twitter</button>
-              <button class="social-btn" data-provider="facebook" title="Share on Facebook">Facebook</button>
-              <button class="social-btn" data-provider="pinterest" title="Share on Pinterest">Pinterest</button>
-              <button class="social-btn" data-provider="instagram" title="Share on Instagram">Instagram</button>
-              <button class="social-btn" data-provider="youtube" title="Share on YouTube">YouTube</button>
+              <button class="social-btn" data-provider="facebook" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Facebook</button>
+              <button class="social-btn" data-provider="twitter" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Twitter</button>
+              <button class="social-btn" data-provider="pinterest" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Pinterest</button>
+              <button class="social-btn" data-provider="instagram" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Instagram</button>
+              <button class="social-btn" data-provider="youtube" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">YouTube</button>
             </div>
 
-            <div id="social-status" style="min-height:28px;color:var(--muted);font-size:.95rem"></div>
+            <div id="social-status" style="margin-top:8px;color:var(--muted);font-size:.95rem"></div>
 
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
               <input id="share-link" readonly value="https://spectrodraw.com/?ref=early-access-claim" style="flex:1;padding:.55rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;color:var(--text)"/>
               <button id="copy-link" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Copy</button>
               <button id="native-share" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Share</button>
             </div>
 
-            <div style="display:flex;gap:8px;justify-content:flex-end;">
-              <!-- Manual fallback when server verification not yet implemented -->
-              <button id="manual-verify" type="button" style="background:transparent;border:1px solid var(--soft-border);padding:.45rem .8rem;border-radius:8px;cursor:pointer">I shared — verify</button>
-              <button id="done-close" type="button" style="padding:.55rem .9rem;border-radius:8px;">Done</button>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+              <button id="manual-verify" type="button" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">I shared — verify</button>
+              <button id="done-close" type="button" style="margin-left:auto;padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Done</button>
             </div>
           </div>
         </section>
+
 
       </div>
     </div>
@@ -333,26 +331,45 @@
 </main>
 
   <!-- Updated JS for inline review (put before closing body tag) -->
-  <script>
+  <!-- REPLACE the old inline script with this one -->
+<script>
 (function(){
-  const stateKey = 'sd_earlyAccess_progress_v1';
+  /* ---------- per-user state key handling ---------- */
+  const stateKeyBase = 'sd_earlyAccess_progress_v1';
+  let currentUserId = null; // will be set in checkAuth/loadState
+  function getCurrentUserId() {
+    try {
+      const raw = localStorage.getItem('spectrodraw_user');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // try common fields; fallback to raw string
+      return parsed?.id || parsed?.user_id || parsed?.email || parsed || null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function stateKeyFor(userId) {
+    return `${stateKeyBase}_${userId ? String(userId) : 'anon'}`;
+  }
+
+  /* ---------- default progress structure ---------- */
   let progress = {
     loggedIn: false,
     reviewSubmitted: false,
-    shareSent: false,
+    shareSent: false,        // verified share
+    shareTentative: false,   // popup closed but not verified
     claimed: false,
     rating: 0,
     reviewText: '',
     inviteEmails: []
   };
 
-  // Elements
-  
+  /* ---------- elements ---------- */
   const reviewSection = document.getElementById('inline-review');
   const submitReviewBtn = document.getElementById('submit-review');
   const starsInline = document.querySelectorAll('#stars-inline .star');
   const selectedRatingInline = document.getElementById('selected-rating-inline');
-  const reviewText = document.getElementById('review-text');
+  const reviewTextEl = document.getElementById('review-text');
   const reviewImageInput = document.getElementById('review-image');
   const imageDrop = document.getElementById('image-drop');
   const imagePreview = document.getElementById('image-preview');
@@ -366,49 +383,109 @@
   const connector1Fill = document.getElementById('connector-1-fill');
   const connector2Fill = document.getElementById('connector-2-fill');
 
-  // share modal controls
-  const shareModal = document.getElementById('inline-share');
+  const shareSection = document.getElementById('inline-share');
+  const socialRow = document.getElementById('social-row');
+  const socialStatus = document.getElementById('social-status');
+  const copyLinkBtn = document.getElementById('copy-link');
+  const shareLinkInput = document.getElementById('share-link');
+  const nativeShareBtn = document.getElementById('native-share');
+  const manualVerifyBtn = document.getElementById('manual-verify');
+  const closeShareBtn = document.getElementById('close-share');
+  const doneCloseBtn = document.getElementById('done-close');
 
-  // load/save state
-  function loadState(){ try{ const raw = localStorage.getItem(stateKey); if(raw) Object.assign(progress, JSON.parse(raw)); }catch(e){} }
-  function saveState(){ try{ localStorage.setItem(stateKey, JSON.stringify(progress)); }catch(e){} }
+  /* ---------- storage helpers (per-user) ---------- */
+  function loadStateForCurrentUser(){
+    const key = stateKeyFor(currentUserId);
+    try{
+      const raw = localStorage.getItem(key);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        // merge parsed into progress (preserve missing fields)
+        progress = Object.assign({
+          loggedIn:false, reviewSubmitted:false, shareSent:false,
+          shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
+        }, parsed);
+      } else {
+        // keep defaults but ensure loggedIn reflects currentUserId
+        progress = Object.assign({
+          loggedIn:false, reviewSubmitted:false, shareSent:false,
+          shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
+        }, progress);
+      }
+    }catch(e){
+      // ignore error and keep defaults
+    }
+    // make sure loggedIn matches currentUserId presence
+    progress.loggedIn = !!currentUserId;
+  }
 
-  // auth check (keeps old behavior)
-  async function checkAuth(){
-    progress.loggedIn = document.getElementById('signup-link').style.display == 'none';
-    saveState();
+  function saveStateForCurrentUser(){
+    const key = stateKeyFor(currentUserId);
+    try{
+      localStorage.setItem(key, JSON.stringify(progress));
+    }catch(e){}
+  }
+
+  /* ---------- auth detection & switching users ---------- */
+  function checkAuth(){
+    const newUserId = getCurrentUserId();
+    // if user changed, persist old user's state then load new user's state
+    if(newUserId !== currentUserId){
+      // Save existing state for previous user
+      if(currentUserId !== null){
+        try{ localStorage.setItem(stateKeyFor(currentUserId), JSON.stringify(progress)); }catch(e){}
+      }
+      // set new current user
+      currentUserId = newUserId;
+      loadStateForCurrentUser();
+    }
     render();
   }
 
+  // call this externally if your accounts.js performs sign-in/out
+  window.sdAuthChanged = function(){
+    checkAuth();
+  };
+
+  /* ---------- UI render ---------- */
   function render(){
-    // progress percent (same algorithm)
-    const percent = Math.round(((progress.reviewSubmitted?1:0) + (progress.shareSent?1:0)) / 2 * 100 * 0.9) + (progress.claimed ? 10 : 0);
+    // progress percent (two main steps: review + share) + small bonus for claimed
+    const base = ((progress.reviewSubmitted ? 1 : 0) + (progress.shareSent ? 1 : 0)) / 2;
+    const percent = Math.round(base * 100 * 0.9) + (progress.claimed ? 10 : 0);
     progressPercentEl.textContent = percent + '%';
 
-    setNodeState(node1, progress.reviewSubmitted);
-    setNodeState(node2, progress.shareSent);
-    setNodeState(node3, progress.claimed);
+    setNodeVisual(node1, progress.reviewSubmitted);
+    setNodeVisual(node2, progress.shareSent || progress.shareTentative);
+    setNodeVisual(node3, progress.claimed);
 
     connector1Fill.style.width = progress.reviewSubmitted ? '100%' : '0%';
-    connector2Fill.style.width = (progress.reviewSubmitted && progress.shareSent) ? '100%' : '0%';
+    connector2Fill.style.width = (progress.reviewSubmitted && (progress.shareSent || progress.shareTentative)) ? '100%' : '0%';
 
     updateClaimButtonState();
 
+    // signin requirement banner
     const statusEl = document.getElementById('requireSignin');
     if(!progress.loggedIn){
-      statusEl.style.display = "block";
+      if(statusEl) statusEl.style.display = "block";
       const newSignin = document.getElementById('signin-cta');
       if(newSignin) newSignin.addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signin-link').click(); });
     } else {
-      statusEl.style.display = "none";
+      if(statusEl) statusEl.style.display = "none";
     }
 
     updateStarUI();
-    if(progress.reviewText && !reviewText.value) reviewText.value = progress.reviewText;
-    saveState();
+    if(progress.reviewText && !reviewTextEl.value) reviewTextEl.value = progress.reviewText;
+
+    // If shareTentative is true but shareSent is false, inform the status
+    if(progress.shareTentative && !progress.shareSent){
+      socialStatus.style.color = '';
+      socialStatus.textContent = 'Share popup closed — click "I shared — verify" or click Next to continue.';
+    }
+
+    saveStateForCurrentUser();
   }
 
-  function setNodeState(el, done){
+  function setNodeVisual(el, done){
     if(!el) return;
     if(done){
       el.style.background = 'linear-gradient(90deg,var(--accent1),var(--accent2))';
@@ -419,7 +496,6 @@
     }
   }
 
-  // Claim button state & label logic
   function updateClaimButtonState(){
     if(progress.claimed){
       claimBtn.disabled = true;
@@ -427,33 +503,36 @@
       claimBtn.textContent = 'Claimed ✓';
       return;
     }
-    // disabled until review submitted
+    // must submit review first
     if(!progress.reviewSubmitted){
       claimBtn.disabled = true;
       claimBtn.style.cursor = 'not-allowed';
       claimBtn.textContent = 'Next Step';
       return;
     }
-
-    // review submitted -> enable button
+    // If review submitted then allow Next. If share verified then show Claim text.
+    // Also allow Next if shareTentative true (popup closed) so user can continue manually.
+    if(!progress.shareSent){
+      // enable Next so user can go to / verify share
+      claimBtn.disabled = false;
+      claimBtn.style.cursor = 'pointer';
+      claimBtn.textContent = progress.shareTentative ? 'Next: Verify Share' : 'Next: Share';
+      return;
+    }
+    // share sent and review submitted -> allow claim
     claimBtn.disabled = false;
     claimBtn.style.cursor = 'pointer';
-    if(!progress.shareSent){
-      claimBtn.textContent = 'Next: Share';
-    } else {
-      // share already sent -> button becomes claim action
-      claimBtn.textContent = 'Claim SpectroDraw Pro';
-    }
+    claimBtn.textContent = 'Claim SpectroDraw Pro';
   }
 
-  // Star interactions (inline stars)
+  /* ---------- STAR / IMAGE / REVIEW ---------- */
   document.querySelectorAll('#stars-inline .star').forEach(s => {
     s.addEventListener('click', () => {
       const v = parseInt(s.dataset.value, 10);
       progress.rating = v;
       updateStarUI();
-      saveState();
-      render(); // update claim button if needed
+      saveStateForCurrentUser();
+      render();
     });
   });
 
@@ -465,25 +544,12 @@
     selectedRatingInline.textContent = progress.rating ? progress.rating + ' / 5' : 'No rating yet';
   }
 
-  // Image drag & drop + click-to-select
   imageDrop.addEventListener('click', ()=> reviewImageInput.click());
   imageDrop.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reviewImageInput.click(); } });
-
   imageDrop.addEventListener('dragover', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'rgba(79,70,229,0.9)'; });
   imageDrop.addEventListener('dragleave', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'var(--soft-border)'; });
-  imageDrop.addEventListener('drop', (e)=>{
-    e.preventDefault();
-    imageDrop.style.borderColor = 'var(--soft-border)';
-    const files = e.dataTransfer.files;
-    if(files && files[0]) {
-      handleFiles(files);
-    }
-  });
-
-  reviewImageInput.addEventListener('change', (e)=>{
-    const files = e.target.files;
-    if(files && files[0]) handleFiles(files);
-  });
+  imageDrop.addEventListener('drop', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'var(--soft-border)'; const files = e.dataTransfer.files; if(files && files[0]) handleFiles(files); });
+  reviewImageInput.addEventListener('change', (e)=>{ const files = e.target.files; if(files && files[0]) handleFiles(files); });
 
   function handleFiles(files){
     const file = files[0];
@@ -498,7 +564,6 @@
     reader.readAsDataURL(file);
   }
 
-  // Submit review (POST to /api/reviews)
   submitReviewBtn.addEventListener('click', async ()=>{
     reviewError.style.display = 'none';
     if(!progress.rating){
@@ -517,24 +582,29 @@
 
     const fd = new FormData();
     fd.append('rating', progress.rating);
-    fd.append('text', reviewText.value || '');
+    fd.append('text', reviewTextEl.value || '');
     const file = document.getElementById('review-image').files && document.getElementById('review-image').files[0];
     if(file) fd.append('image', file);
 
     try {
+      const stored = (() => {
+        try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
+      })();
       const res = await fetch('https://api.spectrodraw.com/api/reviews', {
         method: 'POST',
         credentials: 'include',
-        body: fd
+        body: fd,
+        headers: {
+          'X-Spectrodraw-User': stored
+        }
       });
       if(!res.ok){
         const err = await res.json().catch(()=>({message:'Failed to submit review'}));
         throw new Error(err.message || 'Failed to submit review');
       }
-      // mark completed
       progress.reviewSubmitted = true;
-      progress.reviewText = reviewText.value || '';
-      saveState();
+      progress.reviewText = reviewTextEl.value || '';
+      saveStateForCurrentUser();
       render();
       submitReviewBtn.textContent = 'Submitted ✓';
       setTimeout(()=>{ submitReviewBtn.textContent = 'Submit review'; }, 1500);
@@ -546,308 +616,102 @@
     }
   });
 
-  // Share modal open/close wiring
-  function openShareModal(){
-    reviewSection.style.display = 'none';
-    shareModal.style.display = 'flex';
-    shareModal.setAttribute('aria-hidden', 'false');
-  }
+  /* ---------- SHARE - intent flow with tentative-share behavior ---------- */
 
-  // Updated claim button handler (routes to share modal or performs claim)
-  claimBtn.addEventListener('click', async ()=>{
-    if(claimBtn.disabled) return;
-
-    // If review submitted but share not sent -> go to share step
-    if(progress.reviewSubmitted && !progress.shareSent){
-      openShareModal();
-      return;
-    }
-
-    // If share sent already -> perform claim
-    if(progress.shareSent && progress.loggedIn && !progress.claimed){
-      claimBtn.disabled = true;
-      claimBtn.textContent = 'Claiming...';
-      try{
-        const res = await fetch('https://api.spectrodraw.com/api/claim', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            proof: {
-              reviewSubmitted: progress.reviewSubmitted,
-              shareSentEmails: progress.inviteEmails.slice(-3),
-            }
-          })
-        });
-        if(!res.ok) {
-          const j = await res.json().catch(()=>({message:'Unable to claim'}));
-          throw new Error(j.message || 'Unable to claim');
-        }
-        const j = await res.json();
-        if(j.claimed){
-          progress.claimed = true;
-          saveState();
-          render();
-          claimBtn.textContent = 'Claimed ✓';
-          claimBtn.disabled = true;
-          claimBtn.style.cursor = 'default';
-        } else {
-          throw new Error(j.message || 'Server denied claim');
-        }
-      }catch(err){
-        alert('Claim failed: ' + err.message + '. Make sure you are signed in and completed the required steps.');
-        claimBtn.disabled = false;
-        claimBtn.textContent = 'Claim SpectroDraw Pro';
-      }
-      return;
-    }
-
-    // Otherwise (fallback) - no-op
-  });
-
-  // init
-  loadState();
-  render();
-  checkAuth();
-
-  // debug
-  window.sdEarlyAccess = {
-    getState: ()=>progress,
-    setLoggedIn: (v)=>{ progress.loggedIn = !!v; saveState(); render(); }
-  };
-
-})();
-</script>
-<script>
-/**
- * Social share + OAuth flow:
- *
- * Frontend responsibilities:
- * - Open provider OAuth popup to your oauth worker (e.g. https://oauth.spectrodraw.com/{provider}/login)
- * - Receive postMessage from popup with { type: 'oauth-success', provider, user } (popup must send this)
- * - Save minimal token/user marker in localStorage (so we know the provider is authorized)
- * - Open the provider's share intent URL (where supported) with prefilled text+url
- * - When the share popup closes, call /api/share/verify on your server with { provider, marker }
- *   The server should use the stored OAuth token (server-side) to verify the user actually posted
- * - If /api/share/verify isn't implemented, the manual-verify button exists as a fallback.
- *
- * Server-side TODOs:
- * - Implement OAuth flows for providers on your oauth worker (start -> provider -> callback).
- *   On success the popup should postMessage {type:'oauth-success', provider, marker} to window.opener.
- *   The "marker" is a small opaque ID the server uses to identify that user's token/session (not raw secret).
- * - Implement POST /api/share/verify: takes { provider, marker } and returns { shared: true } when the server
- *   confirms the user posted (provider-specific APIs needed).
- *
- * This file intentionally does not attempt to post on the user's behalf without their explicit action.
- */
-
-(function () {
-  const shareSection = document.getElementById('inline-share');
-  const socialRow = document.getElementById('social-row');
-  const socialStatus = document.getElementById('social-status');
-  const closeShareBtn = document.getElementById('close-share');
-  const copyLinkBtn = document.getElementById('copy-link');
-  const shareLinkInput = document.getElementById('share-link');
-  const nativeShareBtn = document.getElementById('native-share');
-  const manualVerifyBtn = document.getElementById('manual-verify');
-  const doneCloseBtn = document.getElementById('done-close');
-
-  // Keep a small local map of provider -> marker (marker is a server-issued ID or token id)
-  const PROVIDER_MARKER_KEY = 'sd_oauth_markers_v1';
-  let providerMarkers = {}; // { twitter: 'marker123', facebook: 'marker456' }
-
-  // Prefill text
-  const PREFILL_TEXT = "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!";
-
-  // Where to point OAuth popups (your oauth worker must support these paths)
-  // e.g. https://oauth.spectrodraw.com/twitter/login?state={returnTo}
-  const OAUTH_BASE = 'https://oauth.spectrodraw.com';
-
-  function loadMarkers() {
-    try {
-      const raw = localStorage.getItem(PROVIDER_MARKER_KEY);
-      if (raw) providerMarkers = JSON.parse(raw);
-    } catch(e) {}
-  }
-  function saveMarkers() {
-    try { localStorage.setItem(PROVIDER_MARKER_KEY, JSON.stringify(providerMarkers)); } catch(e) {}
-  }
-
-  // open popup centered
-  function openPopup(url, title = 'Share', w = 600, h = 600) {
-    const left = Math.max(0, (screen.width / 2) - (w / 2));
-    const top = Math.max(0, (screen.height / 2) - (h / 2));
-    const opts = `width=${w},height=${h},top=${top},left=${left},toolbar=0,menubar=0,scrollbars=yes`;
-    return window.open(url, title, opts);
-  }
-
-  // Share intent URL mapping (prefills text & url when supported)
-  function shareIntentUrl(provider, link, text) {
+  function shareIntentUrl(provider, link, text, media, title){
     const u = encodeURIComponent(link || window.location.href);
     const t = encodeURIComponent(text || '');
-    switch(provider) {
+    const m = encodeURIComponent(media || '');
+    const titleEnc = encodeURIComponent(title || '');
+    switch(provider){
       case 'twitter':
         return `https://twitter.com/intent/tweet?text=${t}&url=${u}`;
       case 'facebook':
-        return `https://www.facebook.com/sharer/sharer.php?u=${u}`;
+        return `https://www.facebook.com/v2.5/dialog/share?display=popup&href=${u}&redirect_uri=${encodeURIComponent(link||window.location.origin)}`;
       case 'pinterest':
-        return `https://pinterest.com/pin/create/button/?url=${u}&description=${t}`;
+        return `https://www.pinterest.com/pin/create/bookmarklet/?media=${m}&url=${u}&title=${titleEnc}&description=${t}`;
       case 'instagram':
-        // Instagram web has no share-intent to prefill a new post; best we can do is open instagram.com
         return `https://www.instagram.com/`;
       case 'youtube':
-        // YouTube doesn't have a direct "create post" intent for general links; open YouTube homepage
         return `https://www.youtube.com/`;
       default:
         return null;
     }
   }
 
-  // Kick off OAuth for a provider: open oauth popup that will postMessage back a marker
-  // We include a state param so popup can redirect to a simple page that postMessages to opener on success.
-  function startProviderOAuth(provider) {
-    // `state` could include a returnTo; keep small: provider name and timestamp
-    const state = encodeURIComponent(JSON.stringify({ provider, t: Date.now() }));
-    const url = `${OAUTH_BASE}/${provider}/login?state=${state}`;
-    const popup = openPopup(url, `Login ${provider}`, 700, 700);
-    if (!popup) {
-      socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
-      return null;
-    }
-    socialStatus.textContent = `Please sign in to ${provider} in the popup...`;
-    return popup;
+  function openPopup(url, title='Share', w=700, h=600){
+    const left = Math.max(0, (screen.width/2) - (w/2));
+    const top = Math.max(0, (screen.height/2) - (h/2));
+    const opts = `width=${w},height=${h},top=${top},left=${left},toolbar=0,menubar=0,scrollbars=yes`;
+    try { return window.open(url, title, opts); } catch (e) { return null; }
   }
 
-  // Called when social button clicked
-  async function onSocialButtonClick(provider) {
+  socialRow.addEventListener('click', (ev)=>{
+    const btn = ev.target.closest('.social-btn');
+    if(!btn) return;
+    const provider = btn.dataset.provider;
     socialStatus.style.color = '';
     socialStatus.textContent = `Preparing ${provider}...`;
 
-    // If we don't have a marker for this provider, start OAuth flow first
-    if (!providerMarkers[provider]) {
-      const popup = startProviderOAuth(provider);
-      if (!popup) return;
-      // Poll for popup close if the popup doesn't send a postMessage (but it should)
-      const poll = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(poll);
-          // If user closed popup without completing OAuth, prompt them
-          if (!providerMarkers[provider]) {
-            socialStatus.style.color = '#ffb4b4';
-            socialStatus.textContent = `Sign-in cancelled. Please try again to sign in to ${provider}.`;
-          }
-        }
-      }, 500);
-      return;
-    }
-
-    // If we have marker, open share intent prefilled
-    const intent = shareIntentUrl(provider, shareLinkInput.value, PREFILL_TEXT);
-    if (!intent) {
+    if(!progress.loggedIn){
       socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = `Sharing to ${provider} is not supported in this browser-based demo.`;
+      socialStatus.textContent = 'Please sign in to SpectroDraw before sharing.';
       return;
     }
 
-    socialStatus.style.color = '';
+    const url = shareIntentUrl(provider, shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", '', document.title);
+    if(!url){
+      socialStatus.style.color = '#ffb4b4';
+      socialStatus.textContent = `${provider} sharing not supported here.`;
+      return;
+    }
+
     socialStatus.textContent = `Opening ${provider} composer...`;
-
-    const popup = openPopup(intent, `Share to ${provider}`, 700, 600);
-    if (!popup) {
+    const popup = openPopup(url, `Share to ${provider}`, 700, 600);
+    if(!popup){
       socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.';
+      socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
       return;
     }
 
-    // Poll for popup close; when closed, try server-side verification
-    const checkInterval = setInterval(async () => {
-      if (popup.closed) {
-        clearInterval(checkInterval);
-        socialStatus.textContent = `Verifying ${provider} share...`;
-        try {
-          // Ask your server to verify by provider + marker
-          // Server endpoint must look up token for this marker and call provider API to verify posting
-          const res = await fetch('/api/share/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ provider, marker: providerMarkers[provider], url: shareLinkInput.value })
-          });
-          if (res.ok) {
-            const j = await res.json();
-            if (j.shared) {
-              socialStatus.style.color = '#b7ffd6';
-              socialStatus.textContent = `Thanks — share verified on ${provider}. Unlocking step...`;
-              // mark as shared locally
-              markShared();
-              return;
-            } else {
-              // not verified — offer manual fallback
-              socialStatus.style.color = '#ffb4b4';
-              socialStatus.textContent = `We couldn't automatically verify the share on ${provider}. You can click "I shared — verify" to continue.`;
-              return;
-            }
-          } else {
-            socialStatus.style.color = '#ffb4b4';
-            socialStatus.textContent = `Verification request failed (server). You can use the manual verify button.`;
-            return;
-          }
-        } catch (err) {
-          socialStatus.style.color = '#ffb4b4';
-          socialStatus.textContent = `Verification error: ${err.message}. Use manual verify if needed.`;
+    // Poll popup closed -> mark a tentative share (do not auto-claim)
+    const poll = setInterval(() => {
+      try {
+        if(popup.closed){
+          clearInterval(poll);
+          // do not auto-verify share; mark tentative so Next becomes enabled
+          progress.shareTentative = true;
+          saveStateForCurrentUser();
+          socialStatus.style.color = '#b7ffd6';
+          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+          render();
         }
+      } catch(e){
+        clearInterval(poll);
       }
-    }, 700);
-  }
+    }, 600);
+  });
 
-  // Mark the share step complete locally (unlocks claim flow)
-  function markShared() {
-    try {
-      // reuse the progress object on window if available
-      if (window.sdEarlyAccess && typeof window.sdEarlyAccess.getState === 'function') {
-        const state = window.sdEarlyAccess.getState();
-        state.shareSent = true;
-        // save into localStorage as your app expects
-        localStorage.setItem('sd_earlyAccess_progress_v1', JSON.stringify(state));
-        if (typeof window.sdEarlyAccess.setLoggedIn === 'function') {
-          // re-render if possible
-          window.sdEarlyAccess.setLoggedIn(state.loggedIn);
-        } else {
-          // fallback: reload to make UI reevaluate
-          setTimeout(() => window.location.reload(), 600);
-        }
-      } else {
-        // if no global state helper exist, set a simple flag
-        localStorage.setItem('sd_share_sent', '1');
-        setTimeout(() => window.location.reload(), 600);
-      }
-    } catch (e) {
-      console.error('markShared error', e);
-      setTimeout(() => window.location.reload(), 600);
-    }
-  }
-
-  // Copy link behavior
-  copyLinkBtn.addEventListener('click', async () => {
-    try {
+  copyLinkBtn.addEventListener('click', async ()=>{
+    try{
       await navigator.clipboard.writeText(shareLinkInput.value);
       socialStatus.style.color = '#b7ffd6';
       socialStatus.textContent = 'Copied share link to clipboard.';
-    } catch (e) {
+    }catch(e){
       socialStatus.style.color = '#ffb4b4';
       socialStatus.textContent = 'Unable to copy automatically — highlight and copy manually.';
     }
   });
 
-  // Native share fallback
-  nativeShareBtn.addEventListener('click', async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'SpectroDraw', text: PREFILL_TEXT, url: shareLinkInput.value });
+  nativeShareBtn.addEventListener('click', async ()=>{
+    if(navigator.share){
+      try{
+        await navigator.share({ title: document.title, text: "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", url: shareLinkInput.value });
+        // native share is considered verified immediately
         socialStatus.style.color = '#b7ffd6';
-        socialStatus.textContent = 'Native share used — thank you. If verified server-side you will be unlocked.';
-        // markShared() optionally here or wait for server verify/poll
-      } catch (e) {
+        socialStatus.textContent = 'Native share used — unlocking...';
+        markShared(); // full verification
+      }catch(e){
         socialStatus.style.color = '#ffb4b4';
         socialStatus.textContent = 'Share cancelled or failed.';
       }
@@ -857,80 +721,264 @@
     }
   });
 
-  // Manual verify (user claims they shared)
-  manualVerifyBtn.addEventListener('click', async () => {
-    // Best-effort: attempt server-side verify if marker exists, otherwise allow manual.
-    socialStatus.style.color = '';
-    socialStatus.textContent = 'Attempting manual verification...';
-    // Attempt server verification across any provider marker we have
-    for (const provider of Object.keys(providerMarkers)) {
-      try {
-        const res = await fetch('/api/share/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ provider, marker: providerMarkers[provider], url: shareLinkInput.value, manual: true })
-        });
-        if (res.ok) {
-          const j = await res.json();
-          if (j.shared) {
-            socialStatus.style.color = '#b7ffd6';
-            socialStatus.textContent = `Verified on ${provider}. Unlocking...`;
-            markShared();
-            return;
-          }
-        }
-      } catch (e) {
-        // ignore and continue to fallback manual accept
-      }
-    }
-
-    // Fallback: accept user manual claim locally
+  manualVerifyBtn.addEventListener('click', ()=>{
     socialStatus.style.color = '#b7ffd6';
-    socialStatus.textContent = `Thanks — proceeding based on your confirmation. If you abuse this, an admin could revoke access.`;
+    socialStatus.textContent = 'Thanks — verifying share...';
     markShared();
   });
 
-  // Close/done button just hides the share section
-  closeShareBtn.addEventListener('click', () => { shareSection.style.display = 'none'; });
-  doneCloseBtn.addEventListener('click', () => { shareSection.style.display = 'none'; });
+  closeShareBtn.addEventListener('click', ()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; });
+  doneCloseBtn.addEventListener('click', ()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; });
 
-  // Wire social buttons
-  socialRow.addEventListener('click', (ev) => {
-    const btn = ev.target.closest('.social-btn');
-    if (!btn) return;
-    const provider = btn.dataset.provider;
-    onSocialButtonClick(provider);
-  });
+  function markShared(){
+    // user-verified share
+    progress.shareSent = true;
+    progress.shareTentative = false;
+    saveStateForCurrentUser();
+    render();
+    // hide the share UI after short delay
+    setTimeout(()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; }, 450);
+  }
 
-  // Listen for oauth popup postMessage (the oauth worker must call window.opener.postMessage)
-  window.addEventListener('message', (ev) => {
-    try {
-      if (!ev.data || ev.data.type !== 'oauth-success') return;
-      const payload = ev.data;
-      const prov = payload.provider;
-      const marker = payload.marker || payload.tokenMarker || payload.token; // server should send a small marker id
-      if (!prov || !marker) {
-        console.warn('oauth-success missing provider or marker', payload);
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'OAuth returned missing data — please try again.';
-        return;
+  /* ---------- CLAIM logic (same flow but uses per-user state) ---------- */
+  async function performClaim(){
+    if(!progress.loggedIn) { alert('Please sign in before claiming.'); return; }
+    claimBtn.disabled = true;
+    claimBtn.textContent = 'Claiming...';
+    try{
+      const res = await fetch('https://api.spectrodraw.com/api/claim', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          proof: {
+            reviewSubmitted: progress.reviewSubmitted,
+            shareSent: progress.shareSent,
+            inviteEmails: progress.inviteEmails.slice(-3)
+          }
+        })
+      });
+      if(!res.ok){
+        const j = await res.json().catch(()=>({message:'Unable to claim'}));
+        throw new Error(j.message || 'Unable to claim');
       }
-      // Save marker locally so future shares use it
-      providerMarkers[prov] = marker;
-      saveMarkers();
-      socialStatus.style.color = '#b7ffd6';
-      socialStatus.textContent = `Signed in to ${prov} as ${payload.user ? (payload.user.username || payload.user.name || payload.user.email) : 'connected account'}. Now click the ${prov} button to open the composer.`;
-    } catch (e) {
-      console.error('oauth message handling error', e);
+      const j = await res.json();
+      if(j.claimed){
+        progress.claimed = true;
+        saveStateForCurrentUser();
+        render();
+        claimBtn.textContent = 'Claimed ✓';
+        claimBtn.disabled = true;
+        claimBtn.style.cursor = 'default';
+      } else {
+        throw new Error(j.message || 'Server denied claim');
+      }
+    }catch(err){
+      alert('Claim failed: ' + err.message + '. Make sure you are signed in and completed the required steps.');
+      claimBtn.disabled = false;
+      claimBtn.textContent = 'Claim SpectroDraw Pro';
+    }
+  }
+
+  claimBtn.addEventListener('click', async ()=>{
+    if(claimBtn.disabled) return;
+
+    // If review submitted but share not verified -> open the share panel for verification
+    if(progress.reviewSubmitted && !progress.shareSent){
+      // Show share UI — user can verify or use Next to proceed
+      shareSection.style.display = 'block';
+      reviewSection.style.display = 'none';
+      shareSection.scrollIntoView({ behavior:'smooth', block:'center' });
+      return;
+    }
+
+    // If review + share verified -> perform claim
+    if(progress.shareSent && progress.loggedIn && !progress.claimed){
+      await performClaim();
     }
   });
 
-  // load existing markers on start
-  loadMarkers();
+  /* ---------- NODE navigation (click nodes to switch) ---------- */
+  async function gotoStep(n){
+    if(n === 1){
+      reviewSection.style.display = '';
+      shareSection.style.display = 'none';
+      reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if(n === 2){
+      // If user hasn't submitted review, move to review first
+      if(!progress.reviewSubmitted){
+        reviewSection.style.display = '';
+        shareSection.style.display = 'none';
+        reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      shareSection.style.display = 'block';
+      reviewSection.style.display = 'none';
+      shareSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if(n === 3){
+      // If already claimed - show message
+      if(progress.claimed){
+        alert('You have already claimed SpectroDraw Pro.');
+        return;
+      }
+      // If prerequisites met, attempt claim
+      if(progress.reviewSubmitted && progress.shareSent){
+        await performClaim();
+        return;
+      }
+      // otherwise show the next missing step
+      if(!progress.reviewSubmitted){
+        gotoStep(1);
+        return;
+      }
+      if(!progress.shareSent){
+        gotoStep(2);
+        return;
+      }
+    }
+  }
+
+  // attach listeners to nodes (the clickable circles)
+  [node1, node2, node3].forEach((node, idx)=>{
+    if(!node) return;
+    const step = idx + 1;
+    node.style.cursor = 'pointer';
+    node.addEventListener('click', ()=> gotoStep(step));
+  });
+
+  /* ---------- init ---------- */
+  // load initial user and state
+  currentUserId = getCurrentUserId();
+  loadStateForCurrentUser();
+  checkAuth();
+  render();
+
+  // debug hooks
+  window.sdEarlyAccess = {
+    getState: ()=>progress,
+    setLoggedIn: (v)=>{ progress.loggedIn = !!v; saveStateForCurrentUser(); render(); },
+    forceReloadState: ()=>{ loadStateForCurrentUser(); render(); }
+  };
+
+  /* ---------- server-session helper + enhanced storage listener ---------- */
+
+  async function createServerSession(user) {
+    if (!user || !user.email) return;
+    try {
+      const res = await fetch('https://api.spectrodraw.com/auth/session', {
+        method: 'POST',
+        credentials: 'include',            // IMPORTANT: accept Set-Cookie
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, username: user.name || user.username || user.email })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(()=>({message:'failed'}));
+        console.warn('createServerSession failed', j);
+        return false;
+      }
+      // server should have set cookie; update local state and re-check auth
+      console.log('createServerSession succeeded for', user.email);
+      checkAuth();
+      return true;
+    } catch (err) {
+      console.error('createServerSession error', err);
+      return false;
+    }
+  }
+
+  async function clearServerSession() {
+    try {
+      await fetch('https://api.spectrodraw.com/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      console.log('clearServerSession: logout requested');
+    } catch (e) {
+      console.warn('clearServerSession error', e);
+    } finally {
+      checkAuth();
+    }
+  }
+
+  // watch for spectrodraw_user changes (accounts.js or popup will write this)
+  // Replace your existing "message" handler with this:
+  // Replace your existing "message" handler with this:
+window.addEventListener('message', async (ev) => {
+  try {
+    if (!ev.data || ev.data.type !== 'oauth-success') return;
+    const payload = ev.data;
+    const user = payload.user || null;
+    const provider = payload.provider || payload.providerName || 'oauth';
+    const returnTo = payload.returnTo || payload.returnToUrl || null;
+
+    if (!user || !user.email) {
+      console.warn('oauth-success message missing user/email', payload);
+      socialStatus.style.color = '#ffb4b4';
+      socialStatus.textContent = 'Sign-in returned no user info. Try again.';
+      return;
+    }
+
+    // 1) Persist a small client-side marker (so client UI can show logged-in immediately)
+    const localUser = { email: user.email, name: user.name || user.username || user.email, provider };
+    try {
+      localStorage.setItem('spectrodraw_user', JSON.stringify(localUser));
+    } catch (e) {
+      console.warn('localStorage set failed', e);
+    }
+
+    // 2) Ask your auth worker to create a server-side session (this sets the session cookie)
+    // NOTE: adjust the URL to match your auth host if different
+    const authUrl = 'https://auth.spectrodraw.com/auth/session';
+    socialStatus.textContent = 'Finalizing sign-in...';
+
+    const createSessionResp = await fetch(authUrl, {
+      method: 'POST',
+      credentials: 'include',           // crucial: let browser receive Set-Cookie
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, username: user.name || user.email })
+    });
+
+    if (!createSessionResp.ok) {
+      const txt = await createSessionResp.text().catch(()=>'<no-body>');
+      console.warn('auth session create failed', createSessionResp.status, txt);
+      socialStatus.style.color = '#ffb4b4';
+      socialStatus.textContent = 'Sign-in succeeded but creating site session failed. Try again.';
+      return;
+    }
+
+    // 3) Success: notify UI & global hooks that user is logged in
+    socialStatus.style.color = '#b7ffd6';
+    socialStatus.textContent = `Signed in as ${user.email}`;
+
+    // If you have a global hook to refresh auth state, call it
+    if (typeof window.sdAuthChanged === 'function') {
+      try { window.sdAuthChanged(); } catch(e){ /* ignore */ }
+    }
+    if (window.sdEarlyAccess && typeof window.sdEarlyAccess.setLoggedIn === 'function') {
+      try { window.sdEarlyAccess.setLoggedIn(true); } catch(e){ /* ignore */ }
+    }
+
+    // if page that opened the popup requested a returnTo, navigate there
+    if (returnTo) {
+      // returnTo may have been encoded by the oauth worker
+      try { window.location.href = returnTo; } catch (e) { /* ignore */ }
+    }
+
+  } catch (err) {
+    console.error('oauth message handler error', err);
+    socialStatus.style.color = '#ffb4b4';
+    socialStatus.textContent = 'Sign-in error — try again.';
+  }
+});
 
 })();
 </script>
+
+
 
     
   <footer>

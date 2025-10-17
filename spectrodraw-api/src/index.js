@@ -1,9 +1,9 @@
-// diagnostic api-worker
+// diagnostic api-worker + upload-to-R2 handler
 export default {
   async fetch(request, env) {
     try {
       // List required bindings used by this worker:
-      const required = ['SESSIONS']; // add 'USERS' here if used by this worker
+      const required = ['SESSIONS', 'IMAGES']; // IMAGES should be your R2 binding (or an object with .put())
       const missing = required.filter(k => !env || typeof env[k] === 'undefined');
 
       if (missing.length) {
@@ -20,8 +20,14 @@ export default {
       // get a simple user representation from headers/cookies/KV (no localStorage on workers)
       const user = await parseAuth(request, env);
 
+      // Protect /api/* routes as before
       if (pathname.startsWith("/api/") && !user) {
         return addCors(json({ message: "Unauthorized request.header:" + (request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email")) + "; env: " + env }, 401), request);
+      }
+
+      // upload endpoint (no /api prefix so you can call POST /upload directly)
+      if (pathname === "/upload" && request.method === "POST") {
+        return addCors(await handleUpload(request, user, env), request);
       }
 
       if (pathname === "/api/reviews" && request.method === "POST") {
@@ -64,7 +70,6 @@ function preflightResponse(request) {
     },
   });
 }
-
 
 function addCors(response, request) {
   const headers = new Headers(response.headers);
@@ -137,7 +142,71 @@ async function parseAuth(request, env) {
   }
 }
 
-/* ---------- handlers (unchanged) ---------- */
+/* ---------- handlers (unchanged except upload) ---------- */
+
+async function handleUpload(request, user, env) {
+  // Accepts multipart/form-data with field 'file'
+  // Stores to env.IMAGES (R2 or compatible) and returns { url: "https://cdn..." }
+  try {
+    // Option: require auth for upload. Uncomment if you want:
+    // if (!user) return json({ message: 'Unauthorized' }, 401);
+
+    const contentType = request.headers.get('content-type') || '';
+    if (!contentType.includes('multipart/form-data')) {
+      return json({ message: 'Invalid content-type, expected multipart/form-data' }, 400);
+    }
+
+    const form = await request.formData();
+    const file = form.get('file');
+    if (!file) return json({ message: 'Missing file field (name it "file")' }, 400);
+
+    if (!file.arrayBuffer) {
+      return json({ message: 'Uploaded item is not a file' }, 400);
+    }
+
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const mime = file.type || 'application/octet-stream';
+    const originalName = (file.name || 'upload').toString();
+
+    // sanitize filename and build key
+    const sanitized = sanitizeFilename(originalName);
+    const key = `pins/${Date.now()}-${sanitized}`;
+
+    // Put into R2-like binding - env.IMAGES
+    // env.IMAGES.put accepts ArrayBuffer/Uint8Array/ReadableStream depending on platform
+    await env.IMAGES.put(key, bytes, {
+      httpMetadata: { contentType: mime }
+    });
+
+    // Build public URL. Use env.CDN_HOST if provided (recommended).
+    // Example: CDN_HOST = 'cdn.spectrodraw.com' -> https://cdn.spectrodraw.com/<key>
+    let publicUrl = null;
+    if (env && env.CDN_HOST) {
+      const host = env.CDN_HOST.replace(/\/$/, '');
+      publicUrl = `https://${host}/${key}`;
+    } else {
+      // Fallback: try to derive from request host; note this usually won't point at R2 directly.
+      // It's strongly recommended to set env.CDN_HOST to the real CDN domain that serves the bucket.
+      const reqHost = request.headers.get('Host') || '';
+      publicUrl = `https://${reqHost}/${key}`;
+    }
+
+    return json({ url: publicUrl }, 200);
+  } catch (err) {
+    console.error('handleUpload error:', err);
+    return json({ message: err.message || 'Upload failed' }, 500);
+  }
+}
+
+function sanitizeFilename(name) {
+  // Remove path segments, replace spaces with underscores, remove unsafe chars
+  const base = name.split('/').pop().split('\\').pop();
+  // keep only safe characters, replace spaces -> _
+  return base.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-\.]/g, '');
+}
+
+/* ---------- original handlers (unchanged) ---------- */
 async function handleReviewPost(request, user, env) {
   const form = await request.formData();
   const rating = parseInt(form.get("rating"), 10);

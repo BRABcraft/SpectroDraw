@@ -289,14 +289,10 @@
           </div>
         </section>
         <!--SHARE-->
-        <!--SHARE (replace previous inline-share)-->
         <section id="inline-share" class="section" aria-label="Share with a friend" style="display:none; margin-top:18px;">
           <div style="display:flex;flex-direction:column;gap:12px;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow);">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <h3 style="margin:0;">Share SpectroDraw</h3>
-              <div>
-                <button id="close-share" aria-label="Close" style="background:transparent;border:0;font-size:20px;cursor:pointer">&times;</button>
-              </div>
             </div>
 
             <p style="margin:0;color:var(--muted)">Share the product to unlock your claim. Click a social button below — if you're logged in to that service the composer will be pre-filled.</p>
@@ -390,7 +386,6 @@
   const shareLinkInput = document.getElementById('share-link');
   const nativeShareBtn = document.getElementById('native-share');
   const manualVerifyBtn = document.getElementById('manual-verify');
-  const closeShareBtn = document.getElementById('close-share');
   const doneCloseBtn = document.getElementById('done-close');
 
   /* ---------- storage helpers (per-user) ---------- */
@@ -627,7 +622,7 @@
       case 'twitter':
         return `https://twitter.com/intent/tweet?text=${t}&url=${u}`;
       case 'facebook':
-        return `https://www.facebook.com/v2.5/dialog/share?display=popup&href=${u}&redirect_uri=${encodeURIComponent(link||window.location.origin)}`;
+        return `https://www.facebook.com/sharer/sharer.php?u=${u}` + (t ? `&quote=${t}` : '');
       case 'pinterest':
         return `https://www.pinterest.com/pin/create/bookmarklet/?media=${m}&url=${u}&title=${titleEnc}&description=${t}`;
       case 'instagram':
@@ -646,51 +641,287 @@
     try { return window.open(url, title, opts); } catch (e) { return null; }
   }
 
-  socialRow.addEventListener('click', (ev)=>{
-    const btn = ev.target.closest('.social-btn');
-    if(!btn) return;
-    const provider = btn.dataset.provider;
-    socialStatus.style.color = '';
-    socialStatus.textContent = `Preparing ${provider}...`;
+  /* ---------- REPLACE the existing socialRow click handler with this block ---------- */
+socialRow.addEventListener('click', async (ev)=>{
+  const btn = ev.target.closest('.social-btn');
+  if(!btn) return;
+  const provider = btn.dataset.provider;
+  socialStatus.style.color = '';
+  socialStatus.textContent = `Preparing ${provider}...`;
 
-    if(!progress.loggedIn){
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Please sign in to SpectroDraw before sharing.';
-      return;
-    }
+  if(!progress.loggedIn){
+    socialStatus.style.color = '#ffb4b4';
+    socialStatus.textContent = 'Please sign in to SpectroDraw before sharing.';
+    return;
+  }
 
-    const url = shareIntentUrl(provider, shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", '', document.title);
-    if(!url){
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = `${provider} sharing not supported here.`;
-      return;
-    }
-
-    socialStatus.textContent = `Opening ${provider} composer...`;
-    const popup = openPopup(url, `Share to ${provider}`, 700, 600);
-    if(!popup){
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
-      return;
-    }
-
-    // Poll popup closed -> mark a tentative share (do not auto-claim)
-    const poll = setInterval(() => {
-      try {
-        if(popup.closed){
-          clearInterval(poll);
-          // do not auto-verify share; mark tentative so Next becomes enabled
-          progress.shareTentative = true;
-          saveStateForCurrentUser();
-          socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
-          render();
-        }
-      } catch(e){
-        clearInterval(poll);
+  // If provider is pinterest, show inline picker first
+  if(provider === 'pinterest'){
+    socialStatus.textContent = 'Choose an image to pin...';
+    try{
+      const images = gatherCandidateImages();
+      const chosen = await showImagePickerModal(images, {
+        title: 'Choose an image to Pin'
+      });
+      if(!chosen){
+        // user canceled
+        socialStatus.textContent = 'Pinterest share canceled.';
+        return;
       }
-    }, 600);
+
+      // otherwise open pinterest with the selected media URL
+      openPinterestShare(chosen.uploadUrl || chosen.src);
+
+      function openPinterestShare(mediaUrl){
+        socialStatus.textContent = 'Opening Pinterest composer...';
+        const url = shareIntentUrl('pinterest', shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", mediaUrl, document.title);
+        const popup = openPopup(url, 'Share to Pinterest', 800, 720);
+        if(!popup){
+          socialStatus.style.color = '#ffb4b4';
+          socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
+          return;
+        }
+        // Poll popup closed -> mark tentative share
+        const poll = setInterval(() => {
+          try {
+            if(popup.closed){
+              clearInterval(poll);
+              progress.shareTentative = true;
+              saveStateForCurrentUser();
+              socialStatus.style.color = '#b7ffd6';
+              socialStatus.textContent = `Popup closed. If you completed a share on Pinterest, click "I shared — verify" or click Next.`;
+              render();
+            }
+          } catch(e){
+            clearInterval(poll);
+          }
+        }, 600);
+      }
+
+    } catch(err){
+      console.error('Pinterest picker error', err);
+      socialStatus.style.color = '#ffb4b4';
+      socialStatus.textContent = 'Unable to show image picker.';
+    }
+    return;
+  }
+
+  // default (non-pinterest) behavior (keeps your existing flow)
+  socialStatus.textContent = `Opening ${provider} composer...`;
+  const url = shareIntentUrl(provider, shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", '', document.title);
+  if(!url){
+    socialStatus.style.color = '#ffb4b4';
+    socialStatus.textContent = `${provider} sharing not supported here.`;
+    return;
+  }
+  const popup = openPopup(url, `Share to ${provider}`, 700, 600);
+  if(!popup){
+    socialStatus.style.color = '#ffb4b4';
+    socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
+    return;
+  }
+  const poll = setInterval(() => {
+    try {
+      if(popup.closed){
+        clearInterval(poll);
+        progress.shareTentative = true;
+        saveStateForCurrentUser();
+        socialStatus.style.color = '#b7ffd6';
+        socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+        render();
+      }
+    } catch(e){
+      clearInterval(poll);
+    }
+  }, 600);
+});
+
+/* ---------- Helper: gather candidate images ---------- */
+function gatherCandidateImages(){
+  const imgs=['Sound effect creation', 'Eraser', 'Image overlay', '2-color spectrogram', 'Align pitch and time', 'Amplifier', 'Brush', 'Blur', 'Equalizer'];
+  return imgs.map(f=>({src:`/assets/pinterestImages/${f}.jpg`,label:f,isLocal:false}));
+}
+function isDataUrl(url){
+  return typeof url === 'string' && url.startsWith('data:');
+}
+
+/* ---------- Helper: image-picker modal (returns a Promise that resolves to chosen image object or null) ---------- */
+// compact innerHTML-based image picker
+// replacement showImagePickerModal — compact, innerHTML, fixed delegation, upload button wired
+function showImagePickerModal(images, opts = {}) {
+  const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
+  return new Promise((resolve) => {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div id="sd-picker-overlay" role="dialog" aria-modal="true"
+           style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+                  background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
+        <div id="sd-picker-box" style="width:min(580px,calc(100% - 48px));max-height:85vh;overflow:auto;
+                 border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+                 padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);background:#111">
+          <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="display:flex;gap:12px;align-items:center">
+              <button id="sd-picker-upload" type="button" style="padding:.4rem .6rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#fff;cursor:pointer">Upload an image</button>
+              <div style="color:var(--muted)">or choose an image to pin...</div>
+            </div>
+            <button id="sd-picker-close" aria-label="Close" style="background:transparent;border:0;cursor:pointer;font-size:20px">✕</button>
+          </div>
+          ${opts.note ? `<div style="color:var(--muted);margin-bottom:12px">${esc(opts.note)}</div>` : ''}
+          <div id="sd-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
+            ${images.map((img, idx) => `
+              <button class="sd-picker-card" data-idx="${idx}" type="button"
+                      style="cursor:pointer;border:1px solid rgba(255,255,255,0.04);border-radius:10px;padding:8px;
+                             background:transparent;text-align:left;display:flex;flex-direction:column;gap:8px;align-items:stretch">
+                <div style="width:100%;height:100px;border-radius:8px;background-size:cover;background-position:center;
+                            background-image:url('${esc(img.src || '')}')"></div>
+                <div style="font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(img.src || '')}">
+                  ${esc(img.label || ('Image ' + (idx+1)))}
+                </div>
+              </button>
+            `).join('')}
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+            <button id="sd-picker-cancel" type="button" style="background:transparent;border:1px solid rgba(255,255,255,0.04);
+                    padding:.45rem .8rem;border-radius:8px;cursor:pointer">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper);
+
+    const root = wrapper.firstElementChild;
+    if (!root) { wrapper.remove(); resolve(null); return; }
+
+    let fileChangeHandler = null;
+
+    const cleanup = () => {
+      try { root.removeEventListener('click', onClick); } catch(e){}
+      try { document.removeEventListener('keydown', onKey); } catch(e){}
+      try { wrapper.remove(); } catch(e){}
+      try { const inp = document.getElementById('review-image'); if (inp && fileChangeHandler) inp.removeEventListener('change', fileChangeHandler); } catch(e){}
+    };
+
+    const makeSiteBase = (siteOpt) => {
+      if (!siteOpt) return window.location.protocol + '//' + window.location.host;
+      if (/^https?:\/\//i.test(siteOpt)) return siteOpt.replace(/\/$/, '');
+      return 'https://' + siteOpt.replace(/\/$/, '');
+    };
+    const siteBase = makeSiteBase(opts.site);
+
+    const onClick = (e) => {
+      console.log("a", e.target.id);
+      const card = e.target.closest && e.target.closest('.sd-picker-card');
+      if (card && root.contains(card)) {
+        const idx = parseInt(card.getAttribute('data-idx'), 10);
+        const img = images[idx] || {};
+
+        let sourceName = img.source || img.label || '';
+        if (!sourceName && img.src) {
+          sourceName = img.src.split('/').pop();
+        }
+        if (!sourceName) sourceName = 'Image ' + (idx + 1);
+
+        let resolved = Object.assign({}, img);
+        if (typeof img.src === 'string' && !/^https?:\/\//i.test(img.src)) {
+          resolved.uploadUrl = `${siteBase}/assets/pinterestImages/${encodeURIComponent(sourceName)}.jpg`;
+        } else {
+          resolved.uploadUrl = img.uploadUrl || img.src || '';
+        }
+
+        cleanup();
+        resolve(resolved);
+        return;
+      }
+
+      // close / cancel / click backdrop
+      if (e.target.id === 'sd-picker-close' || e.target.id === 'sd-picker-cancel' || (e.target === root)) {
+        cleanup();
+        resolve(null);
+        return;
+      }
+
+      // at top of function, after computing siteBase you can set default upload endpoint:
+      const uploadEndpoint = opts.uploadEndpoint || 'https://api.spectrodraw.com/upload';
+
+      // inside onClick, replace the sd-picker-upload branch with this:
+      if (e.target.id === 'sd-picker-upload') {
+        const inp = document.getElementById('review-image');
+        if (!inp) { alert('Upload input not found'); return; }
+
+        fileChangeHandler = async function () {
+          if (!(inp.files && inp.files[0])) return;
+          const f = inp.files[0];
+
+          try {
+            // Build form and POST to the worker at api.spectrodraw.com
+            const fd = new FormData();
+            fd.append('file', f, f.name);
+
+            // optional: add metadata if your worker expects it
+            // fd.append('originalName', f.name);
+
+            const res = await fetch(uploadEndpoint, {
+              method: 'POST',
+              body: fd,
+              // don't set content-type; browser will set multipart boundary
+            });
+
+            if (!res.ok) {
+              const text = await res.text().catch(()=>null);
+              throw new Error('Upload failed: ' + (text || res.status));
+            }
+
+            const j = await res.json();
+            if (!j || !j.url) throw new Error('Upload response missing "url"');
+
+            const publicUrl = j.url; // should be an HTTPS, public CDN url
+
+            // return resolved object with src and uploadUrl set to the public CDN url
+            cleanup();
+            resolve({
+              src: publicUrl,
+              label: f.name || 'Local upload',
+              isLocal: true,
+              uploadUrl: publicUrl
+            });
+            return;
+          } catch (err) {
+            console.error('Upload error', err);
+            alert('Upload failed: ' + (err.message || err));
+            // leave modal open so user can retry
+          }
+        };
+
+        inp.addEventListener('change', fileChangeHandler, { once: true });
+        inp.click();
+        return;
+      }
+
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { cleanup(); resolve(null); }
+      if (e.key === 'Enter') {
+        const active = document.activeElement;
+        if (active && active.classList && active.classList.contains('sd-picker-card')) {
+          const idx = parseInt(active.getAttribute('data-idx'), 10);
+          const img = images[idx] || {};
+          cleanup();
+          resolve(img);
+        }
+      }
+    };
+
+    // NOTE: do NOT stop propagation on the box — delegation needs to see the clicks.
+    root.addEventListener('click', onClick);
+    document.addEventListener('keydown', onKey);
+
+    setTimeout(()=> {
+      const first = root.querySelector('.sd-picker-card');
+      if (first) first.focus();
+    }, 50);
   });
+}
 
   copyLinkBtn.addEventListener('click', async ()=>{
     try{
@@ -727,7 +958,6 @@
     markShared();
   });
 
-  closeShareBtn.addEventListener('click', ()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; });
   doneCloseBtn.addEventListener('click', ()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; });
 
   function markShared(){

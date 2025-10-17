@@ -29,6 +29,10 @@
     {
       "binding": "SESSIONS",
       "id": "bcbfb4180e174b95adb0ad9a346c9f5d"   // <-- replace with your SESSIONS namespace id
-    }
+    },
+		{
+			"binding": "IMAGES",
+			"id": "42a93427127240539de4c6bb81b5848e"
+		}
   ]
 }

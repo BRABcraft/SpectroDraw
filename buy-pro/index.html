@@ -301,14 +301,14 @@
               <button class="social-btn" data-provider="facebook" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Facebook</button>
               <button class="social-btn" data-provider="twitter" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Twitter</button>
               <button class="social-btn" data-provider="pinterest" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Pinterest</button>
-              <button class="social-btn" data-provider="instagram" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Instagram</button>
-              <button class="social-btn" data-provider="youtube" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">YouTube</button>
+              <button class="social-btn" data-provider="linkedin" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">LinkedIn</button>
+              <button class="social-btn" data-provider="reddit" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Reddit</button>
             </div>
 
             <div id="social-status" style="margin-top:8px;color:var(--muted);font-size:.95rem"></div>
 
             <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <input id="share-link" readonly value="https://spectrodraw.com/?ref=early-access-claim" style="flex:1;padding:.55rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;color:var(--text)"/>
+              <input id="share-link" readonly value="https://spectrodraw.com/" style="flex:1;padding:.55rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;color:var(--text)"/>
               <button id="copy-link" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Copy</button>
               <button id="native-share" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Share</button>
             </div>
@@ -387,6 +387,8 @@
   const nativeShareBtn = document.getElementById('native-share');
   const manualVerifyBtn = document.getElementById('manual-verify');
   const doneCloseBtn = document.getElementById('done-close');
+
+  const postText = "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!";
 
   /* ---------- storage helpers (per-user) ---------- */
   function loadStateForCurrentUser(){
@@ -625,10 +627,13 @@
         return `https://www.facebook.com/sharer/sharer.php?u=${u}` + (t ? `&quote=${t}` : '');
       case 'pinterest':
         return `https://www.pinterest.com/pin/create/bookmarklet/?media=${m}&url=${u}&title=${titleEnc}&description=${t}`;
-      case 'instagram':
-        return `https://www.instagram.com/`;
-      case 'youtube':
-        return `https://www.youtube.com/`;
+      case 'linkedin':
+        return `https://www.linkedin.com/shareArticle?mini=true&url=${u}`;
+      case 'reddit':
+        const body = encodeURIComponent(
+          [text || '', media ? `\n\n${media}` : ''].join('')
+        );
+        return `https://www.reddit.com/submit?url=${u}&title=${titleEnc || t}&text=${body}`;
       default:
         return null;
     }
@@ -642,49 +647,45 @@
   }
 
   /* ---------- REPLACE the existing socialRow click handler with this block ---------- */
-socialRow.addEventListener('click', async (ev)=>{
+socialRow.addEventListener('click', async (ev) => {
   const btn = ev.target.closest('.social-btn');
-  if(!btn) return;
+  if (!btn) return;
   const provider = btn.dataset.provider;
   socialStatus.style.color = '';
   socialStatus.textContent = `Preparing ${provider}...`;
 
-  if(!progress.loggedIn){
+  if (!progress.loggedIn) {
     socialStatus.style.color = '#ffb4b4';
     socialStatus.textContent = 'Please sign in to SpectroDraw before sharing.';
     return;
   }
 
-  // If provider is pinterest, show inline picker first
-  if(provider === 'pinterest'){
+  // Pinterest keeps the existing flow (image picker + open pinterest composer)
+  if (provider === 'pinterest') {
     socialStatus.textContent = 'Choose an image to pin...';
-    try{
+    try {
       const images = gatherCandidateImages();
       const chosen = await showImagePickerModal(images, {
         title: 'Choose an image to Pin'
       });
-      if(!chosen){
-        // user canceled
+      if (!chosen) {
         socialStatus.textContent = 'Pinterest share canceled.';
         return;
       }
-
-      // otherwise open pinterest with the selected media URL
       openPinterestShare(chosen.uploadUrl || chosen.src);
 
-      function openPinterestShare(mediaUrl){
+      function openPinterestShare(mediaUrl) {
         socialStatus.textContent = 'Opening Pinterest composer...';
         const url = shareIntentUrl('pinterest', shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", mediaUrl, document.title);
         const popup = openPopup(url, 'Share to Pinterest', 800, 720);
-        if(!popup){
+        if (!popup) {
           socialStatus.style.color = '#ffb4b4';
           socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
           return;
         }
-        // Poll popup closed -> mark tentative share
         const poll = setInterval(() => {
           try {
-            if(popup.closed){
+            if (popup.closed) {
               clearInterval(poll);
               progress.shareTentative = true;
               saveStateForCurrentUser();
@@ -692,13 +693,12 @@ socialRow.addEventListener('click', async (ev)=>{
               socialStatus.textContent = `Popup closed. If you completed a share on Pinterest, click "I shared — verify" or click Next.`;
               render();
             }
-          } catch(e){
+          } catch (e) {
             clearInterval(poll);
           }
         }, 600);
       }
-
-    } catch(err){
+    } catch (err) {
       console.error('Pinterest picker error', err);
       socialStatus.style.color = '#ffb4b4';
       socialStatus.textContent = 'Unable to show image picker.';
@@ -706,23 +706,144 @@ socialRow.addEventListener('click', async (ev)=>{
     return;
   }
 
-  // default (non-pinterest) behavior (keeps your existing flow)
+  // LinkedIn & Reddit: show text-copy modal then image-download modal, then open composer
+  if (provider === 'linkedin' || provider === 'reddit') {
+    socialStatus.textContent = `Preparing ${provider} share helper...`;
+
+    try {
+      const suggestedText = `I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!\n\n${shareLinkInput.value || window.location.href}`;
+
+      const proceedFromText = await showTextCopyModal({
+        title: `Share to ${provider[0].toUpperCase() + provider.slice(1)}`,
+        text: suggestedText
+      });
+
+      if (!proceedFromText) {
+        socialStatus.textContent = `${provider[0].toUpperCase() + provider.slice(1)} share canceled.`;
+        return;
+      }
+
+      const images = gatherCandidateImages();
+      const proceedToPost = await showImageDownloadModal(images, {
+        title: 'Choose an image for your post (optional)',
+        note: 'Please use one of these images in your post (or use your own picture of SpectroDraw). Click an image to download it.'
+      });
+
+      if (proceedToPost === null || proceedToPost === false) {
+        socialStatus.textContent = `${provider[0].toUpperCase() + provider.slice(1)} share canceled.`;
+        return;
+      }
+
+      socialStatus.textContent = `Opening ${provider} composer...`;
+      const url = shareIntentUrl(provider, shareLinkInput.value, suggestedText, '', document.title);
+      if (!url) {
+        socialStatus.style.color = '#ffb4b4';
+        socialStatus.textContent = `${provider} sharing not supported here.`;
+        return;
+      }
+
+      const popup = openPopup(url, `Share to ${provider}`, 900, 700);
+      if (!popup) {
+        socialStatus.style.color = '#ffb4b4';
+        socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
+        return;
+      }
+
+      const poll = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(poll);
+            progress.shareTentative = true;
+            saveStateForCurrentUser();
+            socialStatus.style.color = '#b7ffd6';
+            socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+            render();
+          }
+        } catch (e) {
+          clearInterval(poll);
+        }
+      }, 600);
+
+    } catch (err) {
+      console.error('Share helper error', err);
+      socialStatus.style.color = '#ffb4b4';
+      socialStatus.textContent = 'Unable to prepare share helper.';
+    }
+    return;
+  }
+
+  // NEW: For Facebook & Twitter, show the image-download modal (no text modal), then open composer
+  if (provider === 'facebook' || provider === 'twitter') {
+    socialStatus.textContent = `Preparing ${provider} image suggestions...`;
+    try {
+      const images = gatherCandidateImages();
+      const proceedToPost = await showImageDownloadModal(images, {
+        title: 'Choose an image for your post (optional)',
+        note: 'Please use one of these images in your post (or use your own picture of SpectroDraw). Click an image to download it.'
+      });
+
+      if (proceedToPost === null || proceedToPost === false) {
+        socialStatus.textContent = `${provider[0].toUpperCase() + provider.slice(1)} share canceled.`;
+        return;
+      }
+
+      socialStatus.textContent = `Opening ${provider} composer...`;
+      const suggestedText = `I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!\n\n${shareLinkInput.value || window.location.href}`;
+      const url = shareIntentUrl(provider, shareLinkInput.value, suggestedText, '', document.title);
+
+      if (!url) {
+        socialStatus.style.color = '#ffb4b4';
+        socialStatus.textContent = `${provider} sharing not supported here.`;
+        return;
+      }
+
+      const popup = openPopup(url, `Share to ${provider}`, 850, 650);
+      if (!popup) {
+        socialStatus.style.color = '#ffb4b4';
+        socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
+        return;
+      }
+
+      const poll = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(poll);
+            progress.shareTentative = true;
+            saveStateForCurrentUser();
+            socialStatus.style.color = '#b7ffd6';
+            socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+            render();
+          }
+        } catch (e) {
+          clearInterval(poll);
+        }
+      }, 600);
+
+    } catch (err) {
+      console.error('Facebook/Twitter helper error', err);
+      socialStatus.style.color = '#ffb4b4';
+      socialStatus.textContent = 'Unable to prepare share helper.';
+    }
+    return;
+  }
+
+  // default behavior for other providers (unchanged)
   socialStatus.textContent = `Opening ${provider} composer...`;
   const url = shareIntentUrl(provider, shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", '', document.title);
-  if(!url){
+  if (!url) {
     socialStatus.style.color = '#ffb4b4';
     socialStatus.textContent = `${provider} sharing not supported here.`;
     return;
   }
   const popup = openPopup(url, `Share to ${provider}`, 700, 600);
-  if(!popup){
+  if (!popup) {
     socialStatus.style.color = '#ffb4b4';
     socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
     return;
   }
   const poll = setInterval(() => {
     try {
-      if(popup.closed){
+      if (popup.closed) {
         clearInterval(poll);
         progress.shareTentative = true;
         saveStateForCurrentUser();
@@ -730,7 +851,7 @@ socialRow.addEventListener('click', async (ev)=>{
         socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
         render();
       }
-    } catch(e){
+    } catch (e) {
       clearInterval(poll);
     }
   }, 600);
@@ -744,7 +865,234 @@ function gatherCandidateImages(){
 function isDataUrl(url){
   return typeof url === 'string' && url.startsWith('data:');
 }
+function showTextCopyModal(opts = {}) {
+  const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
+  return new Promise((resolve) => {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
+        <div style="width:min(760px,calc(100% - 48px));max-height:85vh;overflow:auto;border-radius:12px;background:#0e0e0f;padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);color:#fff">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong style="font-size:1.05rem">${esc(opts.title || 'Copy text')}</strong>
+            <button id="sd-text-close" aria-label="Close" style="background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer">✕</button>
+          </div>
+          <div style="margin-bottom:12px">
+            <textarea id="sd-textarea" readonly style="width:100%;height:160px;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:#0b0b0c;color:#eaeaea;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:0.95rem">${esc(opts.text || '')}</textarea>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="sd-copy-btn" type="button" style="padding:.45rem .8rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#fff;cursor:pointer">Copy to clipboard</button>
+            <button id="sd-proceed-btn" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff;cursor:pointer">Proceed</button>
+            <button id="sd-cancel-btn" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;cursor:pointer">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper);
 
+    const root = wrapper.firstElementChild;
+    const cleanup = () => { try { wrapper.remove(); } catch(e){} };
+
+    root.addEventListener('click', (e) => {
+      if (e.target.id === 'sd-text-close' || e.target.id === 'sd-cancel-btn' || e.target === root) {
+        cleanup();
+        resolve(false);
+      }
+    });
+
+    document.getElementById('sd-copy-btn').addEventListener('click', async () => {
+      const txt = document.getElementById('sd-textarea').value;
+      try {
+        await navigator.clipboard.writeText(txt);
+        socialStatus.style.color = '#b7ffd6';
+        socialStatus.textContent = 'Copied text to clipboard.';
+      } catch (err) {
+        socialStatus.style.color = '#ffb4b4';
+        socialStatus.textContent = 'Unable to copy automatically — please highlight and copy manually.';
+        // still allow proceed
+      }
+    });
+
+    document.getElementById('sd-proceed-btn').addEventListener('click', () => {
+      cleanup();
+      resolve(true);
+    });
+
+    document.addEventListener('keydown', function onKey(e) {
+      if (e.key === 'Escape') {
+        document.removeEventListener('keydown', onKey);
+        cleanup();
+        resolve(false);
+      }
+    }, { once: true });
+
+    // focus textarea so user can manually select if needed
+    setTimeout(()=> {
+      const ta = document.getElementById('sd-textarea');
+      if (ta) ta.select();
+    }, 30);
+  });
+}
+
+/* ---------- Helper: showImageDownloadModal(images, opts) ---------- */
+/* images: array of { src, label } -> resolves true if user clicked proceed, false if canceled, or null if closed */
+function showImageDownloadModal(images = [], opts = {}) {
+  const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
+  return new Promise((resolve) => {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
+        <div style="width:min(920px,calc(100% - 48px));max-height:85vh;overflow:auto;border-radius:12px;background:#0f0f10;padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);color:#fff">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <strong style="font-size:1.05rem">${esc(opts.title || 'Images')}</strong>
+            <button id="sd-img-close" aria-label="Close" style="background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer">✕</button>
+          </div>
+          ${opts.note ? `<div style="color:var(--muted);margin-bottom:12px">${esc(opts.note)}</div>` : ''}
+          <div id="sd-img-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
+            ${images.map((img, idx) => `
+              <div class="sd-img-card" data-idx="${idx}" tabindex="0" style="position:relative;cursor:pointer;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.04);background:#0b0b0c">
+                <div class="sd-img-thumb" style="width:100%;height:110px;background-size:cover;background-position:center;background-image:url('${esc(img.src || '')}');"></div>
+                <div style="padding:8px;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(img.label || ('Image ' + (idx+1)))}</div>
+                <!-- overlay (hidden by default, shown on hover via JS) -->
+                <div class="sd-img-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);opacity:0;transition:opacity .12s">
+                  <div style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-weight:600">Download</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+            <div style="color:var(--muted);font-size:.9rem">Click images to download them. Hover to reveal download overlay.</div>
+            <div style="display:flex;gap:8px">
+              <button id="sd-img-cancel" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;cursor:pointer">Cancel</button>
+              <button id="sd-img-proceed" type="button" style="padding:.45rem .8rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#fff;cursor:pointer">Proceed to post</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper);
+
+    const root = wrapper.firstElementChild;
+    const cleanup = () => { try { wrapper.remove(); } catch (e) {} };
+
+    // bind hover overlay via event delegation
+    root.addEventListener('mouseover', (e) => {
+      const card = e.target.closest && e.target.closest('.sd-img-card');
+      if (card && root.contains(card)) {
+        const overlay = card.querySelector('.sd-img-overlay');
+        if (overlay) overlay.style.opacity = '1';
+      }
+    });
+    root.addEventListener('mouseout', (e) => {
+      const card = e.target.closest && e.target.closest('.sd-img-card');
+      if (card && root.contains(card)) {
+        const overlay = card.querySelector('.sd-img-overlay');
+        if (overlay) overlay.style.opacity = '0';
+      }
+    });
+
+    // click to download
+    root.addEventListener('click', async (e) => {
+      const card = e.target.closest && e.target.closest('.sd-img-card');
+      if (card && root.contains(card)) {
+        const idx = parseInt(card.getAttribute('data-idx'), 10);
+        const img = images[idx] || {};
+        if (!img || !img.src) return;
+
+        try {
+          // Attempt a simple anchor download first (works if same-origin or CORS allows)
+          const filename = (img.label && img.label.replace(/[^\w.-]+/g, '_')) || img.src.split('/').pop() || `image-${Date.now()}.jpg`;
+
+          // If src is data: URL or same-origin, anchor download will work
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = img.src;
+          a.download = filename;
+          document.body.appendChild(a);
+
+          // If it's cross-origin and the server doesn't set CORS, browser may navigate instead of downloading.
+          // So attempt fetch+blob as fallback.
+          let usedFetch = false;
+          try {
+            a.click();
+            // remove afterwards
+            setTimeout(()=>{ try { a.remove(); } catch(e){} }, 50);
+          } catch (err) {
+            // fallback to fetch
+            usedFetch = true;
+          }
+
+          if (!usedFetch) {
+            // We attempted anchor click; but to be more robust, also attempt fetch if anchor didn't start a download.
+            // We'll try fetch if the link appears to be cross-origin (contains // and not same origin).
+            const sameOrigin = (() => {
+              try {
+                const u = new URL(img.src, window.location.href);
+                return u.origin === window.location.origin;
+              } catch(e){ return false; }
+            })();
+            if (!sameOrigin) {
+              // try fetch+blob
+              usedFetch = true;
+            }
+          }
+
+          if (usedFetch) {
+            const res = await fetch(img.src, { mode: 'cors' });
+            if (!res.ok) throw new Error('Failed to fetch image for download');
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a2 = document.createElement('a');
+            a2.style.display = 'none';
+            a2.href = blobUrl;
+            a2.download = filename;
+            document.body.appendChild(a2);
+            a2.click();
+            setTimeout(()=> {
+              try { a2.remove(); URL.revokeObjectURL(blobUrl); } catch(e){}
+            }, 3000);
+          }
+
+          socialStatus.style.color = '#b7ffd6';
+          socialStatus.textContent = 'Image download started.';
+        } catch (err) {
+          console.error('Download error', err);
+          socialStatus.style.color = '#ffb4b4';
+          socialStatus.textContent = 'Download failed — try right-click -> Save image as...';
+        }
+
+        return;
+      }
+
+      // close / cancel / click backdrop
+      if (e.target.id === 'sd-img-close' || e.target.id === 'sd-img-cancel' || (e.target === root)) {
+        cleanup();
+        resolve(false);
+        return;
+      }
+
+      if (e.target.id === 'sd-img-proceed') {
+        cleanup();
+        resolve(true);
+        return;
+      }
+    });
+
+    document.addEventListener('keydown', function onKey(e) {
+      if (e.key === 'Escape') {
+        document.removeEventListener('keydown', onKey);
+        cleanup();
+        resolve(null);
+      }
+    }, { once: true });
+
+    // focus first image for keyboard users
+    setTimeout(()=> {
+      const first = root.querySelector('.sd-img-card');
+      if (first) first.focus();
+    }, 40);
+  });
+}
 /* ---------- Helper: image-picker modal (returns a Promise that resolves to chosen image object or null) ---------- */
 // compact innerHTML-based image picker
 // replacement showImagePickerModal — compact, innerHTML, fixed delegation, upload button wired
@@ -937,7 +1285,7 @@ function showImagePickerModal(images, opts = {}) {
   nativeShareBtn.addEventListener('click', async ()=>{
     if(navigator.share){
       try{
-        await navigator.share({ title: document.title, text: "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", url: shareLinkInput.value });
+        await navigator.share({ title: document.title, text: postText, url: shareLinkInput.value });
         // native share is considered verified immediately
         socialStatus.style.color = '#b7ffd6';
         socialStatus.textContent = 'Native share used — unlocking...';

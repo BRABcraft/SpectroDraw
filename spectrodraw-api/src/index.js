@@ -42,6 +42,9 @@ export default {
       if (pathname === "/auth/session" && request.method === "POST") {
         return addCors(await handleSessionCreate(request, env), request);
       }
+			if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/pins/')) {
+				return addCors(await handleGetPin(request, env, pathname), request);
+			}
 
       return addCors(new Response("Not Found", { status: 404 }), request);
     } catch (err) {
@@ -49,6 +52,15 @@ export default {
       return addCors(json({ message: err.message || "Internal server error" }, 500), request);
     }
   },
+	async scheduled(controller, env, ctx) {
+    try {
+      console.log("Scheduled cleanup started");
+      await cleanupOldPins(env);
+      console.log("Scheduled cleanup finished");
+    } catch (err) {
+      console.error("Scheduled cleanup error:", err);
+    }
+  }
 };
 
 function preflightResponse(request) {
@@ -165,34 +177,18 @@ async function handleUpload(request, user, env) {
     }
 
     const buf = await file.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    const mime = file.type || 'application/octet-stream';
-    const originalName = (file.name || 'upload').toString();
+		const bytes = new Uint8Array(buf);
+		const mime = file.type || 'application/octet-stream';
+		const key = `pins/${Date.now()}-${sanitizeFilename((file.name || 'upload').toString())}`;
 
-    // sanitize filename and build key
-    const sanitized = sanitizeFilename(originalName);
-    const key = `pins/${Date.now()}-${sanitized}`;
-
-    // Put into R2-like binding - env.IMAGES
-    // env.IMAGES.put accepts ArrayBuffer/Uint8Array/ReadableStream depending on platform
-    await env.IMAGES.put(key, bytes, {
-      httpMetadata: { contentType: mime }
-    });
-
-    // Build public URL. Use env.CDN_HOST if provided (recommended).
-    // Example: CDN_HOST = 'cdn.spectrodraw.com' -> https://cdn.spectrodraw.com/<key>
-    let publicUrl = null;
-    if (env && env.CDN_HOST) {
-      const host = env.CDN_HOST.replace(/\/$/, '');
-      publicUrl = `https://${host}/${key}`;
-    } else {
-      // Fallback: try to derive from request host; note this usually won't point at R2 directly.
-      // It's strongly recommended to set env.CDN_HOST to the real CDN domain that serves the bucket.
-      const reqHost = request.headers.get('Host') || '';
-      publicUrl = `https://${reqHost}/${key}`;
-    }
-
-    return json({ url: publicUrl }, 200);
+		// store bytes and metadata in KV
+		await env.IMAGES.put(key, bytes, { metadata: { contentType: mime } });
+		const host = env.PUBLIC_HOST || request.headers.get('Host') || 'api.spectrodraw.com';
+		const hostNoSlash = host.replace(/\/$/, '');
+		const scheme = (request.headers.get('X-Forwarded-Proto') || 'https').split(',')[0].trim();
+		const publicUrl = `${scheme}://${hostNoSlash}/${key}`;
+		return json({ url: publicUrl }, 200);
+		
   } catch (err) {
     console.error('handleUpload error:', err);
     return json({ message: err.message || 'Upload failed' }, 500);
@@ -285,4 +281,65 @@ async function handleSessionCreate(request, env) {
     console.error("handleSessionCreate error:", err);
     return json({ message: err.message || "Failed to create session" }, 500);
   }
+}
+async function handleGetPin(request, env, pathname) {
+  const key = pathname.replace(/^\/+/, '');
+  // get value as arrayBuffer
+  const arrBuf = await env.IMAGES.get(key, { type: 'arrayBuffer' });
+  if (arrBuf === null) return new Response('Not Found', { status: 404 });
+
+  // get metadata separately (get with metadata)
+  const meta = await env.IMAGES.get(key, { metadata: true });
+  const contentType = (meta && meta.metadata && meta.metadata.contentType) ? meta.metadata.contentType : 'application/octet-stream';
+
+  const headers = new Headers();
+  headers.set('Content-Type', contentType);
+  // caching - tune as you need
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+
+  if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
+
+  return new Response(arrBuf, { status: 200, headers });
+}
+
+//
+// Scheduled cleanup: delete pins older than retentionDays (default 30)
+// This expects your keys to be in the format `pins/<timestamp>-<name>`
+//
+async function cleanupOldPins(env) {
+  const retentionDays = parseInt(env.IMAGES_RETENTION_DAYS || '1', 10);
+  const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  // R2 list pages — iterate through keys with prefix 'pins/'
+  let continuation = undefined;
+  do {
+    const listOpts = { prefix: 'pins/', limit: 1000 };
+    if (continuation) listOpts.cursor = continuation;
+    const list = await env.IMAGES.list(listOpts);
+
+    if (list && list.objects && list.objects.length) {
+      for (const obj of list.objects) {
+        // obj.key is 'pins/<timestamp>-...'; try to parse timestamp
+        const key = obj.key;
+        const m = key.match(/^pins\/(\d+)-/);
+        if (!m) {
+          // If we can't parse timestamp, skip or decide to delete — here we skip.
+          continue;
+        }
+        const ts = Number(m[1]);
+        if (isNaN(ts)) continue;
+        if ((now - ts) > retentionMs) {
+          try {
+            await env.IMAGES.delete(key);
+            console.log(`Deleted old pin: ${key}`);
+          } catch (err) {
+            console.error(`Failed to delete ${key}:`, err);
+          }
+        }
+      }
+    }
+
+    continuation = list.truncated ? list.cursor : undefined;
+  } while (continuation);
 }

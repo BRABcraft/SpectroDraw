@@ -296,26 +296,32 @@
             </div>
 
             <p style="margin:0;color:var(--muted)">Share the product to unlock your claim. Click a social button below — if you're logged in to that service the composer will be pre-filled.</p>
-
-            <div id="social-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-              <button class="social-btn" data-provider="facebook" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Facebook</button>
-              <button class="social-btn" data-provider="X" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">X</button>
-              <button class="social-btn" data-provider="pinterest" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Pinterest</button>
-              <button class="social-btn" data-provider="linkedin" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">LinkedIn</button>
-              <button class="social-btn" data-provider="reddit" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Reddit</button>
+            <style>
+              .social-btn {
+                width: 60px;
+                height: 60px;
+                border-radius:15px !important;
+              }
+              .social-btn img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain; /* keeps aspect ratio */
+              }
+            </style>
+            <div id="social-row" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;">
+              <button class="social-btn" data-provider="facebook"  title="Facebook"  style="background:#3b5998;"><img src="/assets/social-icons/facebook.svg"></button>
+              <button class="social-btn" data-provider="X"         title="X"         style="background:#000000;"><img src="/assets/social-icons/x.svg"></button>
+              <button class="social-btn" data-provider="pinterest" title="Pinterest" style="background:#E60023;"><img src="/assets/social-icons/pinterest.svg"></button>
+              <button class="social-btn" data-provider="linkedin"  title="LinkedIn"  style="background:#0072B1;"><img src="/assets/social-icons/linkedin.svg"></button>
+              <button class="social-btn" data-provider="reddit"    title="Reddit"    style="background:#FF4500;"><img src="/assets/social-icons/reddit.svg"></button>
+              <button class="social-btn" data-provider="gmail"     title="Gmail"     style="background:#FFFFFF;"><img src="/assets/social-icons/gmail.svg"></button>
             </div>
 
             <div id="social-status" style="margin-top:8px;color:var(--muted);font-size:.95rem"></div>
 
             <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <input id="share-link" readonly value="https://spectrodraw.com/" style="flex:1;padding:.55rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;color:var(--text)"/>
-              <button id="copy-link" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Copy</button>
-              <button id="native-share" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Share</button>
-            </div>
-
-            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <button id="manual-verify" type="button" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">I shared — verify</button>
-              <button id="done-close" type="button" style="margin-left:auto;padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Done</button>
+              <button id="manual-verify" type="button" >I shared — verify</button>
+              <button id="done-close" type="button" >Done</button>
             </div>
           </div>
         </section>
@@ -382,14 +388,14 @@
   const shareSection = document.getElementById('inline-share');
   const socialRow = document.getElementById('social-row');
   const socialStatus = document.getElementById('social-status');
-  const copyLinkBtn = document.getElementById('copy-link');
-  const shareLinkInput = document.getElementById('share-link');
-  const nativeShareBtn = document.getElementById('native-share');
+  const shareLinkInput = 'https://spectrodraw.com';
   const manualVerifyBtn = document.getElementById('manual-verify');
   const doneCloseBtn = document.getElementById('done-close');
   let mediaLink = '';
 
-  const postText = "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!";
+  const longPost = "";
+  const shortPost = "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!";
+  const postText = '';
 
   /* ---------- storage helpers (per-user) ---------- */
   function loadStateForCurrentUser(){
@@ -635,6 +641,8 @@
           [text || '', media ? `\n\n${media}` : ''].join('')
         );
         return `https://www.reddit.com/submit?url=${u}&title=${titleEnc || t}&text=${body}`;
+      case 'gmail':
+        return `https://mail.google.com/mail/?view=cm&fs=1&su=${titleEnc || t}&body=${t}%20${u}`;
       default:
         return null;
     }
@@ -652,6 +660,7 @@ socialRow.addEventListener('click', async (ev) => {
   const btn = ev.target.closest('.social-btn');
   if (!btn) return;
   const provider = btn.dataset.provider;
+  postText = (provider === 'x' || provider === 'pinterest') ? shortPost : longPost;
   socialStatus.style.color = '';
   socialStatus.textContent = `Preparing ${provider}...`;
 
@@ -678,7 +687,7 @@ socialRow.addEventListener('click', async (ev) => {
 
       function openPinterestShare(mediaUrl) {
         socialStatus.textContent = 'Opening Pinterest composer...';
-        const url = shareIntentUrl('pinterest', shareLinkInput.value, postText, mediaUrl, document.title);
+        const url = shareIntentUrl('pinterest', shareLinkInput, postText, mediaUrl, document.title);
         const popup = openPopup(url, 'Share to Pinterest', 800, 720);
         if (!popup) {
           socialStatus.style.color = '#ffb4b4';
@@ -713,7 +722,7 @@ socialRow.addEventListener('click', async (ev) => {
     socialStatus.textContent = `Preparing ${provider} share helper...`;
 
     try {
-      const suggestedText = `I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!\n\n${shareLinkInput.value || window.location.href}`;
+      const suggestedText = `I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!\n\n${shareLinkInput || window.location.href}`;
 
       const proceedFromText = await showTextCopyModal({
         title: `Share to ${provider[0].toUpperCase() + provider.slice(1)}`,
@@ -737,7 +746,7 @@ socialRow.addEventListener('click', async (ev) => {
       }
 
       socialStatus.textContent = `Opening ${provider} composer...`;
-      const url = shareIntentUrl(provider, shareLinkInput.value, suggestedText, '', document.title);
+      const url = shareIntentUrl(provider, shareLinkInput, suggestedText, '', document.title);
       if (!url) {
         socialStatus.style.color = '#ffb4b4';
         socialStatus.textContent = `${provider} sharing not supported here.`;
@@ -783,7 +792,7 @@ socialRow.addEventListener('click', async (ev) => {
   }
 
   // NEW: For Facebook & X, show the image-download modal (no text modal), then open composer
-  if (provider === 'facebook' || provider === 'X') {
+  if (provider === 'facebook' || provider === 'X' || provider === 'gmail') {
     socialStatus.textContent = `Preparing ${provider} image suggestions...`;
     try {
       const images = gatherCandidateImages();
@@ -798,8 +807,8 @@ socialRow.addEventListener('click', async (ev) => {
       }
 
       socialStatus.textContent = `Opening ${provider} composer...`;
-      const suggestedText = `I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!\n\n${shareLinkInput.value || window.location.href}`;
-      const url = shareIntentUrl(provider, shareLinkInput.value, suggestedText, '', document.title);
+      const suggestedText = `I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!\n\n${shareLinkInput || window.location.href}`;
+      const url = shareIntentUrl(provider, shareLinkInput, suggestedText, '', document.title);
 
       if (!url) {
         socialStatus.style.color = '#ffb4b4';
@@ -1264,9 +1273,11 @@ function showImagePickerModal(images, opts = {}) {
 
 function detectPopupPost(popup, provider, opts = {}) {
   const { timeout = 30000, pollInterval = 500 } = opts;
+
   // Determine the "input" URL to compare against (the original intent URL)
-  const inputUrl = shareIntentUrl(provider, shareLinkInput.value, postText, mediaLink, document.title)
+  const inputUrl = shareIntentUrl(provider, shareLinkInput, postText, mediaLink, document.title);
   console.log(inputUrl);
+
   return new Promise((resolve) => {
     if (!popup) {
       console.debug('detectPopupPost: no popup provided -> fail');
@@ -1276,8 +1287,9 @@ function detectPopupPost(popup, provider, opts = {}) {
 
     let seenDifferent = false;
     let finished = false;
+    let timer = null;
 
-    // Safety timeout
+    // Safety timeout (starts immediately)
     const kill = setTimeout(() => {
       if (finished) return;
       finished = true;
@@ -1290,83 +1302,55 @@ function detectPopupPost(popup, provider, opts = {}) {
       if (!finished) {
         finished = true;
         clearTimeout(kill);
-        clearInterval(timer);
+        if (timer) clearInterval(timer);
       }
     };
 
-    // If we don't have an inputUrl to compare to, we cannot follow your exact logic;
-    // in that case we will just wait for close and return false (consistent with "no change observed").
     if (!inputUrl) {
       console.warn('detectPopupPost: no input intentUrl and could not build one; will return false on close or timeout.');
     }
 
-    const timer = setInterval(() => {
-      console.log('hi', inputUrl, popup.location);
-      try {
-        // 1) if we can read the href and it differs from the original input URL -> SUCCESS
-        if (inputUrl) {
-          try {
-            // Accessing popup.location.href may throw if cross-origin
-            const href = popup.location && popup.location.href;
-            if (href && href !== inputUrl) {
-              console.debug('detectPopupPost: observed href change:', href, 'vs', inputUrl);
-              seenDifferent = true;
-              stop();
-              resolve(true);
-              return;
+    // 👇 Wait 2 seconds before starting to poll
+    setTimeout(() => {
+      console.debug('detectPopupPost: starting polling after 2s delay');
+
+      timer = setInterval(() => {
+        try {
+          // 1) Detect if URL has changed (cross-origin safe)
+          if (inputUrl) {
+            try {
+              const href = popup.location && popup.location.href;
+              if (href && href !== inputUrl) {
+                console.debug('detectPopupPost: observed href change:', href, 'vs', inputUrl);
+                seenDifferent = true;
+                stop();
+                resolve(true);
+                return;
+              }
+            } catch (e) {
+              // Cross-origin access, keep polling
             }
-          } catch (e) {
-            // cross-origin - cannot read href. We'll continue polling until close or possible same-origin navigation.
-            // No-op here.
           }
-        }
 
-        // 2) If popup closed -> if we previously observed a different URL => success; else fail (per your logic)
-        if (popup.closed) {
-          console.debug('detectPopupPost: popup.closed detected. seenDifferent=', seenDifferent);
+          // 2) If popup closed
+          if (popup.closed) {
+            console.debug('detectPopupPost: popup.closed detected. seenDifferent=', seenDifferent);
+            stop();
+            resolve(Boolean(seenDifferent));
+            return;
+          }
+
+        } catch (err) {
+          console.error('detectPopupPost: unexpected error', err);
           stop();
-          resolve(Boolean(seenDifferent));
-          return;
+          resolve(false);
         }
+      }, pollInterval);
 
-        // 3) keep polling otherwise
-      } catch (err) {
-        // Unexpected error -> stop and fail-safe to false
-        console.error('detectPopupPost: unexpected error', err);
-        stop();
-        resolve(false);
-      }
-    }, pollInterval);
+    }, 2000); // <-- delay before polling starts
   });
 }
-  copyLinkBtn.addEventListener('click', async ()=>{
-    try{
-      await navigator.clipboard.writeText(shareLinkInput.value);
-      socialStatus.style.color = '#b7ffd6';
-      socialStatus.textContent = 'Copied share link to clipboard.';
-    }catch(e){
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Unable to copy automatically — highlight and copy manually.';
-    }
-  });
 
-  nativeShareBtn.addEventListener('click', async ()=>{
-    if(navigator.share){
-      try{
-        await navigator.share({ title: document.title, text: postText, url: shareLinkInput.value });
-        // native share is considered verified immediately
-        socialStatus.style.color = '#b7ffd6';
-        socialStatus.textContent = 'Native share used — unlocking...';
-        markShared(); // full verification
-      }catch(e){
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Share cancelled or failed.';
-      }
-    } else {
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Native share not available on this device.';
-    }
-  });
 
   manualVerifyBtn.addEventListener('click', ()=>{
     socialStatus.style.color = '#b7ffd6';

@@ -299,7 +299,7 @@
 
             <div id="social-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
               <button class="social-btn" data-provider="facebook" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Facebook</button>
-              <button class="social-btn" data-provider="twitter" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Twitter</button>
+              <button class="social-btn" data-provider="X" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">X</button>
               <button class="social-btn" data-provider="pinterest" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Pinterest</button>
               <button class="social-btn" data-provider="linkedin" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">LinkedIn</button>
               <button class="social-btn" data-provider="reddit" style="padding:.5rem .8rem;border-radius:8px;border:1px solid var(--soft-border);background:transparent;cursor:pointer">Reddit</button>
@@ -387,6 +387,7 @@
   const nativeShareBtn = document.getElementById('native-share');
   const manualVerifyBtn = document.getElementById('manual-verify');
   const doneCloseBtn = document.getElementById('done-close');
+  let mediaLink = '';
 
   const postText = "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!";
 
@@ -621,8 +622,8 @@
     const m = encodeURIComponent(media || '');
     const titleEnc = encodeURIComponent(title || '');
     switch(provider){
-      case 'twitter':
-        return `https://twitter.com/intent/tweet?text=${t}&url=${u}`;
+      case 'X':
+        return `https://x.com/intent/tweet?text=${t}&url=${u}`;
       case 'facebook':
         return `https://www.facebook.com/sharer/sharer.php?u=${u}` + (t ? `&quote=${t}` : '');
       case 'pinterest':
@@ -672,11 +673,12 @@ socialRow.addEventListener('click', async (ev) => {
         socialStatus.textContent = 'Pinterest share canceled.';
         return;
       }
-      openPinterestShare(chosen.uploadUrl || chosen.src);
+      mediaLink = chosen.uploadUrl || chosen.src;
+      openPinterestShare(mediaLink);
 
       function openPinterestShare(mediaUrl) {
         socialStatus.textContent = 'Opening Pinterest composer...';
-        const url = shareIntentUrl('pinterest', shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", mediaUrl, document.title);
+        const url = shareIntentUrl('pinterest', shareLinkInput.value, postText, mediaUrl, document.title);
         const popup = openPopup(url, 'Share to Pinterest', 800, 720);
         if (!popup) {
           socialStatus.style.color = '#ffb4b4';
@@ -749,21 +751,29 @@ socialRow.addEventListener('click', async (ev) => {
         return;
       }
 
-      const poll = setInterval(() => {
-        try {
-          if (popup.closed) {
-            clearInterval(poll);
-            progress.shareTentative = true;
-            saveStateForCurrentUser();
-            socialStatus.style.color = '#b7ffd6';
-            socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
-            render();
-          }
-        } catch (e) {
-          clearInterval(poll);
+      try {
+        // Await detection directly (event handler is async so await is valid here)
+        const posted = await detectPopupPost(popup, provider, { timeout: 30000 });
+        if (posted) {
+          socialStatus.style.color = '#b7ffd6';
+          socialStatus.textContent = `Verified: post detected on ${provider}. Unlocking...`;
+          markShared();
+        } else {
+          progress.shareTentative = true;
+          saveStateForCurrentUser();
+          socialStatus.style.color = '#b7ffd6';
+          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+          render();
         }
-      }, 600);
-
+      } catch (err) {
+        console.error('detectPopupPost error', err);
+        // fallback behavior
+        progress.shareTentative = true;
+        saveStateForCurrentUser();
+        socialStatus.style.color = '#b7ffd6';
+        socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+        render();
+      }
     } catch (err) {
       console.error('Share helper error', err);
       socialStatus.style.color = '#ffb4b4';
@@ -772,8 +782,8 @@ socialRow.addEventListener('click', async (ev) => {
     return;
   }
 
-  // NEW: For Facebook & Twitter, show the image-download modal (no text modal), then open composer
-  if (provider === 'facebook' || provider === 'twitter') {
+  // NEW: For Facebook & X, show the image-download modal (no text modal), then open composer
+  if (provider === 'facebook' || provider === 'X') {
     socialStatus.textContent = `Preparing ${provider} image suggestions...`;
     try {
       const images = gatherCandidateImages();
@@ -804,57 +814,36 @@ socialRow.addEventListener('click', async (ev) => {
         return;
       }
 
-      const poll = setInterval(() => {
-        try {
-          if (popup.closed) {
-            clearInterval(poll);
-            progress.shareTentative = true;
-            saveStateForCurrentUser();
-            socialStatus.style.color = '#b7ffd6';
-            socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
-            render();
-          }
-        } catch (e) {
-          clearInterval(poll);
+      try {
+        // await detection directly
+        const posted = await detectPopupPost(popup, provider, { timeout: 30000 });
+        if (posted) {
+          socialStatus.style.color = '#b7ffd6';
+          socialStatus.textContent = `Verified: post detected on ${provider}. Unlocking...`;
+          markShared();
+        } else {
+          progress.shareTentative = true;
+          saveStateForCurrentUser();
+          socialStatus.style.color = '#b7ffd6';
+          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+          render();
         }
-      }, 600);
-
-    } catch (err) {
-      console.error('Facebook/Twitter helper error', err);
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Unable to prepare share helper.';
-    }
-    return;
-  }
-
-  // default behavior for other providers (unchanged)
-  socialStatus.textContent = `Opening ${provider} composer...`;
-  const url = shareIntentUrl(provider, shareLinkInput.value, "I'm claiming SpectroDraw Pro — try SpectroDraw for creative sound design!", '', document.title);
-  if (!url) {
-    socialStatus.style.color = '#ffb4b4';
-    socialStatus.textContent = `${provider} sharing not supported here.`;
-    return;
-  }
-  const popup = openPopup(url, `Share to ${provider}`, 700, 600);
-  if (!popup) {
-    socialStatus.style.color = '#ffb4b4';
-    socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
-    return;
-  }
-  const poll = setInterval(() => {
-    try {
-      if (popup.closed) {
-        clearInterval(poll);
+      } catch (err) {
+        console.error('detectPopupPost error', err);
         progress.shareTentative = true;
         saveStateForCurrentUser();
         socialStatus.style.color = '#b7ffd6';
         socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
         render();
       }
-    } catch (e) {
-      clearInterval(poll);
+
+    } catch (err) {
+      console.error('Facebook/X helper error', err);
+      socialStatus.style.color = '#ffb4b4';
+      socialStatus.textContent = 'Unable to prepare share helper.';
     }
-  }, 600);
+    return;
+  }
 });
 
 /* ---------- Helper: gather candidate images ---------- */
@@ -1129,6 +1118,7 @@ function showImagePickerModal(images, opts = {}) {
             `).join('')}
           </div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+            <p>Note: Please click "See it now" to verify your post.</p>
             <button id="sd-picker-cancel" type="button" style="background:transparent;border:1px solid rgba(255,255,255,0.04);
                     padding:.45rem .8rem;border-radius:8px;cursor:pointer">Cancel</button>
           </div>
@@ -1157,7 +1147,6 @@ function showImagePickerModal(images, opts = {}) {
     const siteBase = makeSiteBase(opts.site);
 
     const onClick = (e) => {
-      console.log("a", e.target.id);
       const card = e.target.closest && e.target.closest('.sd-picker-card');
       if (card && root.contains(card)) {
         const idx = parseInt(card.getAttribute('data-idx'), 10);
@@ -1270,7 +1259,86 @@ function showImagePickerModal(images, opts = {}) {
     }, 50);
   });
 }
+// Call: const posted = await detectPopupPost(popup, provider, { timeout: 30000 });
+// If posted === true -> treat as verified share; if false -> treat as tentative/failed.
 
+function detectPopupPost(popup, provider, opts = {}) {
+  const { timeout = 30000, pollInterval = 500 } = opts;
+  // Determine the "input" URL to compare against (the original intent URL)
+  const inputUrl = shareIntentUrl(provider, shareLinkInput.value, postText, mediaLink, document.title)
+  console.log(inputUrl);
+  return new Promise((resolve) => {
+    if (!popup) {
+      console.debug('detectPopupPost: no popup provided -> fail');
+      resolve(false);
+      return;
+    }
+
+    let seenDifferent = false;
+    let finished = false;
+
+    // Safety timeout
+    const kill = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      console.debug('detectPopupPost: timeout -> resolve false (no URL change observed)');
+      try { popup.close(); } catch (e) { /* ignore */ }
+      resolve(false);
+    }, timeout + 50);
+
+    const stop = () => {
+      if (!finished) {
+        finished = true;
+        clearTimeout(kill);
+        clearInterval(timer);
+      }
+    };
+
+    // If we don't have an inputUrl to compare to, we cannot follow your exact logic;
+    // in that case we will just wait for close and return false (consistent with "no change observed").
+    if (!inputUrl) {
+      console.warn('detectPopupPost: no input intentUrl and could not build one; will return false on close or timeout.');
+    }
+
+    const timer = setInterval(() => {
+      console.log('hi', inputUrl, popup.location);
+      try {
+        // 1) if we can read the href and it differs from the original input URL -> SUCCESS
+        if (inputUrl) {
+          try {
+            // Accessing popup.location.href may throw if cross-origin
+            const href = popup.location && popup.location.href;
+            if (href && href !== inputUrl) {
+              console.debug('detectPopupPost: observed href change:', href, 'vs', inputUrl);
+              seenDifferent = true;
+              stop();
+              resolve(true);
+              return;
+            }
+          } catch (e) {
+            // cross-origin - cannot read href. We'll continue polling until close or possible same-origin navigation.
+            // No-op here.
+          }
+        }
+
+        // 2) If popup closed -> if we previously observed a different URL => success; else fail (per your logic)
+        if (popup.closed) {
+          console.debug('detectPopupPost: popup.closed detected. seenDifferent=', seenDifferent);
+          stop();
+          resolve(Boolean(seenDifferent));
+          return;
+        }
+
+        // 3) keep polling otherwise
+      } catch (err) {
+        // Unexpected error -> stop and fail-safe to false
+        console.error('detectPopupPost: unexpected error', err);
+        stop();
+        resolve(false);
+      }
+    }, pollInterval);
+  });
+}
   copyLinkBtn.addEventListener('click', async ()=>{
     try{
       await navigator.clipboard.writeText(shareLinkInput.value);

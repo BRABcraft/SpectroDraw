@@ -35,7 +35,7 @@
   .nav-right a:hover{color:var(--accent1)}
     html,body{height:100%;margin:0;background:radial-gradient(ellipse at top, #0b0c14 0%, #090a10 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;line-height:1.6}
     .wrap{max-width:980px;margin:48px auto;padding:28px;}
-    h1{font-size:1.8rem;margin:0 0 .6rem;background:linear-gradient(90deg,var(--accent),#e96bf9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1{font-size:1.8rem;margin:0 0 .6rem;background:linear-gradient(90deg,var(--accent),#e96bf9);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
     .lede{color:#dbe8ff;margin:8px 0 20px;font-size:1.05rem}
     p{margin:12px 0;color:#d0d9e9}
     strong{color:#fff}
@@ -65,7 +65,7 @@
       font-weight:800;
       margin:6px 0 12px 0;
       background: var(--cta-grad);
-      -webkit-background-clip: text;
+      -webkit-background-clip: text;background-clip:text;
       -webkit-text-fill-color: transparent;
       color: transparent;
     }
@@ -105,6 +105,7 @@
         </button>
         <div id="account-menu" class="account-menu" role="menu" aria-hidden="true" style="display:none;">
           <a href="/products" id="my-products" role="menuitem" class="menu-item">My products</a>
+          <a href="/review" id="review" role="menuitem" class="menu-item">Leave a review</a>
           <a id="account-logout" role="menuitem" class="menu-item">Log out</a>
         </div>
       </div>

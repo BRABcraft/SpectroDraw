@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FAQ - SpectroDraw</title>
+  <title>My Products - SpectroDraw</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -96,51 +96,12 @@
     }
     .wrap{max-width:980px;margin:18px auto;padding:24px;}
     p{margin:12px 0;color:#d0d9e9}
+    strong{color:#fff}
+    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
+    .section:first-of-type{border-top:0;padding-top:8px}
 
-    /* FAQ Cards */
-    .faq-grid{
-      display:flex;
-      flex-direction:column;
-      gap:20px;
-    }
-    .faq-card{
-      display:flex;
-      align-items:center;
-      gap:20px;
-      text-decoration:none;
-      color:inherit;
-      padding:16px;
-      border-radius:12px;
-      background:rgba(255,255,255,0.02);
-      border:1px solid var(--soft-border);
-      transition:transform .25s ease, box-shadow .25s ease, background .25s ease;
-    }
-    .faq-card:hover{
-      background:rgba(255,255,255,0.04);
-      box-shadow:var(--card-glow);
-      transform:translateY(-3px);
-    }
-    .faq-card img{
-      width:110px;
-      height:80px;
-      border-radius:10px;
-      object-fit:cover;
-      flex-shrink:0;
-    }
-    .faq-card-content{
-      flex:1;
-    }
-    .faq-card h3{
-      margin:0;
-      font-size:1.1rem;
-      font-weight:700;
-      color:white;
-    }
-    .faq-card p{
-      margin:.3rem 0 0;
-      color:var(--muted);
-      font-size:.95rem;
-    }
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
     footer{
       padding:2rem 1rem;
@@ -227,44 +188,104 @@
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <h1 class="title">Frequently Asked Questions</h1>
+      <h1 class="title">My Products</h1>
     </div>
   </header>
 
   <main class="wrap">
-    <div class="faq-grid">
-      <a href="/faq/basic-features/" class="faq-card">
-        <img src="/assets/features/amplify.jpg" alt="Basic features">
-        <div class="faq-card-content">
-          <h3>Basic features</h3>
-          <p>A description of SpectroDraw's tools and how to use them.</p>
-        </div>
-      </a>
-
-      <a href="/faq/pro-features/" class="faq-card">
-        <img src="/assets/vstdemo2.jpg" alt="Pro features">
-        <div class="faq-card-content">
-          <h3>Pro features</h3>
-          <p>Explore advanced features exclusive to SpectroDraw Pro, including stereo editing and automation.</p>
-        </div>
-      </a>
-      <a href="/faq/fft/" class="faq-card">
-        <img src="/assets/fft3.jpg" alt="How does SpectroDraw work">
-        <div class="faq-card-content">
-          <h3>How does SpectroDraw work?</h3>
-          <p>Learn the basics of how the FFT converts sound into a visual spectrogram that you can draw on.</p>
-        </div>
-      </a>
-
-      <a href="/faq/about-the-creator/" class="faq-card">
-        <img src="/assets/randommangos.jpg" alt="About the creator">
-        <div class="faq-card-content">
-          <h3>About the creator</h3>
-          <p>Meet Bradley (RandomMangos), the developer behind SpectroDraw, and learn what inspired the project.</p>
-        </div>
-      </a>
-    </div>
   </main>
+
+<script>
+(async function(){
+  function getCurrentUserEmail() {
+    try {
+      const raw = localStorage.getItem('spectrodraw_user');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.email || parsed?.user || parsed?.id || null;
+    } catch (e) { return null; }
+  }
+
+  const main = document.querySelector("main");
+  main.innerHTML = `<p style="color:#9aa4b2">Loading your products...</p>`;
+
+  const email = getCurrentUserEmail();
+  if (email) {
+    const stored = (() => {
+      try { return localStorage.getItem('spectrodraw_user'); }
+      catch (e) { return null; }
+    })();
+
+    const headers = { 'Accept': 'application/json' };
+    if (stored) headers['X-Spectrodraw-User'] = stored;
+
+    try {
+      const res = await fetch('https://api.spectrodraw.com/api/products', {
+        method: 'GET',
+        credentials: 'include',
+        headers
+      });
+      const j = await res.json().catch(() => null);
+      console.log(j);
+
+      if (!j || !Array.isArray(j.products)) {
+        main.innerHTML = `<p>You have no products.</p>`;
+        return;
+      }
+
+      // Filter products by matching email
+      const filtered = j.products.filter(
+        p => p.email && p.email.toLowerCase() === email.toLowerCase()
+      );
+
+      if (filtered.length === 0) {
+        main.innerHTML = `<p>You have no products.</p>`;
+        return;
+      }
+
+      // Build table
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+      table.style.marginTop = "12px";
+      table.innerHTML = `
+        <thead>
+          <tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.08)">
+            <th style="padding:8px;color:#9aa4b2;font-weight:600;">Product</th>
+            <th style="padding:8px;color:#9aa4b2;font-weight:600;">Claimed At</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+
+      const tbody = table.querySelector("tbody");
+      filtered.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="padding:8px 8px 8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${p.product}</td>
+          <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.04);color:#d0d9e9">
+            ${new Date(p.claimedAt).toLocaleString()}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      main.innerHTML = "";
+      const title = document.createElement("h2");
+      title.textContent = "Your Products";
+      title.style.marginBottom = "12px";
+      main.appendChild(title);
+      main.appendChild(table);
+    } catch (err) {
+      console.error(err);
+      main.innerHTML = `<p style="color:#f88;">Error loading products.</p>`;
+    }
+  } else {
+    main.innerHTML = `<p>Please sign in to view your products.</p>`;
+  }
+})();
+</script>
+
     
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>

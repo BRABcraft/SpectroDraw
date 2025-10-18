@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FFT - SpectroDraw</title>
+  <title>VST Plugin - SpectroDraw</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -84,7 +84,7 @@
       font-weight:800;
       margin:6px 0 8px 0;
       background:var(--cta-grad);
-      -webkit-background-clip:text;
+      -webkit-background-clip:text;background-clip:text;
       -webkit-text-fill-color:transparent;
       text-shadow:0 8px 30px rgba(147,51,234,0.08);
     }
@@ -140,6 +140,7 @@
         </button>
         <div id="account-menu" class="account-menu" role="menu" aria-hidden="true" style="display:none;">
           <a href="/products" id="my-products" role="menuitem" class="menu-item">My products</a>
+          <a href="/review" id="review" role="menuitem" class="menu-item">Leave a review</a>
           <a id="account-logout" role="menuitem" class="menu-item">Log out</a>
         </div>
       </div>

@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Review - SpectroDraw</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#07080b;
+      --panel:#0f1720;
+      --muted:#9aa4b2;
+      --text:#e6eefc;
+      --accent1:#4f46e5;
+      --accent2:#9333ea;
+      --accent3:#ec4899;
+      --soft-border: rgba(255,255,255,0.04);
+      --card-glow: 0 6px 30px rgba(147,51,234,0.12);
+      --glass-2: rgba(255,255,255,0.02);
+      --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
+      color:var(--text);
+      font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+      line-height:1.6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    nav{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:1rem 2rem;
+      position:sticky;
+      top:0;
+      z-index:40;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));
+      border-bottom: 1px solid var(--soft-border);
+    }
+    .nav-left{display:flex;align-items:center;gap:1rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;font-size:1.05rem}
+    .nav-right{display:flex;gap:1rem;align-items:center}
+    .nav-right a{
+      font-weight:600;
+      text-decoration:none;
+      color:#dfe7ff;
+      opacity:0.95;
+      padding:.45rem .6rem;
+      border-radius:8px
+    }
+    .nav-right a:hover{
+      color:white;
+      background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
+      box-shadow:0 8px 30px rgba(79,70,229,0.12);
+    }
+
+    header.hero{
+      position:relative;
+      padding:56px 20px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      overflow:hidden;
+    }
+    .hero-inner{
+      max-width:980px;
+      width:100%;
+      text-align:center;
+      padding:28px;
+      border-radius:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      box-shadow:var(--card-glow);
+      border:1px solid var(--glass-2);
+    }
+    .title{
+      font-size:2.1rem;
+      font-weight:800;
+      margin:6px 0 8px 0;
+      background:var(--cta-grad);
+      -webkit-background-clip:text;background-clip:text;
+      -webkit-text-fill-color:transparent;
+      text-shadow:0 8px 30px rgba(147,51,234,0.08);
+    }
+
+    main{
+      padding:36px 20px;
+      max-width:1100px;
+      margin:0 auto 36px;
+    }
+    .wrap{max-width:980px;margin:18px auto;padding:24px;}
+    p{margin:12px 0;color:#d0d9e9}
+    strong{color:#fff}
+    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
+    .section:first-of-type{border-top:0;padding-top:8px}
+
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    footer{
+      padding:2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+      margin-top:2rem;
+      border-top:1px solid var(--soft-border);
+      font-size:.95rem
+    }
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+    .star {font-size:28px;padding:none;margin-top:-5px;border:1px solid transparent;background:transparent;cursor:pointer;color:white;}
+    button:not(.star, .nav-btn, .primary, .google, .link-btn){padding:.55rem .9rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;color:white;}
+    #submit-review:disabled{background:#555;color:#333;cursor:not-allowed;}
+    a{color:#cfe3ff;}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-left">
+      <a href="/" class="brand">SpectroDraw</a>
+      <div class="tagline">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+      <a href="/app" class="nav-link">Launch App</a>
+      <a href="/faq" class="nav-link">FAQ</a>
+      <a href="/pricing" class="nav-link">Pricing</a>
+      <a href="#" id="signup-link" class="nav-link">Sign up</a>
+      <a href="#" id="signin-link" class="nav-link">Sign in</a>
+      <div id="account-wrap" style="display:none; position:relative;">
+        <button id="account-btn" class="nav-btn" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu">
+          <span class="acct-avatar" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" fill="currentColor" />
+              <path d="M4 22c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="currentColor" />
+            </svg>
+          </span>
+          <span id="account-email" class="acct-email">you@example.com</span>
+          <span class="acct-arrow" aria-hidden="true">▾</span>
+        </button>
+        <div id="account-menu" class="account-menu" role="menu" aria-hidden="true" style="display:none;">
+          <a href="/products" id="my-products" role="menuitem" class="menu-item">My products</a>
+          <a href="/review" id="review" role="menuitem" class="menu-item">Leave a review</a>
+          <a id="account-logout" role="menuitem" class="menu-item">Log out</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div id="login-panel" class="modal-overlay" aria-hidden="true">
+    <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <button class="modal-close" aria-label="Close">&times;</button>
+
+      <h2 id="login-title">Sign in</h2>
+
+      <form id="login-form" autocomplete="on">
+        <div class="field">
+          <label class="label-text" for="email">Email</label>
+          <input id="email" name="email" type="email" required placeholder="you@example.com" />
+        </div>
+        <div class="field signup-only" style="display:none;">
+          <label class="label-text" for="username">Username</label>
+          <input id="username" name="username" type="text" placeholder="pick-a-username" />
+        </div>
+        <div class="field">
+          <label class="label-text" for="password">Password</label>
+          <input id="password" name="password" type="password" required placeholder="Password" />
+        </div>
+        <div class="field signup-only" style="display:none;">
+          <label class="label-text" for="confirm-password">Confirm Password</label>
+          <input id="confirm-password" name="confirm-password" type="password" placeholder="Confirm password" />
+        </div>
+        <button id="primary-btn" type="submit" class="primary">Sign in</button>
+        <div class="aux">
+          <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
+          <button id="google-login" type="button" class="google">
+            <span class="g-icon" aria-hidden="true">
+              <img src="/assets/Google__G__logo.svg" alt="">
+            </span>
+            <span id="google-btn-text">Log in with Google</span>
+          </button>
+        </div>
+        <div id="login-error" role="alert" class="error" style="display:none;"></div>
+      </form>
+    </div>
+  </div>
+  <link rel="stylesheet" type="text/css" href="/accounts.css">
+  <script src="/accounts.js"></script>
+
+  <header class="hero">
+    <div class="hero-inner fade-in">
+      <h1 class="title">Leave a review</h1>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="inline-review" class="section" aria-label="Write a review" style="margin-top:18px;">
+      <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
+        <!-- Left: image drag/upload square -->
+        <div id="image-area" style="flex:0 0 220px;max-width:220px;">
+          <label for="review-image-input" style="display:block;font-weight:700;margin-bottom:8px;text-align:center;">Upload images (Optional)</label>
+          <div id="image-drop" tabindex="0" role="button"
+            style="width:220px;height:280px;border-radius:12px;border:2px dashed var(--soft-border);background:rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;">
+            <div id="image-preview" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.95rem;padding:12px;box-sizing:border-box; text-align:center;">
+              Drag & drop an image here or click to select
+            </div>
+            <!-- hidden file input -->
+            <input id="review-image" type="file" accept="image/*" multiple style="display:none" />
+          </div>
+        </div>
+
+        <!-- Right: stars top, text + actions below -->
+        <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="display:block;font-weight:700;margin-bottom:8px;">Your rating</label>
+            <div id="star-wrap-inline" style="display:flex;align-items:center;gap:8px;">
+              <div id="stars-inline" role="radiogroup" aria-label="Star rating" style="display:inline-flex;gap:6px;">
+                <button type="button" class="star" data-value="1" aria-checked="false" role="radio" title="1 star">☆</button>
+                <button type="button" class="star" data-value="2" aria-checked="false" role="radio" title="2 stars">☆</button>
+                <button type="button" class="star" data-value="3" aria-checked="false" role="radio" title="3 stars">☆</button>
+                <button type="button" class="star" data-value="4" aria-checked="false" role="radio" title="4 stars">☆</button>
+                <button type="button" class="star" data-value="5" aria-checked="false" role="radio" title="5 stars">☆</button>
+              </div>
+              <div id="selected-rating-inline" style="color:var(--muted);font-size:.95rem;">No rating yet</div>
+            </div>
+          </div>
+
+          <div>
+            <label for="review-text-inline" style="display:block;font-weight:700;margin-bottom:8px;">Your review</label>
+            <textarea id="review-text" name="review" rows="6" placeholder="Share a few details to help others (and us) improve..." style="width:100%;height:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--soft-border);color:var(--text);resize:vertical;font-family:'Inter', 'Segoe UI', sans-serif;"></textarea>
+          </div>
+
+          <!-- Actions area (moved here, aligned to right of image input) -->
+          <div id="actions" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+            <div style="flex:1;margin-top:-6px;">
+              <div id="review-error" role="alert" style="display:none;color:#ffb4b4;align-self:center"></div>
+              <button id="submit-review" type="button" style="width:100%;margin-top:6px;" disabled>Submit review</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function(){
+      const reviewSection = document.getElementById('inline-review');
+      const submitReviewBtn = document.getElementById('submit-review');
+      const starsInline = document.querySelectorAll('#stars-inline .star');
+      const selectedRatingInline = document.getElementById('selected-rating-inline');
+      const reviewTextEl = document.getElementById('review-text');
+      const reviewImageInput = document.getElementById('review-image');
+      const imageDrop = document.getElementById('image-drop');
+      const imagePreview = document.getElementById('image-preview');
+      const reviewError = document.getElementById('review-error');
+      const stateKeyBase = 'review_v1';
+      let currentUserId = null;
+      let progress = {
+        loggedIn: false,
+        reviewSubmitted: false,
+        shareSent: false,        // verified share
+        shareTentative: false,   // popup closed but not verified
+        claimed: false,
+        rating: 0,
+        reviewText: '',
+        inviteEmails: []
+      };
+      function render(){
+        updateStarUI();
+        if(progress.reviewText && !reviewTextEl.value) reviewTextEl.value = progress.reviewText;
+        saveStateForCurrentUser();
+      }
+      function stateKeyFor(userId) {
+        return `${stateKeyBase}_${userId ? String(userId) : 'anon'}`;
+      }
+      function loadStateForCurrentUser(){
+        const key = stateKeyFor(currentUserId);
+        try{
+          const raw = localStorage.getItem(key);
+          if(raw){
+            const parsed = JSON.parse(raw);
+            // merge parsed into progress (preserve missing fields)
+            progress = Object.assign({
+              loggedIn:false, reviewSubmitted:false, shareSent:false,
+              shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
+            }, parsed);
+          } else {
+            // keep defaults but ensure loggedIn reflects currentUserId
+            progress = Object.assign({
+              loggedIn:false, reviewSubmitted:false, shareSent:false,
+              shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
+            }, progress);
+          }
+        }catch(e){
+          // ignore error and keep defaults
+        }
+        // make sure loggedIn matches currentUserId presence
+        progress.loggedIn = !!currentUserId;
+      }
+
+      function saveStateForCurrentUser(){
+        const key = stateKeyFor(currentUserId);
+        try{
+          localStorage.setItem(key, JSON.stringify(progress));
+        }catch(e){}
+      }
+      /* ---------- STAR / IMAGE / REVIEW ---------- */
+      document.querySelectorAll('#stars-inline .star').forEach(s => {
+        s.addEventListener('click', () => {
+          const v = parseInt(s.dataset.value, 10);
+          progress.rating = v;
+          updateStarUI();
+          saveStateForCurrentUser();
+          render();
+        });
+      });
+
+      function updateStarUI(){
+        document.querySelectorAll('#stars-inline .star').forEach(s => {
+          if(parseInt(s.dataset.value,10) <= progress.rating) s.textContent = '★';
+          else s.textContent = '☆';
+        });
+        selectedRatingInline.textContent = progress.rating ? progress.rating + ' / 5' : 'No rating yet';
+      }
+
+      imageDrop.addEventListener('click', ()=> reviewImageInput.click());
+      imageDrop.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reviewImageInput.click(); } });
+      imageDrop.addEventListener('dragover', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'rgba(79,70,229,0.9)'; });
+      imageDrop.addEventListener('dragleave', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'var(--soft-border)'; });
+      imageDrop.addEventListener('drop', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'var(--soft-border)'; const files = e.dataTransfer.files; if(files && files[0]) handleFiles(files); });
+      reviewImageInput.addEventListener('change', (e)=>{ const files = e.target.files; if(files && files[0]) handleFiles(files); });
+
+      function handleFiles(files){
+        const file = files[0];
+        if(!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          imagePreview.style.backgroundImage = `url(${ev.target.result})`;
+          imagePreview.style.backgroundSize = 'cover';
+          imagePreview.style.backgroundPosition = 'center';
+          imagePreview.textContent = '';
+        };
+        reader.readAsDataURL(file);
+      }
+
+      submitReviewBtn.addEventListener('click', async ()=>{
+        reviewError.style.display = 'none';
+        if(!progress.rating){
+          reviewError.style.display = 'block';
+          reviewError.textContent = 'Please select a star rating before submitting.';
+          return;
+        }
+        if(!progress.loggedIn){
+          reviewError.style.display = 'block';
+          reviewError.textContent = 'You must be signed in to submit a review.';
+          return;
+        }
+
+        submitReviewBtn.disabled = true;
+        submitReviewBtn.textContent = 'Submitting...';
+
+        const fd = new FormData();
+        fd.append('rating', progress.rating);
+        fd.append('text', reviewTextEl.value || '');
+        const file = document.getElementById('review-image').files && document.getElementById('review-image').files[0];
+        if(file) fd.append('image', file);
+
+        try {
+          const stored = (() => {
+            try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
+          })();
+          const res = await fetch('https://api.spectrodraw.com/api/reviews', {
+            method: 'POST',
+            credentials: 'include',
+            body: fd,
+            headers: {
+              'X-Spectrodraw-User': stored
+            }
+          });
+          if(!res.ok){
+            const err = await res.json().catch(()=>({message:'Failed to submit review'}));
+            throw new Error(err.message || 'Failed to submit review');
+          }
+          progress.reviewSubmitted = true;
+          progress.reviewText = reviewTextEl.value || '';
+          saveStateForCurrentUser();
+          render();
+          submitReviewBtn.textContent = 'Submitted ✓';
+          setTimeout(()=>{ submitReviewBtn.textContent = 'Submit review'; }, 1500);
+        } catch(err) {
+          reviewError.style.display = 'block';
+          reviewError.textContent = 'Error: ' + err.message;
+        } finally {
+          submitReviewBtn.disabled = false;
+        }
+      });
+      function updateSubmitButtonState() {
+        submitReviewBtn.disabled = !(progress.rating > 0 || reviewTextEl.value.trim().length > 0);
+      }
+
+      reviewTextEl.addEventListener('input', updateSubmitButtonState);
+      document.querySelectorAll('#stars-inline .star').forEach(s => {
+        s.addEventListener('click', updateSubmitButtonState);
+      });
+
+      function checkAuth(){
+        const newUserId = getCurrentUserId();
+        // if user changed, persist old user's state then load new user's state
+        if(newUserId !== currentUserId){
+          // Save existing state for previous user
+          if(currentUserId !== null){
+            try{ localStorage.setItem(stateKeyFor(currentUserId), JSON.stringify(progress)); }catch(e){}
+          }
+          // set new current user
+          currentUserId = newUserId;
+          loadStateForCurrentUser();
+        }
+        render();
+      }
+      function getCurrentUserId() {
+        try {
+          const raw = localStorage.getItem('spectrodraw_user');
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          // try common fields; fallback to raw string
+          return parsed?.id || parsed?.user_id || parsed?.email || parsed || null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // call this externally if your accounts.js performs sign-in/out
+      window.sdAuthChanged = function(){
+        checkAuth();
+      };
+      currentUserId = getCurrentUserId();
+      loadStateForCurrentUser();
+      checkAuth();
+      render();
+      
+      updateSubmitButtonState();
+
+      
+    })();
+  </script>
+    
+  <footer>
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:white;">Terms</a>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

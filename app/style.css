@@ -299,6 +299,7 @@ canvas {
   background: transparent;
   display: inline-block;
   -webkit-appearance: none; /* ensure consistent sizing */
+  appearance: none;
 }
 
 /* small tweak so vertical class (if used) doesn't break layout visually in rows */

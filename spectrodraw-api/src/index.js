@@ -3,7 +3,7 @@ export default {
   async fetch(request, env) {
     try {
       // List required bindings used by this worker:
-      const required = ['SESSIONS', 'IMAGES']; // IMAGES should be your R2 binding (or an object with .put())
+      const required = ['SESSIONS', 'IMAGES', 'USERS']; // IMAGES should be your R2 binding (or an object with .put())
       const missing = required.filter(k => !env || typeof env[k] === 'undefined');
 
       if (missing.length) {
@@ -45,6 +45,12 @@ export default {
 			if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/pins/')) {
 				return addCors(await handleGetPin(request, env, pathname), request);
 			}
+			if (pathname === "/api/claim" && request.method === "POST") {
+        return addCors(await handleClaimPost(request, user, env), request);
+      }
+      if (pathname === "/api/products" && request.method === "GET") {
+        return addCors(await handleProductList(request, user, env), request);
+      }
 
       return addCors(new Response("Not Found", { status: 404 }), request);
     } catch (err) {
@@ -342,4 +348,78 @@ async function cleanupOldPins(env) {
 
     continuation = list.truncated ? list.cursor : undefined;
   } while (continuation);
+}
+async function handleClaimPost(request, user, env) {
+  try {
+    if (!user || !user.email) return json({ message: "Missing authenticated user email" }, 400);
+    if (!env || typeof env.USERS === "undefined") {
+      return json({ message: "Server misconfigured: USERS KV not available" }, 500);
+    }
+
+    const email = String(user.email).trim().toLowerCase();
+    const now = new Date().toISOString();
+    const claimKey = `product:${email}`;
+
+    // store per-email claim metadata (overwrite is fine — idempotent)
+    await env.USERS.put(claimKey, JSON.stringify({ email, product:"SpectroDraw Pro", price:"Free (early access deal)", claimedAt: now }));
+
+    // maintain an index of claimed emails (JSON array stored at 'products:index')
+    const indexKey = 'products:index';
+    let idxRaw = await env.USERS.get(indexKey);
+    let index = [];
+    if (idxRaw) {
+      try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
+      if (!Array.isArray(index)) index = [];
+    }
+    if (!index.includes(email)) {
+      index.push(email);
+      // store updated index (best-effort; KV is eventually consistent)
+      await env.USERS.put(indexKey, JSON.stringify(index));
+    }
+
+    return json({ claimed: true, email, claimedAt: now }, 201);
+  } catch (err) {
+    console.error('handleClaimPost error:', err);
+    return json({ message: err.message || 'Failed to record claim' }, 500);
+  }
+}
+
+// GET /api/claim  -> return list of products (email + claimedAt)
+async function handleProductList(request, user, env) {
+  try {
+    if (!env || typeof env.USERS === "undefined") {
+      return json({ message: "Server misconfigured: USERS KV not available" }, 500);
+    }
+
+    const indexKey = 'products:index';
+    const idxRaw = await env.USERS.get(indexKey);
+    let index = [];
+    if (idxRaw) {
+      try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
+      if (!Array.isArray(index)) index = [];
+    }
+
+    // fetch each claim metadata (if present)
+    const products = [];
+    for (const email of index) {
+      try {
+        const claimRaw = await env.USERS.get(`product:${String(email).toLowerCase()}`);
+        if (claimRaw) {
+          try {
+            products.push(JSON.parse(claimRaw));
+            continue;
+          } catch (e) { /* fallthrough to fallback */ }
+        }
+        // fallback entry if specific key missing or parse failed
+        products.push({ email, claimedAt: null });
+      } catch (e) {
+        products.push({ email, claimedAt: null });
+      }
+    }
+
+    return json({ products }, 200);
+  } catch (err) {
+    console.error('handleProductList error:', err);
+    return json({ message: err.message || 'Failed to list products' }, 500);
+  }
 }

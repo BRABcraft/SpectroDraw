@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FFT - SpectroDraw</title>
+  <title>Buy SpectroDraw Pro</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -86,6 +86,7 @@
       margin:6px 0 8px 0;
       background:var(--cta-grad);
       -webkit-background-clip:text;
+      background-clip:text;
       -webkit-text-fill-color:transparent;
       text-shadow:0 8px 30px rgba(147,51,234,0.08);
     }
@@ -120,6 +121,7 @@
     a{color:#cfe3ff;}
     #claim-confirm:disabled{padding:.75rem 1.2rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:linear-gradient(180deg,#444,#333);color:#aaa;font-weight:800;cursor:not-allowed;box-shadow:none;transition:all .18s ease;}
     #claim-confirm:enabled{padding:.75rem 1.2rem;border-radius:12px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#ffffff;font-weight:800;cursor:not-allowed;transition:all .18s ease;}
+    .node-circle {width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:none;}
   </style>
 </head>
 <body>
@@ -147,6 +149,7 @@
         </button>
         <div id="account-menu" class="account-menu" role="menu" aria-hidden="true" style="display:none;">
           <a href="/products" id="my-products" role="menuitem" class="menu-item">My products</a>
+          <a href="/review" id="review" role="menuitem" class="menu-item">Leave a review</a>
           <a id="account-logout" role="menuitem" class="menu-item">Log out</a>
         </div>
       </div>
@@ -220,7 +223,7 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
       <div id="progress-bar" style="position:relative;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow2);">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
           <div class="node" data-step="1" style="flex:1;text-align:center;">
-            <div class="node-circle" id="node-1" style="width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:1px solid var(--soft-border);">1</div>
+            <div class="node-circle" id="node-1">1</div>
             <div style="margin-top:8px;font-weight:700">Write a review</div>
             <div style="color:var(--muted);font-size:.9rem">Share a message</div>
           </div>
@@ -230,7 +233,7 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
             </div>
           </div>
           <div class="node" data-step="2" style="flex:1;text-align:center;">
-            <div class="node-circle" id="node-2" style="width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:1px solid var(--soft-border);">2</div>
+            <div class="node-circle" id="node-2">2</div>
             <div style="margin-top:8px;font-weight:700">Share with a friend</div>
             <div style="color:var(--muted);font-size:.9rem">Post on social media</div>
           </div>
@@ -240,7 +243,7 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
             </div>
           </div>
           <div class="node" data-step="3" style="flex:1;text-align:center;">
-            <div class="node-circle" id="node-3" style="width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:1px solid var(--soft-border);">3</div>
+            <div class="node-circle" id="node-3">3</div>
             <div style="margin-top:8px;font-weight:700">Claim Pro</div>
             <div style="color:var(--muted);font-size:.9rem">Activate your account</div>
           </div>
@@ -330,7 +333,6 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
 
             <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
               <button id="manual-verify" type="button" >I shared — verify</button>
-              <button id="done-close" type="button" >Done</button>
             </div>
           </div>
         </section>
@@ -402,7 +404,7 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
   function stateKeyFor(userId) {
     return `${stateKeyBase}_${userId ? String(userId) : 'anon'}`;
   }
-    function getCurrentUserEmail() {
+  function getCurrentUserEmail() {
     try {
       const raw = localStorage.getItem('spectrodraw_user');
       if (!raw) return null;
@@ -448,13 +450,59 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
   const socialStatus = document.getElementById('social-status');
   const shareLinkInput = 'https://spectrodraw.com';
   const manualVerifyBtn = document.getElementById('manual-verify');
-  const doneCloseBtn = document.getElementById('done-close');
     // CLAIM UI elements (new)
   const claimSection = document.getElementById('inline-claim');
   const claimInstruction = document.getElementById('claim-instruction');
   const claimInput = document.getElementById('claim-input');
   const claimConfirmBtn = document.getElementById('claim-confirm');
   const claimHelp = document.getElementById('claim-help');
+
+  async function checkClaimedOnServer() {
+    try {
+      const email = getCurrentUserEmail();
+      if (!email) return; // no user logged in
+
+      const stored = (() => {
+        try { return localStorage.getItem('spectrodraw_user'); }
+        catch (e) { return null; }
+      })();
+
+      const headers = { 'Accept': 'application/json' };
+      if (stored) headers['X-Spectrodraw-User'] = stored;
+
+      const res = await fetch('https://api.spectrodraw.com/api/products', {
+        method: 'GET',
+        credentials: 'include',
+        headers
+      });
+
+      if (!res.ok) return;
+
+      const j = await res.json().catch(() => null);
+      if (!j || !Array.isArray(j.products)) return;
+
+      // ✅ check if current email is in the claims list
+      const found = j.products.some(entry =>
+        entry && typeof entry.email === 'string' &&
+        entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
+      );
+
+      if (found) {
+        progress.claimed = true;
+        saveStateForCurrentUser();
+
+        if (typeof setClaimedUI === 'function') {
+          try { setClaimedUI(); } catch (e) { console.warn('setClaimedUI failed', e); }
+        }
+        try { gotoStep(3); } catch (e) { console.log(e);/* ignore */ }
+        render();
+      }
+
+    } catch (err) {
+      console.warn('checkClaimedOnServer error', err);
+    }
+  }
+
 
   let mediaLink = '';
 
@@ -593,7 +641,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
     }
     try {
       const email = getCurrentUserEmail();
-      const showClaim = progress.loggedIn && (progress.shareSent || progress.shareTentative) && !progress.claimed;
+      const showClaim = progress.loggedIn && (progress.shareSent || progress.shareTentative);// && !progress.claimed;
 
       if (showClaim) {
         if (claimSection) {
@@ -605,6 +653,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
         if (inlineShare) inlineShare.style.display = 'none';
         document.getElementById('inline-review').style.display = 'none'; //69420
       } else {
+        console.log('656');
         if (claimSection) claimSection.style.display = 'none';
         // show inline-share again if claim section hidden
         const inlineShare = document.getElementById('inline-share');
@@ -612,7 +661,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
       }
 
       // If user already claimed, hide claim section regardless
-      if (progress.claimed && claimSection) claimSection.style.display = 'none';
+      //if (progress.claimed && claimSection) claimSection.style.display = 'none';
     } catch (e) { /* ignore render errors for claim UI */ }
 
     saveStateForCurrentUser();
@@ -944,7 +993,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
         if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.'; return; }
         try {
           const posted = await detectPopupPost(popup, 'linkedin'/*, { timeout: 30000 }*/);
-          if (posted) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on LinkedIn. Unlocking...`; markShared(); }
+          if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on LinkedIn. Unlocking...`; markShared(); }
           else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on LinkedIn, click "I shared — verify" or click Next.`; render(); }
         } catch (err) {
           console.error('detectPopupPost error', err);
@@ -1009,7 +1058,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
 
           try {
             const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
-            if (posted) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on v. Unlocking...`; markShared(); }
+            if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on v. Unlocking...`; markShared(); }
             else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared — verify" or click Next.`; render(); }
           } catch (err) {
             console.error('detectPopupPost error', err);
@@ -1040,7 +1089,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
 
         try {
           const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
-          if (posted) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on ${provider}. Unlocking...`; markShared(); }
+          if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on ${provider}. Unlocking...`; markShared(); }
           else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared — verify" or click Next.`; render(); }
         } catch (err) {
           console.error('detectPopupPost error', err);
@@ -1781,7 +1830,6 @@ function detectPopupPost(popup, provider, opts = {}) {
     socialStatus.textContent = 'No closed share popup detected — please open the share window and close it, then click "I shared — verify".';
   });
 
-  doneCloseBtn.addEventListener('click', ()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; });
 
   function markShared(){
     // user-verified share
@@ -1792,17 +1840,47 @@ function detectPopupPost(popup, provider, opts = {}) {
     // hide the share UI after short delay
     setTimeout(()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; }, 450);
   }
+  function setClaimedUI() {
+    try {
+      if (claimSection) {
+        claimSection.innerHTML = `
+          <div style="padding:18px;text-align:center;">
+            <h3 style="margin:0 0 12px 0">Thanks for getting SpectroDraw Pro!</h3>
+            <div style="margin-top:12px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+              <button id="view-products" type="button">View My Products</button>
+              <button id="launch-app" type="button">Launch App</button>
+            </div>
+          </div>
+        `;
+        // make sure claim section is visible and other sections are hidden
+        claimSection.style.display = 'block';
+        if (shareSection) shareSection.style.display = 'none';
+        if (reviewSection) reviewSection.style.display = 'none';
 
+        // wire up the new buttons
+        const vp = document.getElementById('view-products');
+        if (vp) vp.addEventListener('click', () => { window.location.href = '/products'; });
+
+        const la = document.getElementById('launch-app');
+        if (la) la.addEventListener('click', () => { window.location.href = '/app'; });
+      }
+    } catch (e) {
+      console.warn('Could not update claim section UI', e);
+    }
+  }
   /* ---------- CLAIM logic (same flow but uses per-user state) ---------- */
   async function performClaim(){
     if(!progress.loggedIn) { alert('Please sign in before claiming.'); return; }
     claimBtn.disabled = true;
     claimBtn.textContent = 'Claiming...';
     try{
+      const stored = (() => {
+        try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
+      })();
       const res = await fetch('https://api.spectrodraw.com/api/claim', {
         method: 'POST',
         credentials: 'include',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type':'application/json', 'X-Spectrodraw-User': stored},
         body: JSON.stringify({
           proof: {
             reviewSubmitted: progress.reviewSubmitted,
@@ -1816,16 +1894,33 @@ function detectPopupPost(popup, provider, opts = {}) {
         throw new Error(j.message || 'Unable to claim');
       }
       const j = await res.json();
-      if(j.claimed){
+            if (j.claimed) {
+        // mark claimed in state (persist)
         progress.claimed = true;
         saveStateForCurrentUser();
-        render();
-        claimBtn.textContent = 'Claimed ✓';
-        claimBtn.disabled = true;
-        claimBtn.style.cursor = 'default';
+
+        // Keep the user on the claim section and replace its contents
+        setClaimedUI();
+
+        // Update visual state (without calling render() which would hide the claim section)
+        try {
+          setNodeVisual(node3, true);
+          connector1Fill.style.width = '100%';
+          connector2Fill.style.width = '100%';
+          progressPercentEl.textContent = '100%';
+        } catch (e) { /* ignore UI update errors */ }
+
+        // update claim button state (if it still exists)
+        try {
+          claimBtn.textContent = 'Claimed ✓';
+          claimBtn.disabled = true;
+          claimBtn.style.cursor = 'default';
+        } catch (e) { /* ignore */ }
+
       } else {
         throw new Error(j.message || 'Server denied claim');
       }
+
     }catch(err){
       alert('Claim failed: ' + err.message + '. Make sure you are signed in and completed the required steps.');
       claimBtn.disabled = false;
@@ -1853,9 +1948,11 @@ function detectPopupPost(popup, provider, opts = {}) {
 
   /* ---------- NODE navigation (click nodes to switch) ---------- */
   async function gotoStep(n){
+    console.log('gotostep', n);
     if(n === 1){
       reviewSection.style.display = '';
       shareSection.style.display = 'none';
+        console.log('1954');
       claimSection.style.display = 'none';
       reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -1870,6 +1967,8 @@ function detectPopupPost(popup, provider, opts = {}) {
       }
       shareSection.style.display = 'block';
       reviewSection.style.display = 'none';
+      
+        console.log('1969');
       claimSection.style.display = 'none';
       shareSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -1897,6 +1996,15 @@ function detectPopupPost(popup, provider, opts = {}) {
   loadStateForCurrentUser();
   checkAuth();
   render();
+
+  // Immediately confirm server-side claim state for this user (do not rely on local progress.claimed alone)
+  (async () => {
+    try {
+      await checkClaimedOnServer();
+    } catch (e) {
+      console.warn('Initial server claim check failed', e);
+    }
+  })();
 
   // debug hooks
   window.sdEarlyAccess = {
@@ -2019,9 +2127,6 @@ window.addEventListener('message', async (ev) => {
 })();
 </script>
 
-
-
-    
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
     <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>

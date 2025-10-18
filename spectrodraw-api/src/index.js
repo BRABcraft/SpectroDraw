@@ -3,7 +3,7 @@ export default {
   async fetch(request, env) {
     try {
       // List required bindings used by this worker:
-      const required = ['SESSIONS', 'IMAGES', 'USERS', 'REVIEW']; // IMAGES should be your R2 binding (or an object with .put())
+      const required = ['SESSIONS', 'IMAGES', 'USERS', 'REVIEWS']; // IMAGES should be your R2 binding (or an object with .put())
       const missing = required.filter(k => !env || typeof env[k] === 'undefined');
 
       if (missing.length) {
@@ -215,12 +215,22 @@ async function handleReviewPost(request, user, env) {
   const text = (form.get("text") || "").toString().trim();
   if (!rating || rating < 1 || rating > 5) return json({ message: "Invalid rating" }, 400);
 
+  function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000; // 32 KB per chunk
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+  }
+
   let imageBase64 = null;
   const imageFile = form.get("image");
   if (imageFile && imageFile.arrayBuffer) {
     const buf = await imageFile.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    const b64 = btoa(String.fromCharCode(...bytes));
+    const b64 = arrayBufferToBase64(buf);
     const mime = imageFile.type || "image/png";
     imageBase64 = `data:${mime};base64,${b64}`;
   }

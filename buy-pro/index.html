@@ -919,7 +919,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
     }
 
     // LinkedIn & Reddit: show text-copy modal then image-download modal, then open composer
-    if (provider === 'linkedin' || provider === 'reddit' || provider === 'gmail') {
+    if (provider === 'linkedin' || provider === 'reddit' || provider === 'gmail' || provider === 'facebook') {
     socialStatus.textContent = `Preparing ${provider} share helper...`;
 
     // if not reddit, keep the existing LinkedIn flow (unchanged)
@@ -962,7 +962,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
     }
 
     // ----------------- REDDIT flow -----------------
-    if (provider === 'reddit' || provider === 'gmail') {
+    if (provider === 'reddit' || provider === 'gmail' || provider === 'facebook') {
       try {
         // 1) Ask which kind of reddit post
         const option = await showRedditOptionModal();
@@ -1176,8 +1176,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
     });
   }
 
-  // NEW: For Facebook & X, show the image-download modal (no text modal), then open composer
-  if (provider === 'facebook' || provider === 'X') {
+  if (provider === 'X') {
     socialStatus.textContent = `Preparing ${provider} image suggestions...`;
     try {
       const images = gatherCandidateImages();

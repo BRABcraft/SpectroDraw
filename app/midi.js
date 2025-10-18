@@ -1213,7 +1213,7 @@ function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultip
   }
 })();
 if (!localStorage.getItem('basicPitchPreloadDone')) {
-  preloadBasicPitchModelInWorker(MODEL_JSON_URL || "https://cdn.jsdelivr.net/gh/BRABcraft/SpectroDraw@main/node_modules/@spotify/basic-pitch/model/model.json", 'basicpitch-v1')
+  preloadBasicPitchModelInWorker("https://cdn.jsdelivr.net/gh/BRABcraft/SpectroDraw@main/node_modules/@spotify/basic-pitch/model/model.json", 'basicpitch-v1')
     .then(() => localStorage.setItem('basicPitchPreloadDone', '1'))
     .catch(err => console.warn(err));
 }

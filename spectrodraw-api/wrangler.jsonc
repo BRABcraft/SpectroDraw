@@ -33,6 +33,10 @@
 		{
 			"binding": "IMAGES",
 			"id": "42a93427127240539de4c6bb81b5848e"
-		}
+		},
+    {
+      "binding": "REVIEW",
+      "id": "ae863831f314458998bf36acd62dee09"
+    }
   ]
 }

@@ -3,7 +3,7 @@ export default {
   async fetch(request, env) {
     try {
       // List required bindings used by this worker:
-      const required = ['SESSIONS', 'IMAGES', 'USERS']; // IMAGES should be your R2 binding (or an object with .put())
+      const required = ['SESSIONS', 'IMAGES', 'USERS', 'REVIEW']; // IMAGES should be your R2 binding (or an object with .put())
       const missing = required.filter(k => !env || typeof env[k] === 'undefined');
 
       if (missing.length) {
@@ -233,13 +233,41 @@ async function handleReviewPost(request, user, env) {
     image: imageBase64,
     createdAt: new Date().toISOString(),
   };
-  reviews.push(review);
+
+  // Store in KV
+  await env.REVIEWS.put(review.id, JSON.stringify(review));
+
+  // Optionally, maintain a per-user index of review IDs for easy listing
+  const userKey = `user:${user.email.toLowerCase()}:reviews`;
+  const existingIdsRaw = await env.REVIEWS.get(userKey);
+  let existingIds = [];
+  if (existingIdsRaw) {
+    try { existingIds = JSON.parse(existingIdsRaw); } catch(e){ existingIds = []; }
+  }
+  existingIds.push(review.id);
+  await env.REVIEWS.put(userKey, JSON.stringify(existingIds));
+
   return json({ success: true, review }, 201);
 }
 
 async function handleReviewList(user, env) {
-  const userReviews = reviews.filter((r) => r.user === user.email);
-  return json({ reviews: userReviews }, 200);
+  const userKey = `user:${user.email.toLowerCase()}:reviews`;
+  const idsRaw = await env.REVIEWS.get(userKey);
+  let reviewsList = [];
+  if (idsRaw) {
+    try {
+      const ids = JSON.parse(idsRaw);
+      for (const id of ids) {
+        const reviewRaw = await env.REVIEWS.get(id);
+        if (reviewRaw) {
+          reviewsList.push(JSON.parse(reviewRaw));
+        }
+      }
+    } catch(e) {
+      console.error("Failed to parse reviews for user:", e);
+    }
+  }
+  return json({ reviews: reviewsList }, 200);
 }
 
 async function handleShareInvite(request, user, env) {

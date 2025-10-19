@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>My Products - SpectroDraw</title>
+  <link rel="icon" href="/logo1.ico"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -252,6 +253,7 @@
         <thead>
           <tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.08)">
             <th style="padding:8px;color:#9aa4b2;font-weight:600;">Product</th>
+            <th style="padding:8px;color:#9aa4b2;font-weight:600;">Price</th>
             <th style="padding:8px;color:#9aa4b2;font-weight:600;">Claimed At</th>
           </tr>
         </thead>
@@ -263,6 +265,7 @@
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td style="padding:8px 8px 8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${p.product}</td>
+          <td style="padding:8px 8px 8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${p.price}</td>
           <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.04);color:#d0d9e9">
             ${new Date(p.claimedAt).toLocaleString()}
           </td>

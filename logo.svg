@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="SpectroDraw logo">
+  <defs>
+    <!-- purple gradient for the S -->
+    <linearGradient id="gradS" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="50%" stop-color="#9333ea"/>
+      <stop offset="100%" stop-color="#C084FC"/>
+    </linearGradient>
+
+    <!-- subtle inner rim on the rectangle -->
+    <linearGradient id="bgGrad" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#222"/>
+    </linearGradient>
+
+    <!-- glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
+      <!-- colored blur -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur1"/>
+      <!-- boost brightness of blur -->
+      <feColorMatrix in="blur1" type="matrix" values="
+         0 0 0 0 0.482  /* R */
+         0 0 0 0 0.251  /* G */
+         0 0 0 0 0.929  /* B */
+         0 0 0 0 0.0" result="colBlur"/>
+      <feMerge>
+        <feMergeNode in="colBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- slight outer glow (more subtle) -->
+    <filter id="outerGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="14" result="g1"/>
+      <feGaussianBlur stdDeviation="6" result="g2"/>
+      <feMerge>
+        <feMergeNode in="g1"/>
+        <feMergeNode in="g2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- rounded black rectangle background -->
+  <rect x="8" y="8" width="184" height="184" rx="20" ry="20" fill="url(#bgGrad)" stroke="#111" stroke-opacity="0.6"/>
+
+  <!-- soft outer vignette (top-left luminous spot) -->
+  <ellipse cx="120" cy="50" rx="110" ry="48" fill="white" opacity="0.02"/>
+
+  <!-- blurred glow of S (drawn first so glow is behind the crisp S) -->
+  <text x="96" y="114" text-anchor="middle" dominant-baseline="middle"
+        font-family='"SF Pro Display", "SF Pro", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+        font-weight="800" font-size="160" letter-spacing="-6"
+        fill="url(#gradS)" style="filter: url(#glow); opacity:0.92;">
+    S
+  </text>
+
+  <!-- main crisp S on top -->
+  <text x="96" y="114" text-anchor="middle" dominant-baseline="middle"
+        font-family='"SF Pro Display", "SF Pro", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+        font-weight="800" font-size="160" letter-spacing="-6"
+        fill="url(#gradS)" style="filter: url(#outerGlow);">
+    S
+  </text>
+
+  <!-- optional tiny sparkles near top-right of S -->
+  <g transform="translate(155,55)" opacity="0.95">
+    <circle cx="0" cy="0" r="4.6" fill="#fff" opacity="0.95"/>
+    <circle cx="12" cy="6" r="2.6" fill="#fff" opacity="0.9"/>
+  </g>
+</svg>

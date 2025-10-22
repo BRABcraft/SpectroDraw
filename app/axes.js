@@ -459,15 +459,16 @@ function _clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
 // Zoom timeline centered at clientX (relative to element rect)
 function zoomTimelineAt(clientX, elem, scaleFactor){
-  const rect = elem.getBoundingClientRect();
+  zooming = true;
+  const rect = canvas.getBoundingClientRect();
   const centerFrac = _clamp((clientX - rect.left) / rect.width, 0, 1);
   const centerFrame = iLow + centerFrac * iWidth;
   const newWidth = _clamp(iWidth / scaleFactor, 1, framesTotal);
   let newLow = centerFrame - centerFrac * newWidth;
   if (newLow < 0) newLow = 0;
   if (newLow + newWidth > framesTotal) newLow = framesTotal - newWidth;
-  iLow = Math.floor(newLow);
-  iHigh = Math.floor(iLow + newWidth);
+  iLow = Math.round(newLow);
+  iHigh = Math.round(iLow + newWidth);
   iWidth = iHigh - iLow;
   updateCanvasScroll();
   drawTimeline();
@@ -520,29 +521,25 @@ function getFreqAtY(pixelY, rectHeight){
 
 // Zoom y-axis centered at clientY (relative to element rect)
 function zoomYAxisAt(clientY, elem, scaleFactor){
-  const rect = elem.getBoundingClientRect();
-  const yLocal = _clamp(clientY - rect.top, 0, rect.height);
-  // get center frequency (in Hz) at this y pixel
-  const centerFreq = getSineFreq(visibleToSpecY(yLocal*(canvas.height/rect.height)));
-//   console.log(centerFreq);
-  const curWidth = fHigh - fLow;
-  const newWidth = _clamp(curWidth / scaleFactor, 1e-3, sampleRate/2);
-  // fraction of the window above center: compute fraction in terms of current fLow..fHigh
-  const frac = (centerFreq - fLow) / curWidth;
-//   console.log(frac*newWidth);
-  let newLow = centerFreq - frac * newWidth;
+  zooming = true;
+  const yf = (sampleRate/specHeight/2);
+  const rect = canvas.getBoundingClientRect();
+  const cy = (clientY - rect.top) * canvas.height/rect.height;
+  // console.log(getSineFreq(visibleToSpecY(0)))
+  const centerFrame = (lsc(getSineFreq(visibleToSpecY(cy))))/yf;
+  const centerFrac = centerFrame/specHeight;
+  const newHeight = _clamp((fWidth)/yf / scaleFactor, 1, specHeight);
+  let newLow = centerFrame - centerFrac * newHeight;
   if (newLow < 0) newLow = 0;
-  if (newLow + newWidth > sampleRate/2) newLow = sampleRate/2 - newWidth;
-  fLow = newLow;
-  fHigh = newLow + newWidth;
+  if (newLow + newHeight > specHeight) newLow = specHeight - newHeight;
+  fLow = ((newLow)*(sampleRate/specHeight/2));
+  fHigh = ((newLow+newHeight)*(sampleRate/specHeight/2));
   fWidth = fHigh - fLow;
   updateCanvasScroll();
   drawYAxis();
-  drawLogScale && drawLogScale();
-  drawCursor && drawCursor(true);
+  drawCursor(true);
   renderView && renderView();
 }
-
 // Generic wheel handler factory — attach to each element
 function makeWheelZoomHandler(elem, opts){
   // opts: {zoomTimeline:bool, zoomYAxis:bool}
@@ -568,6 +565,7 @@ function makeWheelZoomHandler(elem, opts){
     } else if (opts.zoomYAxis){
       zoomYAxisAt(e.clientY, yAxis, scale);
     }
+    if (scale == 1) zooming = false;
   };
 }
 
@@ -673,6 +671,7 @@ function touchMoveHandler(e){
 }
 
 function touchEndHandler(e){
+  zooming = false;
   if (!_pinchState.active) return;
   if (!e.touches || e.touches.length >= 1) {
     // still a touch remaining (not fully ended), keep active only if still 2 touches

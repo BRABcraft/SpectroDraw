@@ -340,9 +340,11 @@ function paint(cx, cy) {
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
     const bo = currentTool === "eraser" ? 1 : brushOpacity;
-    const radiusY = brushSize *(fWidth/(sampleRate/2));
-    const rect = canvas.getBoundingClientRect();
-    const radiusXFrames = Math.floor(radiusY * iWidth / 512/2/(rect.width/rect.height));
+    const scaleY = fftSize/2*Math.min(canvas.parentElement.clientWidth/framesTotal, (window.innerHeight - 110) / Math.floor(fftSize / 2), 1);
+    const bothRatio = (window.innerHeight - 110)/scaleY;
+    const XRatio = trueScaleVal? canvas.getBoundingClientRect().width/scaleY:document.getElementById("canvasWrapper").offsetWidth/(window.innerHeight - 110);
+    const radiusY = brushSize *(fWidth/(sampleRate/2))*bothRatio;
+    const radiusXFrames = Math.floor(brushSize * iWidth / 1024/XRatio)*bothRatio;
     const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
     const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
     const minY = Math.max(0, Math.floor(cy - radiusY*(fftSize/2048)));

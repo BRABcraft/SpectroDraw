@@ -212,7 +212,7 @@
 </aside>
 
   <aside class="left-panel">
-    <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
+    <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <div id="d1">
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
       <div id="fftParameters">
@@ -448,7 +448,7 @@
     <div id="canvasWrapper" style="position:absolute; width:100%;">
       <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
       <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
-      <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10;; top:40px"></canvas>
+      <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10; top:40px"></canvas>
       <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; ; top:40px"></canvas>
       <canvas id="logscale" width=40 height = 40 style="position:absolute; top:0px; background: #111;z-index: 999; top:0px"></canvas>
     </div>
@@ -614,6 +614,7 @@ let useVolumeControllers = false;
 
 let startX = null, startY = null;
 let cx_ = null, cy_ = null;
+let zooming = false;
 
 let brushSize=parseInt(brushSizeEl.value);
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
@@ -821,6 +822,17 @@ function toggleLockHop() {
   }
   lockHop = !lockHop;
 }
+let $x = 0, $y = 0;
+document.addEventListener('mousemove', e=>{
+  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false);
+  $x=cx;$y=cy;
+  if (pressedN) {
+    const realY = visibleToSpecY($y);
+    if (sineOsc) {
+      setSineFreq(realY);
+    }
+  }
+});
 
 function keyBind(event) {
   if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
@@ -898,6 +910,33 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener('keydown', (event) => {
   keyBind(event);
 });
+let pressedN=false;
+document.addEventListener('keydown', (e)=>{
+  if (e.key==='n') {
+    pressedN=true;
+    if (!sineOsc) {
+      const realY = visibleToSpecY($y);
+      sineOsc = audioCtx.createOscillator();
+      sineOsc.type = "sine";
+      sineGain = audioCtx.createGain();
+      sineGain.gain.value = 0.2;
+      sineOsc.connect(sineGain).connect(audioCtx.destination);
+      setSineFreq(realY); 
+      sineOsc.start();
+    }
+  }
+});
+document.addEventListener('keyup', (e)=>{
+  if (e.key==='n'){
+    pressedN=false;
+    if (sineOsc) {
+      sineOsc.stop();
+      sineOsc.disconnect();
+      sineOsc = null;
+      sineGain = null;
+    }
+  }
+});
 
 </script>
 <script src="axes.js"></script>
@@ -916,7 +955,6 @@ function initEmptyPCM() {
     for (let i = 0; i < length; i++) {
       pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
     }
-
     pcm = pcmArray;
     sampleRate = sampleRateLocal;
 
@@ -1010,10 +1048,8 @@ emptyAudioLengthEl.addEventListener("input", ()=> {
 </script>
 <script src="recordingAndPresets.js"></script>
 <script>
-if (lockHop) hopSizeEl.value = parseInt(fftSizeEl.value);
-fftSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();
-  if (lockHop) hopSizeEl.value = parseInt(fftSizeEl.value);
-});
+if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
+fftSizeEl.addEventListener("change",()=>{if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}restartRender();buildBinDisplayLookup();});
 hopSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();});
 
 function restartRender(autoPlay){
@@ -1024,16 +1060,13 @@ function restartRender(autoPlay){
     win = hann(fftSize);
 
     framesTotal = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
-    if (iLow == null || iHigh > framesTotal) {
-      iLow = 0;
-      iHigh = framesTotal;
-    }
-
+    iLow = 0;
+    iHigh = framesTotal;
     const freqBins = Math.floor(fftSize / 2);
     canvas.width = framesTotal;
     canvas.height = freqBins;
     if (trueScaleVal) {
-      const maxHeight = 600;
+      const maxHeight = (window.innerHeight - 110);
       const containerWidth = canvas.parentElement.clientWidth;
       const scaleX = containerWidth / framesTotal;
       const scaleY = maxHeight / freqBins;
@@ -1462,10 +1495,10 @@ function cxToFrame(cx) {
 function frameToCx(frame) {
   return ((frame-iLow)/(iWidth/specWidth)*1);
 }
-
 let sx2 = 0, sy2 = 0;
 
 function canvasMouseDown(e,touch) {
+    if (zooming) return;
     if (!mags || !phases) return;
     if (!touch && e.button !== 0) return;
     if (pendingHistory) return; 
@@ -1517,6 +1550,7 @@ canvas.addEventListener("touchstart", e=>{
 });
 
 function canvasMouseMove(e,touch) {
+    if (zooming) return;
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
     if (!recording) {
       const hz = getSineFreq(visibleToSpecY(cy));
@@ -1561,6 +1595,7 @@ canvas.addEventListener("touchmove", e=>{
 <script src="undoredo.js"></script>
 <script>
 function canvasMouseUp(e,touch) {
+    if (zooming) return;
     if (!mags || !phases || !painting) return;
     visited = null;
     painting = false;

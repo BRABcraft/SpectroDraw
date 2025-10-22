@@ -86,7 +86,7 @@ canvas {
 }
 
 /* ----------------- BUTTONS ----------------- */
-.tool-btn, .leftBtn,
+.tool-btn, .leftBtn, .shape-btn,
 #downloadWav, #downloadButton, #resetButton, #playPause, #stop,
 #trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn, #home {
   display: inline-flex;
@@ -118,7 +118,7 @@ canvas {
   height: 32px;
 }
 
-.tool-btn svg {
+.tool-btn svg, .shape-btn svg {
   width: 20px;
   height: 20px;
   display: block;

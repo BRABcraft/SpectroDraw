@@ -451,6 +451,20 @@ body{
   color: #dbe8ff;
   margin-top: 0.4rem;
 }
+#early-access-banner {
+  width: 100%;
+  background: linear-gradient(90deg, #4f46e5, #9333ea, #ec4899);
+  color: #fff;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.2rem 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  backdrop-filter: blur(4px);
+  z-index: 35;
+  position: sticky;
+  top: 64px; /* height of nav, adjust if different */
+}
 </style>
 </head>
 <body>
@@ -484,6 +498,9 @@ body{
       </div>
     </div>
   </nav>
+  <div id="early-access-banner">
+    <a style="text-decoration: none;" href="/buy-pro">Early access deal: Get Pro for free!</a>
+  </div>
   <div id="login-panel" class="modal-overlay" aria-hidden="true">
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <button class="modal-close" aria-label="Close">&times;</button>
@@ -555,7 +572,7 @@ body{
       <div>
         <div class="section-title">Edit &amp; Personalize</div>
         <h2 id="customize-heading" class="section-head">Fine-tune frequency content visually</h2>
-        <p class="section-copy">Use SpectroDraw’s tools (brush, rectangle, line, blur, amplifier, and image overlay) to craft textures and fx quickly.</p>
+        <p class="section-copy">Use SpectroDraw’s tools (brush, rectangle, line, blur, amplifier, noise removal, and image overlay) to craft textures and fx quickly.</p>
         <div style="margin-top:1rem;">
           <button class="btn btn-primary" onclick="location.href='/app'"><span>Start Creating</span></button>
         </div>

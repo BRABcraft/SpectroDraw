@@ -544,6 +544,7 @@ function zoomYAxisAt(clientY, elem, scaleFactor){
 function makeWheelZoomHandler(elem, opts){
   // opts: {zoomTimeline:bool, zoomYAxis:bool}
   return function(e){
+    console.log(e.deltaY);
     // treat ctrl/meta modifier as zoom intent OR if the wheel event has ctrlKey (ctrl+scroll) OR if gestureEvent (see below)
     const shouldZoom = e.ctrlKey || e.metaKey;
     if (!shouldZoom) return; // do not intercept normal scrolls
@@ -565,7 +566,7 @@ function makeWheelZoomHandler(elem, opts){
     } else if (opts.zoomYAxis){
       zoomYAxisAt(e.clientY, yAxis, scale);
     }
-    if (scale == 1) zooming = false;
+    if (e.deltaY == 0) zooming = false;
   };
 }
 

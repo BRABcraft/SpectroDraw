@@ -49,8 +49,8 @@
             id: 'tools',
             label: 'Tools: Rectangle, Line, Blur, Eraser, Amplify, Image',
             subtitle: 'Try one of the tools',
-            target: '#brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
-            dialog: "Try out the tools: Rectangle, Line, Blur, Eraser, Amplifier, and Image Overlay (turns pictures into sound!). 🖼️🎶",
+            target: '#colorBtn, #noiseRemoverBtn, #brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
+            dialog: "Check out the different tools: Brush, rectangle, line, and Image\nOverlay (turns pictures into sound)! Try the different tool\neffects: Color, Blur, Eraser, Amplifier, and Noise Removal! 🖌️🎶",
             waitFor: {
                 type: 'oneToolClickOrNext',
                 selector: '.tool-btn'
@@ -64,7 +64,7 @@
             id: 'brushSettings',
             label: 'Brush settings',
             subtitle: 'Try changing the brush settings',
-            target: '#brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
+            target: '#colorBtn, #noiseRemoverBtn, #brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
             dialog: "Try changing the brush settings while using tools like Brush, Image, Line, or Amplify to discover different effects! 🔍🎨",
             waitFor: {
                 type: 'modifyBrush',
@@ -176,29 +176,38 @@
     }
     function fadeInText(el, speed = 25) {
         if (!el) return;
-  const text = el.textContent || '';
-  el.innerHTML = '';
-  const lines = text.split('\n');
-  lines.forEach((line, lineIndex) => {
-    const wordsAndEmojis = line.match(
-      /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\S|\s)/gu
-    ) || [];
-    wordsAndEmojis.forEach((unit, unitIndex) => {
-      const span = document.createElement('span');
-      span.textContent = unit === ' ' ? '\u00A0' : unit;
-      span.style.opacity = 0;
-      span.style.display = 'inline-block';
-      span.style.transition = 'opacity 0.3s ease';
-      el.appendChild(span);
-      setTimeout(() => {
-        span.style.opacity = 1;
-      }, unitIndex * speed);
-    });
-    if (lineIndex < lines.length - 1) {
-      el.appendChild(document.createElement('br')); 
+        const text = el.textContent || '';
+        el.innerHTML = '';
+        const lines = text.split('\n');
+        let totalIndex = 0; // cumulative index across all lines
+
+        lines.forEach((line, lineIndex) => {
+            const units = line.match(/(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\S|\s)/gu) || [];
+
+            units.forEach((unit, unitIndex) => {
+                const span = document.createElement('span');
+                span.textContent = unit === ' ' ? '\u00A0' : unit;
+                span.style.opacity = 0;
+                span.style.display = 'inline-block';
+                span.style.transition = 'opacity 0.3s ease';
+                el.appendChild(span);
+
+                // Delay based on total number of previous characters
+                const delay = (totalIndex + unitIndex) * speed;
+                setTimeout(() => {
+                    span.style.opacity = 1;
+                }, delay);
+            });
+
+            totalIndex += units.length;
+
+            if (lineIndex < lines.length - 1) {
+                el.appendChild(document.createElement('br'));
+                // also add a small pause between lines if you want
+                totalIndex += 5; // optional extra delay before next line starts
+            }
+        });
     }
-  });
-        }
     function openStep(index) {
         if (!playingTutorial) return;
         try {
@@ -914,6 +923,7 @@
         const seen = localStorage.getItem('tutorialSeen') && !testingTutorial;
         if (!seen) {
             playingTutorial = true;
+            brushColorEl.value=50;brushColorInput.value=50;brushColor=50;
             openStep(0);
         } else {
             document.getElementById('tutorialDialog').style.display = 'none';

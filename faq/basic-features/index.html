@@ -234,7 +234,7 @@
 
     <section class="section">
 
-      <h1 style="text-align:center;">Tools:</h1>
+      <h1 style="text-align:center;">Tool shapes:</h1>
 
       <!-- Brush -->
       <div class="tool-row fade-in">
@@ -283,6 +283,44 @@
           <p><strong>Line</strong> – Draws a line of frequencies. Change brush size to adjust the line thickness.</p>
           <div class="media-row">
             <img src="/assets/features/line.jpg" alt="Line example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Image overlay -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Image overlay">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
+              <polygon points="1,20 8,10 15,20" fill="#333"/>
+              <polygon points="8,20 15,12 23,20" fill="#333"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Image overlay</strong> – Paint an image onto the spectrogram. Change brush size to adjust the image size. Image overlay follows opacity, phase shift and phase strength but ignores brush brightness.</p>
+          <div class="media-row">
+            <img src="/assets/features/imageOverlay.jpg" alt="Image overlay example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <h1 style="text-align:center;">Tool effects:</h1>
+
+      <!--color-->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Color">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="black" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Color</strong> – Applies solid color to the spectrogram.</p>
+          <div class="media-row">
+            <img src="/assets/features/color.jpg" alt="Blur example" class="illustration">
           </div>
         </div>
       </div>
@@ -340,21 +378,17 @@
         </div>
       </div>
 
-      <!-- Image overlay -->
+      <!-- Noise Removal -->
       <div class="tool-row fade-in">
         <div class="tool-left">
-          <div class="icon" title="Image overlay">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
-              <polygon points="1,20 8,10 15,20" fill="#333"/>
-              <polygon points="8,20 15,12 23,20" fill="#333"/>
-            </svg>
+          <div class="icon" title="Noise Removal">
+            <img src="/assets/toothbrush.svg">
           </div>
         </div>
         <div class="tool-right">
-          <p><strong>Image overlay</strong> – Paint an image onto the spectrogram. Change brush size to adjust the image size. Image overlay follows opacity, phase shift and phase strength but ignores brush brightness.</p>
+          <p><strong>Noise Remover</strong> – Sets all magnitudes under a decibal threshold to 0.</p>
           <div class="media-row">
-            <img src="/assets/features/imageOverlay.jpg" alt="Image overlay example" class="illustration">
+            <img src="/assets/features/noiseRemoval.jpg" alt="Amplify example" class="illustration">
           </div>
         </div>
       </div>

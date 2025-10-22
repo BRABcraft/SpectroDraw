@@ -35,13 +35,13 @@ function previewShape(cx, cy) {
 
     const hasStart = startX !== null && startY !== null;
 
-    if (currentTool === "rectangle" && hasStart) {
+    if (currentShape === "rectangle" && hasStart) {
       ctx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
       ctx.restore();
       return;
     }
 
-    if (currentTool === "line" && hasStart) {
+    if (currentShape === "line" && hasStart) {
       ctx.lineWidth = brushSize / 4;
       ctx.beginPath();
       ctx.moveTo(startX + 0.5, startY + 0.5);
@@ -57,7 +57,7 @@ function previewShape(cx, cy) {
     const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
     const desiredScreenMax = brushSize * 4;
 
-    if (currentTool === "image" && overlayImage) {
+    if (currentShape === "image" && overlayImage) {
       const imgW = overlayImage.width;
       const imgH = overlayImage.height;
       const imgAspect = imgW / imgH;
@@ -147,6 +147,7 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   const width = fullW;
   const height = fullH;
   const idxBase = xI * fullH;
+  const dbt = Math.pow(10, noiseRemoveFloor / 20)*128;
 
   // optional pitch-align (keep this branch but hoist helpers)
   let displayYFloat = yDisplay;
@@ -180,8 +181,10 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     const newMag = (currentTool === "amplifier")
-                 ? (oldMag * (mag / 64 * amp))
-                 : (oldMag * (1 - bo) + mag * bo);
+                 ? (oldMag * amp)
+                 : (currentTool === "noiseRemover")
+                 ? (oldMag > dbt?oldMag:0)
+                 :(oldMag * (1 - bo) + mag * bo);
     const type = phaseTextureEl.value;
     let $phase;
     if (type === 'Harmonics') {
@@ -222,10 +225,10 @@ function commitShape(cx, cy) {
 
   const fullW = specWidth;
   const fullH = specHeight;
-  const bo = brushOpacity;
-  const po = phaseOpacity;
-  const brushMag = (brushColor / 255) * 128;
-  const brushPhase = penPhase;
+  const po = currentTool === "eraser" ? 1 : phaseOpacity;
+  const bo = currentTool === "eraser" ? 1 : brushOpacity;
+  const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+  const brushPhase = currentTool === "eraser" ? 0 : penPhase;
 
   const visitedLocal = new Uint8Array(fullW * fullH);
   const savedVisited = visited;
@@ -245,7 +248,26 @@ function commitShape(cx, cy) {
     let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
     let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
 
-    if (currentTool === "rectangle") {
+    function dp(xFrame, yDisplay, mag, phase, bo, po){
+      if (currentTool === "blur") {
+        let sumMag = 0, sumPhase = 0, count = 0;
+        for (let oy = -blurRadius; oy <= blurRadius; oy++) {
+            for (let ox = -blurRadius; ox <= blurRadius; ox++) {
+                const nx = xFrame + ox, ny = yDisplay + oy;
+                if (nx < 0 || ny < 0 || nx >= fullW || ny >= fullH) continue;
+                const nidx = nx * fullH + displayYToBin(ny, fullH);
+                sumMag += mags[nidx] || 0;
+                sumPhase += phases[nidx] || 0;
+                count++;
+            }
+        }
+        if (count > 0) drawPixelFrame(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po);
+      } else {
+        drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po);
+      }
+    }
+
+    if (currentShape === "rectangle") {
 
       const minX = x0Frame;
       const maxX = x1Frame;
@@ -258,14 +280,13 @@ function commitShape(cx, cy) {
       binB = Math.max(0, Math.min(fullH - 1, Math.round(binB)));
 
       for (let xx = minX; xx <= maxX; xx++) {
-
         for (let bin = binA; bin <= binB; bin++) {
           const displayY = binToDisplayY(bin, fullH);
-          drawPixelFrame(xx, displayY, brushMag, brushPhase, bo, po);
+          dp(xx, displayY, brushMag, brushPhase, bo, po);
         }
       }
 
-    } else if (currentTool === "line") {
+    } else if (currentShape === "line") {
 
       let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
       let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
@@ -289,11 +310,11 @@ function commitShape(cx, cy) {
 
         if (prevBin <= curBin) {
           for (let b = prevBin; b <= curBin; b++) {
-            drawPixelFrame(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
+            dp(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
           }
         } else {
           for (let b = prevBin; b >= curBin; b--) {
-            drawPixelFrame(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
+            dp(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
           }
         }
 
@@ -352,39 +373,7 @@ function paint(cx, cy) {
     const radiusYpix = radiusY * (fftSize / 2048);
     const radiusXsq = radiusXFrames * radiusXFrames;
     const radiusYsq = radiusYpix * radiusYpix;
-    if (currentTool === "brush" || currentTool === "eraser" || currentTool === "amplifier") {
-
-        const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-        const brushPhase = currentTool === "eraser" ? 0 : penPhase;
-        for (let yy = minY; yy <= maxY; yy++) {
-          for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-              const dx = xx - cx;
-              const dy = yy - cy;
-              if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
-              drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
-          }
-      } 
-    } else if (currentTool === "blur") {
-        for (let yy = minY; yy <= maxY; yy++) {
-            for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-                const dx = xx - cx;
-                const dy = yy - cy;
-                if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
-                let sumMag = 0, sumPhase = 0, count = 0;
-                for (let oy = -blurRadius; oy <= blurRadius; oy++) {
-                    for (let ox = -blurRadius; ox <= blurRadius; ox++) {
-                        const nx = xx + ox, ny = yy + oy;
-                        if (nx < 0 || ny < 0 || nx >= fullW || ny >= fullH) continue;
-                        const nidx = nx * fullH + displayYToBin(ny, fullH);
-                        sumMag += mags[nidx] || 0;
-                        sumPhase += phases[nidx] || 0;
-                        count++;
-                    }
-                }
-                if (count > 0) drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po);
-            }
-        }
-    } else if (currentTool === "image" && overlayImage) {
+    if (currentShape === "image" && overlayImage) {
       const screenSpace = true;
       const rect = canvas.getBoundingClientRect();
       const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
@@ -435,6 +424,37 @@ function paint(cx, cy) {
           }
         }
       }
+    } else if (currentTool === "color" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
+        const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+        const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+        for (let yy = minY; yy <= maxY; yy++) {
+          for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+              const dx = xx - cx;
+              const dy = yy - cy;
+              if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
+              drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
+          }
+      } 
+    } else if (currentTool === "blur") {
+        for (let yy = minY; yy <= maxY; yy++) {
+            for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+                const dx = xx - cx;
+                const dy = yy - cy;
+                if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
+                let sumMag = 0, sumPhase = 0, count = 0;
+                for (let oy = -blurRadius; oy <= blurRadius; oy++) {
+                    for (let ox = -blurRadius; ox <= blurRadius; ox++) {
+                        const nx = xx + ox, ny = yy + oy;
+                        if (nx < 0 || ny < 0 || nx >= fullW || ny >= fullH) continue;
+                        const nidx = nx * fullH + displayYToBin(ny, fullH);
+                        sumMag += mags[nidx] || 0;
+                        sumPhase += phases[nidx] || 0;
+                        count++;
+                    }
+                }
+                if (count > 0) drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po);
+            }
+        }
     }
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();

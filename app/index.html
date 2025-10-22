@@ -42,7 +42,7 @@
         <rect x="0" y="0" width="18" height="18" rx="2" ry="2"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="brush" id="brushBtn" style="margin-left: 20px" title="Brush (b)">
+    <button class="shape-btn" data-shape="brush" id="brushBtn" style="margin-left: 20px" title="Brush (b)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" 
            viewBox="5 4 18 18" 
@@ -50,7 +50,7 @@
         <path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="rectangle" id="rectBtn" title="Rectangle (r)">
+    <button class="shape-btn" data-shape="rectangle" id="rectBtn" title="Rectangle (r)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" viewBox="0 0 20 20" 
            fill="none"
@@ -58,7 +58,7 @@
         <path d="M0 0 H 20 V 20 H 0 V -20"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="line" id="lineBtn" title="Line (l)">
+    <button class="shape-btn" data-shape="line" id="lineBtn" title="Line (l)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" viewBox="0 0 20 20" 
            fill="none"
@@ -66,11 +66,21 @@
         <path d="M20 0 L 0 20"/>
       </svg>
     </button>
+    <button class="shape-btn" data-shape="image" id="imageBtn" title="Image Overlay (i)">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
+        <polygon points="1,20 8,10 15,20" fill="#333"/>
+        <polygon points="8,20 15,12 23,20" fill="#333"/>
+      </svg>
+    </button>
+    <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+    <button class="tool-btn" data-tool="color" id="colorBtn" title="Color (c)" style="margin-left:10px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
+        <circle cx="12" cy="12" r="9"/>
+      </svg>
+    </button>
     <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
-      <svg xmlns="http://www.w3.org/2000/svg" 
-           width="24" height="24" 
-           viewBox="0 0 24 24" 
-           fill="black">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
         <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
       </svg>
     </button>
@@ -84,16 +94,10 @@
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/>
         <path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/>
-    </svg>
-    </button>
-    <button class="tool-btn" data-tool="image" id="imageBtn" title="Image Overlay (i)">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
-        <polygon points="1,20 8,10 15,20" fill="#333"/>
-        <polygon points="8,20 15,12 23,20" fill="#333"/>
       </svg>
     </button>
-    <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+    <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
+      <img src="/assets/toothbrush.svg"></button>
     <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
         <g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -280,14 +284,14 @@
       <div id="brushSettings">
         <label class="h1">Brush settings</label>
         <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
-        <div class="slider-row" title="Brush size/image size" id="sliderStart">
+        <div class="slider-row" title="Brush size/image size" id="brushSizeDiv">
           <label class="h2">Brush Size</label>
           <input id="brushSize" type="range" min="1" max="200" value="40">
           <input id="brushSizeInput" type="number" value="10" min="1" max="200">
         </div>
         <div class="slider-row" title="Brightness" id="brushColorDiv">
             <label class="h2">Brush Brightness</label>
-            <input id="brushColor"  type="range" min="0" max="255" value="255">
+            <input id="brushColor" type="range" min="0" max="255" value="255">
             <input id="brushColorInput" type="number" value="255" min="0" max="255">
         </div>
         <div class="slider-row" title="Blur Radius" style="display:none;" id="blurRadiusDiv">
@@ -300,6 +304,11 @@
             <input id="amp"  type="range" min="0" max="2" value="2" step="0.01">
             <input id="ampInput" type="number" value="2" min="0" max="2">
         </div>
+        <div class="slider-row" title="Remove noise below this threshold" style="display:none;" id="noiseFloorDiv">
+            <label class="h2">Noise Threshold (dB)</label>
+            <input id="noiseRemoveFloor"  type="range" min="-60" max="0" value="-10" step="0.1">
+            <input id="noiseRemoveFloorInput" type="number" value="-10" min="-60" max="0">
+        </div>
         <div id="ev" class="slider-row" title="Phase texture">
           <label class="h2" for="phaseTexture">Phase texture</label>
           <select id="phaseTexture">
@@ -308,7 +317,7 @@
             <option value="Flat">Flat</option>
           </select>
         </div>
-        <div class="slider-row" title="Phase">
+        <div class="slider-row" title="Phase" id="phaseDiv">
             <label class="h2">Phase shift</label>
             <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
             <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
@@ -318,7 +327,7 @@
             <input id="brushOpacity"  type="range" min="0" max="100" value="100">
             <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
         </div>
-        <div class="slider-row" title="Phase strength">
+        <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
             <label class="h2">Phase Strength</label>
             <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
             <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
@@ -489,7 +498,8 @@
                    [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
                    [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
                    [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
-                   [document.getElementById('amp'), document.getElementById('ampInput')]];
+                   [document.getElementById('amp'), document.getElementById('ampInput')],
+                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -509,6 +519,7 @@ const phaseOpacityEl=document.getElementById("phaseOpacity");
 const brushColorEl=document.getElementById("brushColor");
 const blurRadiusEl=document.getElementById("blurRadius");
 const ampEl=document.getElementById("amp");
+const noiseRemoveFloorEl=document.getElementById("noiseRemoveFloor");
 const penPhaseEl=document.getElementById("penPhase");
 const logscaleEl = document.getElementById("logscale");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
@@ -570,6 +581,7 @@ const unlockHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden=
   <rect x="6" y="10" width="12" height="10" fill="white"/>
 </svg>`;
 const toolButtons = document.querySelectorAll(".tool-btn");
+const shapeButtons = document.querySelectorAll(".shape-btn");
 const panelButtons = document.querySelectorAll(".panel-btn");
 const trueScale = document.getElementById("trueScale");
 const overlayFile = document.getElementById("overlayFile");
@@ -622,8 +634,10 @@ let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
 let brushColor=parseInt(brushColorEl.value);
 let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value);
+let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
 let penPhase=parseInt(penPhaseEl.value)/10000;
-let currentTool = "brush";
+let currentTool = "color";
+let currentShape = "brush";
 let currentPanel = "0";
 let bpm = 120; let npo = 12;
 let noiseFloor = document.getElementById("noiseFloorCutoff").value; let startOnP = 440;
@@ -659,49 +673,16 @@ sliders[5][1].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][
 sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
 sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) npo=parseInt  (sliders[6][1].value);});
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
-sliders[7][1].addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    let val = parseFloat(sliders[7][1].value);
-    const min = parseFloat(sliders[7][0].min);
-    const max = parseFloat(sliders[7][0].max);
-    if (isNaN(val)) val = noiseFloor;      
-    if (val < min) val = min;
-    if (val > max) val = max;
-    sliders[7][1].value = val;      
-    sliders[7][0].value = val;      
-    noiseFloor = val;
-  }
-});
+sliders[7][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[7][1].value);const min = parseFloat(sliders[7][0].min);const max = parseFloat(sliders[7][0].max);
+    if (isNaN(val)) val = noiseFloor;      if (val < min) val = min;if (val > max) val = max;sliders[7][1].value = val;sliders[7][0].value = val;noiseFloor = val;}});
 sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);drawCursor(true);});
 sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);drawCursor(true);});
 sliders[9][0].addEventListener('input', () => {startOnP = parseFloat(sliders[9][0].value); sliders[9][1].value = startOnP;});
-sliders[9][1].addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    let val = parseFloat(sliders[9][1].value);
-    const min = parseFloat(sliders[9][0].min);
-    const max = parseFloat(sliders[9][0].max);
-    if (isNaN(val)) val = startOnP;      
-    if (val < min) val = min;
-    if (val > max) val = max;
-    sliders[9][1].value = val;      
-    sliders[9][0].value = val;      
-    startOnP = val;
-  }
-});
+sliders[9][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[9][1].value);const min = parseFloat(sliders[9][0].min);const max = parseFloat(sliders[9][0].max);
+    if (isNaN(val)) val = startOnP;if (val < min) val = min;if (val > max) val = max;sliders[9][1].value = val;sliders[9][0].value = val;startOnP = val;}});
 sliders[10][0].addEventListener('input', () => {dCutoff = parseFloat(sliders[10][0].value); sliders[10][1].value = dCutoff;});
-sliders[10][1].addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    let val = parseFloat(sliders[10][1].value);
-    const min = parseFloat(sliders[10][0].min);
-    const max = parseFloat(sliders[10][0].max);
-    if (isNaN(val)) val = dCutoff;      
-    if (val < min) val = min;
-    if (val > max) val = max;
-    sliders[10][1].value = val;      
-    sliders[10][0].value = val;      
-    dCutoff = val;
-  }
-});
+sliders[10][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[10][1].value);const min = parseFloat(sliders[10][0].min);const max = parseFloat(sliders[10][0].max);
+    if (isNaN(val)) val = dCutoff;if (val < min) val = min;if (val > max) val = max;sliders[10][1].value = val;sliders[10][0].value = val;dCutoff = val;}});
 sliders[11][0].addEventListener('input', () => {globalGain = parseFloat(sliders[11][0].value); sliders[11][1].value = globalGain; updateEQ();});
 sliders[11][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[11][1].value);const min = parseFloat(sliders[11][0].min);const max = parseFloat(sliders[11][0].max);
     if (isNaN(val)) val = globalGain;if (val < min) val = min;if (val > max) val = max;sliders[11][1].value = val;sliders[11][0].value = val;globalGain = val;updateEQ();}});
@@ -721,6 +702,9 @@ sliders[16][0].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16
 sliders[16][1].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][1].value); updateBrushPreview();});
 sliders[17][0].addEventListener("input", ()=>{amp  =  (sliders[17][0].value); updateBrushPreview();});
 sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); updateBrushPreview();});
+sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
+sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
+    if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -770,20 +754,52 @@ toolButtons.forEach(btn => {
     currentTool = btn.dataset.tool;
     toolButtons.forEach(b => b.style.background = "");
     btn.style.background = "#4af"; 
-    if(currentTool === "image") overlayFile.click();
     if (currentTool === "blur") {
       document.getElementById("brushColorDiv").style.display="none";
       document.getElementById("blurRadiusDiv").style.display="flex";
       document.getElementById("amplifyDiv").style.display="none";
+      document.getElementById("noiseFloorDiv").style.display="none";
     } else if (currentTool === "amplifier") {
       document.getElementById("brushColorDiv").style.display="none";
       document.getElementById("blurRadiusDiv").style.display="none";
       document.getElementById("amplifyDiv").style.display="flex";
+      document.getElementById("noiseFloorDiv").style.display="none";
+    } else if (currentTool === "noiseRemover") {
+      document.getElementById("brushColorDiv").style.display="none";
+      document.getElementById("blurRadiusDiv").style.display="none";
+      document.getElementById("amplifyDiv").style.display="none";
+      document.getElementById("noiseFloorDiv").style.display="flex";
     } else {
       document.getElementById("brushColorDiv").style.display="flex";
       document.getElementById("blurRadiusDiv").style.display="none";
       document.getElementById("amplifyDiv").style.display="none";
+      document.getElementById("noiseFloorDiv").style.display="none";
     }
+    if (currentTool === 'noiseRemover') {
+      document.getElementById("ev").style.display="none";
+      document.getElementById("phaseDiv").style.display="none";
+      document.getElementById("phaseStrengthDiv").style.display="none";
+    } else {
+      document.getElementById("ev").style.display="flex";
+      document.getElementById("phaseDiv").style.display="flex";
+      document.getElementById("phaseStrengthDiv").style.display="flex";
+    }
+    document.getElementById("brushSizeDiv").style.display=(currentTool === 'rectangle')?"none":"flex";
+    updateBrushPreview();
+  });
+});
+shapeButtons.forEach(btn => {
+  if(btn.dataset.shape === currentShape) {
+    btn.style.background = "#4af"; 
+  }
+});
+shapeButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentShape = btn.dataset.shape;
+    shapeButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#4af"; 
+    if(currentShape === "image") overlayFile.click();
+    document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
     updateBrushPreview();
   });
 });
@@ -878,6 +894,8 @@ function keyBind(event) {
     alignPitchBtn.click();
   } else if (key === 'k') {
     alignTimeBtn.click();
+  } else if (key === 'x') {
+    document.getElementById("noiseRemoverBtn").click();
   }
 }
 document.addEventListener("keydown", (e) => {
@@ -1498,7 +1516,7 @@ function frameToCx(frame) {
 let sx2 = 0, sy2 = 0;
 
 function canvasMouseDown(e,touch) {
-    if (zooming) return;
+    if (!touch) zooming=false;
     if (!mags || !phases) return;
     if (!touch && e.button !== 0) return;
     if (pendingHistory) return; 
@@ -1522,7 +1540,7 @@ function canvasMouseDown(e,touch) {
     }
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
     const realY = visibleToSpecY(cy);
-    if (!(currentTool === "rectangle" || currentTool === "line")) {
+    if (!(currentShape === "rectangle" || currentShape === "line")) {
         paint(cx + iLow, realY);
     }
     if (document.getElementById("previewWhileDrawing").checked) {
@@ -1562,12 +1580,13 @@ function canvasMouseMove(e,touch) {
       let db = (20 * Math.log10(normalizedMag)).toFixed(1);
       info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
     }
-    if (!painting && currentTool === "brush" || currentTool === "eraser" || currentTool === "blur" || currentTool === "amplifier") {
+    if (!painting && (currentShape === "brush" || currentShape === "image")) {
         previewShape(cx, cy);
+        return;
     }
     if(!painting && currentTool != "image") return;
 
-    if (currentTool === "rectangle" || currentTool === "line" || currentTool === "image") {
+    if (currentShape !== "brush") {
         previewShape(cx, cy);
     } else {
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -1609,11 +1628,11 @@ function canvasMouseUp(e,touch) {
         sineGain = null;
     }
     const { cx, cy } = getCanvasCoords(e,touch);
-    if (currentTool === "rectangle" || currentTool === "line") {
+    if (currentShape === "rectangle" || currentShape === "line") {
         commitShape(cx, cy); 
         overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
     }
-    if (alignTime && currentTool === "brush") {
+    if (alignTime && currentTool === "color") {
       const startFrame = Math.round(cx + iLow);
       const snapSize = 30/bpm/subBeat;
       const brushS = brushSize*fWidth/sampleRate*fftSize/512;
@@ -1833,9 +1852,81 @@ function _getPlaybackTarget() {
   return audioCtx.destination;
 }
 
+const VOLUME_WARNING_KEY = 'spectrodraw_volume_warning_disabled';
+
+function showVolumeWarningModal() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.innerHTML = `
+      <div id="volwarn-overlay" style="
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5);
+        z-index: 100000;">
+        <div id="volwarn-box" style="
+          background: #222;
+          padding: 20px 24px;
+          border-radius: 10px;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.9);
+          max-width: 90%;
+          width: 340px;
+          color: #eee;
+          text-align: center;">
+          <h2 style="margin: 0 0 10px 0; font-size: 18px;">Volume warning</h2>
+          <p style="margin: 0 0 16px 0;">Please turn down your volume.</p>
+          <label style="display: flex; align-items: center; gap: 6px; justify-content: center; margin-bottom: 16px; cursor: pointer;">
+            <input type="checkbox" id="volwarn-dontshow" />
+            <span>Don't show again</span>
+          </label>
+          <button id="volwarn-ok" style="
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: var(--accent-gradient);
+            box-shadow: 0 30px 30px rgba(20,0,20,0.3);
+            color: black;
+            cursor: pointer;
+            font-size: 14px;">OK</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const okBtn = overlay.querySelector('#volwarn-ok');
+    const dontShowBox = overlay.querySelector('#volwarn-dontshow');
+
+    okBtn.addEventListener('click', () => {
+      const dontShow = dontShowBox.checked;
+      overlay.remove();
+      resolve(dontShow);
+    });
+
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        okBtn.click();
+      }
+    });
+
+    // focus for keyboard use
+    okBtn.focus();
+  });
+}
+
 async function playPCM(loop = true, startFrame = null) {
   if (!pcm) return;
   ensureAudioCtx();
+
+  let max = -Infinity;
+  for (const v of pcm) if (v > max) max = v;
+
+  const disabled = !!localStorage.getItem(VOLUME_WARNING_KEY);
+  if (max > 3 && !disabled) {
+    const dontShowAgain = await showVolumeWarningModal();
+    if (dontShowAgain) {
+      try { localStorage.setItem(VOLUME_WARNING_KEY, '1'); } catch {}
+    }
+  }
 
   if (audioCtx.state === 'suspended') {
     try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
@@ -1848,8 +1939,6 @@ async function playPCM(loop = true, startFrame = null) {
       startSample = Math.max(0, Math.min(pcm.length - 1, startFrame * hop));
   } else if (pausedAtSample !== null) {
       startSample = Math.max(0, Math.min(pcm.length - 1, pausedAtSample));
-  } else {
-      startSample = 0;
   }
 
   sourceNode = audioCtx.createBufferSource();
@@ -1862,32 +1951,30 @@ async function playPCM(loop = true, startFrame = null) {
     const targetNode = _getPlaybackTarget();
     sourceNode.connect(targetNode);
   } catch (e) {
-
     try { sourceNode.connect(audioCtx.destination); } catch (e2) { console.warn("connect fallback failed", e2); }
   }
 
   const offsetSec = startSample / sampleRate;
   sourceStartTime = audioCtx.currentTime - offsetSec;
   try {
-      sourceNode.start(0, offsetSec);
+    sourceNode.start(0, offsetSec);
   } catch (e) {
-
-      const remaining = pcm.length - startSample;
-      const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
-      shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
-      try { sourceNode.stop(); } catch(_) {}
-      try { sourceNode.disconnect(); } catch(_) {}
-      sourceNode = audioCtx.createBufferSource();
-      sourceNode.buffer = shortBuf;
-      sourceNode.loop = !!loop;
-      try {
-        const targetNode = _getPlaybackTarget();
-        sourceNode.connect(targetNode);
-      } catch (e2) {
-        try { sourceNode.connect(audioCtx.destination); } catch (_) {}
-      }
-      sourceStartTime = audioCtx.currentTime;
-      sourceNode.start();
+    const remaining = pcm.length - startSample;
+    const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
+    shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
+    try { sourceNode.stop(); } catch(_) {}
+    try { sourceNode.disconnect(); } catch(_) {}
+    sourceNode = audioCtx.createBufferSource();
+    sourceNode.buffer = shortBuf;
+    sourceNode.loop = !!loop;
+    try {
+      const targetNode = _getPlaybackTarget();
+      sourceNode.connect(targetNode);
+    } catch (e2) {
+      try { sourceNode.connect(audioCtx.destination); } catch (_) {}
+    }
+    sourceStartTime = audioCtx.currentTime;
+    sourceNode.start();
   }
 
   playing = true;

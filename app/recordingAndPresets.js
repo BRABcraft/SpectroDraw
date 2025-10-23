@@ -216,6 +216,7 @@ fileEl.addEventListener("change", async e=>{
       ab = await audioCtx.decodeAudioData(buf.slice(0));
       pcm = new Float32Array(ab.getChannelData(0));
       sampleRate = ab.sampleRate || 48000;
+      minCol=Infinity;maxCol=0;
 
       status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
       status.style.display = "block";

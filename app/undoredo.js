@@ -15,8 +15,6 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
   const segmentLen  = sampleEnd - sampleStart;
   if (segmentLen <= 0) return;
 
-  const useDelta = opts && opts.oldMags && opts.oldPhases;
-
   const h = specHeight;
 
   const window = (typeof win !== 'undefined' && win && win.length === fftSize)
@@ -26,89 +24,6 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
                     for (let i = 0; i < fftSize; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
                     return w;
                   })();
-
-  function synthSegmentFrom(srcMags, srcPhases, outBuf, outDenom) {
-    const re = new Float32Array(fftSize);
-    const im = new Float32Array(fftSize);
-
-    for (let i = 0; i < segmentLen; i++) {
-      outBuf[i] = 0;
-      outDenom[i] = 0;
-    }
-
-    for (let xCol = colFirst; xCol <= colLast; xCol++) {
-      re.fill(0); im.fill(0);
-
-      for (let bin = 0; bin < h && bin < fftSize; bin++) {
-        const idx = xCol * h + bin;
-        const mag = srcMags[idx] || 0;
-        const phase = srcPhases[idx] || 0;
-        re[bin] = mag * Math.cos(phase);
-        im[bin] = mag * Math.sin(phase);
-
-        if (bin > 0 && bin < fftSize / 2) {
-          const sym = fftSize - bin;
-          re[sym] = re[bin];
-          im[sym] = -im[bin];
-        }
-      }
-
-      im[0] = 0;
-      if (fftSize % 2 === 0) im[fftSize / 2] = 0;
-
-      if (typeof ifft_inplace === 'function') {
-        ifft_inplace(re, im);
-      } else if (typeof fft_inplace === 'function') {
-
-        fft_inplace(re, im, true); 
-      } else {
-        throw new Error("No inverse FFT function available (replace with your ifft call).");
-      }
-
-      const baseSample = xCol * hop;
-      for (let i = 0; i < fftSize; i++) {
-        const globalSample = baseSample + i;
-        if (globalSample < sampleStart || globalSample >= sampleEnd) continue;
-        const segIndex = globalSample - sampleStart;
-        outBuf[segIndex] += re[i] * window[i];
-        outDenom[segIndex] += window[i] * window[i];
-      }
-    }
-
-    const EPS = 1e-8;
-    for (let i = 0; i < segmentLen; i++) {
-      if (outDenom[i] > EPS) outBuf[i] /= outDenom[i];
-      else outBuf[i] = 0;
-    }
-  }
-
-  if (useDelta) {
-
-    const oldMags = opts.oldMags;
-    const oldPhases = opts.oldPhases;
-
-    const newSegment = new Float32Array(segmentLen);
-    const newDenom = new Float32Array(segmentLen);
-    const oldSegment = new Float32Array(segmentLen);
-    const oldDenom = new Float32Array(segmentLen);
-
-    synthSegmentFrom(mags, phases, newSegment, newDenom);
-
-    synthSegmentFrom(oldMags, oldPhases, oldSegment, oldDenom);
-
-    for (let i = 0; i < segmentLen; i++) {
-
-      pcm[sampleStart + i] = (pcm[sampleStart + i] || 0) + (newSegment[i] - oldSegment[i]);
-    }
-
-    renderSpectrogramColumnsToImageBuffer(colFirst, colLast);
-
-    if (playing) {
-      stopSource(true);
-      playPCM(true);
-    }
-    return;
-  }
 
   const newSegment = new Float32Array(segmentLen);
   const overlapCount = new Float32Array(segmentLen);
@@ -317,7 +232,8 @@ function ensureMagsPhasesForSizeOrIndex(v, hopArg, fftSArg) {
   // done — caller should call recompute / render for the columns they need
 }
 
-async function doUndo() {
+function doUndo() {
+  if (rendering) return;
   if (historyStack.length === 0) { console.log("Nothing to undo"); return; }
   const entry = historyStack.pop();
 
@@ -381,7 +297,9 @@ async function doUndo() {
 }
 
 
-async function doRedo() {
+function doRedo() {
+  
+  if (rendering) return;
   if (redoStack.length === 0) { console.log("Nothing to redo"); return; }
   const rentry = redoStack.pop();
 

@@ -1128,7 +1128,8 @@ function restartRender(autoPlay){
     phases = new Float32Array(specWidth * specHeight);
     for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
 
-    const startFrame = Math.max(0, Math.floor(iLow || 0));
+    let startFrame = calcMinMaxCol().minCol;
+    if (startFrame == Infinity) startFrame = 0;
     pos = startFrame * hop;
     x = startFrame;
     rendering = true;
@@ -1253,14 +1254,13 @@ function drawFrame(w,h) {
     }
     pos += hop; x++;
     audioProcessed += hop;
-    if (x >= w) {
-
+    if (x >= (maxCol==0?w:maxCol)) {
       rendering = false;
-
       if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
         pendingHistory = false; 
 
         newHistory();
+        minCol = Infinity;
 
         const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
         if (!pendingRecomputeDone) {
@@ -1336,7 +1336,7 @@ function waitForSpecUpdate(timeout = SPEC_UPDATE_TIMEOUT_MS) {
 function drawLoop() {
     if (!rendering) return;
 
-    const framesPerTick = Math.min(200, Math.max(4, Math.floor(specWidth/8)));
+    const framesPerTick = 200;
 
     const h = specHeight;
     const w = specWidth;
@@ -1616,6 +1616,7 @@ canvas.addEventListener("touchmove", e=>{
 function canvasMouseUp(e,touch) {
     if (zooming) return;
     if (!mags || !phases || !painting) return;
+    minCol = Infinity; maxCol = -Infinity;
     visited = null;
     painting = false;
     paintedPixels = null;
@@ -1664,7 +1665,8 @@ function canvasMouseUp(e,touch) {
       if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
     }
 
-    const startFrame = Math.max(0, Math.floor(iLow || 0));
+    let startFrame = calcMinMaxCol().minCol;
+    if (startFrame == Infinity) startFrame = 0;
     pos = startFrame * hop;
     x = startFrame;
     rendering = true;
@@ -1675,43 +1677,52 @@ function canvasMouseUp(e,touch) {
 
 }
 
-function autoRecomputePCM(min,max) {
+let minCol = Infinity; maxCol = -Infinity;
+function calcMinMaxCol() {
+  if (minCol != Infinity) return {minCol,maxCol};
+  if (snapshotMags == null || snapshotMags.length != mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
   const epsMag = 1e-6;
   const epsPhase = 1e-3;
   const h = specHeight;
   const total = mags.length;
+  for (let idx = 0; idx < total; idx++) {
+    const oldM = (snapshotMags) ? snapshotMags[idx] : 0;
+    const newM = mags[idx] ?? 0;
+    if (Math.abs(oldM - newM) > epsMag) {
+      const col = Math.floor(idx / h);
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+      continue;
+    }
+    const oldP = (snapshotPhases) ? snapshotPhases[idx] : 0;
+    const newP = phases[idx] || 0;
+    if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
+      const col = Math.floor(idx / h);
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+    }
+  }
+  if (isFinite(minCol)) {
+    minCol = Math.max(0, minCol);
+    maxCol = Math.min(specWidth - 1, maxCol);
+    const overlapCols = Math.ceil(fftSize / Math.max(1, hop)); // how many frames overlap a sample
+    minCol = Math.max(0, minCol - overlapCols);
+    maxCol = Math.min(specWidth - 1, maxCol + overlapCols);
+  }
+  return {minCol,maxCol};
+}
+
+function autoRecomputePCM(min,max) {
   let minCol, maxCol;
   if (min == -1) {
-    minCol = Infinity; maxCol = -Infinity;
-    for (let idx = 0; idx < total; idx++) {
-      const oldM = (snapshotMags) ? snapshotMags[idx] : 0;
-      const newM = mags[idx] ?? 0;
-      if (Math.abs(oldM - newM) > epsMag) {
-        const col = Math.floor(idx / h);
-        if (col < minCol) minCol = col;
-        if (col > maxCol) maxCol = col;
-        continue;
-      }
-      const oldP = (snapshotPhases) ? snapshotPhases[idx] : 0;
-      const newP = phases[idx] || 0;
-      if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
-        const col = Math.floor(idx / h);
-        if (col < minCol) minCol = col;
-        if (col > maxCol) maxCol = col;
-      }
-    }
+    let a = calcMinMaxCol();
+    minCol=a.minCol;maxCol=a.maxCol;
   } else {
     minCol = min;
     maxCol = max;
   }
 
   if (isFinite(minCol)) {
-
-    minCol = Math.max(0, minCol);
-    maxCol = Math.min(specWidth - 1, maxCol);
-    const overlapCols = Math.ceil(fftSize / Math.max(1, hop)); // how many frames overlap a sample
-    minCol = Math.max(0, minCol - overlapCols);
-    maxCol = Math.min(specWidth - 1, maxCol + overlapCols);
 
     try {
       recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
@@ -1740,9 +1751,10 @@ function newHistory() {
   const prevPhases = [];
 
   const h = specHeight;
-  const total = mags.length; 
+  const startF = minCol*fftSize/2
+  const endF = maxCol*fftSize/2; 
 
-  for (let idx = 0; idx < total; idx++) {
+  for (let idx = startF; idx < endF; idx++) {
     const oldM = snapshotMags[idx] || 0;
     const newM = mags[idx] || 0;
     if (Math.abs(oldM - newM) > epsMag) {
@@ -1852,7 +1864,6 @@ function _getPlaybackTarget() {
   return audioCtx.destination;
 }
 
-const VOLUME_WARNING_KEY = 'spectrodraw_volume_warning_disabled';
 
 function showVolumeWarningModal() {
   return new Promise(resolve => {
@@ -1920,11 +1931,11 @@ async function playPCM(loop = true, startFrame = null) {
   let max = -Infinity;
   for (const v of pcm) if (v > max) max = v;
 
-  const disabled = !!localStorage.getItem(VOLUME_WARNING_KEY);
+  const disabled = !!localStorage.getItem('spectrodraw_volume_warning_disabled');
   if (max > 3 && !disabled) {
     const dontShowAgain = await showVolumeWarningModal();
     if (dontShowAgain) {
-      try { localStorage.setItem(VOLUME_WARNING_KEY, '1'); } catch {}
+      try { localStorage.setItem('spectrodraw_volume_warning_disabled', '1'); } catch {}
     }
   }
 

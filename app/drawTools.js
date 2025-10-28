@@ -7,6 +7,51 @@ function syncOverlaySize() {
 
 let pendingPreview = false;
 let lastPreviewCoords = null;
+// Build summed-area (integral) tables for mags and phases.
+// Note: this builds for the whole image. If you want a smaller memory/time footprint,
+// you can adapt to only build for a bounding rectangle (see notes below).
+function buildIntegral(fullW, fullH, magsArr, phasesArr) {
+  const W = fullW, H = fullH;
+  const iw = W + 1; // stride in x direction for integral indexing
+  const ih = H + 1; // stride in y direction; we'll use index = x*ih + y
+  const size = iw * ih;
+  const intMag = new Float64Array(size);
+  const intPhase = new Float64Array(size);
+
+  // integral origin (0,*) and (*,0) are zeros already
+  for (let x = 1; x <= W; x++) {
+    const srcX = x - 1;
+    const baseSrc = srcX * H;
+    const baseIntX = x * ih;
+    const baseIntXminus1 = (x - 1) * ih;
+    for (let y = 1; y <= H; y++) {
+      const srcY = y - 1;
+      const vMag = magsArr[baseSrc + srcY] || 0;
+      const vPhase = phasesArr[baseSrc + srcY] || 0;
+      // standard 2D integral recurrence
+      const idx = baseIntX + y;
+      intMag[idx] = vMag + intMag[baseIntXminus1 + y] + intMag[baseIntX + (y - 1)] - intMag[baseIntXminus1 + (y - 1)];
+      intPhase[idx] = vPhase + intPhase[baseIntXminus1 + y] + intPhase[baseIntX + (y - 1)] - intPhase[baseIntXminus1 + (y - 1)];
+    }
+  }
+
+  return { intMag, intPhase, iw, ih, W, H };
+}
+
+// Query box sum (inclusive coordinates) using integral tables.
+// x0..x1 and y0..y1 are inclusive and in the same coordinate system as mags (x in [0..W-1], y in [0..H-1]).
+function queryIntegralSum(integral, x0, y0, x1, y1) {
+  const { intMag, intPhase, ih } = integral;
+  // convert to integral indices (shift by +1)
+  const sx0 = x0 + 1, sy0 = y0 + 1, sx1 = x1 + 1, sy1 = y1 + 1;
+  const idxA = sx1 * ih + sy1;
+  const idxB = (sx0 - 1) * ih + sy1;
+  const idxC = sx1 * ih + (sy0 - 1);
+  const idxD = (sx0 - 1) * ih + (sy0 - 1);
+  const sumMag = intMag[idxA] - intMag[idxB] - intMag[idxC] + intMag[idxD];
+  const sumPhase = intPhase[idxA] - intPhase[idxB] - intPhase[idxC] + intPhase[idxD];
+  return { sumMag, sumPhase };
+}
 
 function previewShape(cx, cy) {
   lastPreviewCoords = { cx, cy };
@@ -76,14 +121,17 @@ function previewShape(cx, cy) {
       return;
     }
 
-    const radiusX = (desiredScreenMax / 7) / pixelsPerFrame;
-    const radiusY = (desiredScreenMax / 7) / pixelsPerBin;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
-    ctx.stroke();
+    if (currentShape === "brush") {
+      const radiusX = (desiredScreenMax / 7) / pixelsPerFrame;
+      const radiusY = (desiredScreenMax / 7) / pixelsPerBin;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
 
-    ctx.restore();
-    drawCursor(false);
+    // drawCursor(false);
   });
 }
 
@@ -233,7 +281,12 @@ function commitShape(cx, cy) {
   const visitedLocal = new Uint8Array(fullW * fullH);
   const savedVisited = visited;
   visited = visitedLocal;
-
+  let integral = null;
+  if (currentTool === "blur") {
+    // You can instead compute a sub-rectangle bounding box and build integral only for that
+    // to save time/memory. For simplicity we build full-image integral here:
+    integral = buildIntegral(fullW, fullH, mags, phases);
+  }
   try {
     const startVisX = (startX == null ? cx : startX);
     const startVisY = (startY == null ? cy : startY);
@@ -250,18 +303,17 @@ function commitShape(cx, cy) {
 
     function dp(xFrame, yDisplay, mag, phase, bo, po){
       if (currentTool === "blur") {
-        let sumMag = 0, sumPhase = 0, count = 0;
-        for (let oy = -blurRadius; oy <= blurRadius; oy++) {
-            for (let ox = -blurRadius; ox <= blurRadius; ox++) {
-                const nx = xFrame + ox, ny = yDisplay + oy;
-                if (nx < 0 || ny < 0 || nx >= fullW || ny >= fullH) continue;
-                const nidx = nx * fullH + displayYToBin(ny, fullH);
-                sumMag += mags[nidx] || 0;
-                sumPhase += phases[nidx] || 0;
-                count++;
-            }
-        }
-        if (count > 0) drawPixelFrame(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po);
+        // map displayY to the nearest bin once
+        const binCenter = Math.round(displayYToBin(yDisplay, fullH));
+        const r = blurRadius | 0;
+        const x0 = Math.max(0, xFrame - r);
+        const x1 = Math.min(fullW - 1, xFrame + r);
+        const y0 = Math.max(0, binCenter - r);
+        const y1 = Math.min(fullH - 1, binCenter + r);
+
+        const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
+        const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
+        drawPixelFrame(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po);
       } else {
         drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po);
       }
@@ -287,46 +339,39 @@ function commitShape(cx, cy) {
       }
 
     } else if (currentShape === "line") {
+      // let x0 = (x0Frame <= x1Frame) ? x0Frame : x1Frame;
+      // let x1 = (x0Frame <= x1Frame) ? x1Frame : x0Frame;
+      let x0=startFrame;x1=endFrame;
+      const startWasLeft = (x0Frame <= x1Frame);
+      let yStartSpec = startSpecY;
+      let yEndSpec   = endSpecY;
+      const brushMag = (brushColor / 255) * 128;
 
-      let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
-      let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
-      const startWasLeft = (startFrame <= endFrame);
-      let yStartSpec = startWasLeft ? startSpecY : endSpecY;
-      let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
-
-      x0 = Math.max(0, Math.min(fullW - 1, Math.round(x0)));
-      x1 = Math.max(0, Math.min(fullW - 1, Math.round(x1)));
-      let y0 = Math.max(0, Math.min(fullH - 1, Math.round(yStartSpec)));
-      let y1 = Math.max(0, Math.min(fullH - 1, Math.round(yEndSpec)));
+      x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
+      x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
+      let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
+      let y1 = Math.max(0, Math.min(specHeight - 1, Math.round(yEndSpec)));
 
       const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
       const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
       let err = (dx > dy ? dx : -dy) / 2;
 
-      let prevBin = displayYToBin(y0, fullH);
+      const half = Math.floor(brushSize / 2);
 
       while (true) {
-        const curBin = displayYToBin(y0, fullH);
-
-        if (prevBin <= curBin) {
-          for (let b = prevBin; b <= curBin; b++) {
-            dp(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
+          for (let dy = -half; dy <= half; dy++) {
+            const px = x0;
+            const py = y0 + dy;
+            if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
+              dp(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
+            }
           }
-        } else {
-          for (let b = prevBin; b >= curBin; b--) {
-            dp(x0, binToDisplayY(b, fullH), brushMag, brushPhase, bo, po);
-          }
+          if (x0 === x1 && y0 === y1) break;
+          const e2 = err;
+          if (e2 > -dx) { err -= dy; x0 += sx; }
+          if (e2 < dy)  { err += dx; y0 += sy; }
         }
-
-        if (x0 === x1 && y0 === y1) break;
-        const e2 = err;
-        if (e2 > -dx) { err -= dy; x0 += sx; }
-        if (e2 <  dy) { err += dx; y0 += sy; }
-
-        prevBin = curBin;
-      }
     }
-
   } finally {
 
     visited = savedVisited;
@@ -436,23 +481,25 @@ function paint(cx, cy) {
           }
       } 
     } else if (currentTool === "blur") {
+        // Build integral for whole image (or a bounding region) once
+        const integral = buildIntegral(fullW, fullH, mags, phases);
         for (let yy = minY; yy <= maxY; yy++) {
             for (let xx = minXFrame; xx <= maxXFrame; xx++) {
                 const dx = xx - cx;
                 const dy = yy - cy;
                 if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
-                let sumMag = 0, sumPhase = 0, count = 0;
-                for (let oy = -blurRadius; oy <= blurRadius; oy++) {
-                    for (let ox = -blurRadius; ox <= blurRadius; ox++) {
-                        const nx = xx + ox, ny = yy + oy;
-                        if (nx < 0 || ny < 0 || nx >= fullW || ny >= fullH) continue;
-                        const nidx = nx * fullH + displayYToBin(ny, fullH);
-                        sumMag += mags[nidx] || 0;
-                        sumPhase += phases[nidx] || 0;
-                        count++;
-                    }
-                }
-                if (count > 0) drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po);
+
+                // map display Y to bin center (rounded)
+                const binCenter = Math.round(displayYToBin(yy, fullH));
+                const r = blurRadius | 0;
+                const x0 = Math.max(0, xx - r);
+                const x1 = Math.min(fullW - 1, xx + r);
+                const y0 = Math.max(0, binCenter - r);
+                const y1 = Math.min(fullH - 1, binCenter + r);
+
+                const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
+                const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
+                drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po);
             }
         }
     }

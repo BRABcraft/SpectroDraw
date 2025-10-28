@@ -1371,22 +1371,26 @@ function drawLoop() {
 }
 
 function drawCursor(clear){
-    const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
-    if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
-    overlayCtx.strokeStyle = "#0f0";
-    overlayCtx.lineWidth = iWidth/500;
-    overlayCtx.beginPath();
-    overlayCtx.moveTo(x + 0.5, 0);
-    overlayCtx.lineTo(x + 0.5, specHeight);
-    overlayCtx.stroke();
-    if (alignTime) {
-      overlayCtx.strokeStyle = "#222";
-      for (let i = 0; i < specWidth; i += (sampleRate/fftSize)/subBeat * (120/bpm)) {
-        const x = (i-iLow)* canvas.width / (iHigh-iLow);
-        overlayCtx.beginPath();
-        overlayCtx.moveTo(x,0);
-        overlayCtx.lineTo(x,specHeight);
-        overlayCtx.stroke();
+    if (previewingShape && clear) {
+      previewShape($x, $y);
+    } else {
+      const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
+      if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
+      overlayCtx.strokeStyle = "#0f0";
+      overlayCtx.lineWidth = iWidth/500;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(x + 0.5, 0);
+      overlayCtx.lineTo(x + 0.5, specHeight);
+      overlayCtx.stroke();
+      if (alignTime) {
+        overlayCtx.strokeStyle = "#222";
+        for (let i = 0; i < specWidth; i += (sampleRate/fftSize)/subBeat * (120/bpm)) {
+          const x = (i-iLow)* canvas.width / (iHigh-iLow);
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(x,0);
+          overlayCtx.lineTo(x,specHeight);
+          overlayCtx.stroke();
+        }
       }
     }
 }
@@ -1566,7 +1570,7 @@ canvas.addEventListener("mousedown", e=>{
 canvas.addEventListener("touchstart", e=>{
     canvasMouseDown(e,true);
 });
-
+let previewingShape = false;
 function canvasMouseMove(e,touch) {
     if (zooming) return;
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
@@ -1582,12 +1586,14 @@ function canvasMouseMove(e,touch) {
     }
     if (!painting && (currentShape === "brush" || currentShape === "image")) {
         previewShape(cx, cy);
+        previewingShape = true;
         return;
     }
     if(!painting && currentTool != "image") return;
 
     if (currentShape !== "brush") {
         previewShape(cx, cy);
+        previewingShape = true;
     } else {
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         const realY = visibleToSpecY(cy);
@@ -1614,6 +1620,7 @@ canvas.addEventListener("touchmove", e=>{
 <script src="undoredo.js"></script>
 <script>
 function canvasMouseUp(e,touch) {
+    previewingShape = false;
     if (zooming) return;
     if (!mags || !phases || !painting) return;
     minCol = Infinity; maxCol = -Infinity;
@@ -1831,7 +1838,7 @@ function updateCursorLoop() {
 
         specCtx.putImageData(imageBuffer, 0, 0);
         renderView();
-        drawCursor(true);
+        drawCursor(false);
         drawEQ();
     }
     requestAnimationFrame(updateCursorLoop);

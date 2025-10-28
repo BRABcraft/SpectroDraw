@@ -252,10 +252,10 @@
 
     <section aria-labelledby="extra-info" id="notes">
       <h2 id="extra-info">Notes on FFT Parameters</h2>
-      <p>In SpectroDraw, you can control the <strong>pitch resolution</strong> and <strong>time resolution</strong>. Note that the pitch resolution represents N as an exponent of 2 (A pitch resolution of 12 would mean N = 2^12=4096), and the time resolution represents hop.</p>
+      <p>In SpectroDraw, you can control the <strong>pitch resolution (N)</strong> and <strong>time resolution (hop)</strong>.</p>
       <img src="/assets/fftParameters.jpg" alt="FFT Parameters">
 
-      <p><strong>Why must pitch resolution be a power of 2?</strong> The FFT splits the problem cleanly in half at every stage. If N is a power of two, you can halve N exactly the same number of times until you reach tiny base cases. That makes the code simple, memory-friendly, and extremely fast in practice. </p>
+      <p><strong>Why must pitch resolution be a power of 2?</strong> The FFT splits the discrete cosine transform in half at every stage. If N is a power of two, you can halve N exactly the same number of times until you reach tiny base cases. That makes the code simple, memory-friendly, and extremely fast in practice. </p>
       <p><strong>What is Phase?</strong> You may have noticed that phase is linked to the color of the brush. Due to the FFT using the roots of unity (e<sup>ix</sup>), a real and imaginary part is produced, which are converted into a magnitude and phase component. <strong>While the magnitude represents the intensity of the frequency, phase represents the phase shift of the frequency's sine wave. </strong>Both are neccesary values
         to ensure the image can be converted back to audio losslessly. This is a feature mostly unique to spectrodraw, as most other non-interactive spectrograms do not display phase.</p>
       <p><strong>Why lock the time resolution?</strong> The time resolution represents the number of samples each frame is spaced out by. Locking the time resolution makes each frame spaced out by the frame size, preventing frames from overlapping. Overlapping frames leads to phases interferening with magnitudes, making painted areas quieter. Locking time resolution is ideal if you want to paint with a flat phase.</p>

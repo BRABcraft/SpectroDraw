@@ -339,8 +339,6 @@ function commitShape(cx, cy) {
       }
 
     } else if (currentShape === "line") {
-      // let x0 = (x0Frame <= x1Frame) ? x0Frame : x1Frame;
-      // let x1 = (x0Frame <= x1Frame) ? x1Frame : x0Frame;
       let x0=startFrame;x1=endFrame;
       const startWasLeft = (x0Frame <= x1Frame);
       let yStartSpec = startSpecY;
@@ -356,12 +354,12 @@ function commitShape(cx, cy) {
       const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
       let err = (dx > dy ? dx : -dy) / 2;
 
-      const half = Math.floor(brushSize / 2);
+      const half = Math.floor(brushSize / 8);
 
       while (true) {
-          for (let dy = -half; dy <= half; dy++) {
-            const px = x0;
-            const py = y0 + dy;
+          for (let dx = -half; dx <= half; dx++) {
+            const px = x0 + dx;
+            const py = y0;
             if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
               dp(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
             }

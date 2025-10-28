@@ -1155,21 +1155,17 @@ function restartRender(autoPlay){
 }
 
 function magPhaseToRGB(mag, phase){
-    const h = (phase / (2*Math.PI) + 1) % 1; 
-    const s = 1;
+    const hp = ((phase / (2*Math.PI) + 1) % 1)*6; 
     const v = Math.min(mag/60,1);
-    const c = v*s;
-    const m = v - c;
-    const hp = h*6;
-    const x = c*(1-Math.abs(hp%2-1));
-    let r=0,g=0,b=0;
-    if(hp < 1){ r=c; g=x; b=0; }
-    else if(hp < 2){ r=x; g=c; b=0; }
-    else if(hp < 3){ r=0; g=c; b=x; }
-    else if(hp < 4){ r=0; g=x; b=c; }
-    else if(hp < 5){ r=x; g=0; b=c; }
-    else { r=c; g=0; b=x; }
-    return [Math.floor((r+m)*255), Math.floor((g+m)*255), Math.floor((b+m)*255)];
+    const x = v*(1-Math.abs(hp%2-1));
+    let r,g,b;
+    if     (hp < 1){ r=v; g=x; b=0; }
+    else if(hp < 2){ r=x; g=v; b=0; }
+    else if(hp < 3){ r=0; g=v; b=x; }
+    else if(hp < 4){ r=0; g=x; b=v; }
+    else if(hp < 5){ r=x; g=0; b=v; }
+    else           { r=v; g=0; b=x; }
+    return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
 }
 
 function rgbToMagPhase(r, g, b) {
@@ -1547,10 +1543,10 @@ function canvasMouseDown(e,touch) {
     if (!(currentShape === "rectangle" || currentShape === "line")) {
         paint(cx + iLow, realY);
     }
+    currentFrame = Math.floor(cx);
     if (document.getElementById("previewWhileDrawing").checked) {
       ensureAudioCtx();
       mouseDown = true;
-      currentFrame = Math.floor(cx);
       playFrame(currentFrame);
 
       if (!sineOsc) {

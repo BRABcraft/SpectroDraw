@@ -977,6 +977,7 @@ function initEmptyPCM() {
     sampleRate = sampleRateLocal;
 
     iLow = null;
+    minCol = 0; maxCol = 
     restartRender(false);
 }
 function drawLogScale() {
@@ -1256,7 +1257,6 @@ function drawFrame(w,h) {
         pendingHistory = false; 
 
         newHistory();
-        minCol = Infinity;
 
         const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
         if (!pendingRecomputeDone) {
@@ -1277,7 +1277,7 @@ function drawFrame(w,h) {
         try {
           playing = true;
           playPause.innerHTML = pauseHtml;
-          playPCM(false,currentFrame<specWidth*0.8?currentFrame:0); 
+          playPCM(false,currentFrame<specWidth*0.8?minCol:0); 
         } catch (e) { console.warn("playPCM() failed after render:", e); }
         const playPauseEl = document.getElementById("playPause");
         if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
@@ -1287,9 +1287,10 @@ function drawFrame(w,h) {
           autoPlayOnFinish = false;
           playing = true;
           playPause.innerHTML = pauseHtml;
-          playPCM(true,currentFrame<specWidth*0.8?currentFrame:0);
+          playPCM(true,currentFrame<specWidth*0.8?minCol:0);
       }
       status.style.display = "none";
+      minCol = Infinity;
       return false;
     }
     return true;

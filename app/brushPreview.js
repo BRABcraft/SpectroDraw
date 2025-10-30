@@ -17,7 +17,15 @@ function updateBrushPreview() {
     let avg = Math.max(r,g,b);
     return [r,g,b].map(v => Math.round(avg + (v-avg)*factor));
   }
-  let rgb = adjustSaturation(magPhaseToRGB(((currentTool==="amplifier")?amp*25:(currentTool==="noiseRemover")?(noiseRemoveFloor+60):brushColor/5)*brushOpacity, penPhase*2),phaseOpacity);
+  let rgb;
+  if (currentTool === "amplifier") {
+    rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, penPhase * 2),phaseOpacity);
+  } else if (currentTool === "noiseRemover") {
+    rgb = adjustSaturation(magPhaseToRGB(60-(noiseRemoveFloor+60 * brushOpacity), penPhase * 2),phaseOpacity);
+  } else {
+    rgb = adjustSaturation(magPhaseToRGB((brushColor / 5) * brushOpacity, penPhase * 2),phaseOpacity);
+  }
+
   const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
   if (currentShape === "line") {
     if (currentTool === "blur") {
@@ -71,7 +79,7 @@ function updateBrushPreview() {
     }
   } else if (currentTool === "amplifier") {
     pctx.font = "12px Arial";
-    pctx.fillStyle = amp.toString(16).padStart(2,'0')+"0000";
+    pctx.fillStyle = "#fff";
     pctx.fillText((amp * brushOpacity).toFixed(1)+"x", centerX-10, centerY+5);
     pctx.strokeStyle = color;
     pctx.lineWidth = 1;
@@ -105,6 +113,15 @@ function updateBrushPreview() {
       pctx.beginPath();
       pctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       pctx.fill();
+    }
+    if (currentTool === "noiseRemover") {
+      pctx.strokeStyle = "#fff";
+      pctx.lineWidth = 2;
+      pctx.beginPath();
+      pctx.moveTo(centerX - brushSize/2 , centerY);
+      pctx.lineTo(centerX + brushSize/2, centerY);
+      pctx.stroke();
+      pctx.restore();
     }
   }
 }

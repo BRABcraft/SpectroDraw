@@ -122,8 +122,8 @@ function previewShape(cx, cy) {
     }
 
     if (currentShape === "brush") {
-      const radiusX = (desiredScreenMax / 7) / pixelsPerFrame;
-      const radiusY = (desiredScreenMax / 7) / pixelsPerBin;
+      const radiusX = (desiredScreenMax / 8) / pixelsPerFrame;
+      const radiusY = (desiredScreenMax / 8) / pixelsPerBin;
       ctx.beginPath();
       ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, 2 * Math.PI);
       ctx.stroke();
@@ -231,7 +231,7 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     const newMag = (currentTool === "amplifier")
                  ? (oldMag * amp)
                  : (currentTool === "noiseRemover")
-                 ? (oldMag > dbt?oldMag:0)
+                 ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
                  :(oldMag * (1 - bo) + mag * bo);
     const type = phaseTextureEl.value;
     let $phase;
@@ -340,10 +340,8 @@ function commitShape(cx, cy) {
 
     } else if (currentShape === "line") {
       let x0=startFrame;x1=endFrame;
-      const startWasLeft = (x0Frame <= x1Frame);
       let yStartSpec = startSpecY;
       let yEndSpec   = endSpecY;
-      const brushMag = (brushColor / 255) * 128;
 
       x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
       x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
@@ -404,18 +402,14 @@ function paint(cx, cy) {
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
     const bo = currentTool === "eraser" ? 1 : brushOpacity;
-    const scaleY = fftSize/2*Math.min(canvas.parentElement.clientWidth/framesTotal, (window.innerHeight - 110) / Math.floor(fftSize / 2), 1);
-    const bothRatio = (window.innerHeight - 110)/scaleY;
-    const XRatio = trueScaleVal? canvas.getBoundingClientRect().width/scaleY:document.getElementById("canvasWrapper").offsetWidth/(window.innerHeight - 110);
-    const radiusY = brushSize *(fWidth/(sampleRate/2))*bothRatio;
-    const radiusXFrames = Math.floor(brushSize * iWidth / 1024/XRatio)*bothRatio;
+    const radiusY = Math.floor(brushSize/2/canvas.getBoundingClientRect().height*canvas.height);
+    const radiusXFrames = Math.floor(brushSize/2/canvas.getBoundingClientRect().width*canvas.width);
     const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
     const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
-    const minY = Math.max(0, Math.floor(cy - radiusY*(fftSize/2048)));
-    const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY*(fftSize/2048)));
-    const radiusYpix = radiusY * (fftSize / 2048);
+    const minY = Math.max(0, Math.floor(cy - radiusY));
+    const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY));
     const radiusXsq = radiusXFrames * radiusXFrames;
-    const radiusYsq = radiusYpix * radiusYpix;
+    const radiusYsq = radiusY * radiusY;
     if (currentShape === "image" && overlayImage) {
       const screenSpace = true;
       const rect = canvas.getBoundingClientRect();

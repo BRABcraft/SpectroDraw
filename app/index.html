@@ -133,7 +133,7 @@
         <path d="M9 19l3 3 3 -3" />
       </svg>
     </button>
-    <button id="resetButton" onClick="initEmptyPCM()" title="Reset audio">
+    <button id="resetButton" onClick="onReset();" title="Reset audio">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="5" y="7" width="14" height="14" rx="2" ry="2" />
         <line x1="8" x2="8" y1="11" y2 = "17" stroke-width="1"/>
@@ -980,6 +980,13 @@ function initEmptyPCM() {
     minCol = 0; maxCol = 
     restartRender(false);
 }
+async function onReset() {
+  snapshotMags=mags;
+  snapshotPhases=phases;
+  await initEmptyPCM();
+  minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
+  newHistory();
+}
 function drawLogScale() {
   const lctx = logscaleEl.getContext("2d");
 
@@ -1747,8 +1754,8 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
-  const epsMag = 1e-6;         
-  const epsPhase = 1e-3;       
+  const epsMag = 0.001;
+  const epsPhase = 0.001;
 
   const changedIdxs = [];
   const prevMags = [];

@@ -7,9 +7,9 @@
     "nodejs_compat",
     "global_fetch_strictly_public"
   ],
-  "assets": {
-    "directory": "./public"
-  },
+  // "assets": {
+  //   "directory": "./public"
+  // },
   "observability": {
     "enabled": true
   },
@@ -37,14 +37,6 @@
     {
       "binding": "REVIEWS",
       "id": "ae863831f314458998bf36acd62dee09"
-    }
-  ],
-
-  // This tells Wrangler to automatically bind static assets from ./public
-  "bindings": [
-    {
-      "type": "plain_text",
-      "name": "__STATIC_CONTENT"
     }
   ]
 }

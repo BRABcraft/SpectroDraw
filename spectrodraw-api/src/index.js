@@ -32,7 +32,21 @@ export default {
       }
 
       // GET /pro-bootstrap.js -> small bootstrapper that fetches /pro-bundle and imports it
-      if (request.method === 'GET' && pathname === '/pro-bootstrap.js') {
+      if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-bootstrap.js') {
+        try {
+          if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
+            const assetResp = await env.__STATIC_CONTENT.fetch(request);
+            if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
+              // clone and return with CORS applied
+              const resp = new Response(assetResp.body, { status: assetResp.status, headers: new Headers(assetResp.headers) });
+              return addCors(resp, request);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch static pro-bootstrap.js from __STATIC_CONTENT:', e);
+        }
+
+        // static asset not found — generate fallback bootstrap dynamically
         return addCors(await handleProBootstrap(request, user, env), request);
       }
       // -----------------------------------------------------------------
@@ -65,15 +79,37 @@ export default {
       }
 
       try {
-        // env.__STATIC_CONTENT.fetch will return 200/404/etc depending on ./public contents
-        const assetResp = await env.__STATIC_CONTENT.fetch(request);
-        // If the static asset exists (not a 404), return it with CORS applied.
-        if (assetResp && assetResp.status !== 404) {
-          return addCors(assetResp, request);
+        console.log('STATIC_CHECK start ->', { method: request.method, url: request.url, pathname, host: request.headers.get('host') });
+
+        // Is __STATIC_CONTENT bound?
+        const hasStaticBinding = !!env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function';
+        console.log('STATIC_CHECK __STATIC_CONTENT bound?', hasStaticBinding);
+
+        if (!hasStaticBinding) {
+          console.warn('STATIC_CHECK: __STATIC_CONTENT binding missing or not fetchable');
+        } else {
+          // Attempt to fetch the static asset using the original request
+          let assetResp;
+          try {
+            assetResp = await env.__STATIC_CONTENT.fetch(request);
+          } catch (fetchErr) {
+            // Log fetch error
+            console.error('STATIC_CHECK: __STATIC_CONTENT.fetch threw error:', String(fetchErr));
+            assetResp = null;
+          }
+
+          console.log('STATIC_CHECK: assetResp status:', assetResp ? assetResp.status : '(no response)');
+
+          // If asset found (2xx or 3xx), return it with CORS
+          if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
+            console.log('STATIC_CHECK: returning static asset for', pathname);
+            return addCors(assetResp, request);
+          } else {
+            console.log('STATIC_CHECK: no static asset served for', pathname);
+          }
         }
-      } catch (e) {
-        // If __STATIC_CONTENT isn't available or some error happens, continue to 404
-        console.warn('Static assets fetch failed:', e);
+      } catch (err) {
+        console.error('STATIC_CHECK: unexpected error:', err);
       }
 
       // final fallback 404
@@ -115,9 +151,11 @@ function preflightResponse(request) {
 }
 
 function addCors(response, request) {
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", request.headers.get("Origin") || "*");
+  const headers = new Headers(response.headers || {});
+  const origin = request && request.headers ? request.headers.get("Origin") : null;
+  headers.set("Access-Control-Allow-Origin", origin || "*");
   headers.set("Access-Control-Allow-Credentials", "true");
+  headers.set("Vary", "Origin");
   return new Response(response.body, { status: response.status, headers });
 }
 
@@ -214,43 +252,91 @@ async function handleProBundle(request, user, env) {
       return json({ message: "Forbidden - not a pro user" }, 403);
     }
 
-    // Attempt to load bundle from R2 (env.IMAGES) first
     const bundleKey = env.PRO_BUNDLE_KEY || 'pro-bundles/latest.min.js';
-    let bundleArrayBuffer = null;
     let bundleText = null;
+    let bundleArrayBuffer = null;
 
+    // 1) Try static asset (public/ directory) via __STATIC_CONTENT binding first
     try {
-      if (env && env.IMAGES && typeof env.IMAGES.get === 'function') {
-        // fetch as arrayBuffer
-        const arr = await env.IMAGES.get(bundleKey, { type: 'arrayBuffer' });
-        if (arr !== null) {
-          bundleArrayBuffer = arr;
+      if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
+        const assetResp = await env.__STATIC_CONTENT.fetch(request);
+        if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
+          // Read the static asset as text (so we can optionally watermark/strip sourcemap)
+          try {
+            bundleText = await assetResp.text();
+            // found static asset; skip other lookups
+          } catch (e) {
+            console.warn('handleProBundle: failed to read static asset text, falling back', e);
+            bundleText = null;
+          }
         }
       }
     } catch (e) {
-      // continue to fallback
-      console.warn("handleProBundle: R2 get failed, will try PRO_BUNDLE_URL if provided", e);
+      console.debug('handleProBundle: __STATIC_CONTENT.fetch failed or not bound', e);
     }
 
-    // fallback to external URL
-    if (!bundleArrayBuffer) {
-      if (env.PRO_BUNDLE_URL) {
-        const fetchResp = await fetch(env.PRO_BUNDLE_URL, { cf: { cacheTtl: 0 } });
-        if (!fetchResp.ok) return json({ message: "Pro bundle not found at configured URL" }, 404);
-        bundleText = await fetchResp.text();
-      } else {
-        return json({ message: "Pro bundle not found" }, 404);
+    // 2) If not available as static text, try env.IMAGES (R2 or KV)
+    if (!bundleText) {
+      try {
+        if (env && env.IMAGES && typeof env.IMAGES.get === 'function') {
+          // Try arrayBuffer (R2)
+          try {
+            const arr = await env.IMAGES.get(bundleKey, { type: 'arrayBuffer' });
+            if (arr !== null) {
+              bundleArrayBuffer = arr;
+            }
+          } catch (e) {
+            // Not R2 / can't read as arrayBuffer; try KV-style get as string
+            console.debug('handleProBundle: IMAGES.get(arrayBuffer) not supported or failed', e);
+          }
+
+          // If arrayBuffer not found, try as string (KV style)
+          if (!bundleArrayBuffer) {
+            try {
+              const maybeText = await env.IMAGES.get(bundleKey);
+              if (maybeText) bundleText = maybeText.toString();
+            } catch (e) {
+              console.debug('handleProBundle: IMAGES.get as string failed', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('handleProBundle: env.IMAGES attempt threw', e);
       }
     }
 
-    if (bundleArrayBuffer) {
-      // decode to text (bundle is JS)
+    // 3) Fallback to external PRO_BUNDLE_URL fetched server-side
+    if (!bundleText && !bundleArrayBuffer) {
+      try {
+        // dynamic import of the JS file under src/pro-bundles
+        const mod = await import('./pro-bundles/latest.min.js');
+        if (mod && typeof mod.default === 'string') {
+          bundleText = mod.default;
+        } else if (mod && typeof mod.initSpectroDrawPro === 'function') {
+          // Option: if the file exports functions instead of raw string,
+          // create a small wrapper that calls init when client imports the bundle.
+          // Here we generate a tiny runtime wrapper to call the exported init:
+          bundleText = `
+            import * as __pro from 'data:application/javascript,${encodeURIComponent(mod.toString())}';
+            if (typeof __pro.initSpectroDrawPro === 'function') __pro.initSpectroDrawPro();
+          `;
+        }
+      } catch (e) {
+        console.debug('handleProBundle: local module import failed', e);
+      }
+    }
+
+    if (bundleArrayBuffer && !bundleText) {
       try {
         bundleText = new TextDecoder().decode(bundleArrayBuffer);
       } catch (e) {
         console.error("Failed to decode bundle arrayBuffer:", e);
         return json({ message: "Failed to load pro bundle" }, 500);
       }
+    }
+
+    if (!bundleText) {
+      return json({ message: "Pro bundle not available" }, 404);
     }
 
     // Strip any sourceMappingURL references to avoid releasing sourcemaps
@@ -269,7 +355,6 @@ async function handleProBundle(request, user, env) {
     const headers = new Headers();
     headers.set('Content-Type', 'application/javascript; charset=utf-8');
     headers.set('Cache-Control', 'private, no-store, max-age=0');
-    // Restrictive CSP - adjust to your needs. This keeps scripts to same origin and your API.
     headers.set('Content-Security-Policy', "default-src 'self' https://api.spectrodraw.com; script-src 'self' https://api.spectrodraw.com; object-src 'none';");
 
     return new Response(bundleText, { status: 200, headers });
@@ -278,6 +363,7 @@ async function handleProBundle(request, user, env) {
     return json({ message: err.message || "Failed to serve pro bundle" }, 500);
   }
 }
+
 
 /*
   GET /pro-bootstrap.js
@@ -294,10 +380,16 @@ async function handleProBootstrap(request, user, env) {
 // SpectroDraw pro bootstrap - dynamic import of server-gated pro bundle
 export default (async function bootstrapSpectroDrawPro(){
   try {
+    const stored = (() => {
+      try { return localStorage.getItem('spectrodraw_user'); }
+      catch (e) { return null; }
+    })();
+    const headers = { 'Accept': 'application/json' };
+    if (stored) headers['X-Spectrodraw-User'] = stored;
     const resp = await fetch('${apiHost.replace(/\/+$/, '')}/pro-bundle', {
       method: 'GET',
       credentials: 'include',
-      headers: { 'Accept': 'application/javascript' }
+      headers
     });
     if (!resp.ok) {
       // rethrow to be handled by consumer

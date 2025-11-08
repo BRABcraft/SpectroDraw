@@ -2118,7 +2118,14 @@ window.addEventListener('beforeunload', function (e) {
   try {
     // Attempt to import the remote bootstrap module (non-blocking since we control when to call)
     const bootstrapUrl = 'https://api.spectrodraw.com/spectrodraw-pro/pro-bootstrap.js';
-    const resp = await fetch(bootstrapUrl, { method: 'GET', credentials: 'include' });
+    const stored = (() => {
+        try { return localStorage.getItem('spectrodraw_user'); }
+        catch (e) { return null; }
+      })();
+
+    const headers = { 'Accept': 'application/json' };
+    if (stored) headers['X-Spectrodraw-User'] = stored;
+    const resp = await fetch(bootstrapUrl, { method: 'GET', credentials: 'include', headers});
 
     if (resp.ok) {
       // load the module via blob so we can control execution & prevent caching surprises

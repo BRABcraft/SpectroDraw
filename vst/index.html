@@ -106,6 +106,7 @@
       padding:36px 20px;
       max-width:1100px;
       margin:0 auto 36px;
+      padding:5rem;
     }
     .wrap{max-width:980px;margin:18px auto;padding:24px;}
     p{margin:12px 0;color:#d0d9e9}
@@ -126,6 +127,41 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
+    .text-wrap {
+      max-width: 500px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    h3{
+      font-weight: 300;
+    }
+
+    .download-btn {
+      display: block;
+      width:400px;
+      margin: 24px auto;
+      padding: 14px 28px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(90deg, var(--accent1, #4f46e5), var(--accent2, #9333ea), var(--accent3, #ec4899));
+      border: none;
+      border-radius: 12px;
+      text-decoration: none;
+      box-shadow: 0 6px 20px rgba(147,51,234,0.25);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+    }
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(147,51,234,0.35);
+      opacity: 0.95;
+    }
+    .download-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 15px rgba(147,51,234,0.25);
+    }
+
   </style>
 </head>
 <body>
@@ -204,8 +240,15 @@
       <h1 class="title">VST Waitlist</h1>
     </div>
   </header>
-
   <main class="wrap">
+  <div id="text-wrap">
+    <h1>Note from Bradley, developer of SpectroDraw</h1>
+    <h3>Hello everyone,</h3>
+    <h3>Over the past two weeks, I’ve been working on converting SpectroDraw into a VST plugin. Since I’ve never used C++ before, I initially tried using a web viewer inside the VST as a workaround. Unfortunately, the web viewer relies on a very outdated version of HTML and JavaScript, and it was also painfully slow to load.</h3>
+    <h3>Because of that, I’ve decided to pause this approach and take the time to actually learn C++ before continuing development.</h3>
+    <h3>I’m still sharing the current version of the plugin here for anyone who’s curious. I’ll resume work on the VST once I’ve implemented a few key features from SpectroDraw Pro.</h3>
+    <a href="/vst/SpectroDraw.vst3" download class="download-btn">⬇ Download SpectroDraw VST (.vst3)</a>
+  </div>
   </main>
     
   <footer>

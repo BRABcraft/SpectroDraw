@@ -25,6 +25,18 @@ export default {
         return addCors(json({ message: "Unauthorized request.header:" + (request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email")) + "; env: " + env }, 401), request);
       }
 
+      // ---------------------- PRO BUNDLE endpoints ----------------------
+      // GET /pro-bundle -> return minified/obfuscated JS bundle only for pro users
+      if ((request.method === 'GET' || request.method === 'HEAD') && pathname === '/pro-bundle') {
+        return addCors(await handleProBundle(request, user, env), request);
+      }
+
+      // GET /pro-bootstrap.js -> small bootstrapper that fetches /pro-bundle and imports it
+      if (request.method === 'GET' && pathname === '/pro-bootstrap.js') {
+        return addCors(await handleProBootstrap(request, user, env), request);
+      }
+      // -----------------------------------------------------------------
+
       // upload endpoint (no /api prefix so you can call POST /upload directly)
       if (pathname === "/upload" && request.method === "POST") {
         return addCors(await handleUpload(request, user, env), request);
@@ -52,6 +64,19 @@ export default {
         return addCors(await handleProductList(request, user, env), request);
       }
 
+      try {
+        // env.__STATIC_CONTENT.fetch will return 200/404/etc depending on ./public contents
+        const assetResp = await env.__STATIC_CONTENT.fetch(request);
+        // If the static asset exists (not a 404), return it with CORS applied.
+        if (assetResp && assetResp.status !== 404) {
+          return addCors(assetResp, request);
+        }
+      } catch (e) {
+        // If __STATIC_CONTENT isn't available or some error happens, continue to 404
+        console.warn('Static assets fetch failed:', e);
+      }
+
+      // final fallback 404
       return addCors(new Response("Not Found", { status: 404 }), request);
     } catch (err) {
       console.error("API worker uncaught error:", err);
@@ -157,6 +182,180 @@ async function parseAuth(request, env) {
   } catch (err) {
     console.error("parseAuth unexpected error:", err);
     return null;
+  }
+}
+
+/* ---------- PRO BUNDLE handling ---------- */
+
+/*
+  GET /pro-bundle
+    - Validates the user (must be authenticated)
+    - Checks env.USERS for product:<email> (this is how /api/claim stores claims)
+    - Loads the bundle from:
+        1) env.IMAGES (R2) using key env.PRO_BUNDLE_KEY or 'pro-bundles/latest.min.js'
+        2) fallback to env.PRO_BUNDLE_URL (external)
+    - Optionally appends a per-user watermark (SHA-256 of email) unless DISABLE_WATERMARK === '1'
+    - Strips sourceMappingURL directives
+    - Returns JS with private, no-store cache and restrictive CSP
+*/
+async function handleProBundle(request, user, env) {
+  try {
+    if (!user || !user.email) {
+      return json({ message: "Unauthorized - pro bundle requires login" }, 401);
+    }
+    if (!env || typeof env.USERS === "undefined") {
+      return json({ message: "Server misconfigured: USERS KV not available" }, 500);
+    }
+
+    const email = String(user.email).trim().toLowerCase();
+    const claimKey = `product:${email}`;
+    const claimRaw = await env.USERS.get(claimKey);
+    if (!claimRaw) {
+      return json({ message: "Forbidden - not a pro user" }, 403);
+    }
+
+    // Attempt to load bundle from R2 (env.IMAGES) first
+    const bundleKey = env.PRO_BUNDLE_KEY || 'pro-bundles/latest.min.js';
+    let bundleArrayBuffer = null;
+    let bundleText = null;
+
+    try {
+      if (env && env.IMAGES && typeof env.IMAGES.get === 'function') {
+        // fetch as arrayBuffer
+        const arr = await env.IMAGES.get(bundleKey, { type: 'arrayBuffer' });
+        if (arr !== null) {
+          bundleArrayBuffer = arr;
+        }
+      }
+    } catch (e) {
+      // continue to fallback
+      console.warn("handleProBundle: R2 get failed, will try PRO_BUNDLE_URL if provided", e);
+    }
+
+    // fallback to external URL
+    if (!bundleArrayBuffer) {
+      if (env.PRO_BUNDLE_URL) {
+        const fetchResp = await fetch(env.PRO_BUNDLE_URL, { cf: { cacheTtl: 0 } });
+        if (!fetchResp.ok) return json({ message: "Pro bundle not found at configured URL" }, 404);
+        bundleText = await fetchResp.text();
+      } else {
+        return json({ message: "Pro bundle not found" }, 404);
+      }
+    }
+
+    if (bundleArrayBuffer) {
+      // decode to text (bundle is JS)
+      try {
+        bundleText = new TextDecoder().decode(bundleArrayBuffer);
+      } catch (e) {
+        console.error("Failed to decode bundle arrayBuffer:", e);
+        return json({ message: "Failed to load pro bundle" }, 500);
+      }
+    }
+
+    // Strip any sourceMappingURL references to avoid releasing sourcemaps
+    bundleText = bundleText.replace(/\/\/[#@]\s*sourceMappingURL=.*$/mg, '');
+
+    // Optionally append a per-user watermark (SHA-256 of email) as a JS comment
+    if (String(env.DISABLE_WATERMARK || '') !== '1') {
+      try {
+        const hash = await sha256Hex(email);
+        bundleText += `\n\n// SpectroDraw-Pro-User: ${hash}`;
+      } catch (e) {
+        console.warn("Failed to compute watermark hash:", e);
+      }
+    }
+
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/javascript; charset=utf-8');
+    headers.set('Cache-Control', 'private, no-store, max-age=0');
+    // Restrictive CSP - adjust to your needs. This keeps scripts to same origin and your API.
+    headers.set('Content-Security-Policy', "default-src 'self' https://api.spectrodraw.com; script-src 'self' https://api.spectrodraw.com; object-src 'none';");
+
+    return new Response(bundleText, { status: 200, headers });
+  } catch (err) {
+    console.error("handleProBundle error:", err);
+    return json({ message: err.message || "Failed to serve pro bundle" }, 500);
+  }
+}
+
+/*
+  GET /pro-bootstrap.js
+    - Returns a small ES module that fetches /pro-bundle with credentials and imports it.
+    - Clients can include <script type="module" src="https://api.spectrodraw.com/pro-bootstrap.js"></script>
+    - The bootstrap uses fetch(..., { credentials: 'include' }) to include cookies (session)
+*/
+async function handleProBootstrap(request, user, env) {
+  try {
+    // Note: we return bootstrap even to anonymous users — the bundle request itself is gated.
+    const origin = request.headers.get('Origin') || '';
+    const apiHost = env.API_HOST || (new URL(request.url)).origin;
+    const script = `
+// SpectroDraw pro bootstrap - dynamic import of server-gated pro bundle
+export default (async function bootstrapSpectroDrawPro(){
+  try {
+    const resp = await fetch('${apiHost.replace(/\/+$/, '')}/pro-bundle', {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Accept': 'application/javascript' }
+    });
+    if (!resp.ok) {
+      // rethrow to be handled by consumer
+      throw new Error('Failed to fetch pro bundle: ' + resp.status + ' ' + resp.statusText);
+    }
+    const code = await resp.text();
+    const blob = new Blob([code], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    try {
+      await import(url);
+    } finally {
+      // revoke when done to free resources
+      URL.revokeObjectURL(url);
+    }
+    return true;
+  } catch (err) {
+    console.error('SpectroDraw pro bootstrap error:', err);
+    throw err;
+  }
+})();
+`;
+    const headers = new Headers({
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'private, no-store, max-age=0'
+    });
+    return new Response(script, { status: 200, headers });
+  } catch (err) {
+    console.error('handleProBootstrap error:', err);
+    return json({ message: err.message || 'Failed to create pro bootstrap' }, 500);
+  }
+}
+
+// helper to compute sha256 hex
+async function sha256Hex(str) {
+  if (!str) return '';
+  try {
+    if (typeof crypto === 'undefined' || !crypto.subtle) {
+      // fallback simple hash (not cryptographic) — rare case in older runtimes
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return (h >>> 0).toString(16).padStart(8, '0');
+    }
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(str));
+    const arr = Array.from(new Uint8Array(buf));
+    return arr.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (e) {
+    console.warn('sha256Hex fallback due to error:', e);
+    // fallback simple hash
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
   }
 }
 

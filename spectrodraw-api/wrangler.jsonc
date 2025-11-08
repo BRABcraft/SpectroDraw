@@ -24,19 +24,27 @@
   "kv_namespaces": [
     {
       "binding": "USERS",
-      "id": "c5e9d190dd1e449b8444f8258c22f856"   // <-- replace with your USERS namespace id
+      "id": "c5e9d190dd1e449b8444f8258c22f856"
     },
     {
       "binding": "SESSIONS",
-      "id": "bcbfb4180e174b95adb0ad9a346c9f5d"   // <-- replace with your SESSIONS namespace id
+      "id": "bcbfb4180e174b95adb0ad9a346c9f5d"
     },
-		{
-			"binding": "IMAGES",
-			"id": "42a93427127240539de4c6bb81b5848e"
-		},
+    {
+      "binding": "IMAGES",
+      "id": "42a93427127240539de4c6bb81b5848e"
+    },
     {
       "binding": "REVIEWS",
       "id": "ae863831f314458998bf36acd62dee09"
+    }
+  ],
+
+  // This tells Wrangler to automatically bind static assets from ./public
+  "bindings": [
+    {
+      "type": "plain_text",
+      "name": "__STATIC_CONTENT"
     }
   ]
 }

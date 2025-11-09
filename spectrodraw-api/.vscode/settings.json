@@ -1,5 +1,13 @@
 {
-	"files.associations": {
-		"wrangler.json": "jsonc"
-	}
+  "files.associations": {
+    "wrangler.json": "jsonc"
+  },
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "public/pro-bundles/pro-ui\\.html$",
+        "cmd": "npx wrangler kv key put --binding=__spectrodraw-api-workers_sites_assets 'pro-bundles/pro-ui.67cd93d4d3.html' (Get-Content public\\pro-bundles\\pro-ui.html -Raw)"
+      }
+    ]
+  }
 }

@@ -27,28 +27,31 @@ export default {
 
       // ---------------------- PRO BUNDLE endpoints ----------------------
       // GET /pro-bundle -> return minified/obfuscated JS bundle only for pro users
-      if ((request.method === 'GET' || request.method === 'HEAD') && pathname === '/pro-bundle') {
-        return addCors(await handleProBundle(request, user, env), request);
-      }
+      // if ((request.method === 'GET' || request.method === 'HEAD') && pathname === '/pro-bundle') {
+      //   return addCors(await handleProBundle(request, user, env), request);
+      // }
 
-      // GET /pro-bootstrap.js -> small bootstrapper that fetches /pro-bundle and imports it
-      if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-bootstrap.js') {
-        try {
-          if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
-            const assetResp = await env.__STATIC_CONTENT.fetch(request);
-            if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
-              // clone and return with CORS applied
-              const resp = new Response(assetResp.body, { status: assetResp.status, headers: new Headers(assetResp.headers) });
-              return addCors(resp, request);
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to fetch static pro-bootstrap.js from __STATIC_CONTENT:', e);
-        }
+      // // GET /pro-bootstrap.js -> small bootstrapper that fetches /pro-bundle and imports it
+      // if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-bootstrap.js') {
+      //   try {
+      //     if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
+      //       const assetResp = await env.__STATIC_CONTENT.fetch(request);
+      //       if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
+      //         // clone and return with CORS applied
+      //         const resp = new Response(assetResp.body, { status: assetResp.status, headers: new Headers(assetResp.headers) });
+      //         return addCors(resp, request);
+      //       }
+      //     }
+      //   } catch (e) {
+      //     console.warn('Failed to fetch static pro-bootstrap.js from __STATIC_CONTENT:', e);
+      //   }
 
-        // static asset not found — generate fallback bootstrap dynamically
-        return addCors(await handleProBootstrap(request, user, env), request);
-      }
+      //   // static asset not found — generate fallback bootstrap dynamically
+      //   return addCors(await handleProBootstrap(request, user, env), request);
+      // }
+      // if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-ui.html') {
+      //   return addCors(await handleProUI(request, user, env), request);
+      // }
       // -----------------------------------------------------------------
 
       // upload endpoint (no /api prefix so you can call POST /upload directly)
@@ -76,6 +79,9 @@ export default {
       }
       if (pathname === "/api/products" && request.method === "GET") {
         return addCors(await handleProductList(request, user, env), request);
+      }
+      if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-ui-kv') {
+        return addCors(await handleKVProUI(request, env), request);
       }
 
       try {
@@ -222,7 +228,140 @@ async function parseAuth(request, env) {
     return null;
   }
 }
+async function handleKVProUI(request, env) {
+  try {
+    const kvBindingName = '__spectrodraw-api-workers_sites_assets';
+    const kv = env && env[kvBindingName];
 
+    if (!kv || typeof kv.get !== 'function') {
+      console.error('handleKVProUI: KV binding not configured or wrong binding name:', kvBindingName);
+      return addCors(new Response('Server misconfigured', { status: 500 }), request);
+    }
+
+    // Helper: return Response with html and proper headers
+    function htmlResponse(htmlBody) {
+      const headers = new Headers({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'private, no-store, max-age=0'
+      });
+      return addCors(new Response(htmlBody, { status: 200, headers }), request);
+    }
+
+    // 1) If explicit env key provided, try that first
+    const envKey = env && env.PRO_UI_KEY;
+    if (envKey) {
+      try {
+        const maybe = await kv.get(envKey);
+        if (maybe) {
+          console.debug('handleKVProUI: served via env.PRO_UI_KEY ->', envKey);
+          return htmlResponse(maybe.toString());
+        } else {
+          console.debug('handleKVProUI: env.PRO_UI_KEY set but key missing in KV:', envKey);
+        }
+      } catch (e) {
+        console.warn('handleKVProUI: error reading env.PRO_UI_KEY from KV:', e);
+      }
+    }
+
+    // 2) Look for pointer key (recommended deployment pattern)
+    const pointerKey = 'pro-bundles/pro-ui.current';
+    try {
+      const pointerVal = await kv.get(pointerKey);
+      if (pointerVal) {
+        // pointerVal might be either:
+        //  - the actual HTML content (if you choose to write the HTML to the pointer key)
+        //  - or the name of the current hashed key (e.g. "pro-bundles/pro-ui.6ca2075a67.html")
+        // Heuristic: if it looks like HTML, treat as content; else treat as a key name.
+        const str = pointerVal.toString();
+        if (/<\s*html[\s>]/i.test(str) || str.trim().startsWith('<!doctype') || str.trim().startsWith('<html')) {
+          console.debug('handleKVProUI: pointer key contains HTML content ->', pointerKey);
+          return htmlResponse(str);
+        } else {
+          // treat pointerVal as the key name; try to fetch it
+          try {
+            const candidate = await kv.get(str);
+            if (candidate) {
+              console.debug('handleKVProUI: pointer key pointed to hashed key ->', str);
+              return htmlResponse(candidate.toString());
+            } else {
+              console.debug('handleKVProUI: pointer key pointed to non-existent key:', str);
+            }
+          } catch (e) {
+            console.warn('handleKVProUI: error resolving pointer target key:', e);
+          }
+        }
+      } else {
+        console.debug('handleKVProUI: pointer key not present:', pointerKey);
+      }
+    } catch (e) {
+      console.warn('handleKVProUI: failed to read pointer key:', e);
+    }
+
+    // 3) Fallback: list keys with prefix and pick a candidate (best effort)
+    try {
+      // list keys with prefix 'pro-bundles/pro-ui' (limit tuned; increase if you store many versions)
+      const list = await kv.list({ prefix: 'pro-bundles/pro-ui', limit: 1000 });
+      const names = (list && list.keys && list.keys.length) ? list.keys.map(k => k.name) : [];
+
+      // filter to .html files and exclude obvious non-ui assets
+      const htmlNames = names.filter(n => typeof n === 'string' && /\.html$/i.test(n) && /pro-ui/i.test(n));
+      if (htmlNames.length === 0) {
+        console.warn('handleKVProUI: no pro-ui keys found in KV under prefix pro-bundles/pro-ui');
+        return addCors(new Response('Pro UI not available', { status: 404 }), request);
+      }
+
+      // If exactly one candidate, use it
+      if (htmlNames.length === 1) {
+        const only = htmlNames[0];
+        const val = await kv.get(only);
+        if (val) return htmlResponse(val.toString());
+      }
+
+      // Multiple candidates -> pick "best" candidate by heuristics:
+      //  - prefer keys containing ".latest." or "-latest" (if present)
+      //  - otherwise prefer the longest name (often hashed names include extra characters)
+      //  - otherwise pick last after sorting (deterministic fallback)
+      let chosen = null;
+
+      const latestMatch = htmlNames.find(n => /(\.latest\.|-latest|\-current)/i.test(n));
+      if (latestMatch) chosen = latestMatch;
+      if (!chosen) {
+        // choose by length (longer names often include hash; this is heuristic)
+        htmlNames.sort((a,b) => b.length - a.length);
+        chosen = htmlNames[0];
+      }
+      if (!chosen) {
+        htmlNames.sort();
+        chosen = htmlNames[htmlNames.length - 1];
+      }
+
+      if (chosen) {
+        try {
+          const val = await kv.get(chosen);
+          if (val) {
+            console.debug('handleKVProUI: selected candidate key via heuristic ->', chosen);
+            return htmlResponse(val.toString());
+          } else {
+            console.warn('handleKVProUI: chosen candidate missing when fetched:', chosen);
+          }
+        } catch (e) {
+          console.warn('handleKVProUI: error fetching chosen candidate:', e);
+        }
+      }
+
+      // if all else fails:
+      console.warn('handleKVProUI: failed to resolve a usable pro-ui key from KV candidates', htmlNames);
+      return addCors(new Response('Pro UI not available', { status: 404 }), request);
+    } catch (e) {
+      console.error('handleKVProUI: error while listing KV keys:', e);
+      return addCors(new Response('Internal server error', { status: 500 }), request);
+    }
+
+  } catch (err) {
+    console.error('handleKVProUI unexpected error:', err);
+    return addCors(new Response('Internal server error', { status: 500 }), request);
+  }
+}
 /* ---------- PRO BUNDLE handling ---------- */
 
 /*
@@ -238,33 +377,29 @@ async function parseAuth(request, env) {
 */
 async function handleProBundle(request, user, env) {
   try {
-    if (!user || !user.email) {
-      return json({ message: "Unauthorized - pro bundle requires login" }, 401);
-    }
-    if (!env || typeof env.USERS === "undefined") {
-      return json({ message: "Server misconfigured: USERS KV not available" }, 500);
-    }
+    if (!user || !user.email) return json({ message: "Unauthorized - pro bundle requires login" }, 401);
+    if (!env || typeof env.USERS === "undefined") return json({ message: "Server misconfigured: USERS KV not available" }, 500);
 
     const email = String(user.email).trim().toLowerCase();
     const claimKey = `product:${email}`;
     const claimRaw = await env.USERS.get(claimKey);
-    if (!claimRaw) {
-      return json({ message: "Forbidden - not a pro user" }, 403);
-    }
+    if (!claimRaw) return json({ message: "Forbidden - not a pro user" }, 403);
 
     const bundleKey = env.PRO_BUNDLE_KEY || 'pro-bundles/latest.min.js';
     let bundleText = null;
     let bundleArrayBuffer = null;
 
-    // 1) Try static asset (public/ directory) via __STATIC_CONTENT binding first
+    // 1) Try static asset via __STATIC_CONTENT using the static key path (not the incoming /pro-bundle path)
     try {
       if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
-        const assetResp = await env.__STATIC_CONTENT.fetch(request);
+        const apiHost = env.API_HOST || (new URL(request.url)).origin;
+        // Build a request for the static asset path (this is the important bit)
+        const staticUrl = new URL(`${apiHost.replace(/\/+$/, '')}/${bundleKey}`).toString();
+        const staticReq = new Request(staticUrl, { method: 'GET' });
+        const assetResp = await env.__STATIC_CONTENT.fetch(staticReq);
         if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
-          // Read the static asset as text (so we can optionally watermark/strip sourcemap)
           try {
             bundleText = await assetResp.text();
-            // found static asset; skip other lookups
           } catch (e) {
             console.warn('handleProBundle: failed to read static asset text, falling back', e);
             bundleText = null;
@@ -275,22 +410,17 @@ async function handleProBundle(request, user, env) {
       console.debug('handleProBundle: __STATIC_CONTENT.fetch failed or not bound', e);
     }
 
-    // 2) If not available as static text, try env.IMAGES (R2 or KV)
+    // 2) Try env.IMAGES (R2 or KV)
     if (!bundleText) {
       try {
         if (env && env.IMAGES && typeof env.IMAGES.get === 'function') {
-          // Try arrayBuffer (R2)
           try {
             const arr = await env.IMAGES.get(bundleKey, { type: 'arrayBuffer' });
-            if (arr !== null) {
-              bundleArrayBuffer = arr;
-            }
+            if (arr !== null) bundleArrayBuffer = arr;
           } catch (e) {
-            // Not R2 / can't read as arrayBuffer; try KV-style get as string
             console.debug('handleProBundle: IMAGES.get(arrayBuffer) not supported or failed', e);
           }
 
-          // If arrayBuffer not found, try as string (KV style)
           if (!bundleArrayBuffer) {
             try {
               const maybeText = await env.IMAGES.get(bundleKey);
@@ -305,21 +435,78 @@ async function handleProBundle(request, user, env) {
       }
     }
 
-    // 3) Fallback to external PRO_BUNDLE_URL fetched server-side
+    // 3) Fallback to PRO_BUNDLE_URL (worker fetches server-side)
+    if (!bundleText && !bundleArrayBuffer) {
+      if (env.PRO_BUNDLE_URL) {
+        try {
+          const headers = { 'Accept': 'application/javascript' };
+          if (env.PRO_BUNDLE_TOKEN) headers['Authorization'] = `Bearer ${env.PRO_BUNDLE_TOKEN}`;
+          const fetchResp = await fetch(env.PRO_BUNDLE_URL, { headers, cf: { cacheTtl: 0 } });
+          if (!fetchResp.ok) return json({ message: "Pro bundle not found at configured URL" }, 404);
+          bundleText = await fetchResp.text();
+        } catch (e) {
+          console.warn('handleProBundle: fetching PRO_BUNDLE_URL failed', e);
+        }
+      }
+    }
+
     if (!bundleText && !bundleArrayBuffer) {
       try {
-        // dynamic import of the JS file under src/pro-bundles
         const mod = await import('./pro-bundles/latest.min.js');
-        if (mod && typeof mod.default === 'string') {
-          bundleText = mod.default;
-        } else if (mod && typeof mod.initSpectroDrawPro === 'function') {
-          // Option: if the file exports functions instead of raw string,
-          // create a small wrapper that calls init when client imports the bundle.
-          // Here we generate a tiny runtime wrapper to call the exported init:
-          bundleText = `
-            import * as __pro from 'data:application/javascript,${encodeURIComponent(mod.toString())}';
-            if (typeof __pro.initSpectroDrawPro === 'function') __pro.initSpectroDrawPro();
-          `;
+        if (mod) {
+          // If module default is a string, it's supposed to be the JS body to serve.
+          if (typeof mod.default === 'string') {
+            let candidate = mod.default;
+
+            // Heuristic 1: file accidentally exported a template-wrapped string:
+            // e.g. file content was: export default `...actual js body...`;
+            // some build setups may cause the returned string to include the wrapper text.
+            // If we detect a leading "export default" plus backticks, unwrap between first and last backtick.
+            const wrapMatch = candidate.match(/^([\s\S]*?)export\s+default\s*`/);
+            if (wrapMatch) {
+              const firstBacktick = candidate.indexOf('`');
+              const lastBacktick = candidate.lastIndexOf('`');
+              if (firstBacktick !== -1 && lastBacktick > firstBacktick) {
+                candidate = candidate.slice(firstBacktick + 1, lastBacktick);
+                console.debug('handleProBundle: unwrapped template-wrapped embedded bundle');
+              }
+            }
+
+            // Heuristic 2: some authors put `export default (`function` )` or other wrappers.
+            // If candidate contains an obvious leading "export" token (not wrapped), try to extract the code body after the first top-level function or IIFE.
+            if (/^\s*export\b/.test(candidate)) {
+              // Try to remove a leading `export default` + possible wrapper up to the first open-paren of an IIFE.
+              const iifeIndex = candidate.indexOf('(async');
+              if (iifeIndex !== -1) {
+                // keep from the IIFE start
+                candidate = candidate.slice(iifeIndex);
+                console.debug('handleProBundle: stripped leading "export ..." to IIFE start');
+              } else {
+                // As a last resort, try to find the first "const " or "let " or "function " that's likely to start executable code.
+                const m = candidate.match(/\b(const|let|var|async function|function)\b/);
+                if (m && m.index > 0) {
+                  candidate = candidate.slice(m.index);
+                  console.debug('handleProBundle: heuristically trimmed leading exports to first var/func');
+                }
+              }
+            }
+
+            // Final safety: if candidate still contains unmatched backticks, remove them (they break module parse).
+            // Only remove stray single backticks — leave other punctuation intact.
+            if ((candidate.match(/`/g) || []).length % 2 === 1) {
+              // drop all backticks to avoid unterminated template literal errors
+              candidate = candidate.replace(/`/g, '');
+              console.debug('handleProBundle: removed stray backticks from embedded bundle');
+            }
+
+            bundleText = candidate;
+          } else if (typeof mod.default === 'function') {
+            // If the module default exported a function, generate a tiny module that calls it client-side.
+            bundleText = `(${mod.default.toString()})();`;
+            console.debug('handleProBundle: embedded default is function -> wrapped into auto-invoking module');
+          } else {
+            console.debug('handleProBundle: embedded import returned unexpected default type', typeof mod.default);
+          }
         }
       } catch (e) {
         console.debug('handleProBundle: local module import failed', e);
@@ -335,14 +522,10 @@ async function handleProBundle(request, user, env) {
       }
     }
 
-    if (!bundleText) {
-      return json({ message: "Pro bundle not available" }, 404);
-    }
+    if (!bundleText) return json({ message: "Pro bundle not available" }, 404);
 
-    // Strip any sourceMappingURL references to avoid releasing sourcemaps
+    // strip sourcemap and watermark
     bundleText = bundleText.replace(/\/\/[#@]\s*sourceMappingURL=.*$/mg, '');
-
-    // Optionally append a per-user watermark (SHA-256 of email) as a JS comment
     if (String(env.DISABLE_WATERMARK || '') !== '1') {
       try {
         const hash = await sha256Hex(email);
@@ -357,12 +540,100 @@ async function handleProBundle(request, user, env) {
     headers.set('Cache-Control', 'private, no-store, max-age=0');
     headers.set('Content-Security-Policy', "default-src 'self' https://api.spectrodraw.com; script-src 'self' https://api.spectrodraw.com; object-src 'none';");
 
-    return new Response(bundleText, { status: 200, headers });
+    return addCors(new Response(bundleText, { status: 200, headers }), request);
   } catch (err) {
     console.error("handleProBundle error:", err);
     return json({ message: err.message || "Failed to serve pro bundle" }, 500);
   }
 }
+
+async function handleProUI(request, user, env) {
+  try {
+    // auth checks
+    if (!user || !user.email) return addCors(new Response('Unauthorized', { status: 401 }), request);
+    if (!env || typeof env.USERS === 'undefined') return addCors(new Response('Server misconfigured', { status: 500 }), request);
+
+    const email = String(user.email).trim().toLowerCase();
+    const claimKey = `product:${email}`;
+    const claimRaw = await env.USERS.get(claimKey);
+    if (!claimRaw) return addCors(new Response('Forbidden', { status: 403 }), request);
+
+    const uiKey = env.PRO_UI_KEY || 'pro-bundles/pro-ui.html';
+    let htmlText = null;
+
+    // 1) KV (env.IMAGES) as primary source (string)
+    try {
+      if (env && env.IMAGES && typeof env.IMAGES.get === 'function') {
+        // KV.get returns string (or null). Use as primary source for pro UI HTML.
+        const maybe = await env.IMAGES.get(uiKey);
+        if (maybe) {
+          htmlText = maybe.toString();
+          console.debug('handleProUI: loaded pro-ui from KV (env.IMAGES)');
+        } else {
+          console.debug('handleProUI: env.IMAGES.get returned null for', uiKey);
+        }
+      } else {
+        console.debug('handleProUI: env.IMAGES binding not present or no .get()');
+      }
+    } catch (e) {
+      console.warn('handleProUI: error reading env.IMAGES KV', e);
+    }
+
+    // 2) Fallback to server-side PRO_UI_URL (if configured)
+    if (!htmlText && env.PRO_UI_URL) {
+      try {
+        const headers = { 'Accept': 'text/html' };
+        if (env.PRO_UI_TOKEN) headers['Authorization'] = `Bearer ${env.PRO_UI_TOKEN}`;
+        const fetchResp = await fetch(env.PRO_UI_URL, { headers, cf: { cacheTtl: 0 } });
+        if (!fetchResp.ok) {
+          console.debug('handleProUI: PRO_UI_URL fetch returned', fetchResp.status);
+        } else {
+          htmlText = await fetchResp.text();
+          console.debug('handleProUI: loaded pro-ui from PRO_UI_URL');
+        }
+      } catch (e) {
+        console.warn('handleProUI: fetch(PRO_UI_URL) failed', e);
+      }
+    }
+
+    // 3) Embedded fallback: local module that exports HTML string (useful in dev)
+    if (!htmlText) {
+      try {
+        const mod = await import('./pro-bundles/pro-ui.js');
+        if (mod && typeof mod.default === 'string') {
+          htmlText = mod.default;
+          console.debug('handleProUI: loaded pro-ui from embedded module');
+        }
+      } catch (e) {
+        console.debug('handleProUI: embedded import failed', e);
+      }
+    }
+
+    if (!htmlText) {
+      return addCors(new Response('Pro UI not available', { status: 404 }), request);
+    }
+
+    // Inject <base> if missing so relative assets inside the HTML resolve correctly
+    try {
+      if (!/<base\s+[^>]*href=/i.test(htmlText)) {
+        const baseHref = (env.API_HOST ? env.API_HOST.replace(/\/+$/, '') : (new URL(request.url)).origin) + '/pro-bundles/';
+        htmlText = htmlText.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`);
+      }
+    } catch (e) {
+      console.warn('handleProUI: base injection failed', e);
+    }
+
+    const headers = new Headers();
+    headers.set('Content-Type', 'text/html; charset=utf-8');
+    headers.set('Cache-Control', 'private, no-store, max-age=0');
+
+    return addCors(new Response(htmlText, { status: 200, headers }), request);
+  } catch (err) {
+    console.error('handleProUI error:', err);
+    return addCors(new Response('Internal server error', { status: 500 }), request);
+  }
+}
+
 
 
 /*
@@ -373,10 +644,12 @@ async function handleProBundle(request, user, env) {
 */
 async function handleProBootstrap(request, user, env) {
   try {
-    // Note: we return bootstrap even to anonymous users — the bundle request itself is gated.
-    const origin = request.headers.get('Origin') || '';
-    const apiHost = env.API_HOST || (new URL(request.url)).origin;
-    const script = `
+    // inside handleProBootstrap(request, user, env)
+const apiHost = env.API_HOST || (new URL(request.url)).origin;
+const script = `
+// expose API host to client so pro bundle fetches pro-ui from the API origin
+window.__SPECTRODRAW_API_HOST = '${apiHost.replace(/\/+$/, '')}';
+
 // SpectroDraw pro bootstrap - dynamic import of server-gated pro bundle
 export default (async function bootstrapSpectroDrawPro(){
   try {
@@ -410,7 +683,9 @@ export default (async function bootstrapSpectroDrawPro(){
     throw err;
   }
 })();
+
 `;
+
     const headers = new Headers({
       'Content-Type': 'application/javascript; charset=utf-8',
       'Cache-Control': 'private, no-store, max-age=0'

@@ -1,0 +1,466 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="Use the SpectroDraw web app to draw, visualize, and sculpt sound directly on the spectrogram. Free, browser-based sound design.">
+  <meta property="og:title" content="SpectroDraw Web App - Interactive Spectrogram Editor">
+  <meta property="og:description" content="Draw directly on audio with the SpectroDraw web app. Visual sound editing, real-time playback, and more — all in your browser.">
+  <link rel="canonical" href="https://spectrodraw.com/app">
+  <title>SpectroDraw - Interactive spectrogram editor</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4104479922308013"
+     crossorigin="anonymous"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-FYGHLB1BCP');
+  </script>
+</head>
+<div class="app">
+  <header class="top-bar">
+    <a href="/" id="home" title="Home" style="margin-left:10px;"><img src="/BannerLogo2.png" style="background:transparent; height: 32px;"></a>
+    <button id="fileB" title="Upload Audio" style="margin-left: 10px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="10" y1="16" x2="10" y2="6" />
+        <polyline points="6 10 10 6 14 10" />
+        <line x1="4" y1="16" x2="16" y2="16" />
+      </svg>
+    </button>
+    <button id="rec" title="Record (Ctrl + space)"></button>
+    <input id="file" title="Import audio (Ctrl + O)" type="file" accept="audio/*,video/*" style="display:none;"/>
+    <button id="playPause" title="Play (space)" style="margin-left: 20px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>
+    </button>
+    <button id="stop" title="Stop">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="0 0 20 20">
+        <rect x="0" y="0" width="18" height="18" rx="2" ry="2"/>
+      </svg>
+    </button>
+    <button class="shape-btn" data-shape="brush" id="brushBtn" style="margin-left: 20px" title="Brush (b)">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="20" height="20" 
+           viewBox="5 4 18 18" 
+           fill="black">
+        <path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/>
+      </svg>
+    </button>
+    <button class="shape-btn" data-shape="rectangle" id="rectBtn" title="Rectangle (r)">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="20" height="20" viewBox="0 0 20 20" 
+           fill="none"
+           stroke = "black" stroke-width = "5">
+        <path d="M0 0 H 20 V 20 H 0 V -20"/>
+      </svg>
+    </button>
+    <button class="shape-btn" data-shape="line" id="lineBtn" title="Line (l)">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="20" height="20" viewBox="0 0 20 20" 
+           fill="none"
+           stroke = "black" stroke-width = "3">
+        <path d="M20 0 L 0 20"/>
+      </svg>
+    </button>
+    <button class="shape-btn" data-shape="image" id="imageBtn" title="Image Overlay (i)">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
+        <polygon points="1,20 8,10 15,20" fill="#333"/>
+        <polygon points="8,20 15,12 23,20" fill="#333"/>
+      </svg>
+    </button>
+    <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+    <button class="tool-btn" data-tool="color" id="colorBtn" title="Color (c)" style="margin-left:10px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
+        <circle cx="12" cy="12" r="9"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
+        <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
+      <svg width="20" height="20" viewBox="-1 -1 16 16">
+        <path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/>
+        <path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/>
+        <path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
+      <img src="/assets/toothbrush.svg"></button>
+    <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
+        <g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9V3h6" />
+          <path d="M21 15v6h-6" />
+        </g>
+      </svg>
+    </button>
+    <button id="yAxisMode" title="Toggle Y axis label mode (y)">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+         width="28" height="28" viewBox="0 0 20 20" 
+         fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <text x="0" y="18" font-size="8" fill="black" stroke-width="0.5">1.0k</text>
+        <text x="10" y="6" font-size="8" fill="black" stroke-width="0.5">a5</text>
+        <line x1="4" y1="4" x2="18" y2="14" />
+      </svg>
+    </button>
+     <button id="downloadWav" style="margin-left:20px" title="Download audio (ctrl + s)">
+      <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+        <path d="M5 14v4h2v-4H6z" />
+        <path d="M17 14v4h2v-4h-2z" />
+        <path d="M12 12v10" />
+        <path d="M9 19l3 3 3 -3" />
+      </svg>
+    </button>
+    <button id="downloadButton" title="Download spectrogram (ctrl + shift + s)">
+      <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="14" rx="2" ry="2" />
+        <circle cx="17" cy="7" r="2" />
+        <polyline points="3 17 10 10 14 14 21 7" />
+        <path d="M12 12v10" />
+        <path d="M9 19l3 3 3 -3" />
+      </svg>
+    </button>
+    <button id="resetButton" onClick="onReset();" title="Reset audio">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="7" width="14" height="14" rx="2" ry="2" />
+        <line x1="8" x2="8" y1="11" y2 = "17" stroke-width="1"/>
+        <line x1="12" x2="12" y1="11" y2 = "17" stroke-width="1"/>
+        <line x1="16" x2="16" y1="11" y2 = "17" stroke-width="1"/>
+        <rect x="3" y="4" width="18" height="3" rx="2" ry="2" />
+        <rect x="8" y="1" width="8" height="2" rx="2" ry="2" stroke-width="1"/>
+      </svg>
+    </button>
+    <button id="undoBtn" title="Undo (Ctrl+Z)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 14H5V10"/>
+        <path d="M20 20a9 9 0 0 0-15-6.7L5 10"/>
+      </svg>
+    </button>
+    <button id="redoBtn" title="Redo (Ctrl+Y)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 14h4v-4"/>
+        <path d="M4 20a9 9 0 0 1 15-6.7L19 10"/>
+      </svg>
+    </button>
+  </header>
+  <aside class="left-bar">
+  <!-- Settings cogwheel -->
+  <button class="panel-btn" id="settingsBtn" title="General (g)" data-tool="0">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         width="20" height="20" viewBox="0 0 24 24" 
+         fill="none" stroke="white" stroke-width="2" 
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 
+               1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 
+               1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 
+               1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 
+               1 1-2.83-2.83l.06-.06a1.65 
+               1.65 0 0 0 .33-1.82 1.65 
+               1.65 0 0 0-1.51-1H3a2 2 0 
+               1 1 0-4h.09a1.65 1.65 0 
+               0 0 1.51-1 1.65 1.65 0 
+               0 0-.33-1.82l-.06-.06a2 
+               2 0 1 1 2.83-2.83l.06.06a1.65 
+               1.65 0 0 0 1.82.33H9a1.65 
+               1.65 0 0 0 1-1.51V3a2 2 
+               0 1 1 4 0v.09a1.65 1.65 0 
+               0 0 1 1.51 1.65 1.65 0 
+               0 0 1.82-.33l.06-.06a2 
+               2 0 1 1 2.83 2.83l-.06.06a1.65 
+               1.65 0 0 0-.33 1.82V9c0 
+               .69.28 1.35.77 1.82.49.47 
+               1.15.77 1.82.77h.09a2 2 
+               0 1 1 0 4h-.09c-.69 0-1.35.28-1.82.77z"/>
+    </svg>
+  </button>
+
+  <!-- Piano keys -->
+  <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="1">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         width="24" height="24" viewBox="0 0 24 22" 
+         fill="none" stroke="white" stroke-width="2" 
+         stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+      <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
+      <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
+      <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
+    </svg>
+  </button>
+
+  <!-- EQ curve -->
+  <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="2">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         width="24" height="24" viewBox="0 0 24 24" 
+         fill="none" stroke="white" stroke-width="2" 
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
+      <circle cx="3" cy="17" r="1.5" fill="white"/>
+      <circle cx="11" cy="11" r="1.5" fill="white"/>
+      <circle cx="21" cy="15" r="1.5" fill="white"/>
+    </svg>
+  </button>
+</aside>
+
+  <aside class="left-panel">
+    <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
+    <div id="d1">
+      <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
+      <div id="fftParameters">
+        <label class="h1">FFT Parameters
+          <a id="fftLearnMore" class="learn-more" href="/faq/fft/#notes" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
+        </label>
+        <div class="slider-row">
+          <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
+          <select id="fftSize" style="margin-left:87px;">
+            <option value="16384">16384</option>
+            <option value="8192">8192</option>
+            <option value="4096" selected>4096</option>
+            <option value="2048">2048</option>
+            <option value="1024">1024</option>
+            <option value="512">512</option>
+            <option value="256">256</option>
+            <option value="128">128</option>
+            <option value="64">64</option>
+          </select>
+        </div>
+        <div class="slider-row" style="align-items:center;">
+          <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
+          <button id="lockHopBtn" class="lock-btn" aria-pressed="true" title="Lock time resolution to prevent phase interference" style="background:none; border:none; margin-left:55px;" onclick="toggleLockHop();"></button>
+          <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
+        </div>
+      </div>
+      <label class="h1">Preset Audio<audio src=""></audio><br>
+      </label>
+      <label class="h2" for="presets">Use presets</label>
+      <select id="presets">
+        <option value="silence">Silence</option>
+        <option value="male">Male sing</option>
+        <option value="female">Female sing</option>
+        <option value="dog">Dog</option>
+        <option value="birdChirp">Bird chirp</option>
+        <option value="lionRoar">Lion roar</option>
+        <option value="seaLion">Sea lion</option>
+        <option value="violin">Violin</option>
+        <option value="trumpet">Trumpet</option>
+        <option value="timpani">Timpani</option>
+        <option value="piano">Piano</option>
+        <option value="flute">Flute</option>
+        <option value="cymbal">Cymbal</option>
+        <option value="computerBeeps">Computer beeps</option>
+        <option value="scream">Scream</option>
+        <option value="bomb">Bomb</option>
+        <option value="engine">Engine</option>
+        <option value="fullSpectra">Loud noise</option>
+        <option value="bass808">808 bass</option>
+        <option value="hardstyle">Hardstyle</option>
+        <option value="kick">Kick</option>
+        <option value="hihat">Hihat</option>
+        <option value="clap">Clap</option>
+        <option value="cave14">Cave14.ogg</option>
+        <option value="sine">Sine wave</option>
+        <option value="triangle">Triangle wave</option>
+        <option value="square">Square wave</option>
+        <option value="saw">Saw wave</option>
+      </select>
+      <div id ="es" class="slider-row" title="Empty audio seconds">
+        <label class="h2">Empty audio seconds</label>
+        <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
+        <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="100">
+      </div>
+      <div id="brushSettings">
+        <label class="h1">Brush settings</label>
+        <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+        <div class="slider-row" title="Brush size/image size" id="brushSizeDiv">
+          <label class="h2">Brush Size</label>
+          <input id="brushSize" type="range" min="1" max="200" value="40">
+          <input id="brushSizeInput" type="number" value="10" min="1" max="200">
+        </div>
+        <div class="slider-row" title="Brightness" id="brushColorDiv">
+            <label class="h2">Brush Brightness</label>
+            <input id="brushColor" type="range" min="0" max="255" value="255">
+            <input id="brushColorInput" type="number" value="255" min="0" max="255">
+        </div>
+        <div class="slider-row" title="Blur Radius" style="display:none;" id="blurRadiusDiv">
+            <label class="h2">Blur Radius</label>
+            <input id="blurRadius"  type="range" min="0" max="10" value="1.5" step="0.1">
+            <input id="blurRadiusInput" type="number" value="1.5" min="0" max="10">
+        </div>
+        <div class="slider-row" title="Blur Radius" style="display:none;" id="amplifyDiv">
+            <label class="h2">Amplifier</label>
+            <input id="amp"  type="range" min="0" max="2" value="2" step="0.01">
+            <input id="ampInput" type="number" value="2" min="0" max="2">
+        </div>
+        <div class="slider-row" title="Remove noise below this threshold" style="display:none;" id="noiseFloorDiv">
+            <label class="h2">Noise Threshold (dB)</label>
+            <input id="noiseRemoveFloor"  type="range" min="-60" max="0" value="-10" step="0.1">
+            <input id="noiseRemoveFloorInput" type="number" value="-10" min="-60" max="0">
+        </div>
+        <div id="ev" class="slider-row" title="Phase texture">
+          <label class="h2" for="phaseTexture">Phase texture</label>
+          <select id="phaseTexture">
+            <option value="Harmonics">Harmonics</option>
+            <option value="Static">Static</option>
+            <option value="Flat">Flat</option>
+          </select>
+        </div>
+        <div class="slider-row" title="Phase" id="phaseDiv">
+            <label class="h2">Phase shift</label>
+            <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+            <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
+        </div>
+        <div class="slider-row" title="Brightness strength">
+            <label class="h2">Opacity</label>
+            <input id="brushOpacity"  type="range" min="0" max="100" value="100">
+            <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
+        </div>
+        <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
+            <label class="h2">Phase Strength</label>
+            <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
+            <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
+        </div>
+      </div> 
+      <div class="slider-row" title="Preview sound while drawing">
+          <label class="h2">Sound while drawing</label>
+          <input id="previewWhileDrawing" type="checkbox" checked>
+      </div>
+    </div>
+    <div id="d2" style="display:none;">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Piano</h2>
+      <label class="h1">Brush Alignment</label>
+      <!--Auto align pitch-->
+      <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
+      <div id="startOnPitchDiv" style="display:none;">
+        <div class="slider-row" title="Base Pitch">
+          <label class="h2">Base Hz</label>
+          <input id="startOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
+          <input id="startOnPitchInput" type="number" value="440">
+        </div>
+        <!--Notes per octave (achieve with pitch bends)-->
+        <div class="slider-row" title="Notes Per Octave">
+          <label class="h2">Notes per octave</label>
+          <input id="npo" type="range" min="1" max="48" step="1" value="12">
+          <input id="npoInput" type="number" value="12" min="1" max="384">
+        </div>
+      </div>
+      <!--Auto align time-->
+      <button class="leftBtn" id="alignTime" title="Auto align time (k)">Auto Align Time</button>
+      <div id ="bpmDiv" class="slider-row" title="BPM" style="display:none;">
+        <label class="h2">BPM</label>
+        <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
+        <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
+      </div>
+      <!--Remove harmonics button-->
+      <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics" onClick="removeHarmonics()">Remove Harmonics</button>
+      <label class="h1">MIDI Export</label>
+      <input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</button>
+      <div class="slider-row" title="Duration cutoff">
+        <label class="h2">Duration cutoff (secs)</label>
+        <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
+        <input id="durationCutoffInput" type="number" value="0.05" min="0" max="1">
+      </div>
+      <div id="nonAiMidiDiv">
+        <!--Noise floor cutoff-->
+        <div class="slider-row" title="Noise floor cutoff">
+          <label class="h2">Noise floor (dB)</label>
+          <input id="noiseFloorCutoff" type="range" min="-50" max="0" step="0.1" value="-30">
+          <input id="noiseFloorCutoffInput" type="number" value="-30" min="-50" max="0">
+        </div>
+        <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</button>
+        <div id="matOptions">
+          <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
+            <label class="h2">BPM</label>
+            <input id="midiBpm" type="range" min="0.001" max="500" step="0.01" value="120">
+            <input id="midiBpmInput" type="number" value="120" min="0.001" max="5000">
+          </div>
+          <div id ="subBeatDiv" class="slider-row" title="Sub beats">
+            <label class="h2">Sub beats</label>
+            <input id="subBeat" type="range" min="1" max="24" step="1" value="8">
+            <input id="subBeatInput" type="number" value="8" min="1" max="24">
+          </div>
+        </div>
+        <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
+      </div>
+      <div id="AiMidiDiv" style="display:none;">
+        <label class="h1">Time Quantize</label>
+        <div class="slider-row" title="Time quantize strength">
+          <label class="h2">Strength</label>
+          <input id="tQs" type="range" min="0" max="100" step="1" value="0">
+          <input id="tQsInput" type="number" value="0" min="0" max="100">
+        </div>
+        <div class="slider-row" title="Time quantize strength">
+          <label class="h2">Tempo</label>
+          <input id="tQt" type="range" min="1" max="300" step="1" value="120">
+          <input id="tQtInput" type="number" value="120" min="1" max="300">
+        </div>
+        <div class="slider-row" title="Phase texture">
+          <label class="h2" for="tQd">Time division</label>
+          <select id="tQd">
+            <option value="1">1/1</option>
+            <option value="2">1/2</option>
+            <option value="3">1/3</option>
+            <option value="4">1/4</option>
+            <option value="5">1/5</option>
+            <option value="6">1/6</option>
+            <option value="7">1/7</option>
+            <option value="8" selected="selected">1/8</option>
+            <option value="12">1/12</option>
+            <option value="16">1/16</option>
+            <option value="24">1/24</option>
+            <option value="32">1/32</option>
+          </select>
+        </div>
+      </div>
+      <!--Export button-->
+      <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>
+    </div>
+    <div id="d3" style="display:none; height: 80%">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Equalizer</h2>
+      <h5 style="margin-top:0px; margin-bottom:10px;">Note: Does not update on the spectrogram to save lag</h5>
+      <div class="slider-row" title="Global gain">
+        <label class="h2">Global gain</label>
+        <input id="globalGain" type="range" min="-30" max="30" step="0.1" value="0">
+        <input id="globalGainInput" type="number" value="0" min="-30" max="30">
+      </div>
+      <div class="slider-row" title="EQ Presets">
+        <label class="h2" for="eqPresets">Presets</label>
+        <select id="eqPresets">
+          <option value="Flat">Flat</option>
+          <option value="Bass boost">Bass boost</option>
+          <option value="Lowpass">Lowpass</option>
+          <option value="Mid boost">Mid boost</option>
+          <option value="Midpass">Midpass</option>
+          <option value="High boost">High boost</option>
+          <option value="Highpass">Highpass</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    <!-- paste your canvas wrapper here -->
+    <div id="canvasWrapper" style="position:absolute; width:100%;">
+      <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
+      <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
+      <canvas id="overlay" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10; top:40px"></canvas>
+      <canvas id="freq" style="width:40px; background:#222; position:absolute; left:0; ; top:40px"></canvas>
+      <canvas id="logscale" width=40 height = 40 style="position:absolute; top:0px; background: #111;z-index: 999; top:0px"></canvas>
+    </div>
+  </main>
+</div>
+
+<div id="status" style="position:absolute;bottom:0px;"></div>
+<script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script>

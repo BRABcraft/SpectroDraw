@@ -21,7 +21,7 @@ function updateBrushPreview() {
   if (currentTool === "amplifier") {
     rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, penPhase * 2),phaseOpacity);
   } else if (currentTool === "noiseRemover") {
-    rgb = adjustSaturation(magPhaseToRGB(60-(noiseRemoveFloor+60 * brushOpacity), penPhase * 2),phaseOpacity);
+    rgb = adjustSaturation(magPhaseToRGB(60-(noiseRemoveFloor+60 * brushOpacity), 0),0);
   } else {
     rgb = adjustSaturation(magPhaseToRGB((brushColor / 5) * brushOpacity, penPhase * 2),phaseOpacity);
   }

@@ -7,20 +7,13 @@
     "nodejs_compat",
     "global_fetch_strictly_public"
   ],
-  // "assets": {
-  //   "directory": "./public"
-  // },
-  "observability": {
-    "enabled": true
-  },
-  "routes": [
-    {
-      "pattern": "api.spectrodraw.com/*",
-      "zone_name": "spectrodraw.com"
-    }
-  ],
 
-  // KV namespace bindings used by your worker code
+  // Site binding: only specify bucket (do NOT use site.entry-point)
+  "site": {
+    "bucket": "./public"
+  },
+
+  // example kv / r2 namespace bindings — adapt names to your account
   "kv_namespaces": [
     {
       "binding": "USERS",
@@ -37,6 +30,25 @@
     {
       "binding": "REVIEWS",
       "id": "ae863831f314458998bf36acd62dee09"
+    },
+    {
+      "binding": "__spectrodraw-api-workers_sites_assets",
+      "id": "ee7ba8fe235947228299d7be7c0486e0"
     }
+  ],
+
+
+  // env vars you might want
+  "vars": {
+    "API_HOST": "https://api.spectrodraw.com",
+    "PRO_BUNDLE_KEY": "pro-bundles/latest.min.js",
+    "PRO_UI_KEY": "pro-bundles/pro-ui.html"
+  },
+
+  // Optional: routes or workers_dev
+  "workers_dev": false,
+  "preview_urls": true,
+  "routes": [
+    { "pattern": "api.spectrodraw.com/*", "zone_id": "b3f37faad0cfb606d241edd7ca2b03dd" }
   ]
 }

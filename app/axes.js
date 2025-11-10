@@ -540,37 +540,117 @@ function zoomYAxisAt(clientY, elem, scaleFactor){
   drawCursor(true);
   renderView && renderView();
 }
+
+// New: how aggressively swipes pan the view. Tune to taste.
+const PAN_SENSITIVITY = 1.0; // >1 = pan more per swipe, <1 = pan less
+
 // Generic wheel handler factory — attach to each element
+// opts: {zoomTimeline:bool, zoomYAxis:bool}
 function makeWheelZoomHandler(elem, opts){
-  // opts: {zoomTimeline:bool, zoomYAxis:bool}
   return function(e){
-    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false);
-    $x=cx;$y=cy;
-    // console.log(e.deltaY);
-    // treat ctrl/meta modifier as zoom intent OR if the wheel event has ctrlKey (ctrl+scroll) OR if gestureEvent (see below)
+    // get some geometry early
+    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false); $x=cx;$y=cy;
+    const rectElem = elem.getBoundingClientRect();
+    const rectTimeline = timeline ? timeline.getBoundingClientRect() : null;
+    const rectYAxis = yAxis ? yAxis.getBoundingClientRect() : null;
+
+    // should we treat this as a zoom gesture? (ctrl / meta held)
     const shouldZoom = e.ctrlKey || e.metaKey;
-    if (!shouldZoom) return; // do not intercept normal scrolls
-    e.preventDefault(); // stop browser zoom/page zoom
-    // convert wheel delta into scale factor (exponential for smooth feel)
-    // negative deltaY => zoom in, positive => zoom out
     const delta = e.deltaY;
     const sign = INVERT_PINCH_FOR_TRACKPAD ? 1 : -1;
-    const scale = Math.exp(sign * delta * WHEEL_SENSITIVITY);
 
-    if (opts.zoomTimeline && elem === canvas){
-      // canvas zooms both by default
-      zoomTimelineAt(e.clientX, timeline, scale);
-    } else if (opts.zoomTimeline){
-      zoomTimelineAt(e.clientX, timeline, scale);
+    if (shouldZoom) {
+      // Zoom path (existing behavior) — keep preventing default to block page zoom
+      e.preventDefault();
+      const scale = Math.exp(sign * delta * WHEEL_SENSITIVITY);
+
+      if (opts.zoomTimeline && elem === canvas) {
+        // canvas zooms both by default
+        zoomTimelineAt(e.clientX, timeline, scale);
+      } else if (opts.zoomTimeline) {
+        zoomTimelineAt(e.clientX, timeline, scale);
+      }
+      if (opts.zoomYAxis && elem !== canvas) {
+        zoomYAxisAt(e.clientY, yAxis, scale);
+      }
+      if (e.deltaY === 0) zooming = false;
+      
+      updateCanvasScroll();
+      drawYAxis();
+      drawCursor(true);
+      renderView && renderView();
+      return;
     }
-    if (opts.zoomYAxis && elem === canvas){
-      zoomYAxisAt(e.clientY, yAxis, scale);
-    } else if (opts.zoomYAxis){
-      zoomYAxisAt(e.clientY, yAxis, scale);
+
+    // --- PAN path for plain swipes (no ctrl/meta) ----------------
+    // Only intercept when there is a meaningful delta (avoids weird small noise)
+    const absDX = Math.abs(e.deltaX || 0);
+    const absDY = Math.abs(e.deltaY || 0);
+    if (absDX < 0.5 && absDY < 0.5) return; // ignore tiny events
+
+    // If horizontal movement dominates -> pan timeline horizontally
+    if (absDX >= absDY) {
+      // if timeline panning is allowed for this handler
+      if (!opts.zoomTimeline) return;
+      e.preventDefault();
+
+      // convert deltaX into frame offset
+      // positive deltaX => move window right (iLow increases)
+      const rect = rectTimeline || rectElem;
+      if (!rect) return;
+      const incFrames = (e.deltaX / rect.width) * framesTotal * PAN_SENSITIVITY;
+
+      iLow = Math.round(_clamp(iLow + incFrames, 0, Math.max(1, framesTotal - iWidth)));
+      iHigh = iLow + iWidth;
+
+      updateCanvasScroll();
+      drawTimeline();
+      drawCursor(true);
+      renderView && renderView();
+      return;
     }
-    if (e.deltaY == 0) zooming = false;
+
+    // If vertical movement dominates -> pan frequency range (y-axis)
+    if (absDY > absDX) {
+      // prefer panning the yAxis if handler supports it
+      if (opts.zoomYAxis) {
+        e.preventDefault();
+        const rect = rectYAxis || rectElem;
+        if (!rect) return;
+
+        // positive deltaY -> move visible band down (lower frequencies increase),
+        // so increment fLow/fHigh accordingly
+        const incHz = (e.deltaY / rect.height) * (sampleRate / 2) * PAN_SENSITIVITY;
+
+        fLow = _clamp(fLow + incHz, 0, Math.max(1, (sampleRate / 2) - fWidth));
+        fHigh = fLow + fWidth;
+
+        updateCanvasScroll();
+        drawYAxis();
+        drawCursor(true);
+        renderView && renderView();
+        return;
+      }
+
+      // fallback: if handler is for canvas and not yAxis, treat vertical swipe as horizontal pan for timeline
+      if (opts.zoomTimeline && elem === canvas) {
+        e.preventDefault();
+        const rect = rectTimeline || rectElem;
+        if (!rect) return;
+        const incFrames = (e.deltaY / rect.width) * framesTotal * PAN_SENSITIVITY;
+        iLow = Math.round(_clamp(iLow + incFrames, 0, Math.max(1, framesTotal - iWidth)));
+        iHigh = iLow + iWidth;
+
+        updateCanvasScroll();
+        drawTimeline();
+        drawCursor(true);
+        renderView && renderView();
+        return;
+      }
+    }
   };
 }
+
 
 // Attach wheel listeners (passive:false so we can preventDefault)
 canvas && canvas.addEventListener('wheel', makeWheelZoomHandler(canvas, {zoomTimeline:true, zoomYAxis:true}), {passive:false});

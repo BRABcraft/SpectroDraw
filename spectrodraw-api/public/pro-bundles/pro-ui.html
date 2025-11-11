@@ -9,17 +9,9 @@
   <title>SpectroDraw - Interactive spectrogram editor</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4104479922308013"
-     crossorigin="anonymous"></script>
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-FYGHLB1BCP');
-  </script>
+  
 </head>
+<body>
 <div class="app">
   <header class="top-bar">
     <a href="/" id="home" title="Home" style="margin-left:10px;"><img src="/BannerLogo2.png" style="background:transparent; height: 32px;"></a>
@@ -155,63 +147,75 @@
     </button>
   </header>
   <aside class="left-bar">
-  <!-- Settings cogwheel -->
-  <button class="panel-btn" id="settingsBtn" title="General (g)" data-tool="0">
-    <svg xmlns="http://www.w3.org/2000/svg" 
-         width="20" height="20" viewBox="0 0 24 24" 
-         fill="none" stroke="white" stroke-width="2" 
-         stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 
-               1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 
-               1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 
-               1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 
-               1 1-2.83-2.83l.06-.06a1.65 
-               1.65 0 0 0 .33-1.82 1.65 
-               1.65 0 0 0-1.51-1H3a2 2 0 
-               1 1 0-4h.09a1.65 1.65 0 
-               0 0 1.51-1 1.65 1.65 0 
-               0 0-.33-1.82l-.06-.06a2 
-               2 0 1 1 2.83-2.83l.06.06a1.65 
-               1.65 0 0 0 1.82.33H9a1.65 
-               1.65 0 0 0 1-1.51V3a2 2 
-               0 1 1 4 0v.09a1.65 1.65 0 
-               0 0 1 1.51 1.65 1.65 0 
-               0 0 1.82-.33l.06-.06a2 
-               2 0 1 1 2.83 2.83l-.06.06a1.65 
-               1.65 0 0 0-.33 1.82V9c0 
-               .69.28 1.35.77 1.82.49.47 
-               1.15.77 1.82.77h.09a2 2 
-               0 1 1 0 4h-.09c-.69 0-1.35.28-1.82.77z"/>
-    </svg>
-  </button>
+    <!-- Project info -->
+    <button class="panel-btn" id="settingsBtn" title="General (g)" data-tool="0">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+          width="20" height="20" viewBox="0 0 24 24" 
+          fill="none" stroke="white" stroke-width="2" 
+          stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 
+                1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 
+                1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 
+                1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 
+                1 1-2.83-2.83l.06-.06a1.65 
+                1.65 0 0 0 .33-1.82 1.65 
+                1.65 0 0 0-1.51-1H3a2 2 0 
+                1 1 0-4h.09a1.65 1.65 0 
+                0 0 1.51-1 1.65 1.65 0 
+                0 0-.33-1.82l-.06-.06a2 
+                2 0 1 1 2.83-2.83l.06.06a1.65 
+                1.65 0 0 0 1.82.33H9a1.65 
+                1.65 0 0 0 1-1.51V3a2 2 
+                0 1 1 4 0v.09a1.65 1.65 0 
+                0 0 1 1.51 1.65 1.65 0 
+                0 0 1.82-.33l.06-.06a2 
+                2 0 1 1 2.83 2.83l-.06.06a1.65 
+                1.65 0 0 0-.33 1.82V9c0 
+                .69.28 1.35.77 1.82.49.47 
+                1.15.77 1.82.77h.09a2 2 
+                0 1 1 0 4h-.09c-.69 0-1.35.28-1.82.77z"/>
+      </svg>
+    </button>
+    
+    <!--Tool editor-->
+    <button class="panel-btn"></button>
+    
+    <!--Macros-->
+    <button class="panel-btn"></button>
 
-  <!-- Piano keys -->
-  <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="1">
-    <svg xmlns="http://www.w3.org/2000/svg" 
-         width="24" height="24" viewBox="0 0 24 22" 
-         fill="none" stroke="white" stroke-width="2" 
-         stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
-      <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
-      <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
-      <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
-    </svg>
-  </button>
+    <!-- Midi -->
+    <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="1">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 22" 
+          fill="none" stroke="white" stroke-width="2" 
+          stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+        <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
+        <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
+        <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
+      </svg>
+    </button>
 
-  <!-- EQ curve -->
-  <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="2">
-    <svg xmlns="http://www.w3.org/2000/svg" 
-         width="24" height="24" viewBox="0 0 24 24" 
-         fill="none" stroke="white" stroke-width="2" 
-         stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
-      <circle cx="3" cy="17" r="1.5" fill="white"/>
-      <circle cx="11" cy="11" r="1.5" fill="white"/>
-      <circle cx="21" cy="15" r="1.5" fill="white"/>
-    </svg>
-  </button>
-</aside>
+    <!-- EQ curve -->
+    <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="2">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="white" stroke-width="2" 
+          stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
+        <circle cx="3" cy="17" r="1.5" fill="white"/>
+        <circle cx="11" cy="11" r="1.5" fill="white"/>
+        <circle cx="21" cy="15" r="1.5" fill="white"/>
+      </svg>
+    </button>
+    
+    <!--Uploads-->
+    <button class="panel-btn"></button>
+    
+    <!--Sprite-->
+    <button class="panel-btn"></button>
+  </aside>
 
   <aside class="left-panel">
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
@@ -364,7 +368,7 @@
       <!--Remove harmonics button-->
       <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics" onClick="removeHarmonics()">Remove Harmonics</button>
       <label class="h1">MIDI Export</label>
-      <input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</button>
+      <input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</input>
       <div class="slider-row" title="Duration cutoff">
         <label class="h2">Duration cutoff (secs)</label>
         <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
@@ -377,7 +381,7 @@
           <input id="noiseFloorCutoff" type="range" min="-50" max="0" step="0.1" value="-30">
           <input id="noiseFloorCutoffInput" type="number" value="-30" min="-50" max="0">
         </div>
-        <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</button>
+        <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</input>
         <div id="matOptions">
           <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
             <label class="h2">BPM</label>
@@ -448,6 +452,7 @@
       </div>
       <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     </div>
+    <div id="d4" style="display:none;"></div>
   </aside>
 
   <main class="main-area">
@@ -461,6 +466,6 @@
     </div>
   </main>
 </div>
-
 <div id="status" style="position:absolute;bottom:0px;"></div>
-<script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script>
+</body>
+<!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->

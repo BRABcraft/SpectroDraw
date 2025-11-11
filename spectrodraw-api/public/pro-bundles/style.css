@@ -1,0 +1,678 @@
+:root {
+  --slider-length: 30px;    /* vertical length in screen px */
+  --track-color: #444;
+  --thumb-color: #fff;
+  --thumb-size: 12px;
+  --accent-gradient: linear-gradient(90deg, #c8c5fb, #d4c3fc, #f5bdd9);
+  --font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+body {
+  background: #111 !important;
+  color: #eee;
+  font-family: var(--font-family);
+  margin: 0;
+}
+
+canvas {
+  display: block;
+  background: #000;
+}
+#timeline { height: 40px; }
+#status { margin-top: 0.5em; font-size: 13px; }
+
+/* ----------------- CONTROLS ----------------- */
+
+/* range thumb (webkit) */
+.left-panel input[type="range"]::-webkit-slider-thumb, .slider-row2 input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 50%;
+  background: var(--thumb-color);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  transition: all 0.2s ease, box-shadow 0.2s ease;
+  margin-top:-2px;
+}
+.left-panel input[type="range"]::-webkit-slider-thumb:hover, .slider-row2 input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
+}
+
+/* webkit track (optional appearance) */
+.left-panel input[type="range"]::-webkit-slider-runnable-track, .slider-row2 input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  background: var(--track-color);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+/* Firefox track & thumb */
+.left-panel input[type="range"]::-moz-range-track, .slider-row2 input[type="range"]::-moz-range-track {
+  height: 8px;
+  background: var(--track-color);
+  border-radius: 999px;
+}
+.left-panel input[type="range"]::-moz-range-thumb, .slider-row2 input[type="range"]::-moz-range-thumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 50%;
+  background: var(--thumb-color);
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  transition: all 0.2s ease, box-shadow 0.2s ease;
+  margin-top:-2px;
+}
+.left-panel input[type="range"]::-moz-range-thumb:hover, .slider-row2 input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px #fff, 0 0 16px #9333ea, 0 0 24px #ec4899;
+}
+
+/* compact number inputs (generic) */
+.left-panel input[type="number"] {
+  /* generic style for number inputs that are not in .slider-row */
+  width: 10ch;
+  min-width: 10ch;
+  max-width: 10ch;
+  box-sizing: border-box;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.95rem;
+  background-color: #333;
+  border-radius: 10px;
+  border: 1px solid #aaa;
+  color: #fff;
+  margin-top: 2px;
+}
+
+/* ----------------- BUTTONS ----------------- */
+.tool-btn, .leftBtn, .shape-btn,
+#downloadWav, #downloadButton, #resetButton, #playPause, #stop,
+#trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn, #home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-weight: 700;
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  transition: all 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  z-index: 6000;
+}
+
+.lock-btn {
+  cursor: pointer;
+  transition: all 0.3s ease, box-shadow 0.3s ease;
+}
+
+#home {
+  width: auto;
+  height: 32px;
+}
+
+.tool-btn svg, .shape-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  transform: translateX(-0.5px);
+}
+
+.left-bar {
+  gap: 0;      /* no gap between children */
+  padding: 0;  /* remove top/bottom padding */
+}
+
+/* make panel buttons truly flush */
+.panel-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  height: 40px;
+  border-radius: 5px;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+ .leftBtn {
+  color: black;
+  width: 70%;
+  margin-bottom: 10px;
+ }
+
+/* ensure adjoining buttons have no extra spacing */
+.panel-btn + .panel-btn {
+  margin-top: 0;
+  border-top: none;
+}
+
+/* neon glow hover */
+.tool-btn:hover,  
+#downloadWav:hover, #downloadButton:hover, #resetButton:hover,
+#playPause:hover, #stop:hover, #trueScale:hover,
+#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover, #home:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 8px #fff, 0 0 8px #9333ea,
+              0 0 16px #ec4899, 0 0 16px #4f46e5;
+}
+.lock-btn svg {
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+.lock-btn:hover svg {
+  filter: drop-shadow(0px 0px 4px rgba(250,128,250,1));
+  transform: translateY(-2px);
+}
+
+/* pulsing glow */
+.tool-btn::after, .panel-btn::after, .lock-btn::after {
+  content: '';
+  position: absolute;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  box-shadow: 0 0 8px #fff, 0 0 8px #9333ea,
+              0 0 16px #ec4899, 0 0 16px #4f46e5;
+}
+.tool-btn:hover::after, .panel-btn::after, .lock-btn::after { opacity: 0.6; }
+
+.disabled {
+  cursor: not-allowed !important;
+  pointer-events:none;
+  opacity: 0.5;
+}
+
+/* ----------------- LAYOUT ----------------- */
+.app {
+  display: grid;
+  grid-template-rows: 54px 1fr;
+  grid-template-columns: 40px 330px 1fr; /* NEW: left-bar column */
+  height: 100vh;
+  gap: 0px;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-family);
+}
+
+.top-bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  z-index: 7000;
+  overflow-x: auto;
+}
+
+.left-panel {
+  grid-column: 2;   /* <-- changed from 1 to 2 */
+  grid-row: 2;
+  overflow-y: auto;
+  background: transparent;
+  box-sizing: border-box;
+  padding: 12px 10px;
+}
+.left-panel .controls {
+  flex-direction: column;
+  gap: 0px;
+  align-items: stretch;
+  position: static;
+}
+
+.main-area {
+  grid-column: 3;   /* <-- changed from 2 to 3 */
+  grid-row: 2;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.top-bar .tool-btn,
+.top-bar button,
+.top-bar input[type="file"] {
+  z-index: 8000;
+}
+
+/* responsive collapse */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 64px auto 1fr;
+  }
+  .top-bar { grid-column: 1; }
+  .left-panel {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .main-area { grid-column: 1; grid-row: 3; }
+}
+
+/* ----------------- SLIDER ROW LAYOUT (clean, single set of rules) ----------------- */
+
+/* outer row container */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* space between label, slider, input */
+  margin: 6px 0;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: visible;
+}
+
+/* left label fixed but compact so row fits in left-panel */
+.slider-row > label {
+  flex: 0 0 150px;     /* reduced from 120px to fit 260px panel */
+  font-size: 0.9rem;
+  color: #eee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* range slider fixed width — change this width to make sliders shorter/longer */
+.slider-row input[type="range"] {
+  flex: 0 0 90px;      /* explicit fixed value */
+  width: 90px;
+  min-width: 70px;
+  max-width: 100px;
+  box-sizing: border-box;
+  background: transparent;
+  display: inline-block;
+  -webkit-appearance: none; /* ensure consistent sizing */
+  appearance: none;
+}
+
+/* small tweak so vertical class (if used) doesn't break layout visually in rows */
+.slider-row input[type="range"].vertical {
+  /* keep same visual behaviour but use the horizontal width in the row */
+  height: 4px;
+}
+
+/* numeric input on the right — guaranteed visible */
+.slider-row input[type="number"] {
+  flex: 0 0 50px;      /* visible width */
+  width: 50px;
+  min-width: 50px;
+  text-align: left;
+  box-sizing: border-box;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #aaa;
+  padding: 0.12rem 0.25rem;
+  border-radius: 8px;
+}
+
+/* fallback: make number inputs visible if older rule present */
+.slider-row input[type="number"]::-webkit-outer-spin-button,
+.slider-row input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.h1 {
+  display: block;
+  font-weight: 600;
+  margin-top:10px;
+  margin-bottom: 10px;
+}
+.h2 {
+  font-size: 0.9em;
+  font-weight: 300;
+}
+
+.left-bar {
+  grid-column: 1;
+  grid-row: 2;
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 6500;
+}
+/* Basic menu styling */
+.ctx-menu {
+  position: fixed;
+  background: #1f1f1f;
+  color: #eaeaea;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  min-width: 220px;
+  z-index: 99999;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  padding: 6px;
+}
+.ctx-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.ctx-item:hover { background: rgba(255,255,255,0.03); }
+.ctx-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+.ctx-desc {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-left: 22px;
+}
+.ctx-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.08);
+  display: inline-grid;
+  place-items: center;
+}
+.ctx-check.checked { background: #2b8aef; color: white; }
+.ctx-sep { height: 1px; margin: 6px 0; background: rgba(255,255,255,0.03); }
+.ctx-submenu {
+  margin-left: 10px;
+  margin-top: 6px;
+  border-left: 1px dashed rgba(255,255,255,0.03);
+  padding-left: 8px;
+}
+.ctx-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+}
+.ctx-radio-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.12); display:inline-block;
+}
+.ctx-radio-dot.selected { background: #2b8aef; }
+
+.slider-row2 {
+  position: relative;     /* so absolute children are relative to this row */
+  height: 26px;           /* give enough height for inputs */
+  margin: 4px 0;
+}
+
+/* label fixed at the start */
+.slider-row2 > label {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 140px;           /* label area exactly 140px wide */
+  font-size: 0.9rem;
+  color: #eaeaea;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* range slider: starts right after label (x = 140px) */
+.slider-row2 input[type="range"] {
+  position: absolute;
+  left: 50px;            /* align all sliders at 140px */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 70px;            /* slider width */
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 6px;
+  background: var(--track-color);
+}
+
+/* numeric input: further to the right */
+.slider-row2 input[type="number"] {
+  position: absolute;
+  left: 140px;            /* place numeric box at fixed column */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 70px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #aaa;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+#phase-num-input {
+  left: 132px;            /* place numeric box at fixed column */
+}
+.slider-row2 input[type="number"]::-webkit-outer-spin-button,
+.slider-row2 input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+select {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #aaa;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+#tutorialOverlayPanel {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+#tutorialCurtain {
+  display:none;
+}
+
+/* left-side step button rail (all buttons on one page) */
+#tutorialRail {
+  position: fixed;
+  left: 18px;
+  top: 18px;
+  width: 300px;
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  z-index: 99999;
+  padding:10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  border:1px solid rgba(255,255,255,0.04);
+}
+
+/* each step button */
+.tutorial-step-btn {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px;
+  border-radius:8px;
+  background: rgba(255,255,255,0.02);
+  color:#fff;
+  border: 1px solid rgba(255,255,255,0.03);
+  cursor:pointer;
+  position:relative;
+  overflow:visible;
+}
+.tutorial-step-btn .title { font-weight:600; font-size:13px; }
+.tutorial-step-btn .subtitle { font-size:12px; opacity:0.85; }
+
+/* active style */
+.tutorial-step-btn.active {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  border-color: rgba(255,255,255,0.07);
+}
+
+
+/* small pulsing target marker for highlighted target */
+.tutorial-target-marker {
+  position: absolute;
+  pointer-events: none;
+  z-index: 99999;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  animation: marker-pulse 1.6s infinite;
+  border: 2px solid rgba(255,255,255,0.12);
+}
+@keyframes marker-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* dialog bubble */
+.tutorial-dialog {
+  position: fixed;
+  left: 10px;
+  top: 30px;
+  width: 420px;
+  z-index: 990000000;
+  background: #fff;
+  color: #111;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.6);
+  transform-origin: 100% 100%;
+  opacity: 0;
+  transition: opacity 260ms ease, transform 260ms ease;
+  pointer-events:auto;
+}
+.tutorial-dialog.show { opacity:1; transform: translateY(0);}
+.tutorial-dialog.hide { opacity:0; transform: translateY(8px); }
+
+.tutorial-dialog h3 { margin: 0 0 8px 0; font-size:16px; }
+.tutorial-dialog p {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #111;
+  white-space: pre-wrap; /* preserve line breaks and spaces */
+}
+
+.tutorial-dialog p span {
+  opacity: 0;
+  display: inline-block;
+  transition: opacity 0.3s ease;
+}
+
+
+.tutorial-actions { display:flex; justify-content:flex-end; gap:8px; }
+.tutorial-actions button { padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f6f6f6; cursor:pointer; }
+.tutorial-actions button.primary { background:#111; color:#fff; border-color:transparent; }
+
+/* skip link always visible */
+.tutorial-skip-link {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  z-index: 100000;
+  color: #fff;
+  background: rgba(0,0,0,0.4);
+  padding:8px 10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.06);
+  cursor:pointer;
+}
+
+/* small fade after user completes a dialog */
+.tutorial-fadeout {
+  transition: opacity 280ms ease;
+  opacity: 0;
+}
+
+/* special pulsate glow for the exportMIDI step */
+.tutorial-pulse-glow:not(select) {
+  animation: glowPulse 1.6s infinite;
+  transform-origin: center center; /* optional for smoother scaling */
+}
+
+.tutorial-pulse-glow {
+  box-shadow: 0 0 15px rgba(255,200,60,0.78) !important;
+}
+
+/* Keyframes for scaling */
+@keyframes glowPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+/* subtle decorative marker only used when pulseOutline is requested */
+.tutorial-target-marker {
+  transition: left 160ms ease, top 160ms ease, width 160ms ease, height 160ms ease;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  pointer-events: none;
+}
+
+/* pulsing outline on target element (no z-index changes) */
+.tutorial-pulse-outline {
+  animation: tutorial-pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 6px rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+@keyframes tutorial-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.08); }
+  50% { box-shadow: 0 0 0 10px rgba(255,255,255,0.02); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.00); }
+}
+#tutorialDialog button.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+#tutorialDialog {
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#tutorialDialog.show {
+    opacity: 1;
+}
+
+#tutorialDialog.hide {
+    opacity: 0;
+}
+
+/* optional: fade for spotlight overlay */
+svg.tutorial-spotlight {
+    opacity: 1;
+    transition: opacity 0.35s ease;
+}
+
+svg.tutorial-spotlight.hide {
+    opacity: 0;
+}
+
+.customize {
+  display: grid;
+  grid-template-columns: 1fr; /* force one column */
+  gap: 1.25rem;
+}

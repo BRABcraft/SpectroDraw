@@ -10,10 +10,10 @@
   onceReady(function(){
     /* ====== data list: add/remove/modify rows here ====== */
     const examples = [
-      { id: 'bomb', title: 'Bomb SFX', img: '/assets/bomb.jpg', audio: '/assets/bomb.mp3', duration: 10 },
-      { id: 'birds', title: 'Bird SFX', img: '/assets/bird.jpg', audio: '/assets/bird.mp3', duration: 10 },
-      { id: 'mona', title: 'Mona Lisa', img: '/assets/monaLisa.jpg', audio: '/assets/monaLisa.mp3', duration: 10 },
-      { id: 'pitchAlignDemo', title: 'Microtones', img: '/assets/pitchAlignDemo.jpg', audio: '/assets/pitchAlignDemo.mp3', duration: 10 },
+      { id: 'bomb', title: 'Bomb SFX', img: 'assets/bomb.jpg', audio: 'assets/bomb.mp3', duration: 10 },
+      { id: 'birds', title: 'Bird SFX', img: 'assets/bird.jpg', audio: 'assets/bird.mp3', duration: 10 },
+      { id: 'mona', title: 'Mona Lisa', img: 'assets/monaLisa.jpg', audio: 'assets/monaLisa.mp3', duration: 10 },
+      { id: 'pitchAlignDemo', title: 'Microtones', img: 'assets/pitchAlignDemo.jpg', audio: 'assets/pitchAlignDemo.mp3', duration: 10 },
     ];
 
     /* ====== find or create the section ====== */

@@ -203,11 +203,30 @@
 
   // logout logic (clears storage, attempts server logout, reloads)
   async function doLogout() {
-    try { localStorage.removeItem('spectrodraw_user'); } catch (e) {}
+    try { 
+      localStorage.removeItem('spectrodraw_user'); 
+    } catch (e) {}
+
     try {
-      await fetch(`${authBase}/auth/logout`, { method: 'POST', mode: 'cors', credentials: 'include' });
-    } catch (e) { /* ignore */ }
-    window.location.reload();
+      await fetch(`${authBase}/auth/logout`, { 
+        method: 'POST', 
+        mode: 'cors', 
+        credentials: 'include' 
+      });
+    } catch (e) {
+      /* ignore */
+    }
+
+    const href = window.location.href;
+    const shouldRedirectHome =
+      href.startsWith('https://spectrodraw.com/products/') ||
+      href.startsWith('https://spectrodraw.com/review/');
+
+    if (shouldRedirectHome) {
+      window.location.href = 'https://spectrodraw.com';
+    } else {
+      window.location.reload();
+    }
   }
 
   // My products (close menu, navigate)

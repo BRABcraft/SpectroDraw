@@ -8,13 +8,13 @@
   <link rel="canonical" href="https://spectrodraw.com/app">
   <title>SpectroDraw - Interactive spectrogram editor</title>
   <link rel="stylesheet" type="text/css" href="style.css">
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
   
 </head>
 <body>
 <div class="app">
   <header class="top-bar">
-    <a href="/" id="home" title="Home" style="margin-left:10px;"><img src="/BannerLogo2.png" style="background:transparent; height: 32px;"></a>
+    <a href="/" id="home" title="Home" style="margin-left:10px;"><img src="BannerLogo2.png" style="background:transparent; height: 32px;"></a>
     <button id="fileB" title="Upload Audio" style="margin-left: 10px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <line x1="10" y1="16" x2="10" y2="6" />
@@ -87,7 +87,7 @@
       </svg>
     </button>
     <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
-      <img src="/assets/toothbrush.svg"></button>
+      <img src="assets/toothbrush.svg"></button>
     <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
         <g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -179,13 +179,33 @@
     </button>
     
     <!--Tool editor-->
-    <button class="panel-btn"></button>
-    
-    <!--Macros-->
-    <button class="panel-btn"></button>
+    <button class="panel-btn" id="toolEditBtn" title="Tool Editor" data-tool="1">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12.58,11.21 C11.62,12.17 10.91,12.66 10.36,12.85 C10.19,12.35 9.92,11.88 9.52,11.49 C9.12,11.10 8.65,10.82 8.15,10.64 C8.35,10.09 8.84,9.38 9.79,8.43 C12.06,6.15 16.10,3.36 16.87,4.13 C17.64,4.90 14.85,8.94 12.58,11.21 Z 
+        M8.39,15.41 C8.02,15.77 7.53,15.96 7.05,15.99 L7.05,16.00 L6.93,16.00 C3.68,16.11 2.26,12.44 3.38,12.83 C4.84,13.33 5.44,12.60 5.46,12.58 C6.27,11.81 7.58,11.81 8.39,12.58 C9.20,13.36 9.20,14.64 8.39,15.41 Z"/>
+      </svg>
+    </button>
+
+    <!--Sprite-->
+    <button class="panel-btn" id="spritesBtn" title="Sprites" data-tool="2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12,3 20,7 20,17 12,21 4,17 4,7" />
+        <line x1="12" y1="11" x2="12" y2="21" />
+        <line x1="4" y1="7" x2="12" y2="11" />
+        <line x1="20" y1="7" x2="12" y2="11" />
+      </svg>
+    </button>
+
+    <!--Uploads-->
+    <button class="panel-btn" id="uploadsBtn" title="Uploads" data-tool="3">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 22 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 6h18v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z" />
+        <path d="M2 6V3h9v2" />
+      </svg>
+    </button>
 
     <!-- Midi -->
-    <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="1">
+    <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="4">
       <svg xmlns="http://www.w3.org/2000/svg" 
           width="24" height="24" viewBox="0 0 24 22" 
           fill="none" stroke="white" stroke-width="2" 
@@ -198,11 +218,8 @@
     </button>
 
     <!-- EQ curve -->
-    <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="2">
-      <svg xmlns="http://www.w3.org/2000/svg" 
-          width="24" height="24" viewBox="0 0 24 24" 
-          fill="none" stroke="white" stroke-width="2" 
-          stroke-linecap="round" stroke-linejoin="round">
+    <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="5">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
         <circle cx="3" cy="17" r="1.5" fill="white"/>
         <circle cx="11" cy="11" r="1.5" fill="white"/>
@@ -210,16 +227,19 @@
       </svg>
     </button>
     
-    <!--Uploads-->
-    <button class="panel-btn"></button>
-    
-    <!--Sprite-->
-    <button class="panel-btn"></button>
+    <!--Macros-->
+    <button class="panel-btn" id="macrosBtn" title="Macros" data-tool="6">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 8 10 12 6 16" />
+        <line x1="13" y1="16" x2="18" y2="16" />
+      </svg>
+    </button>
   </aside>
 
   <aside class="left-panel">
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
-    <div id="d1">
+    <!--Project settings-->
+    <div id="d0">
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
       <div id="fftParameters">
         <label class="h1">FFT Parameters
@@ -283,6 +303,13 @@
         <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
         <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="100">
       </div>
+      <div class="slider-row" title="Preview sound while drawing">
+          <label class="h2">Sound while drawing</label>
+          <input id="previewWhileDrawing" type="checkbox" checked>
+      </div>
+    </div>
+    <!--Brush editor-->
+    <div id="d1" style="display:none;">
       <div id="brushSettings">
         <label class="h1">Brush settings</label>
         <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
@@ -335,12 +362,36 @@
             <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
         </div>
       </div> 
-      <div class="slider-row" title="Preview sound while drawing">
-          <label class="h2">Sound while drawing</label>
-          <input id="previewWhileDrawing" type="checkbox" checked>
+    </div>
+    <!--Sprites-->
+    <div id="d2" style="display:none;">
+      <h3 style="margin:6px 0 10px 0;">Sprites</h3>
+      <div id="spriteTableWrap">
+        <table id="spriteTable" role="grid" aria-label="Sprites table">
+          <thead>
+            <tr>
+              <th style="width:55%;">Name</th>
+              <th style="width:15%;">Enabled</th>
+              <th style="width:30%;">Tool</th>
+            </tr>
+          </thead>
+          <tbody id="spriteTableBody">
+            <!-- rows inserted dynamically -->
+          </tbody>
+        </table>
+      </div>
+      <strong id="selectedName">No sprite selected</strong>
+      <span class="small" id="selectedTool"></span>
+      <span class="small" id="selectedMeta"></span>
+      <div id="spriteEditor">
+        <button id="moveSpriteBtn" class="leftBtn">Move Sprite</button>
+        <button id="deleteSpriteBtn" class="leftBtn" style="color:Red;">Delete Sprite</button>
       </div>
     </div>
-    <div id="d2" style="display:none;">
+    <!--Uploads-->
+    <div id="d3" style="display:none;"></div>
+    <!--Midi-->
+    <div id="d4" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Piano</h2>
       <label class="h1">Brush Alignment</label>
       <!--Auto align pitch-->
@@ -429,7 +480,8 @@
       <!--Export button-->
       <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>
     </div>
-    <div id="d3" style="display:none; height: 80%">
+    <!--EQ-->
+    <div id="d5" style="display:none; height: 80%">
       <h2 style="margin-bottom:10px;margin-top:10px;">Equalizer</h2>
       <h5 style="margin-top:0px; margin-bottom:10px;">Note: Does not update on the spectrogram to save lag</h5>
       <div class="slider-row" title="Global gain">
@@ -452,7 +504,8 @@
       </div>
       <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     </div>
-    <div id="d4" style="display:none;"></div>
+    <!--Macros-->
+    <div id="d6" style="display:none;"></div>
   </aside>
 
   <main class="main-area">
@@ -469,3 +522,1901 @@
 <div id="status" style="position:absolute;bottom:0px;"></div>
 </body>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
+
+<script>
+  function syncNumberAndRange(numberInput, rangeInput) {
+
+    numberInput.addEventListener('input', () => {
+      let val = parseInt(numberInput.value);
+      if (val < rangeInput.min) val = rangeInput.min;
+      if (val > rangeInput.max) val = rangeInput.max;
+      rangeInput.value = val;
+      numberInput.value = val; 
+    });
+
+    rangeInput.addEventListener('input', () => {
+      numberInput.value = rangeInput.value;
+    });
+  }
+
+  const sliders = [[document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
+                   [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
+                   [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
+                   [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
+                   [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
+                   [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')],
+                   [document.getElementById('npo'), document.getElementById('npoInput')],
+                   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
+                   [document.getElementById('bpm'), document.getElementById('bpmInput')],
+                   [document.getElementById('startOnPitch'), document.getElementById('startOnPitchInput'), true],
+                   [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
+                   [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
+                   [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
+                   [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
+                   [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
+                   [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
+                   [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
+                   [document.getElementById('amp'), document.getElementById('ampInput')],
+                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true]];
+  sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
+</script>
+<script src="fft.js"></script>
+<script>
+
+const fileEl=document.getElementById("file");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const overlayCanvas = document.getElementById("overlay");
+const overlayCtx = overlayCanvas.getContext("2d");
+const status=document.getElementById("status");
+const fftSizeEl=document.getElementById("fftSize");
+const hopSizeEl=document.getElementById("hopSize");
+const brushSizeEl=document.getElementById("brushSize");
+const brushOpacityEl=document.getElementById("brushOpacity");
+const phaseOpacityEl=document.getElementById("phaseOpacity");
+const brushColorEl=document.getElementById("brushColor");
+const blurRadiusEl=document.getElementById("blurRadius");
+const ampEl=document.getElementById("amp");
+const noiseRemoveFloorEl=document.getElementById("noiseRemoveFloor");
+const penPhaseEl=document.getElementById("penPhase");
+const logscaleEl = document.getElementById("logscale");
+const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
+const phaseTextureEl = document.getElementById("phaseTexture");
+const recordBtn = document.getElementById("rec");
+const preset = document.getElementById("presets");
+const es = document.getElementById("es");
+const ev = document.getElementById("ev");
+const yAxis=document.getElementById("freq");
+const yctx=yAxis.getContext("2d");
+const yAxisMode=document.getElementById("yAxisMode");
+const info = document.getElementById("mouseInfo");
+const alignPitchBtn = document.getElementById("alignPitch");
+const startOnPitchDiv = document.getElementById("startOnPitchDiv");
+const alignTimeBtn = document.getElementById("alignTime");
+const bpmDiv = document.getElementById("bpmDiv");
+const midiAlignTimeBtn = document.getElementById("midiAlignTime");
+const useAIEl = document.getElementById("useMidiAI");
+const nonAIMidiOptions = document.getElementById("nonAiMidiDiv");
+const matOptions = document.getElementById("matOptions");
+const midiBpmDiv = document.getElementById("midiBpmDiv");
+const subBeatDiv = document.getElementById("subBeatDiv");
+const AIMidiOptions = document.getElementById("AiMidiDiv");
+const tQs = document.getElementById("tQs");
+const tQt = document.getElementById("tQt");
+const tQd = document.getElementById("tQd");
+const WORKLET_CODE = `
+class RecorderProcessor extends AudioWorkletProcessor {
+  process(inputs) {
+    const input = inputs[0];
+    if (input && input[0] && input[0].length > 0) {
+      const chunk = new Float32Array(input[0].length);
+      chunk.set(input[0]);
+
+      this.port.postMessage(chunk, [chunk.buffer]);
+    }
+    return true;
+  }
+}
+registerProcessor('recorder-processor', RecorderProcessor);
+`;
+const micHTML = `
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8 15a4 4 0 0 0 8 0" />
+  <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="black"/>
+  <line x1="12" y1="18" x2="12" y2="17"/>
+  <line x1="9" y1="21" x2="15" y2="21"/>
+</svg>`;
+const recHTML = `
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="red">
+  <circle cx="12" cy="12" r="8" />
+</svg>`;
+const lockHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+  <path d="M8 10a4 4 0 0 1 8 0" fill="none" stroke="white" stroke-width="2"/>
+  <rect x="6" y="10" width="12" height="10" fill="white"/>
+</svg>`;
+const unlockHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+  <path d="M0 10a4 4 0 0 1 8 0" fill="none" stroke="white" stroke-width="2"/>
+  <rect x="6" y="10" width="12" height="10" fill="white"/>
+</svg>`;
+const toolButtons = document.querySelectorAll(".tool-btn");
+const shapeButtons = document.querySelectorAll(".shape-btn");
+const panelButtons = document.querySelectorAll(".panel-btn");
+const trueScale = document.getElementById("trueScale");
+const overlayFile = document.getElementById("overlayFile");
+const uvcb = document.getElementById("useVolumeControllers");
+const EQcanvas = document.getElementById("eqCanvas");
+const eCtx = EQcanvas.getContext("2d"); 
+const eqPresets = document.getElementById("eqPresets");
+const lockHopBtn = document.getElementById("lockHopBtn");
+
+const historyStack = []; const redoStack = [];
+const MAX_HISTORY_ENTRIES = 80;
+
+let pcm=null, sampleRate=48000, pos=0, fftSize=1024, hop=512, win=hann(1024);
+let framesTotal=0, x=0, rendering=false;
+let imageBuffer=null;
+let visited = null;
+let currentCursorX = 0;
+let iLow = null;
+let iHigh = null;
+let fLow = null;
+let fHigh = null;
+let specCanvas = document.createElement("canvas");
+let specCtx = specCanvas.getContext("2d");
+let logScaleVal = 1.12;
+
+let mags = null;     
+let phases = null;   
+let specWidth = 0;
+let specHeight = 0;
+let pcmChunks = null;
+let trueScaleVal=false;
+let overlayImage = null;
+let useHz = false;
+let autoPlayOnFinish = true;
+let alignPitch=false;let alignTime=false;midiAlignTime=true;useMidiAI=true;
+let subBeat = 1;mSubBeat=16;midiBpm=120;
+let tQTempo=120;tQStrength=0;
+let useVolumeControllers = false;
+
+let startX = null, startY = null;
+let cx_ = null, cy_ = null;
+let zooming = false;
+
+let brushSize=parseInt(brushSizeEl.value);
+let brushOpacity=parseInt(brushOpacityEl.value)/100;
+let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
+let brushColor=parseInt(brushColorEl.value);
+let blurRadius=parseInt(blurRadiusEl.value);
+let amp=parseInt(ampEl.value);
+let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
+let penPhase=parseInt(penPhaseEl.value)/10000;
+let currentTool = "color";
+let currentShape = "brush";
+let currentPanel = "0";
+let bpm = 120; let npo = 12;
+let noiseFloor = document.getElementById("noiseFloorCutoff").value; let startOnP = 440;
+let dCutoff = document.getElementById("durationCutoff").value;
+let globalGain = 0;
+let playingTutorial = false;
+let currentFrame = 0;
+let lockHop = false;
+let sprites = [];
+let nextSpriteId = 1;
+let currentSprite = null;
+let spriteRedoQueue = [];
+sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
+sliders[0][1].addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    let val = parseFloat(sliders[0][1].value);
+    const min = parseFloat(sliders[0][0].min);
+    const max = parseFloat(sliders[0][0].max);
+    if (isNaN(val)) val = 0;      
+    if (val < min) val = min;
+    if (val > max) val = max;
+    sliders[0][1].value = val;      
+    sliders[0][0].value = val;
+    initEmptyPCM();
+  }
+});
+sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
+sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
+sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
+sliders[2][1].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][1].value); updateBrushPreview();});
+sliders[3][0].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][0].value); updateBrushPreview();});
+sliders[3][1].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][1].value); updateBrushPreview();});
+sliders[4][0].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][0].value)/100; updateBrushPreview();});
+sliders[4][1].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][1].value)/100; updateBrushPreview();});
+sliders[5][0].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
+sliders[5][1].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
+sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
+sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) npo=parseInt  (sliders[6][1].value);});
+sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
+sliders[7][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[7][1].value);const min = parseFloat(sliders[7][0].min);const max = parseFloat(sliders[7][0].max);
+    if (isNaN(val)) val = noiseFloor;      if (val < min) val = min;if (val > max) val = max;sliders[7][1].value = val;sliders[7][0].value = val;noiseFloor = val;}});
+sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);drawCursor(true);});
+sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);drawCursor(true);});
+sliders[9][0].addEventListener('input', () => {startOnP = parseFloat(sliders[9][0].value); sliders[9][1].value = startOnP;});
+sliders[9][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[9][1].value);const min = parseFloat(sliders[9][0].min);const max = parseFloat(sliders[9][0].max);
+    if (isNaN(val)) val = startOnP;if (val < min) val = min;if (val > max) val = max;sliders[9][1].value = val;sliders[9][0].value = val;startOnP = val;}});
+sliders[10][0].addEventListener('input', () => {dCutoff = parseFloat(sliders[10][0].value); sliders[10][1].value = dCutoff;});
+sliders[10][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[10][1].value);const min = parseFloat(sliders[10][0].min);const max = parseFloat(sliders[10][0].max);
+    if (isNaN(val)) val = dCutoff;if (val < min) val = min;if (val > max) val = max;sliders[10][1].value = val;sliders[10][0].value = val;dCutoff = val;}});
+sliders[11][0].addEventListener('input', () => {globalGain = parseFloat(sliders[11][0].value); sliders[11][1].value = globalGain; updateEQ();});
+sliders[11][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[11][1].value);const min = parseFloat(sliders[11][0].min);const max = parseFloat(sliders[11][0].max);
+    if (isNaN(val)) val = globalGain;if (val < min) val = min;if (val > max) val = max;sliders[11][1].value = val;sliders[11][0].value = val;globalGain = val;updateEQ();}});
+sliders[12][0].addEventListener('input', () => {midiBpm = parseFloat(sliders[12][0].value); sliders[12][1].value = midiBpm;});
+sliders[12][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[12][1].value);const min = parseFloat(sliders[12][0].min);const max = parseFloat(sliders[12][0].max);
+    if (isNaN(val)) val = midiBpm;if (val < min) val = min;if (val > max) val = max;sliders[12][1].value = val;sliders[12][0].value = val;midiBpm = val;}}); 
+sliders[13][0].addEventListener('input', () => {mSubBeat = parseFloat(sliders[13][0].value); sliders[13][1].value = mSubBeat;});
+sliders[13][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[13][1].value);const min = parseFloat(sliders[13][0].min);const max = parseFloat(sliders[13][0].max);
+    if (isNaN(val)) val = mSubBeat;if (val < min) val = min;if (val > max) val = max;sliders[13][1].value = val;sliders[13][0].value = val;mSubBeat = val;}});
+sliders[14][0].addEventListener('input', () => {tQStrength = parseFloat(sliders[14][0].value); sliders[14][1].value = tQStrength; updateEQ();});
+sliders[14][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[14][1].value);const min = parseFloat(sliders[14][0].min);const max = parseFloat(sliders[14][0].max);
+    if (isNaN(val)) val = tQStrength;if (val < min) val = min;if (val > max) val = max;sliders[14][1].value = val;sliders[11][0].value = val;tQStrength = val;}});
+sliders[15][0].addEventListener('input', () => {tQTempo = parseFloat(sliders[15][0].value); sliders[15][1].value = tQTempo;});
+sliders[15][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[15][1].value);const min = parseFloat(sliders[15][0].min);const max = parseFloat(sliders[15][0].max);
+    if (isNaN(val)) val = tQTempo;if (val < min) val = min;if (val > max) val = max;sliders[15][1].value = val;sliders[15][0].value = val;tQTempo = val;}});
+sliders[16][0].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][0].value); updateBrushPreview();});
+sliders[16][1].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][1].value); updateBrushPreview();});
+sliders[17][0].addEventListener("input", ()=>{amp  =  (sliders[17][0].value); updateBrushPreview();});
+sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); updateBrushPreview();});
+sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
+sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
+    if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
+recordBtn.innerHTML = micHTML;
+lockHopBtn.innerHTML = unlockHTML;
+
+function angleDiff(a, b) {
+  const d = a - b;
+  return Math.atan2(Math.sin(d), Math.cos(d));
+}
+function pushHistory(entry, clearRedo = true) {
+  while (historyStack.length >= MAX_HISTORY_ENTRIES) historyStack.shift();
+  historyStack.push(entry);
+  if (clearRedo) redoStack.length = 0;
+}
+
+panelButtons.forEach(btn => {
+  if(btn.dataset.tool === currentPanel) {
+    btn.style.background = "#4af"; 
+  }
+});
+panelButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentPanel = btn.dataset.tool;
+
+    // Reset all button backgrounds
+    panelButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#4af";
+
+    // Hide all panels and show only the current one
+    let i = 0;
+    while (true) {
+      const panel = document.getElementById("d" + i);
+      if (!panel) break; // stop when no more panels
+      panel.style.display = (i == currentPanel) ? "block" : "none";
+      i++;
+    }
+
+    // Call drawEQ if panel 2 is active
+    if (currentPanel == "2") drawEQ();
+  });
+});
+
+toolButtons.forEach(btn => {
+  if(btn.dataset.tool === currentTool) {
+    btn.style.background = "#4af"; 
+  }
+});
+toolButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentTool = btn.dataset.tool;
+    toolButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#4af"; 
+    if (currentTool === "blur") {
+      document.getElementById("brushColorDiv").style.display="none";
+      document.getElementById("blurRadiusDiv").style.display="flex";
+      document.getElementById("amplifyDiv").style.display="none";
+      document.getElementById("noiseFloorDiv").style.display="none";
+    } else if (currentTool === "amplifier") {
+      document.getElementById("brushColorDiv").style.display="none";
+      document.getElementById("blurRadiusDiv").style.display="none";
+      document.getElementById("amplifyDiv").style.display="flex";
+      document.getElementById("noiseFloorDiv").style.display="none";
+    } else if (currentTool === "noiseRemover") {
+      document.getElementById("brushColorDiv").style.display="none";
+      document.getElementById("blurRadiusDiv").style.display="none";
+      document.getElementById("amplifyDiv").style.display="none";
+      document.getElementById("noiseFloorDiv").style.display="flex";
+    } else {
+      document.getElementById("brushColorDiv").style.display="flex";
+      document.getElementById("blurRadiusDiv").style.display="none";
+      document.getElementById("amplifyDiv").style.display="none";
+      document.getElementById("noiseFloorDiv").style.display="none";
+    }
+    if (currentTool === 'noiseRemover') {
+      document.getElementById("ev").style.display="none";
+      document.getElementById("phaseDiv").style.display="none";
+      document.getElementById("phaseStrengthDiv").style.display="none";
+    } else {
+      document.getElementById("ev").style.display="flex";
+      document.getElementById("phaseDiv").style.display="flex";
+      document.getElementById("phaseStrengthDiv").style.display="flex";
+    }
+    document.getElementById("brushSizeDiv").style.display=(currentTool === 'rectangle')?"none":"flex";
+    updateBrushPreview();
+  });
+});
+shapeButtons.forEach(btn => {
+  if(btn.dataset.shape === currentShape) {
+    btn.style.background = "#4af"; 
+  }
+});
+shapeButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentShape = btn.dataset.shape;
+    shapeButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#4af"; 
+    if(currentShape === "image") overlayFile.click();
+    document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
+    updateBrushPreview();
+  });
+});
+fileB.addEventListener("click", () => {
+  file.click();
+});
+trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
+yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
+uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--accent-gradient)";});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; startOnPitchDiv.style.display=alignPitch?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
+midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
+useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});
+overlayFile.addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.onload = () => {overlayImage = img; updateBrushPreview();}
+  img.src = URL.createObjectURL(f);
+});
+let ogHSv = hopSizeEl.value;
+function toggleLockHop() {
+  if (lockHop) {
+    lockHopBtn.innerHTML=unlockHTML;
+    hopSize.classList.remove("disabled");
+    hopSizeEl.value = ogHSv;
+    iLow = 0; iHigh = Math.max(1, Math.floor((pcm.length - fftSize) / ogHSv) + 1);
+    restartRender();
+  } else {
+    lockHopBtn.innerHTML=lockHTML;
+    hopSize.classList.add("disabled");
+    ogHSv = hopSizeEl.value;
+    hopSizeEl.value = fftSizeEl.value;
+    iLow = 0; iHigh = Math.max(1, Math.floor((pcm.length - fftSize) / fftSizeEl.value) + 1);
+    restartRender();
+  }
+  lockHop = !lockHop;
+}
+let $x = 0, $y = 0;
+document.addEventListener('mousemove', e=>{
+  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false);
+  $x=cx;$y=cy;
+  if (pressedN) {
+    const realY = visibleToSpecY($y);
+    if (sineOsc) {
+      setSineFreq(realY);
+    }
+  }
+});
+
+function keyBind(event) {
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
+    return; 
+  }
+  const key = event.key.toLowerCase();
+  if (key === 'b') {
+    document.getElementById("brushBtn").click();
+  } else if (key === 'e') {
+    document.getElementById("eraserBtn").click();
+  } else if (key === 'p') {
+    document.getElementById("pianoBtn").click();
+  } else if (key === 'g') {
+    document.getElementById("settingsBtn").click();
+  } else if (key === 'q') {
+    document.getElementById("eqBtn").click();
+  } else if (key === 'r') {
+    document.getElementById("rectBtn").click();
+  } else if (key === 'a') {
+    document.getElementById("amplifierBtn").click();
+  } else if (key === 'u') {
+    document.getElementById("blurBtn").click();
+  } else if (key === 'i' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+    document.getElementById("imageBtn").click();
+  } else if (key === 'l') {
+    document.getElementById("lineBtn").click();
+  } else if ((event.ctrlKey || event.metaKey) && key === 'o') {
+    event.preventDefault();
+    fileEl.click();
+  } else if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 's') {
+    event.preventDefault();
+    document.getElementById('downloadButton').click();
+  } else if ((event.ctrlKey || event.metaKey) && key === 's') {
+    event.preventDefault();
+    document.getElementById('downloadWav').click();
+  } else if ((event.ctrlKey || event.metaKey) && key === 'm') {
+    exportMidi();
+  } else if ((event.ctrlKey || event.metaKey) && key === ' ') {
+    recordBtn.click();
+  } else if (key === 'y' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+    yAxisMode.click();
+  } else if (key === 'j') {
+    alignPitchBtn.click();
+  } else if (key === 'k') {
+    alignTimeBtn.click();
+  } else if (key === 'x') {
+    document.getElementById("noiseRemoverBtn").click();
+  }
+}
+document.addEventListener("keydown", (e) => {
+  const active = document.activeElement;
+  if (active && active.matches("input[type=range], .leftBtn")) {
+    if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Tab"].includes(e.key)) {
+      return; 
+    }
+
+    active.blur();
+    setTimeout(() => {
+      const evt = new KeyboardEvent('keydown', {
+        key: e.key,
+        code: e.code,
+        keyCode: e.keyCode,
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+        metaKey: e.metaKey
+      });
+      document.dispatchEvent(evt);
+    }, 0);
+
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
+document.addEventListener('keydown', (event) => {
+  keyBind(event);
+});
+let pressedN=false;
+document.addEventListener('keydown', (e)=>{
+  if (e.key==='n') {
+    pressedN=true;
+    if (!sineOsc) {
+      const realY = visibleToSpecY($y);
+      sineOsc = audioCtx.createOscillator();
+      sineOsc.type = "sine";
+      sineGain = audioCtx.createGain();
+      sineGain.gain.value = 0.2;
+      sineOsc.connect(sineGain).connect(audioCtx.destination);
+      setSineFreq(realY); 
+      sineOsc.start();
+    }
+  }
+});
+document.addEventListener('keyup', (e)=>{
+  if (e.key==='n'){
+    pressedN=false;
+    if (sineOsc) {
+      sineOsc.stop();
+      sineOsc.disconnect();
+      sineOsc = null;
+      sineGain = null;
+    }
+  }
+});
+
+let selectedSpriteId = null;
+
+// utility to find sprite index by id
+function getSpriteIndexById(id) {
+  if (!sprites) return -1;
+  return sprites.findIndex(s => s && s.id === id);
+}
+
+function getSpriteById(id) {
+  const idx = getSpriteIndexById(id);
+  return idx >= 0 ? sprites[idx] : null;
+}
+
+// Render the sprites table
+function renderSpritesTable() {
+  console.log('Rendering sprites table, selectedSpriteId=', selectedSpriteId);
+  const tbody = document.getElementById('spriteTableBody');
+  tbody.innerHTML = '';
+  if (sprites.length == 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="3" class="muted">No sprites</td>';
+    tbody.appendChild(tr);
+    updateEditorSelection(null);
+    return;
+  }
+
+  sprites.forEach(sprite => {
+    if (!sprite) return;
+    const tr = document.createElement('tr');
+    tr.className = 'sprite-row' + (selectedSpriteId === sprite.id ? ' selected' : '');
+    tr.dataset.spriteId = sprite.id;
+
+    // NAME
+    const name = sprite.name || ('Sprite #' + sprite.id);
+    const tdName = document.createElement('td');
+    tdName.textContent = name;
+
+    // ENABLED checkbox
+    const tdEnabled = document.createElement('td');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!sprite.enabled;
+    cb.title = 'Toggle sprite enabled';
+    cb.addEventListener('change', (ev) => {
+      ev.stopPropagation();
+      toggleSpriteEnabled(sprite.id, cb.checked);
+      renderSpritesTable();
+    });
+    tdEnabled.appendChild(cb);
+
+    // TOOL
+    const tdTool = document.createElement('td');
+    tdTool.textContent = sprite.tool || '';
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdEnabled);
+    tr.appendChild(tdTool);
+
+    // click selects
+    tr.addEventListener('click', () => {
+      selectedSpriteId = sprite.id;
+      renderSpritesTable();
+      updateEditorSelection(sprite.id);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+// Update editor info for selected sprite
+function updateEditorSelection(spriteId) {
+  const nameEl = document.getElementById('selectedName');
+  const toolEl = document.getElementById('selectedTool');
+  const metaEl = document.getElementById('selectedMeta');
+  console.log(spriteId);
+  if (spriteId === null) {
+    selectedSpriteId = null;
+    nameEl.textContent = 'No sprite selected';
+    toolEl.textContent = '';
+    metaEl.textContent = 'Select a sprite to edit — move or delete it.';
+    return;
+  }
+  const s = getSpriteById(spriteId);
+  if (!s) { updateEditorSelection(null); return; }
+  const displayName = s.name || ('Sprite #' + s.id);
+  nameEl.textContent = displayName;
+  toolEl.textContent = ' — ' + (s.tool || '');
+  const info = `Pixels columns: ${s.pixels ? Array.from(s.pixels.keys()).length : 0}  •  Enabled: ${!!s.enabled}`;
+  metaEl.textContent = info;
+  // ensure inputs reset
+  document.getElementById('moveDeltaX').value = 0;
+  document.getElementById('moveDeltaY').value = 0;
+}
+
+// Toggle sprite (apply prev or next values)
+function toggleSpriteEnabled(spriteId, enable) {
+  const sprite = getSpriteById(spriteId);
+  if (!sprite) return;
+  const minCol = Math.max(0, sprite.minCol || 0);
+  const maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
+
+  // apply prev (disable) or next (enable)
+  if (enable) {
+    // write next values at recorded coords
+    forEachSpritePixelInOrder(sprite, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
+      const id = y * specWidth + x;
+      mags[id] = nextMag;
+      phases[id] = nextPhase;
+    });
+    sprite.enabled = true;
+  } else {
+    // write prev values back
+    forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
+      const id = y * specWidth + x;
+      mags[id] = prevMag;
+      phases[id] = prevPhase;
+    });
+    sprite.enabled = false;
+  }
+
+  // update image buffer and PCM for affected columns
+  renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
+  recomputePCMForCols(minCol, maxCol);
+  restartRender(false);
+  updateCanvasScroll();
+
+  if (playing) {
+    stopSource(true);
+    playPCM(true);
+  }
+}
+
+// Move sprite by dx (frames) and dy (bins). Best-effort handling.
+function moveSprite(spriteId, dx, dy) {
+  const sprite = getSpriteById(spriteId);
+  if (!sprite) return;
+  // 1) restore prev values at old positions
+  forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
+    const idOld = y * specWidth + x;
+    mags[idOld] = prevMag;
+    phases[idOld] = prevPhase;
+  });
+
+  // 2) build new pixel map shifted by dx/dy, clamped
+  const newMap = new Map();
+  let newMin = Infinity, newMax = -Infinity;
+
+  const cols = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
+  for (const oldX of cols) {
+    const col = sprite.pixels.get(oldX);
+    for (let i = 0; i < col.ys.length; i++) {
+      const oldY = col.ys[i];
+      const prevMag = col.prevMags[i];
+      const prevPhase = col.prevPhases[i];
+      const nextMag = col.nextMags[i];
+      const nextPhase = col.nextPhases[i];
+
+      const nx = oldX + dx;
+      const ny = oldY + dy;
+      if (nx < 0 || nx >= specWidth || ny < 0 || ny >= specHeight) {
+        // skip out-of-bounds pixels (they are effectively removed)
+        continue;
+      }
+      // ensure column entry exists
+      let ncol = newMap.get(nx);
+      if (!ncol) {
+        ncol = { ys: [], prevMags: [], prevPhases: [], nextMags: [], nextPhases: [] };
+        newMap.set(nx, ncol);
+      }
+      // Because we've already restored prev at old locations, for the new location we want:
+      // - prev values should be whatever is currently in mags/phases at that destination BEFORE we write next.
+      //   However we can store the previous as the current mags/phases (which reflect other layers).
+      //   But to be conservative, capture current mags/phases as prev for this moved sprite.
+      const destIdx = ny * specWidth + nx;
+      const currentDestMag = mags[destIdx] || 0;
+      const currentDestPhase = phases[destIdx] || 0;
+      ncol.ys.push(ny);
+      ncol.prevMags.push(currentDestMag);
+      ncol.prevPhases.push(currentDestPhase);
+      ncol.nextMags.push(nextMag);
+      ncol.nextPhases.push(nextPhase);
+
+      if (nx < newMin) newMin = nx;
+      if (nx > newMax) newMax = nx;
+    }
+  }
+
+  // 3) write next values into mags/phases for the new positions
+  const newCols = Array.from(newMap.keys()).sort((a,b)=>a-b);
+  for (const x of newCols) {
+    const col = newMap.get(x);
+    for (let i = 0; i < col.ys.length; i++) {
+      const y = col.ys[i];
+      const nextMag = col.nextMags[i];
+      const nextPhase = col.nextPhases[i];
+      const idNew = y * specWidth + x;
+      mags[idNew] = nextMag;
+      phases[idNew] = nextPhase;
+    }
+  }
+
+  // 4) replace sprite.pixels, update bounds
+  sprite.pixels = newMap;
+  sprite.minCol = newMin === Infinity ? Infinity : Math.max(0, newMin);
+  sprite.maxCol = Math.max(-Infinity, newMax === -Infinity ? -1 : Math.min(specWidth-1, newMax));
+
+  // recompute/render affected columns (old range & new range)
+  const affectedMin = Math.max(0, Math.min(sprite.minCol || 0, newMin === Infinity ? specWidth-1 : newMin));
+  const affectedMax = Math.min(specWidth - 1, Math.max(sprite.maxCol || 0, newMax === -Infinity ? 0 : newMax));
+  // safer: recompute whole union of previous and new; but we restored prev at old coords earlier.
+
+  renderSpectrogramColumnsToImageBuffer(affectedMin, affectedMax);
+  recomputePCMForCols(affectedMin, affectedMax);
+  restartRender(false);
+  updateCanvasScroll();
+
+  if (playing) {
+    stopSource(true);
+    playPCM(true);
+  }
+
+  renderSpritesTable();
+  updateEditorSelection(spriteId);
+}
+
+// Delete sprite: disable (restore prev) then remove from sprites array
+function deleteSprite(spriteId) {
+  const idx = getSpriteIndexById(spriteId);
+  if (idx === -1) return;
+  const sprite = sprites[idx];
+
+  // restore prev values
+  forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
+    const id = y * specWidth + x;
+    mags[id] = prevMag;
+    phases[id] = prevPhase;
+  });
+
+  const minCol = Math.max(0, sprite.minCol || 0);
+  const maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
+  // remove from array
+  sprites.splice(idx, 1);
+
+  renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
+  recomputePCMForCols(minCol, maxCol);
+  restartRender(false);
+  updateCanvasScroll();
+
+  if (playing) {
+    stopSource(true);
+    playPCM(true);
+  }
+
+  selectedSpriteId = null;
+  renderSpritesTable();
+  updateEditorSelection(null);
+}
+
+document.getElementById('deleteSpriteBtn').addEventListener('click', () => {
+  if (!selectedSpriteId) return;
+  if (!confirm('Delete selected sprite? This cannot be undone.')) return;
+  deleteSprite(selectedSpriteId);
+});
+
+// initial render
+renderSpritesTable();
+
+</script>
+<script src="axes.js"></script>
+<script src="midi.js"></script>
+<script>
+
+function initEmptyPCM() {
+    const sampleRateLocal = 48000;
+    let duration = emptyAudioLengthEl.value; 
+    if (duration  < 0.01) duration = 10;
+    const type = phaseTextureEl.value;
+    const length = sampleRateLocal * duration; 
+    const tinyNoiseAmplitude = 0.0001; 
+
+    const pcmArray = new Float32Array(length);
+    for (let i = 0; i < length; i++) {
+      pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+    }
+    pcm = pcmArray;
+    sampleRate = sampleRateLocal;
+
+    iLow = null;
+    minCol = 0; maxCol = 
+    restartRender(false);
+}
+async function onReset() {
+  snapshotMags=mags;
+  snapshotPhases=phases;
+  await initEmptyPCM();
+  minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
+  newHistory();
+}
+function drawLogScale() {
+  const lctx = logscaleEl.getContext("2d");
+
+  const w = 40, h = 40;
+  lctx.clearRect(0, 0, w, h);
+
+  lctx.beginPath();
+  const steps = 40;
+  for (let i = 0; i <= steps; i++) {
+    const x = i / steps;              
+    const y = 1-Math.pow(0-(x-1), Math.pow(logScaleVal,2)); 
+    const px = x * w;                 
+    const py = h - y * h;             
+    if (i === 0) lctx.moveTo(px, py);
+    else lctx.lineTo(px, py);
+  }
+  lctx.strokeStyle = "white";
+  lctx.lineWidth = 3;
+  lctx.stroke();
+}
+let changingLogScale = false;
+function getMouseXY(e,touch) {
+  if (touch) {
+    return [e.touches[0].clientX, e.touches[0].clientY];
+  } else {
+    return [e.clientX, e.clientY];
+  }
+}
+logscaleEl.addEventListener("mousedown", e=> {
+  logScaleMouseDown(e,false);
+});
+logscaleEl.addEventListener("touchstart", e=> {
+  logScaleMouseDown(e.true);
+});
+function logScaleMouseDown(e,touch) {
+  if (e.button !== 0) return;
+  const rect= logscaleEl.getBoundingClientRect();
+  changingLogScale = true;
+  [startX, startY] = getMouseXY(e,touch);
+  buildBinDisplayLookup();
+  renderFullSpectrogramToImage();
+  drawLogScale();
+}
+logscaleEl.addEventListener("mousedown", e=> {
+  logScaleMouseDown(e,false);
+});
+logscaleEl.addEventListener("touchstart", e=> {
+  logScaleMouseDown(e,true);
+});
+
+function logScaleMouseMove(e,touch) {
+  logscaleEl.style.cursor = "n-resize";
+  if (!changingLogScale) return;
+  const rect= logscaleEl.getBoundingClientRect();
+  logScaleVal -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
+  if (logScaleVal < 1) logScaleVal = 1;
+  if (logScaleVal > 2) logScaleVal = 2;
+  [startX, startY] = getMouseXY(e,touch);
+  buildBinDisplayLookup();
+  renderFullSpectrogramToImage();
+  drawLogScale();
+  drawYAxis();
+}
+
+document.addEventListener("mousemove", e=> {
+  logScaleMouseMove(e,false);
+});
+document.addEventListener("touchmove", e=> {
+  logScaleMouseMove(e,true);
+});
+
+logscaleEl.addEventListener("mousemove", e=> {
+  logscaleEl.title = "Log scale: " + logScaleVal;
+});
+
+document.addEventListener("mouseup", e=>{changingLogScale=false;})
+document.addEventListener("touchend", e=>{changingLogScale=false;})
+
+emptyAudioLengthEl.addEventListener("input", ()=> {
+  initEmptyPCM();
+  iLow = 0;
+  iHigh = framesTotal;
+});
+
+</script>
+<script src="recordingAndPresets.js"></script>
+<script>
+if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
+fftSizeEl.addEventListener("change",()=>{if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}restartRender();buildBinDisplayLookup();});
+hopSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();});
+
+function restartRender(autoPlay){
+    if(!pcm) return;
+    autoPlayOnFinish = !!playing || !!autoPlay;
+    fftSize = parseInt(fftSizeEl.value);
+    hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
+    win = hann(fftSize);
+
+    framesTotal = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
+    iLow = 0;
+    iHigh = framesTotal;
+    const freqBins = Math.floor(fftSize / 2);
+    canvas.width = framesTotal;
+    canvas.height = freqBins;
+    if (trueScaleVal) {
+      const maxHeight = (window.innerHeight - 110);
+      const containerWidth = canvas.parentElement.clientWidth;
+      const scaleX = containerWidth / framesTotal;
+      const scaleY = maxHeight / freqBins;
+      const scale = Math.min(scaleX, scaleY, 1);
+
+      canvas.style.width = (canvas.width * scale) + "px";
+      canvas.style.height = (canvas.height * scale) + "px";
+    } else {
+      canvas.style.width = "calc(100% - 40px)";
+      let h = window.innerHeight - 110;
+      canvas.style.height = h+"px";
+    }
+
+    overlayCanvas.style.width = canvas.style.width;
+    overlayCanvas.style.height = canvas.style.height;
+    yAxis.height = 1024;
+    yAxis.style.height = canvas.style.height;
+    yAxis.width = 40;
+    yAxis.style.height = canvas.style.height;
+
+    specWidth = canvas.width;
+    specHeight = canvas.height;
+
+    syncOverlaySize();
+
+    const timeline = document.getElementById('timeline');
+    timeline.width = window.innerWidth*1.2;
+    timeline.style.width = canvas.style.width;
+    timeline.height = 40;
+
+    imageBuffer = new ImageData(canvas.width, canvas.height);
+    specWidth = canvas.width;
+    specHeight = canvas.height;
+
+    specCanvas.width = specWidth;
+    specCanvas.height = specHeight;
+    specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
+    specCtx.putImageData(imageBuffer, 0, 0);
+
+    mags = new Float32Array(specWidth * specHeight);
+    phases = new Float32Array(specWidth * specHeight);
+    for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
+
+    let startFrame = calcMinMaxCol().minCol;
+    if (startFrame == Infinity) startFrame = 0;
+    pos = startFrame * hop;
+    x = startFrame;
+    rendering = true;
+
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    startTime = performance.now();
+    audioProcessed = 0;
+
+    if (playing) stopSource(true);
+    requestAnimationFrame(drawLoop);
+
+    if (!autoPlay) {
+        if (typeof drawTimeline === 'function') drawTimeline();
+        if (typeof drawYAxis === 'function') drawYAxis();
+        if (typeof drawLogScale === 'function') drawLogScale();
+        renderSpritesTable();
+    }
+}
+
+function magPhaseToRGB(mag, phase){
+    const hp = ((phase / (2*Math.PI) + 1) % 1)*6; 
+    const v = Math.min(mag/60,1);
+    const x = v*(1-Math.abs(hp%2-1));
+    let r,g,b;
+    if     (hp < 1){ r=v; g=x; b=0; }
+    else if(hp < 2){ r=x; g=v; b=0; }
+    else if(hp < 3){ r=0; g=v; b=x; }
+    else if(hp < 4){ r=0; g=x; b=v; }
+    else if(hp < 5){ r=x; g=0; b=v; }
+    else           { r=v; g=0; b=x; }
+    return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
+}
+
+function rgbToMagPhase(r, g, b) {
+    let rf=r/255,gf=g/255,bf=b/255;
+    const mx=Math.max(rf,gf,bf), mn=Math.min(rf,gf,bf);
+    const d=mx-mn;
+    let h=0,s=0,v=mx;
+    s=mx===0?0:d/mx;
+    if(d!==0){
+        if(mx===rf) h=((gf-bf)/d)%6;
+        else if(mx===gf) h=(bf-rf)/d+2;
+        else h=(rf-gf)/d+4;
+        h/=6; if(h<0) h+=1;
+    }
+    const phase=h*2*Math.PI;
+    const mag=v*60;
+    return [mag, phase];
+}
+
+function getLogScaleSlider() { return Math.max(1, parseFloat(logScaleVal) || 1); }
+
+function binToDisplayY(bin, h) {
+    if (!h) return 0;
+    const s = getLogScaleSlider();
+    if (s <= 1.0000001) {
+        return Math.round(h - 1 - bin); 
+    } else {
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        if (!isFinite(denom) || denom === 0) return Math.round(h - 1 - bin);
+        const t = Math.log(1 + a * bin) / denom; 
+        const y = (1 - t) * (h - 1);
+        return Math.round(y);
+    }
+}
+
+function displayYToBin(y, h) {
+    if (!h) return 0;
+    const s = getLogScaleSlider();
+    if (s <= 1.0000001) {
+        return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
+    } else {
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        if (!isFinite(denom) || denom === 0) return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
+        const t = 1 - (y / (h - 1));
+        const raw = (Math.exp(t * denom) - 1) / a;
+        const clamped = Math.max(0, Math.min(h - 1, Math.round(raw)));
+        return clamped;
+    }
+}
+
+function drawFrame(w,h) {
+    if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
+
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+    for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
+    fft_inplace(re, im);
+
+    for (let bin = 0; bin < h; bin++) {
+        const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
+        const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
+        const idx = x * h + bin; 
+        mags[idx] = mag;
+        phases[idx] = phase;
+    }
+
+    for (let yy = 0; yy < h; yy+=recording?4:1) {
+        const mappedBin = displayYToBin(yy, h);
+        const idx = x * h + mappedBin;
+        const mag = mags[idx] || 0;
+        const phase = phases[idx] || 0;
+        const [r, g, b] = magPhaseToRGB(mag, phase);
+        for (let i = 0; i < (recording?4:1); i++) {       
+          const pix = ((yy+i) * w + x) * 4; 
+          imageBuffer.data[pix]     = r;
+          imageBuffer.data[pix + 1] = g;
+          imageBuffer.data[pix + 2] = b;
+          imageBuffer.data[pix + 3] = 255;
+        }
+    }
+    pos += hop; x++;
+    audioProcessed += hop;
+    if (x >= (maxCol==0?w:maxCol)) {
+      rendering = false;
+      if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
+        pendingHistory = false; 
+
+        newHistory(); 
+
+        const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
+        if (!pendingRecomputeDone) {
+          if (lastEntry) {
+            recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
+          }
+        } else {
+
+          pendingRecomputeDone = false;
+          pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+        }
+
+        snapshotMags = null;
+        snapshotPhases = null;
+      }
+      if (pendingPlayAfterRender) {
+        pendingPlayAfterRender = false;
+        try {
+          playing = true;
+          playPause.innerHTML = pauseHtml;
+          playPCM(false,currentFrame<specWidth*0.8?minCol:0); 
+        } catch (e) { console.warn("playPCM() failed after render:", e); }
+        const playPauseEl = document.getElementById("playPause");
+        if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
+      }
+
+      if (!painting && autoPlayOnFinish) {
+          autoPlayOnFinish = false;
+          playing = true;
+          playPause.innerHTML = pauseHtml;
+          playPCM(true,currentFrame<specWidth*0.8?minCol:0);
+      }
+      status.style.display = "none";
+      minCol = Infinity;
+      return false;
+    }
+    return true;
+}
+
+let requestSpecUpdate = false;      
+let resolveSpecUpdate = null;       
+const SPEC_UPDATE_TIMEOUT_MS = 2000; 
+
+let pendingHistory = false;
+let pendingPlayAfterRender = false;
+
+let pendingRecomputeDone = false;
+let pendingRecomputeMinCol = null;
+let pendingRecomputeMaxCol = null;
+
+function waitForSpecUpdate(timeout = SPEC_UPDATE_TIMEOUT_MS) {
+
+  if (!rendering && !requestSpecUpdate) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+
+    resolveSpecUpdate = (ok = true) => {
+
+      if (!resolveSpecUpdate) return;
+      const r = resolve;
+      resolveSpecUpdate = null;
+      requestSpecUpdate = false;
+      r(ok);
+    };
+
+    setTimeout(() => {
+      if (resolveSpecUpdate) {
+        resolveSpecUpdate(false); 
+      }
+    }, timeout);
+  });
+}
+
+function drawLoop() {
+    if (!rendering) return;
+
+    const framesPerTick = 200;
+
+    const h = specHeight;
+    const w = specWidth;
+
+    for (let f = 0; f < framesPerTick; f++) {
+        if (!drawFrame(w,h)) break;
+    }
+
+    specCtx.putImageData(imageBuffer, 0, 0);
+    renderView();
+    drawCursor(true);
+
+    if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') {
+
+      resolveSpecUpdate(true);
+
+    }
+
+    const elapsedMS = performance.now() - startTime;
+    const elapsedSec = elapsedMS / 1000;
+    const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
+    const audioSec = pcm.length / sampleRate; 
+    const processedSec = audioProcessed / sampleRate;
+    status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
+        + `Elapsed: ${elapsedSec.toFixed(2)}s | `
+        + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
+        + `Speed: ${(speed/sampleRate).toFixed(2)}x realtime`;
+    if (rendering) {
+      status.style.display = "block";
+      requestAnimationFrame(() => drawLoop());
+    }
+}
+
+function drawCursor(clear){
+    if (previewingShape && clear) {
+      previewShape($x, $y);
+    } else {
+      const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
+      if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
+      overlayCtx.strokeStyle = "#0f0";
+      overlayCtx.lineWidth = iWidth/500;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(x + 0.5, 0);
+      overlayCtx.lineTo(x + 0.5, specHeight);
+      overlayCtx.stroke();
+      if (alignTime) {
+        overlayCtx.strokeStyle = "#222";
+        for (let i = 0; i < specWidth; i += (sampleRate/fftSize)/subBeat * (120/bpm)) {
+          const x = (i-iLow)* canvas.width / (iHigh-iLow);
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(x,0);
+          overlayCtx.lineTo(x,specHeight);
+          overlayCtx.stroke();
+        }
+      }
+    }
+}
+
+function updateCanvasScroll() {
+    if (!imageBuffer || !specCanvas) return;
+
+    const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
+    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
+    const viewHeight = Math.max(1, fEnd - fStart);
+
+    canvas.width = viewWidth;
+    canvas.height = viewHeight;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+        specCanvas,
+        Math.max(0, Math.floor(iLow)), fStart, 
+        viewWidth, viewHeight,                 
+        0, 0,                                  
+        canvas.width, canvas.height            
+    );
+
+    overlayCanvas.width = canvas.width;
+    overlayCanvas.height = canvas.height;
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    drawCursor(true);
+}
+
+function renderView() {
+    if (!specCanvas || !imageBuffer) return;
+
+    const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
+    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
+    const viewHeight = Math.max(1, fEnd - fStart);
+
+    canvas.width = viewWidth;
+    canvas.height = viewHeight;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+        specCanvas,
+        Math.max(0, Math.floor(iLow)), fStart, 
+        viewWidth, viewHeight,                 
+        0, 0,                                  
+        canvas.width, canvas.height            
+    );
+
+    overlayCanvas.width = canvas.width;
+    overlayCanvas.height = canvas.height;
+    overlayCanvas.style.width = canvas.style.width;
+    overlayCanvas.style.height = canvas.style.height;
+}
+
+let painting=false;
+let paintedPixels=null;
+
+function getCanvasCoords(e,touch){
+    const rect=canvas.getBoundingClientRect();
+    const scaleX=canvas.width/rect.width;
+    const scaleY=canvas.height/rect.height;
+    let x; let y;
+    if (touch && e.touches.length === 0) {
+        x = _cx; y = _cy;
+    } else {
+        x = touch ? e.touches[0].clientX : e.clientX;
+        y = touch ? e.touches[0].clientY : e.clientY;
+        _cx = x; _cy = y;
+    }
+    return {cx:(x-rect.left)*scaleX, cy:(y-rect.top)*scaleY, scaleX, scaleY};
+}
+
+</script>
+<script src="drawTools.js"></script>
+<script>
+
+function hzToNoteName(frequency) {
+  if (frequency <= 0) return "0";
+  const A4 = 440;
+  const A4_MIDI = 69;
+  const midi = Math.round(12 * Math.log2(frequency / A4) + A4_MIDI);
+  const noteNames = ["C", "C#", "D", "D#", "E", "F", 
+                     "F#", "G", "G#", "A", "A#", "B"];
+  const note = noteNames[(midi+1200) % 12];
+  const octave = Math.floor(midi / 12) - 1;
+  const ret = `${note}${octave}`;
+  return ret;
+}
+let sineOsc = null;
+let sineGain = null;
+function getSineFreq(cy) {
+    const h = specHeight;
+    const s = parseFloat(logScaleVal); 
+    let bin;
+    if (s <= 1.0000001) {
+        bin = h - 1 - cy;
+    } else {
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        const t = 1 - cy / (h - 1);
+        bin = (Math.exp(t * denom) - 1) / a;
+    }
+    bin = Math.max(0, Math.min(h - 1, bin));
+    return bin * sampleRate / fftSize;
+}
+function setSineFreq(cy) {
+    sineOsc.frequency.setTargetAtTime(getSineFreq(cy), audioCtx.currentTime, 0.01);
+}
+function visibleToSpecY(visY) {
+    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+    const fullY = Math.round(visY + fStart);
+    return Math.max(0, Math.min(specHeight - 1, fullY));
+}
+let snapshotMags = null;
+let snapshotPhases = null;
+
+function cxToFrame(cx) {
+  return Math.floor((cx/canvas.width*(iWidth/specWidth)+iLow)*specWidth);
+}
+
+function frameToCx(frame) {
+  return ((frame-iLow)/(iWidth/specWidth)*1);
+}
+let sx2 = 0, sy2 = 0;
+
+function forEachSpritePixelInOrder(sprite, cb) {
+  if (!sprite) return;
+  const cols = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
+  for (const x of cols) {
+    const col = sprite.pixels.get(x);
+    // ys are pushed in painting order (top-down if you painted that way), but ensure ascending y:
+    const order = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
+    for (const entry of order) {
+      const i = entry.i;
+      cb(x, col.ys[i], col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+    }
+  }
+}
+
+/* ===== Modified canvasMouseDown ===== */
+function canvasMouseDown(e,touch) {
+    if (!touch) zooming=false;
+    if (!mags || !phases) return;
+    if (!touch && e.button !== 0) return;
+    if (pendingHistory) return; 
+
+    painting = true;
+
+    snapshotMags = new Float32Array(mags);
+    snapshotPhases = new Float32Array(phases);
+
+    visited = new Uint8Array(mags.length);
+    stopSource();
+    paintedPixels = new Set();
+    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+    startX = cx; startY = cy;
+    if (alignTime) {
+      const snapSize = 30/bpm/subBeat;
+      const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
+      const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      sx2 = cx; sy2 = cy;
+      startX = startFrame0 - iLow;
+    }
+    overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
+    const realY = visibleToSpecY(cy);
+
+    // --- CREATE NEW SPRITE FOR THIS STROKE ---
+    currentSprite = {
+      id: nextSpriteId++,
+      tool: currentTool,
+      enabled: true,
+      pixels: new Map(), // Map<columnX, {ys:[], prevMags:[], prevPhases:[], nextMags:[], nextPhases:[]}>
+      minCol: Infinity,
+      maxCol: -Infinity,
+      createdAt: performance.now()
+    };
+    sprites.push(currentSprite);
+
+    if (!(currentShape === "rectangle" || currentShape === "line")) {
+        paint(cx + iLow, realY);
+    }
+    currentFrame = Math.floor(cx);
+    if (document.getElementById("previewWhileDrawing").checked) {
+      ensureAudioCtx();
+      mouseDown = true;
+      playFrame(currentFrame);
+
+      if (!sineOsc) {
+          sineOsc = audioCtx.createOscillator();
+          sineOsc.type = "sine";
+          sineGain = audioCtx.createGain();
+          sineGain.gain.value = 0.2;
+          sineOsc.connect(sineGain).connect(audioCtx.destination);
+          setSineFreq(realY); 
+          sineOsc.start();
+      }
+    }
+}
+canvas.addEventListener("mousedown", e=>{
+    canvasMouseDown(e,false);
+});
+canvas.addEventListener("touchstart", e=>{
+    canvasMouseDown(e,true);
+});
+let previewingShape = false;
+function canvasMouseMove(e,touch) {
+    if (zooming) return;
+    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+    if (!recording) {
+      const hz = getSineFreq(visibleToSpecY(cy));
+      const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
+      const hx = Math.floor(cx);
+      const hy = Math.floor(hz/(sampleRate/fftSize));
+      const i = hx*specHeight+hy;
+      let normalizedMag = Math.min(1, mags[i] / 256);
+      let db = (20 * Math.log10(normalizedMag)).toFixed(1);
+      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
+    }
+    if (!painting && (currentShape === "brush" || currentShape === "image")) {
+        previewShape(cx, cy);
+        previewingShape = true;
+        return;
+    }
+    if(!painting && currentTool != "image") return;
+
+    if (currentShape !== "brush") {
+        previewShape(cx, cy);
+        previewingShape = true;
+    } else {
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        const realY = visibleToSpecY(cy);
+        paint(cx + iLow, realY);
+        drawCursor(true);
+    }
+
+    currentFrame = Math.floor(cx+iLow);
+    if (mouseDown) {
+        playFrame(currentFrame);
+        if (sineOsc) setSineFreq( visibleToSpecY(cy) ); 
+    }
+
+    currentCursorX = currentFrame;
+}
+canvas.addEventListener("mousemove", e=>{
+    canvasMouseMove(e,false);
+});
+canvas.addEventListener("touchmove", e=>{
+    canvasMouseMove(e,true);
+});
+
+</script>
+<script src="undoredo.js"></script>
+<script>
+function canvasMouseUp(e,touch) {
+      renderSpritesTable();
+    previewingShape = false;
+    if (zooming) return;
+    if (!mags || !phases || !painting) return;
+    minCol = Infinity; maxCol = -Infinity;
+    visited = null;
+    painting = false;
+    paintedPixels = null;
+    mouseDown = false;
+    stopSource();
+    if (sineOsc) {
+        sineOsc.stop();
+        sineOsc.disconnect();
+        sineOsc = null;
+        sineGain = null;
+    }
+    const { cx, cy } = getCanvasCoords(e,touch);
+    if (currentShape === "rectangle" || currentShape === "line") {
+        commitShape(cx, cy); 
+        overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    }
+    if (alignTime && currentTool === "color") {
+      const startFrame = Math.round(cx + iLow);
+      const snapSize = 30/bpm/subBeat;
+      const brushS = brushSize*fWidth/sampleRate*fftSize/512;
+
+      let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
+      let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
+
+      startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
+      startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
+    }
+
+    startX=startY=null;
+
+    startTime = performance.now();
+    audioProcessed = 0;
+
+    if (snapshotMags && snapshotPhases && mags && phases) {
+
+      autoRecomputePCM(-1,-1);
+
+      pendingHistory = true;
+      pendingPlayAfterRender = true; 
+    } else {
+
+      playPCM(startFrame = currentFrame);
+      const playPauseEl = document.getElementById("playPause");
+      if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
+    }
+
+    let startFrame = calcMinMaxCol().minCol;
+    if (startFrame == Infinity) startFrame = 0;
+    pos = startFrame * hop;
+    x = startFrame;
+    rendering = true;
+    requestAnimationFrame(() => drawLoop());
+
+    startTime = performance.now();
+    audioProcessed = 0;
+
+}
+
+let minCol = Infinity; maxCol = -Infinity;
+function calcMinMaxCol() {
+  if (minCol != Infinity) return {minCol,maxCol};
+  if (snapshotMags == null || snapshotMags.length != mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
+  const epsMag = 1e-6;
+  const epsPhase = 1e-3;
+  const h = specHeight;
+  const total = mags.length;
+  for (let idx = 0; idx < total; idx++) {
+    const oldM = (snapshotMags) ? snapshotMags[idx] : 0;
+    const newM = mags[idx] ?? 0;
+    if (Math.abs(oldM - newM) > epsMag) {
+      const col = Math.floor(idx / h);
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+      continue;
+    }
+    const oldP = (snapshotPhases) ? snapshotPhases[idx] : 0;
+    const newP = phases[idx] || 0;
+    if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
+      const col = Math.floor(idx / h);
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+    }
+  }
+  if (isFinite(minCol)) {
+    minCol = Math.max(0, minCol);
+    maxCol = Math.min(specWidth - 1, maxCol);
+    const overlapCols = Math.ceil(fftSize / Math.max(1, hop)); // how many frames overlap a sample
+    minCol = Math.max(0, minCol - overlapCols);
+    maxCol = Math.min(specWidth - 1, maxCol + overlapCols);
+  }
+  return {minCol,maxCol};
+}
+
+function autoRecomputePCM(min,max) {
+  let minCol, maxCol;
+  if (min == -1) {
+    let a = calcMinMaxCol();
+    minCol=a.minCol;maxCol=a.maxCol;
+  } else {
+    minCol = min;
+    maxCol = max;
+  }
+
+  if (isFinite(minCol)) {
+
+    try {
+      recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
+
+      pendingRecomputeDone = true;
+      pendingRecomputeMinCol = minCol;
+      pendingRecomputeMaxCol = maxCol;
+    } catch (e) {
+      console.warn("Immediate recomputePCMForCols failed, will attempt recompute after render:", e);
+      pendingRecomputeDone = false;
+      pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+    }
+  } else {
+
+    pendingRecomputeDone = false;
+    pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+  }
+}
+
+function newHistory() {
+  const epsMag = 0.001;
+  const epsPhase = 0.001;
+
+  const changedIdxs = [];
+  const prevMags = [];
+  const prevPhases = [];
+
+  const h = specHeight;
+  const startF = minCol*fftSize/2
+  const endF = maxCol*fftSize/2; 
+
+  for (let idx = startF; idx < endF; idx++) {
+    const oldM = snapshotMags[idx] || 0;
+    const newM = mags[idx] || 0;
+    const oldP = snapshotPhases[idx] || 0;
+    const newP = phases[idx] || 0;
+    if (Math.abs(oldM - newM) > epsMag || Math.abs(angleDiff(oldP, newP)) > epsPhase) {
+      changedIdxs.push(idx);
+      prevMags.push(oldM);
+      prevPhases.push(snapshotPhases[idx] || 0);
+      addPixelToSprite(currentSprite, Math.floor(idx/(fftSize/2)), idx%(fftSize/2), oldM, oldP, newM, newP);
+    }
+  }
+}
+
+document.addEventListener("mouseup", e => {
+    canvasMouseUp(e,false);
+});
+document.addEventListener("touchend", e => {
+    canvasMouseUp(e,true);
+});
+
+let sourceNode = null;
+let playing = false;
+let mouseDown = false;
+let pausedAtSample = null; 
+let sourceStartTime = 0; 
+let wasPlayingDuringDrag = false;
+
+initEmptyPCM();
+
+function updateCursorLoop() {
+    if (playing && !painting && pcm && sourceNode) {
+        const elapsed = audioCtx.currentTime - sourceStartTime; 
+        let samplePos = elapsed * sampleRate;
+
+        if (sourceNode.loop) {
+            samplePos = samplePos % pcm.length; 
+        }
+
+        const frame = Math.floor(samplePos / hop);
+        currentCursorX = Math.min(frame, specWidth - 1);
+
+        specCtx.putImageData(imageBuffer, 0, 0);
+        renderView();
+        drawCursor(false);
+        drawEQ();
+    }
+    requestAnimationFrame(updateCursorLoop);
+}
+updateCursorLoop();
+
+function stopSource(preservePaused=false){
+    if(sourceNode){
+        try { sourceNode.stop(); } catch(e) {  }
+        try { sourceNode.disconnect(); } catch(e) {  }
+        sourceNode = null;
+    }
+
+    if (!preservePaused) pausedAtSample = null;
+    playing = false;
+}
+
+function _getPlaybackTarget() {
+
+  if (typeof curveEQ !== 'undefined' && curveEQ && curveEQ.inited && curveEQ.eqInput) {
+
+    if (typeof updateCurveEQ === 'function') {
+      try { updateCurveEQ(); } catch (e) {  }
+    }
+    return curveEQ.eqInput;
+  }
+
+  if (typeof eqInput !== 'undefined' && eqInput) return eqInput;
+
+  return audioCtx.destination;
+}
+
+
+function showVolumeWarningModal() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.innerHTML = `
+      <div id="volwarn-overlay" style="
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5);
+        z-index: 100000;">
+        <div id="volwarn-box" style="
+          background: #222;
+          padding: 20px 24px;
+          border-radius: 10px;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.9);
+          max-width: 90%;
+          width: 340px;
+          color: #eee;
+          text-align: center;">
+          <h2 style="margin: 0 0 10px 0; font-size: 18px;">Volume warning</h2>
+          <p style="margin: 0 0 16px 0;">Please turn down your volume.</p>
+          <label style="display: flex; align-items: center; gap: 6px; justify-content: center; margin-bottom: 16px; cursor: pointer;">
+            <input type="checkbox" id="volwarn-dontshow" />
+            <span>Don't show again</span>
+          </label>
+          <button id="volwarn-ok" style="
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: var(--accent-gradient);
+            box-shadow: 0 30px 30px rgba(20,0,20,0.3);
+            color: black;
+            cursor: pointer;
+            font-size: 14px;">OK</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const okBtn = overlay.querySelector('#volwarn-ok');
+    const dontShowBox = overlay.querySelector('#volwarn-dontshow');
+
+    okBtn.addEventListener('click', () => {
+      const dontShow = dontShowBox.checked;
+      overlay.remove();
+      resolve(dontShow);
+    });
+
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        okBtn.click();
+      }
+    });
+
+    // focus for keyboard use
+    okBtn.focus();
+  });
+}
+
+async function playPCM(loop = true, startFrame = null) {
+  if (!pcm) return;
+  ensureAudioCtx();
+
+  let max = -Infinity;
+  for (const v of pcm) if (v > max) max = v;
+
+  const disabled = !!localStorage.getItem('spectrodraw_volume_warning_disabled');
+  if (max > 3 && !disabled) {
+    const dontShowAgain = await showVolumeWarningModal();
+    if (dontShowAgain) {
+      try { localStorage.setItem('spectrodraw_volume_warning_disabled', '1'); } catch {}
+    }
+  }
+
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
+  }
+
+  stopSource(true);
+
+  let startSample = 0;
+  if (startFrame !== null && !isNaN(startFrame)) {
+      startSample = Math.max(0, Math.min(pcm.length - 1, startFrame * hop));
+  } else if (pausedAtSample !== null) {
+      startSample = Math.max(0, Math.min(pcm.length - 1, pausedAtSample));
+  }
+
+  sourceNode = audioCtx.createBufferSource();
+  const buffer = audioCtx.createBuffer(1, pcm.length, sampleRate);
+  buffer.copyToChannel(pcm, 0);
+  sourceNode.buffer = buffer;
+  sourceNode.loop = !!loop;
+
+  try {
+    const targetNode = _getPlaybackTarget();
+    sourceNode.connect(targetNode);
+  } catch (e) {
+    try { sourceNode.connect(audioCtx.destination); } catch (e2) { console.warn("connect fallback failed", e2); }
+  }
+
+  const offsetSec = startSample / sampleRate;
+  sourceStartTime = audioCtx.currentTime - offsetSec;
+  try {
+    sourceNode.start(0, offsetSec);
+  } catch (e) {
+    const remaining = pcm.length - startSample;
+    const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
+    shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
+    try { sourceNode.stop(); } catch(_) {}
+    try { sourceNode.disconnect(); } catch(_) {}
+    sourceNode = audioCtx.createBufferSource();
+    sourceNode.buffer = shortBuf;
+    sourceNode.loop = !!loop;
+    try {
+      const targetNode = _getPlaybackTarget();
+      sourceNode.connect(targetNode);
+    } catch (e2) {
+      try { sourceNode.connect(audioCtx.destination); } catch (_) {}
+    }
+    sourceStartTime = audioCtx.currentTime;
+    sourceNode.start();
+  }
+
+  playing = true;
+  pausedAtSample = null;
+}
+
+async function playFrame(frameX) {
+  currentCursorX = frameX;
+  if (!pcm) return;
+  ensureAudioCtx();
+
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
+  }
+
+  stopSource(true);
+  const start = frameX * hop;
+  const end = Math.min(start + fftSize, pcm.length);
+  if (end <= start) return;
+  const frameLen = end - start;
+
+  const buffer = audioCtx.createBuffer(1, frameLen, sampleRate);
+  buffer.copyToChannel(pcm.subarray(start, end), 0);
+
+  sourceNode = audioCtx.createBufferSource();
+  sourceNode.buffer = buffer;
+  sourceNode.loop = true; 
+
+  try {
+    const targetNode = _getPlaybackTarget();
+    sourceNode.connect(targetNode);
+  } catch (e) {
+    try { sourceNode.connect(audioCtx.destination); } catch (_) {}
+  }
+
+  sourceStartTime = audioCtx.currentTime - (start / sampleRate);
+  sourceNode.start();
+  playing = true;
+  pausedAtSample = null;
+}
+
+function renderFullSpectrogramToImage() {
+    if (!imageBuffer || !mags || !phases) return;
+    const w = specWidth, h = specHeight;
+    for(let xx=0; xx<w; xx++){
+
+        for(let yy=0; yy<h; yy++){
+
+            const bin = displayYToBin(yy, h);
+            const idx = xx * h + bin;
+            const mag = mags[idx] || 0;
+            const phase = phases[idx] || 0;
+            const [r,g,b] = magPhaseToRGB(mag, phase);
+            const pix = (yy * w + xx) * 4;
+            imageBuffer.data[pix] = r;
+            imageBuffer.data[pix+1] = g;
+            imageBuffer.data[pix+2] = b;
+            imageBuffer.data[pix+3] = 255;
+        }
+    }
+    specCtx.putImageData(imageBuffer, 0, 0);
+    renderView();
+}
+
+</script>
+<script src="downloads.js"></script>
+<script>
+
+function processPendingFramesLive(){
+
+  if (!pcm || !fftSize) return;
+
+  while (pos + fftSize <= pcm.length) {
+    if (!drawFrame(specWidth, specHeight)) break;
+  }
+
+  if (imageBuffer && specCtx) specCtx.putImageData(imageBuffer, 0, 0);
+  renderView();
+  drawCursor(true);
+}
+
+</script>
+<script src="brushPreview.js"></script>
+<script src="rightClick.js"></script>
+<script>
+
+buildBinDisplayLookup();
+updateBrushPreview();
+updateTimelineCursor();
+
+drawTimeline();
+drawYAxis();
+drawLogScale();
+renderFullSpectrogramToImage();
+window.addEventListener('beforeunload', function (e) {
+    // Standard message browsers show, custom text is ignored in most browsers
+    const confirmationMessage = "Changes may not be saved.";
+
+    e.preventDefault(); // Some browsers require this
+    e.returnValue = confirmationMessage; // Standard way to trigger the dialog
+});
+</script>
+<script src="eq.js"></script>

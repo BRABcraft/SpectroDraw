@@ -24,36 +24,6 @@ export default {
       if (pathname.startsWith("/api/") && !user) {
         return addCors(json({ message: "Unauthorized request.header:" + (request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email")) + "; env: " + env }, 401), request);
       }
-
-      // ---------------------- PRO BUNDLE endpoints ----------------------
-      // GET /pro-bundle -> return minified/obfuscated JS bundle only for pro users
-      // if ((request.method === 'GET' || request.method === 'HEAD') && pathname === '/pro-bundle') {
-      //   return addCors(await handleProBundle(request, user, env), request);
-      // }
-
-      // // GET /pro-bootstrap.js -> small bootstrapper that fetches /pro-bundle and imports it
-      // if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-bootstrap.js') {
-      //   try {
-      //     if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
-      //       const assetResp = await env.__STATIC_CONTENT.fetch(request);
-      //       if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
-      //         // clone and return with CORS applied
-      //         const resp = new Response(assetResp.body, { status: assetResp.status, headers: new Headers(assetResp.headers) });
-      //         return addCors(resp, request);
-      //       }
-      //     }
-      //   } catch (e) {
-      //     console.warn('Failed to fetch static pro-bootstrap.js from __STATIC_CONTENT:', e);
-      //   }
-
-      //   // static asset not found — generate fallback bootstrap dynamically
-      //   return addCors(await handleProBootstrap(request, user, env), request);
-      // }
-      // if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-ui.html') {
-      //   return addCors(await handleProUI(request, user, env), request);
-      // }
-      // -----------------------------------------------------------------
-
       // upload endpoint (no /api prefix so you can call POST /upload directly)
       if (pathname === "/upload" && request.method === "POST") {
         return addCors(await handleUpload(request, user, env), request);
@@ -82,6 +52,9 @@ export default {
       }
       if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-ui-kv') {
         return addCors(await handleKVProUI(request, env), request);
+      }
+      if (pathname === "/api/pro-token" && request.method === "POST") {
+        return addCors(await handleProToken(request, env), request);
       }
 
       try {
@@ -228,8 +201,68 @@ async function parseAuth(request, env) {
     return null;
   }
 }
+async function handleProToken(request, env) {
+  try {
+    // parseAuth supports X-Spectrodraw-User header, spectrodraw_user cookie, or session cookie
+    const user = await parseAuth(request, env);
+    if (!user || !user.email) {
+      return json({ message: "Unauthorized" }, 401);
+    }
+
+    if (!env || typeof env.USERS === "undefined" || typeof env.SESSIONS === "undefined") {
+      return json({ message: "Server misconfigured: USERS or SESSIONS KV not available" }, 500);
+    }
+
+    const email = String(user.email).trim().toLowerCase();
+
+    // Check that this email has a recorded claim for SpectroDraw Pro
+    // (this mirrors the existing handleClaimPost/store format)
+    const claimRaw = await env.USERS.get(`product:${email}`);
+    if (!claimRaw) return json({ message: "Not authorized for Pro" }, 403);
+
+    // optional: validate product field inside stored claim
+    try {
+      const parsed = JSON.parse(claimRaw);
+      if (parsed && parsed.product && parsed.product !== "SpectroDraw Pro") {
+        return json({ message: "Not authorized for Pro" }, 403);
+      }
+    } catch (e) {
+      // if parsing fails, continue (we already checked existence)
+    }
+
+    // Create a short-lived token and store in SESSIONS KV under pro-token:<token>
+    const token = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2,10);
+    const ttl = parseInt(env.PRO_UI_TOKEN_TTL || "300", 10); // seconds; default 300s = 5min
+    const key = `pro-token:${token}`;
+
+    // Store token value (we store a small JSON so you can inspect who it's for)
+    await env.SESSIONS.put(key, JSON.stringify({ email, created: Date.now() }), { expirationTtl: ttl });
+
+    return json({ token, expiresIn: ttl }, 200);
+  } catch (err) {
+    console.error("handleProToken error:", err);
+    return json({ message: err.message || "Failed to create token" }, 500);
+  }
+}
 async function handleKVProUI(request, env) {
   try {
+    // Require a valid ephemeral token to serve the Pro HTML.
+    const reqUrl = new URL(request.url);
+    const token = reqUrl.searchParams.get('t') || request.headers.get('X-Pro-Token');
+    if (!token) {
+      return addCors(new Response('Unauthorized', { status: 401 }), request);
+    }
+
+    if (!env || typeof env.SESSIONS === "undefined") {
+      return addCors(new Response('Server misconfigured', { status: 500 }), request);
+    }
+
+    const tokenKey = `pro-token:${token}`;
+    const tokRaw = await env.SESSIONS.get(tokenKey);
+    if (!tokRaw) {
+      // token missing or expired
+      return addCors(new Response('Unauthorized or token expired', { status: 401 }), request);
+    }
     const kvBindingName = '__spectrodraw-api-workers_sites_assets';
     const kv = env && env[kvBindingName];
 
@@ -360,369 +393,6 @@ async function handleKVProUI(request, env) {
   } catch (err) {
     console.error('handleKVProUI unexpected error:', err);
     return addCors(new Response('Internal server error', { status: 500 }), request);
-  }
-}
-/* ---------- PRO BUNDLE handling ---------- */
-
-/*
-  GET /pro-bundle
-    - Validates the user (must be authenticated)
-    - Checks env.USERS for product:<email> (this is how /api/claim stores claims)
-    - Loads the bundle from:
-        1) env.IMAGES (R2) using key env.PRO_BUNDLE_KEY or 'pro-bundles/latest.min.js'
-        2) fallback to env.PRO_BUNDLE_URL (external)
-    - Optionally appends a per-user watermark (SHA-256 of email) unless DISABLE_WATERMARK === '1'
-    - Strips sourceMappingURL directives
-    - Returns JS with private, no-store cache and restrictive CSP
-*/
-async function handleProBundle(request, user, env) {
-  try {
-    if (!user || !user.email) return json({ message: "Unauthorized - pro bundle requires login" }, 401);
-    if (!env || typeof env.USERS === "undefined") return json({ message: "Server misconfigured: USERS KV not available" }, 500);
-
-    const email = String(user.email).trim().toLowerCase();
-    const claimKey = `product:${email}`;
-    const claimRaw = await env.USERS.get(claimKey);
-    if (!claimRaw) return json({ message: "Forbidden - not a pro user" }, 403);
-
-    const bundleKey = env.PRO_BUNDLE_KEY || 'pro-bundles/latest.min.js';
-    let bundleText = null;
-    let bundleArrayBuffer = null;
-
-    // 1) Try static asset via __STATIC_CONTENT using the static key path (not the incoming /pro-bundle path)
-    try {
-      if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
-        const apiHost = env.API_HOST || (new URL(request.url)).origin;
-        // Build a request for the static asset path (this is the important bit)
-        const staticUrl = new URL(`${apiHost.replace(/\/+$/, '')}/${bundleKey}`).toString();
-        const staticReq = new Request(staticUrl, { method: 'GET' });
-        const assetResp = await env.__STATIC_CONTENT.fetch(staticReq);
-        if (assetResp && assetResp.status >= 200 && assetResp.status < 400) {
-          try {
-            bundleText = await assetResp.text();
-          } catch (e) {
-            console.warn('handleProBundle: failed to read static asset text, falling back', e);
-            bundleText = null;
-          }
-        }
-      }
-    } catch (e) {
-      console.debug('handleProBundle: __STATIC_CONTENT.fetch failed or not bound', e);
-    }
-
-    // 2) Try env.IMAGES (R2 or KV)
-    if (!bundleText) {
-      try {
-        if (env && env.IMAGES && typeof env.IMAGES.get === 'function') {
-          try {
-            const arr = await env.IMAGES.get(bundleKey, { type: 'arrayBuffer' });
-            if (arr !== null) bundleArrayBuffer = arr;
-          } catch (e) {
-            console.debug('handleProBundle: IMAGES.get(arrayBuffer) not supported or failed', e);
-          }
-
-          if (!bundleArrayBuffer) {
-            try {
-              const maybeText = await env.IMAGES.get(bundleKey);
-              if (maybeText) bundleText = maybeText.toString();
-            } catch (e) {
-              console.debug('handleProBundle: IMAGES.get as string failed', e);
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('handleProBundle: env.IMAGES attempt threw', e);
-      }
-    }
-
-    // 3) Fallback to PRO_BUNDLE_URL (worker fetches server-side)
-    if (!bundleText && !bundleArrayBuffer) {
-      if (env.PRO_BUNDLE_URL) {
-        try {
-          const headers = { 'Accept': 'application/javascript' };
-          if (env.PRO_BUNDLE_TOKEN) headers['Authorization'] = `Bearer ${env.PRO_BUNDLE_TOKEN}`;
-          const fetchResp = await fetch(env.PRO_BUNDLE_URL, { headers, cf: { cacheTtl: 0 } });
-          if (!fetchResp.ok) return json({ message: "Pro bundle not found at configured URL" }, 404);
-          bundleText = await fetchResp.text();
-        } catch (e) {
-          console.warn('handleProBundle: fetching PRO_BUNDLE_URL failed', e);
-        }
-      }
-    }
-
-    if (!bundleText && !bundleArrayBuffer) {
-      try {
-        const mod = await import('./pro-bundles/latest.min.js');
-        if (mod) {
-          // If module default is a string, it's supposed to be the JS body to serve.
-          if (typeof mod.default === 'string') {
-            let candidate = mod.default;
-
-            // Heuristic 1: file accidentally exported a template-wrapped string:
-            // e.g. file content was: export default `...actual js body...`;
-            // some build setups may cause the returned string to include the wrapper text.
-            // If we detect a leading "export default" plus backticks, unwrap between first and last backtick.
-            const wrapMatch = candidate.match(/^([\s\S]*?)export\s+default\s*`/);
-            if (wrapMatch) {
-              const firstBacktick = candidate.indexOf('`');
-              const lastBacktick = candidate.lastIndexOf('`');
-              if (firstBacktick !== -1 && lastBacktick > firstBacktick) {
-                candidate = candidate.slice(firstBacktick + 1, lastBacktick);
-                console.debug('handleProBundle: unwrapped template-wrapped embedded bundle');
-              }
-            }
-
-            // Heuristic 2: some authors put `export default (`function` )` or other wrappers.
-            // If candidate contains an obvious leading "export" token (not wrapped), try to extract the code body after the first top-level function or IIFE.
-            if (/^\s*export\b/.test(candidate)) {
-              // Try to remove a leading `export default` + possible wrapper up to the first open-paren of an IIFE.
-              const iifeIndex = candidate.indexOf('(async');
-              if (iifeIndex !== -1) {
-                // keep from the IIFE start
-                candidate = candidate.slice(iifeIndex);
-                console.debug('handleProBundle: stripped leading "export ..." to IIFE start');
-              } else {
-                // As a last resort, try to find the first "const " or "let " or "function " that's likely to start executable code.
-                const m = candidate.match(/\b(const|let|var|async function|function)\b/);
-                if (m && m.index > 0) {
-                  candidate = candidate.slice(m.index);
-                  console.debug('handleProBundle: heuristically trimmed leading exports to first var/func');
-                }
-              }
-            }
-
-            // Final safety: if candidate still contains unmatched backticks, remove them (they break module parse).
-            // Only remove stray single backticks — leave other punctuation intact.
-            if ((candidate.match(/`/g) || []).length % 2 === 1) {
-              // drop all backticks to avoid unterminated template literal errors
-              candidate = candidate.replace(/`/g, '');
-              console.debug('handleProBundle: removed stray backticks from embedded bundle');
-            }
-
-            bundleText = candidate;
-          } else if (typeof mod.default === 'function') {
-            // If the module default exported a function, generate a tiny module that calls it client-side.
-            bundleText = `(${mod.default.toString()})();`;
-            console.debug('handleProBundle: embedded default is function -> wrapped into auto-invoking module');
-          } else {
-            console.debug('handleProBundle: embedded import returned unexpected default type', typeof mod.default);
-          }
-        }
-      } catch (e) {
-        console.debug('handleProBundle: local module import failed', e);
-      }
-    }
-
-    if (bundleArrayBuffer && !bundleText) {
-      try {
-        bundleText = new TextDecoder().decode(bundleArrayBuffer);
-      } catch (e) {
-        console.error("Failed to decode bundle arrayBuffer:", e);
-        return json({ message: "Failed to load pro bundle" }, 500);
-      }
-    }
-
-    if (!bundleText) return json({ message: "Pro bundle not available" }, 404);
-
-    // strip sourcemap and watermark
-    bundleText = bundleText.replace(/\/\/[#@]\s*sourceMappingURL=.*$/mg, '');
-    if (String(env.DISABLE_WATERMARK || '') !== '1') {
-      try {
-        const hash = await sha256Hex(email);
-        bundleText += `\n\n// SpectroDraw-Pro-User: ${hash}`;
-      } catch (e) {
-        console.warn("Failed to compute watermark hash:", e);
-      }
-    }
-
-    const headers = new Headers();
-    headers.set('Content-Type', 'application/javascript; charset=utf-8');
-    headers.set('Cache-Control', 'private, no-store, max-age=0');
-    headers.set('Content-Security-Policy', "default-src 'self' https://api.spectrodraw.com; script-src 'self' https://api.spectrodraw.com; object-src 'none';");
-
-    return addCors(new Response(bundleText, { status: 200, headers }), request);
-  } catch (err) {
-    console.error("handleProBundle error:", err);
-    return json({ message: err.message || "Failed to serve pro bundle" }, 500);
-  }
-}
-
-async function handleProUI(request, user, env) {
-  try {
-    // auth checks
-    if (!user || !user.email) return addCors(new Response('Unauthorized', { status: 401 }), request);
-    if (!env || typeof env.USERS === 'undefined') return addCors(new Response('Server misconfigured', { status: 500 }), request);
-
-    const email = String(user.email).trim().toLowerCase();
-    const claimKey = `product:${email}`;
-    const claimRaw = await env.USERS.get(claimKey);
-    if (!claimRaw) return addCors(new Response('Forbidden', { status: 403 }), request);
-
-    const uiKey = env.PRO_UI_KEY || 'pro-bundles/pro-ui.html';
-    let htmlText = null;
-
-    // 1) KV (env.IMAGES) as primary source (string)
-    try {
-      if (env && env.IMAGES && typeof env.IMAGES.get === 'function') {
-        // KV.get returns string (or null). Use as primary source for pro UI HTML.
-        const maybe = await env.IMAGES.get(uiKey);
-        if (maybe) {
-          htmlText = maybe.toString();
-          console.debug('handleProUI: loaded pro-ui from KV (env.IMAGES)');
-        } else {
-          console.debug('handleProUI: env.IMAGES.get returned null for', uiKey);
-        }
-      } else {
-        console.debug('handleProUI: env.IMAGES binding not present or no .get()');
-      }
-    } catch (e) {
-      console.warn('handleProUI: error reading env.IMAGES KV', e);
-    }
-
-    // 2) Fallback to server-side PRO_UI_URL (if configured)
-    if (!htmlText && env.PRO_UI_URL) {
-      try {
-        const headers = { 'Accept': 'text/html' };
-        if (env.PRO_UI_TOKEN) headers['Authorization'] = `Bearer ${env.PRO_UI_TOKEN}`;
-        const fetchResp = await fetch(env.PRO_UI_URL, { headers, cf: { cacheTtl: 0 } });
-        if (!fetchResp.ok) {
-          console.debug('handleProUI: PRO_UI_URL fetch returned', fetchResp.status);
-        } else {
-          htmlText = await fetchResp.text();
-          console.debug('handleProUI: loaded pro-ui from PRO_UI_URL');
-        }
-      } catch (e) {
-        console.warn('handleProUI: fetch(PRO_UI_URL) failed', e);
-      }
-    }
-
-    // 3) Embedded fallback: local module that exports HTML string (useful in dev)
-    if (!htmlText) {
-      try {
-        const mod = await import('./pro-bundles/pro-ui.js');
-        if (mod && typeof mod.default === 'string') {
-          htmlText = mod.default;
-          console.debug('handleProUI: loaded pro-ui from embedded module');
-        }
-      } catch (e) {
-        console.debug('handleProUI: embedded import failed', e);
-      }
-    }
-
-    if (!htmlText) {
-      return addCors(new Response('Pro UI not available', { status: 404 }), request);
-    }
-
-    // Inject <base> if missing so relative assets inside the HTML resolve correctly
-    try {
-      if (!/<base\s+[^>]*href=/i.test(htmlText)) {
-        const baseHref = (env.API_HOST ? env.API_HOST.replace(/\/+$/, '') : (new URL(request.url)).origin) + '/pro-bundles/';
-        htmlText = htmlText.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`);
-      }
-    } catch (e) {
-      console.warn('handleProUI: base injection failed', e);
-    }
-
-    const headers = new Headers();
-    headers.set('Content-Type', 'text/html; charset=utf-8');
-    headers.set('Cache-Control', 'private, no-store, max-age=0');
-
-    return addCors(new Response(htmlText, { status: 200, headers }), request);
-  } catch (err) {
-    console.error('handleProUI error:', err);
-    return addCors(new Response('Internal server error', { status: 500 }), request);
-  }
-}
-
-
-
-/*
-  GET /pro-bootstrap.js
-    - Returns a small ES module that fetches /pro-bundle with credentials and imports it.
-    - Clients can include <script type="module" src="https://api.spectrodraw.com/pro-bootstrap.js"></script>
-    - The bootstrap uses fetch(..., { credentials: 'include' }) to include cookies (session)
-*/
-async function handleProBootstrap(request, user, env) {
-  try {
-    // inside handleProBootstrap(request, user, env)
-const apiHost = env.API_HOST || (new URL(request.url)).origin;
-const script = `
-// expose API host to client so pro bundle fetches pro-ui from the API origin
-window.__SPECTRODRAW_API_HOST = '${apiHost.replace(/\/+$/, '')}';
-
-// SpectroDraw pro bootstrap - dynamic import of server-gated pro bundle
-export default (async function bootstrapSpectroDrawPro(){
-  try {
-    const stored = (() => {
-      try { return localStorage.getItem('spectrodraw_user'); }
-      catch (e) { return null; }
-    })();
-    const headers = { 'Accept': 'application/json' };
-    if (stored) headers['X-Spectrodraw-User'] = stored;
-    const resp = await fetch('${apiHost.replace(/\/+$/, '')}/pro-bundle', {
-      method: 'GET',
-      credentials: 'include',
-      headers
-    });
-    if (!resp.ok) {
-      // rethrow to be handled by consumer
-      throw new Error('Failed to fetch pro bundle: ' + resp.status + ' ' + resp.statusText);
-    }
-    const code = await resp.text();
-    const blob = new Blob([code], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    try {
-      await import(url);
-    } finally {
-      // revoke when done to free resources
-      URL.revokeObjectURL(url);
-    }
-    return true;
-  } catch (err) {
-    console.error('SpectroDraw pro bootstrap error:', err);
-    throw err;
-  }
-})();
-
-`;
-
-    const headers = new Headers({
-      'Content-Type': 'application/javascript; charset=utf-8',
-      'Cache-Control': 'private, no-store, max-age=0'
-    });
-    return new Response(script, { status: 200, headers });
-  } catch (err) {
-    console.error('handleProBootstrap error:', err);
-    return json({ message: err.message || 'Failed to create pro bootstrap' }, 500);
-  }
-}
-
-// helper to compute sha256 hex
-async function sha256Hex(str) {
-  if (!str) return '';
-  try {
-    if (typeof crypto === 'undefined' || !crypto.subtle) {
-      // fallback simple hash (not cryptographic) — rare case in older runtimes
-      let h = 2166136261 >>> 0;
-      for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return (h >>> 0).toString(16).padStart(8, '0');
-    }
-    const enc = new TextEncoder();
-    const buf = await crypto.subtle.digest('SHA-256', enc.encode(str));
-    const arr = Array.from(new Uint8Array(buf));
-    return arr.map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch (e) {
-    console.warn('sha256Hex fallback due to error:', e);
-    // fallback simple hash
-    let h = 2166136261 >>> 0;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0).toString(16).padStart(8, '0');
   }
 }
 

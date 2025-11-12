@@ -21,6 +21,7 @@
   </script>
 </head>
 <body>
+  
   <script>
 (async function loadProUIInIframeOverlay() {
   try {
@@ -154,7 +155,32 @@
     const closeBtn = overlay.querySelector('.sd-pro__close');
 
     // set iframe src to Pro UI served from your KV endpoint
-    iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv';
+    let token;
+    try {
+      const tkRes = await fetch('https://api.spectrodraw.com/api/pro-token', {
+        method: 'POST',
+        credentials: 'include',
+        headers
+      });
+      if (!tkRes || !tkRes.ok) {
+        // token fetch failed — remove overlay and bail quietly
+        try { overlay.remove(); } catch (e) {}
+        return;
+      }
+      const tkj = await tkRes.json().catch(()=>null);
+      token = tkj && tkj.token;
+      if (!token) {
+        try { overlay.remove(); } catch (e) {}
+        return;
+      }
+    } catch (err) {
+      // network or auth error — don't block the app
+      try { overlay.remove(); } catch (e) {}
+      return;
+    }
+
+    // set iframe src using the token
+    iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv?t=' + encodeURIComponent(token);
     // Allow full features if needed; DO NOT set sandbox unless you know the exact capabilities needed.
     // iframe.sandbox = 'allow-scripts allow-forms'; // optional — most likely NOT desired.
 

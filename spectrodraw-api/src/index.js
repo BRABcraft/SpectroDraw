@@ -53,6 +53,9 @@ export default {
       if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-ui-kv') {
         return addCors(await handleKVProUI(request, env), request);
       }
+      if (request.method === 'GET' && pathname === '/spectrodraw-pro/manifest.json') {
+        return addCors(await handleManifestJson(request, env), request);
+      }
       if (pathname === "/api/pro-token" && request.method === "POST") {
         return addCors(await handleProToken(request, env), request);
       }
@@ -199,6 +202,78 @@ async function parseAuth(request, env) {
   } catch (err) {
     console.error("parseAuth unexpected error:", err);
     return null;
+  }
+}
+async function handleManifestJson(request, env) {
+  try {
+    const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // change if your binding is different
+    const kv = env && env[kvBindingName];
+
+    // // If you also have __STATIC_CONTENT (workers-site) bound, try that first (faster).
+    // if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
+    //   try {
+    //     const staticUrl = new URL(request.url);
+    //     staticUrl.pathname = '/spectrodraw-pro/manifest.json';
+    //     const staticResp = await env.__STATIC_CONTENT.fetch(staticUrl.toString());
+    //     if (staticResp && staticResp.status >= 200 && staticResp.status < 400) {
+    //       // forward with CORS
+    //       const copied = new Response(await staticResp.text(), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' }});
+    //       return addCors(copied, request);
+    //     }
+    //   } catch (e) {
+    //     // ignore and fall back to KV
+    //     console.debug('handleManifestJson: __STATIC_CONTENT fetch failed', e);
+    //   }
+    // }
+
+    // if (!kv || typeof kv.get !== 'function') {
+    //   return addCors(json({ message: 'Manifest not available (KV binding missing)' }, 500), request);
+    // }
+
+    // const key = 'pro-bundles/manifest.json';
+    // const manifestRaw = await kv.get(key);
+    // if (manifestRaw) {
+    //   // manifest might be stored as JSON string or as binary; convert to string
+    //   const manifestText = (typeof manifestRaw === 'string') ? manifestRaw : manifestRaw.toString();
+    //   const headers = new Headers({
+    //     'Content-Type': 'application/json; charset=utf-8',
+    //     'Cache-Control': 'no-cache, must-revalidate',
+    //   });
+    //   return addCors(new Response(manifestText, { status: 200, headers }), request);
+    // }
+
+    // Fallback: try to generate a manifest dynamically by listing keys under pro-bundles/
+    // This creates a simple mapping of basename -> key (e.g. "axes.js" -> "pro-bundles/axes.<hash>.js")
+    try {
+      const listing = await kv.list({ prefix: 'pro-bundles/', limit: 1000 });
+      const keys = (listing && listing.keys) ? listing.keys.map(k => k.name) : [];
+      if (!keys.length) return addCors(new Response('Manifest not found', { status: 404 }), request);
+
+      const manifest = {};
+      for (const name of keys) {
+        // Derive logical name: take portion after last slash
+        const logical = name.replace(/^pro-bundles\//, '');
+        // If file name contains folder segments (e.g., assets/toothbrush.svg), keep them.
+        // Here we map both the logical basename and the full relative path to the hashed key.
+        const parts = logical.split('/');
+        const basename = parts[parts.length - 1];
+        manifest[logical] = name;
+        if (!manifest[basename]) manifest[basename] = name;
+      }
+      const text = JSON.stringify(manifest);
+      const headers = new Headers({
+        'Content-Type': 'application/json; charset=utf-8',
+        // short cache so clients pick up a real manifest after you deploy a proper one
+        'Cache-Control': 'public, max-age=10'
+      });
+      return addCors(new Response(text, { status: 200, headers }), request);
+    } catch (e) {
+      console.error('handleManifestJson: failed to build manifest from KV listing', e);
+      return addCors(new Response('Manifest not available', { status: 404 }), request);
+    }
+  } catch (err) {
+    console.error('handleManifestJson unexpected error:', err);
+    return addCors(json({ message: err.message || 'Internal server error' }, 500), request);
   }
 }
 async function handleProToken(request, env) {

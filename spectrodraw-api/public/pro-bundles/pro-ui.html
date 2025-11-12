@@ -7,14 +7,229 @@
   <meta property="og:description" content="Draw directly on audio with the SpectroDraw web app. Visual sound editing, real-time playback, and more — all in your browser.">
   <link rel="canonical" href="https://spectrodraw.com/app">
   <title>SpectroDraw - Interactive spectrogram editor</title>
-  <link rel="stylesheet" type="text/css" href="style.css">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+<script>
+/*
+  Manifest-driven loader.
+  - Place this at the top of <head> (before any <img>, <link>, <script src>, etc.)
+  - manifestUrl should point to the manifest JSON published to KV/site (see sample manifest above)
+  - Elements may also be annotated with data-manifest="<logical-name>" to override the detected name.
+  - For safety you can set loaderTimeoutMs to a small value to not block page too long.
+*/
+(async function () {
+  const manifestUrl = 'https://api.spectrodraw.com/spectrodraw-pro/manifest.json'; // adjust if needed
+  const loaderTimeoutMs = 3000;
+
+  function isAbsolute(u) {
+    return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(u) || u.startsWith('//');
+  }
+
+  // Utility: canonicalize path used as key into manifest
+  function normalizeKey(ref) {
+    if (!ref) return null;
+    // remove leading ./ or /
+    return ref.replace(/^[.\/]+/, '');
+  }
+
+  // Fetch manifest (with timeout)
+  const manifestPromise = (async () => {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), loaderTimeoutMs);
+      const r = await fetch(manifestUrl, { method: 'GET',cache: 'no-cache', signal: controller.signal });
+      clearTimeout(id);
+      if (!r.ok) throw new Error('manifest fetch failed');
+      return await r.json();
+    } catch (e) {
+      console.warn('Manifest load failed:', e);
+      return null;
+    }
+  })();
+
+  const manifest = await manifestPromise;
+  if (!manifest) return; // fallback to regular behavior (existing src/href will load)
+
+  console.log(manifest);
+  // Convert manifest keys to normalized form for lookup
+  const map = {};
+  for (const k of Object.keys(manifest)) map[normalizeKey(k)] = manifest[k];
+
+  // Helper to map a logical ref -> actual served path
+  function resolveManifestUrl(ref) {
+    if (!ref) return null;
+    if (isAbsolute(ref)) return null; // skip external URLs
+    const key = normalizeKey(ref);
+    const hashed = map[key];
+    if (!hashed) return null;
+    // Adjust prefix if your assets live under a different base path:
+    return '/spectrodraw-pro/' + hashed;
+  }
+
+  // --- Rewrite logic for many element types ---
+
+  // 1) Replace src/href attributes for common elements (img, script, audio, video, source, track, iframe)
+  const selectors = [
+    'img[src]',
+    'script[src]',
+    'link[rel="stylesheet"][href]',
+    'audio[src]',
+    'video[src]',
+    'source[src]',
+    'track[src]',
+    'iframe[src]',
+    'img[data-src]',         // also support data-src usage
+    'script[data-src]',
+    'link[data-href]',
+    '[data-manifest]'        // any element with data-manifest attribute
+  ];
+  const elems = Array.from(document.querySelectorAll(selectors.join(',')));
+
+  // For scripts we need to preserve execution order. Collect scripts and handle separately.
+  const scriptsToLoad = [];
+
+  for (const el of elems) {
+    // Determine original reference: data-manifest > data-src/data-href > src/href
+    const manifestName = el.getAttribute('data-manifest');
+    let ref = manifestName ||
+              el.getAttribute('data-src') ||
+              el.getAttribute('data-href') ||
+              el.getAttribute('src') ||
+              el.getAttribute('href') || null;
+
+    if (!ref) continue;
+    // if absolute URL, skip
+    if (isAbsolute(ref)) continue;
+
+    const resolved = resolveManifestUrl(ref);
+    if (!resolved) {
+      // no mapping: don't modify, let the browser try original path (may 404)
+      continue;
+    }
+
+    // special handling for different element types
+    const tag = el.tagName && el.tagName.toLowerCase();
+
+    if (tag === 'script') {
+      // prevent the browser from immediately loading original src by removing attribute if present
+      el.removeAttribute('src');
+      scriptsToLoad.push({
+        original: el,
+        src: resolved,
+        async: el.hasAttribute('async'),
+        defer: el.hasAttribute('defer'),
+        type: el.getAttribute('type') || 'text/javascript',
+        module: el.getAttribute('type') === 'module'
+      });
+    } else if (tag === 'link') {
+      // set href to resolved
+      el.setAttribute('href', resolved);
+    } else if (tag === 'img' || tag === 'iframe' || tag === 'video' || tag === 'audio' || tag.tagName === undefined) {
+      // for img/iframe/video/audio/source/track just set src (or data-src -> src)
+      if (el.hasAttribute('src') || el.hasAttribute('data-src')) {
+        el.setAttribute('src', resolved);
+      } else if (el.hasAttribute('href') || el.hasAttribute('data-href')) {
+        el.setAttribute('href', resolved);
+      } else {
+        // fallback
+        try { el.src = resolved; } catch (e) {}
+      }
+    } else if (tag === 'source' || tag === 'track') {
+      el.setAttribute('src', resolved);
+    } else {
+      // apply to generic elements with background-image inline style
+      const bg = el.style && (el.style.backgroundImage || el.style.background);
+      if (bg && bg.indexOf('url(') !== -1) {
+        el.style.cssText = el.style.cssText.replace(/url\((['"]?)([^)'"]+)\1\)/g, (m, q, u) => {
+          const r = resolveManifestUrl(u);
+          return r ? `url('${r}')` : m;
+        });
+      }
+    }
+  }
+
+  // 2) Rewrite CSS url(...) inside <style> elements and in document.styleSheets where accessible
+  // Note: cross-origin stylesheets may be inaccessible (skip those).
+  const styleEls = Array.from(document.querySelectorAll('style'));
+  for (const s of styleEls) {
+    let text = s.textContent;
+    if (!text) continue;
+    text = text.replace(/url\((['"]?)([^)'"]+)\1\)/g, (m, q, u) => {
+      if (isAbsolute(u)) return m;
+      const r = resolveManifestUrl(u);
+      return r ? `url('${r}')` : m;
+    });
+    s.textContent = text;
+  }
+
+  // Try to patch accessible stylesheet rules (may throw on CORS'd sheets)
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules || [];
+      for (let i = 0; i < rules.length; i++) {
+        const rule = rules[i];
+        if (!rule || !rule.cssText) continue;
+        const newText = rule.cssText.replace(/url\((['"]?)([^)'"]+)\1\)/g, (m, q, u) => {
+          if (isAbsolute(u)) return m;
+          const r = resolveManifestUrl(u);
+          return r ? `url('${r}')` : m;
+        });
+        if (newText !== rule.cssText) {
+          // replace the whole rule
+          sheet.deleteRule(i);
+          sheet.insertRule(newText, i);
+        }
+      }
+    } catch (e) {
+      // ignore CORS / read-only stylesheets
+    }
+  }
+
+  // 3) Load scripts sequentially to preserve order. We replaced original script src attributes earlier.
+  // scriptsToLoad is in document order.
+  async function loadScriptsSequentially(items) {
+    for (const it of items) {
+      const original = it.original;
+      const newScript = document.createElement('script');
+      if (it.module) newScript.type = 'module'; else newScript.type = it.type;
+      if (it.async) newScript.async = true;
+      if (it.defer) newScript.defer = true;
+      // copy other common attributes
+      if (original.getAttribute('nonce')) newScript.setAttribute('nonce', original.getAttribute('nonce'));
+      if (original.id) newScript.id = original.id;
+
+      await new Promise((resolve, reject) => {
+        newScript.onload = () => resolve();
+        newScript.onerror = (e) => {
+          console.warn('Failed to load managed script', it.src, e);
+          resolve(); // don't break the chain; continue gracefully
+        };
+        newScript.src = it.src;
+        // replace original with new script node so DOM order is maintained
+        original.parentNode && original.parentNode.replaceChild(newScript, original);
+        // If async, the onload may fire out-of-order; we still await resolve for sequential guarantee
+        if (it.async) {
+          // async scripts run independently; resolve immediately (so chain doesn't block)
+          resolve();
+        }
+      });
+    }
+  }
+
+  // Start loading scripts (but don't block the rest of the page)
+  loadScriptsSequentially(scriptsToLoad).catch(e => console.warn('Script loader error', e));
+
+})();
+</script>
+
+
+  <link rel="stylesheet" type="text/css" data-href="style.css">
+  <link rel="icon" type="image/x-icon" data-href="favicon.ico">
   
 </head>
 <body>
 <div class="app">
   <header class="top-bar">
-    <a href="/" id="home" title="Home" style="margin-left:10px;"><img src="BannerLogo2.png" style="background:transparent; height: 32px;"></a>
+    <a href="/" id="home" title="Home" style="margin-left:10px;"><img data-manifest="BannerLogo2.png" style="background:transparent; height: 32px;"></a>
     <button id="fileB" title="Upload Audio" style="margin-left: 10px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <line x1="10" y1="16" x2="10" y2="6" />
@@ -87,7 +302,7 @@
       </svg>
     </button>
     <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
-      <img src="assets/toothbrush.svg"></button>
+      <img data-manifest="assets/toothbrush.svg"></button>
     <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
         <g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -265,7 +480,7 @@
           <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
         </div>
       </div>
-      <label class="h1">Preset Audio<audio src=""></audio><br>
+      <label class="h1">Preset Audio<audio data-manifest=""></audio><br>
       </label>
       <label class="h2" for="presets">Use presets</label>
       <select id="presets">
@@ -560,7 +775,7 @@
                    [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
-<script src="fft.js"></script>
+<script data-manifest="fft.js"></script>
 <script>
 
 const fileEl=document.getElementById("file");
@@ -1284,8 +1499,8 @@ document.getElementById('deleteSpriteBtn').addEventListener('click', () => {
 renderSpritesTable();
 
 </script>
-<script src="axes.js"></script>
-<script src="midi.js"></script>
+<script data-manifest="axes.js"></script>
+<script data-manifest="midi.js"></script>
 <script>
 
 function initEmptyPCM() {
@@ -1399,7 +1614,7 @@ emptyAudioLengthEl.addEventListener("input", ()=> {
 });
 
 </script>
-<script src="recordingAndPresets.js"></script>
+<script data-manifest="recordingAndPresets.js"></script>
 <script>
 if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
 fftSizeEl.addEventListener("change",()=>{if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}restartRender();buildBinDisplayLookup();});
@@ -1795,7 +2010,7 @@ function getCanvasCoords(e,touch){
 }
 
 </script>
-<script src="drawTools.js"></script>
+<script data-manifest="drawTools.js"></script>
 <script>
 
 function hzToNoteName(frequency) {
@@ -1973,7 +2188,7 @@ canvas.addEventListener("touchmove", e=>{
 });
 
 </script>
-<script src="undoredo.js"></script>
+<script data-manifest="undoredo.js"></script>
 <script>
 function canvasMouseUp(e,touch) {
       renderSpritesTable();
@@ -2382,7 +2597,7 @@ function renderFullSpectrogramToImage() {
 }
 
 </script>
-<script src="downloads.js"></script>
+<script data-manifest="downloads.js"></script>
 <script>
 
 function processPendingFramesLive(){
@@ -2399,8 +2614,8 @@ function processPendingFramesLive(){
 }
 
 </script>
-<script src="brushPreview.js"></script>
-<script src="rightClick.js"></script>
+<script data-manifest="brushPreview.js"></script>
+<script data-manifest="rightClick.js"></script>
 <script>
 
 buildBinDisplayLookup();
@@ -2419,4 +2634,4 @@ window.addEventListener('beforeunload', function (e) {
     e.returnValue = confirmationMessage; // Standard way to trigger the dialog
 });
 </script>
-<script src="eq.js"></script>
+<script data-manifest="eq.js"></script>

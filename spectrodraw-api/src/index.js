@@ -59,6 +59,47 @@ export default {
       if (pathname === "/api/pro-token" && request.method === "POST") {
         return addCors(await handleProToken(request, env), request);
       }
+      if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
+        const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
+        const kv = env && env[kvBindingName];
+        if (kv && typeof kv.get === 'function') {
+          const key = pathname.replace(/^\//, ''); // e.g. "spectrodraw-pro/pro-bundles/..."
+          try {
+            // If your kv keys are stored as "pro-bundles/..." remove the leading "spectrodraw-pro/"
+            const candidateKey = key.replace(/^spectrodraw-pro\//, '');
+            // try to get raw bytes
+            const arr = await kv.get(candidateKey, { type: 'arrayBuffer' });
+            if (arr !== null) {
+              // Try to read metadata for Content-Type (if stored)
+              let meta = null;
+              try { meta = await kv.get(candidateKey, { metadata: true }); } catch (e) {}
+              const contentType = meta && meta.metadata && meta.metadata.contentType
+                                ? meta.metadata.contentType
+                                : guessContentType(candidateKey);
+              const headers = new Headers({
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=31536000, immutable'
+              });
+              if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
+              return addCors(new Response(arr, { status: 200, headers }), request);
+            }
+          } catch (e) {
+            console.warn('KV asset fetch error for', candidateKey, e);
+            // fallthrough to existing logic
+          }
+        } else {
+          console.warn('KV binding missing for assets:', kvBindingName);
+        }
+      }
+      function guessContentType(key) {
+        if (/\.(css)$/i.test(key)) return 'text/css';
+        if (/\.(js)$/i.test(key)) return 'application/javascript';
+        if (/\.(png)$/i.test(key)) return 'image/png';
+        if (/\.(jpg|jpeg)$/i.test(key)) return 'image/jpeg';
+        if (/\.(svg)$/i.test(key)) return 'image/svg+xml';
+        if (/\.(ico)$/i.test(key)) return 'image/x-icon';
+        return 'application/octet-stream';
+      }
 
       try {
         console.log('STATIC_CHECK start ->', { method: request.method, url: request.url, pathname, host: request.headers.get('host') });
@@ -209,41 +250,6 @@ async function handleManifestJson(request, env) {
     const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // change if your binding is different
     const kv = env && env[kvBindingName];
 
-    // // If you also have __STATIC_CONTENT (workers-site) bound, try that first (faster).
-    // if (env && env.__STATIC_CONTENT && typeof env.__STATIC_CONTENT.fetch === 'function') {
-    //   try {
-    //     const staticUrl = new URL(request.url);
-    //     staticUrl.pathname = '/spectrodraw-pro/manifest.json';
-    //     const staticResp = await env.__STATIC_CONTENT.fetch(staticUrl.toString());
-    //     if (staticResp && staticResp.status >= 200 && staticResp.status < 400) {
-    //       // forward with CORS
-    //       const copied = new Response(await staticResp.text(), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' }});
-    //       return addCors(copied, request);
-    //     }
-    //   } catch (e) {
-    //     // ignore and fall back to KV
-    //     console.debug('handleManifestJson: __STATIC_CONTENT fetch failed', e);
-    //   }
-    // }
-
-    // if (!kv || typeof kv.get !== 'function') {
-    //   return addCors(json({ message: 'Manifest not available (KV binding missing)' }, 500), request);
-    // }
-
-    // const key = 'pro-bundles/manifest.json';
-    // const manifestRaw = await kv.get(key);
-    // if (manifestRaw) {
-    //   // manifest might be stored as JSON string or as binary; convert to string
-    //   const manifestText = (typeof manifestRaw === 'string') ? manifestRaw : manifestRaw.toString();
-    //   const headers = new Headers({
-    //     'Content-Type': 'application/json; charset=utf-8',
-    //     'Cache-Control': 'no-cache, must-revalidate',
-    //   });
-    //   return addCors(new Response(manifestText, { status: 200, headers }), request);
-    // }
-
-    // Fallback: try to generate a manifest dynamically by listing keys under pro-bundles/
-    // This creates a simple mapping of basename -> key (e.g. "axes.js" -> "pro-bundles/axes.<hash>.js")
     try {
       const listing = await kv.list({ prefix: 'pro-bundles/', limit: 1000 });
       const keys = (listing && listing.keys) ? listing.keys.map(k => k.name) : [];
@@ -252,7 +258,7 @@ async function handleManifestJson(request, env) {
       const manifest = {};
       for (const name of keys) {
         // Derive logical name: take portion after last slash
-        const logical = name.replace(/^pro-bundles\//, '');
+        const logical = name.replace(/^pro-bundles\//, '').replace(/.{11}(?=\.[^.]+$)/, "");
         // If file name contains folder segments (e.g., assets/toothbrush.svg), keep them.
         // Here we map both the logical basename and the full relative path to the hashed key.
         const parts = logical.split('/');

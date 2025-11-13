@@ -1,3 +1,112 @@
+function initEmptyPCM() {
+    const sampleRateLocal = 48000;
+    let duration = emptyAudioLengthEl.value; 
+    if (duration  < 0.01) duration = 10;
+    const type = phaseTextureEl.value;
+    const length = sampleRateLocal * duration; 
+    const tinyNoiseAmplitude = 0.0001; 
+
+    const pcmArray = new Float32Array(length);
+    for (let i = 0; i < length; i++) {
+      pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+    }
+    pcm = pcmArray;
+    sampleRate = sampleRateLocal;
+
+    iLow = null;
+    minCol = 0; maxCol = 
+    restartRender(false);
+}
+async function onReset() {
+  snapshotMags=mags;
+  snapshotPhases=phases;
+  await initEmptyPCM();
+  minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
+  newHistory();
+}
+function drawLogScale() {
+  const lctx = logscaleEl.getContext("2d");
+
+  const w = 40, h = 40;
+  lctx.clearRect(0, 0, w, h);
+
+  lctx.beginPath();
+  const steps = 40;
+  for (let i = 0; i <= steps; i++) {
+    const x = i / steps;              
+    const y = 1-Math.pow(0-(x-1), Math.pow(logScaleVal,2)); 
+    const px = x * w;                 
+    const py = h - y * h;             
+    if (i === 0) lctx.moveTo(px, py);
+    else lctx.lineTo(px, py);
+  }
+  lctx.strokeStyle = "white";
+  lctx.lineWidth = 3;
+  lctx.stroke();
+}
+let changingLogScale = false;
+function getMouseXY(e,touch) {
+  if (touch) {
+    return [e.touches[0].clientX, e.touches[0].clientY];
+  } else {
+    return [e.clientX, e.clientY];
+  }
+}
+logscaleEl.addEventListener("mousedown", e=> {
+  logScaleMouseDown(e,false);
+});
+logscaleEl.addEventListener("touchstart", e=> {
+  logScaleMouseDown(e.true);
+});
+function logScaleMouseDown(e,touch) {
+  if (e.button !== 0) return;
+  const rect= logscaleEl.getBoundingClientRect();
+  changingLogScale = true;
+  [startX, startY] = getMouseXY(e,touch);
+  buildBinDisplayLookup();
+  renderFullSpectrogramToImage();
+  drawLogScale();
+}
+logscaleEl.addEventListener("mousedown", e=> {
+  logScaleMouseDown(e,false);
+});
+logscaleEl.addEventListener("touchstart", e=> {
+  logScaleMouseDown(e,true);
+});
+
+function logScaleMouseMove(e,touch) {
+  logscaleEl.style.cursor = "n-resize";
+  if (!changingLogScale) return;
+  const rect= logscaleEl.getBoundingClientRect();
+  logScaleVal -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
+  if (logScaleVal < 1) logScaleVal = 1;
+  if (logScaleVal > 2) logScaleVal = 2;
+  [startX, startY] = getMouseXY(e,touch);
+  buildBinDisplayLookup();
+  renderFullSpectrogramToImage();
+  drawLogScale();
+  drawYAxis();
+}
+
+document.addEventListener("mousemove", e=> {
+  logScaleMouseMove(e,false);
+});
+document.addEventListener("touchmove", e=> {
+  logScaleMouseMove(e,true);
+});
+
+logscaleEl.addEventListener("mousemove", e=> {
+  logscaleEl.title = "Log scale: " + logScaleVal;
+});
+
+document.addEventListener("mouseup", e=>{changingLogScale=false;})
+document.addEventListener("touchend", e=>{changingLogScale=false;})
+
+emptyAudioLengthEl.addEventListener("input", ()=> {
+  initEmptyPCM();
+  iLow = 0;
+  iHigh = framesTotal;
+});
 let recording = false;
 let mediaStream = null;
 let mediaSource = null;

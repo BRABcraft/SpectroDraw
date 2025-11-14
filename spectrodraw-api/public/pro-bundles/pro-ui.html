@@ -17,7 +17,11 @@
   - For safety you can set loaderTimeoutMs to a small value to not block page too long.
 */
 (async function () {
-  if (window.parent && window.parent.location.host === "127.0.0.1:5500") return;
+  try {
+    if (window.parent && window.parent !== window && window.parent.location.host === "127.0.0.1:5500") {
+      return;
+    }
+  } catch (e) {}
   const manifestUrl = 'https://api.spectrodraw.com/spectrodraw-pro/manifest.json'; // adjust if needed
   const loaderTimeoutMs = 3000;
 

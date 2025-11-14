@@ -388,83 +388,9 @@ function _getPlaybackTarget() {
 }
 
 
-function showVolumeWarningModal() {
-  return new Promise(resolve => {
-    const overlay = document.createElement('div');
-    overlay.innerHTML = `
-      <div id="volwarn-overlay" style="
-        position: fixed; inset: 0;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.5);
-        z-index: 100000;">
-        <div id="volwarn-box" style="
-          background: #222;
-          padding: 20px 24px;
-          border-radius: 10px;
-          box-shadow: 0 8px 30px rgba(0,0,0,0.9);
-          max-width: 90%;
-          width: 340px;
-          color: #eee;
-          text-align: center;">
-          <h2 style="margin: 0 0 10px 0; font-size: 18px;">Volume warning</h2>
-          <p style="margin: 0 0 16px 0;">Please turn down your volume.</p>
-          <label style="display: flex; align-items: center; gap: 6px; justify-content: center; margin-bottom: 16px; cursor: pointer;">
-            <input type="checkbox" id="volwarn-dontshow" />
-            <span>Don't show again</span>
-          </label>
-          <button id="volwarn-ok" style="
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            background: var(--accent-gradient);
-            box-shadow: 0 30px 30px rgba(20,0,20,0.3);
-            color: black;
-            cursor: pointer;
-            font-size: 14px;">OK</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const okBtn = overlay.querySelector('#volwarn-ok');
-    const dontShowBox = overlay.querySelector('#volwarn-dontshow');
-
-    okBtn.addEventListener('click', () => {
-      const dontShow = dontShowBox.checked;
-      overlay.remove();
-      resolve(dontShow);
-    });
-
-    overlay.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === 'Escape') {
-        e.preventDefault();
-        okBtn.click();
-      }
-    });
-
-    // focus for keyboard use
-    okBtn.focus();
-  });
-}
-
 async function playPCM(loop = true, startFrame = null) {
   if (!pcm) return;
   ensureAudioCtx();
-
-  let max = -Infinity;
-  for (const v of pcm) if (v > max) max = v;
-
-  const disabled = !!localStorage.getItem('spectrodraw_volume_warning_disabled');
-  if (max > 3 && !disabled) {
-    const dontShowAgain = await showVolumeWarningModal();
-    if (dontShowAgain) {
-      try { localStorage.setItem('spectrodraw_volume_warning_disabled', '1'); } catch {}
-    }
-  }
-
-  if (audioCtx.state === 'suspended') {
-    try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
-  }
 
   stopSource(true);
 

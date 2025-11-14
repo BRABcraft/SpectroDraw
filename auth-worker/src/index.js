@@ -10,6 +10,7 @@ const ALLOWED_ORIGINS = new Set([
   "https://spectrodraw.com",
   "https://www.spectrodraw.com",
   "https://app.spectrodraw.com",
+  "https://api.spectrodraw.com",
   "http://127.0.0.1:5500"
   // "http://127.0.0.1:5173", // dev: uncomment if you need it locally
 ]);

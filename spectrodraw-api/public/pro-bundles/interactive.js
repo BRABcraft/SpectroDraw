@@ -45,21 +45,11 @@ function cxToFrame(cx) {
 function frameToCx(frame) {
   return ((frame-iLow)/(iWidth/specWidth)*1);
 }
-let sx2 = 0, sy2 = 0;
-
-function forEachSpritePixelInOrder(sprite, cb) {
-  if (!sprite) return;
-  const cols = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
-  for (const x of cols) {
-    const col = sprite.pixels.get(x);
-    // ys are pushed in painting order (top-down if you painted that way), but ensure ascending y:
-    const order = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
-    for (const entry of order) {
-      const i = entry.i;
-      cb(x, col.ys[i], col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
-    }
-  }
+function handleMoveSprite(cx,cy) {
+  let dx = cx-startX, dy=cy-startY;
+  moveSprite(currentSprite.id, Math.round(dx), Math.round(dy));
 }
+let sx2 = 0, sy2 = 0;
 
 /* ===== Modified canvasMouseDown ===== */
 function canvasMouseDown(e,touch) {
@@ -128,8 +118,9 @@ canvas.addEventListener("touchstart", e=>{
 });
 let previewingShape = false;
 function canvasMouseMove(e,touch) {
-    if (zooming) return;
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+    if (movingSprite) {handleMoveSprite(cx,cy); return;}
+    if (zooming) return;
     if (!recording) {
       const hz = getSineFreq(visibleToSpecY(cy));
       const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
@@ -172,10 +163,11 @@ canvas.addEventListener("touchmove", e=>{
     canvasMouseMove(e,true);
 });
 function canvasMouseUp(e,touch) {
-      renderSpritesTable();
+    movingSprite = false;
     previewingShape = false;
     if (zooming) return;
     if (!mags || !phases || !painting) return;
+    renderSpritesTable('canvasmouseup');
     minCol = Infinity; maxCol = -Infinity;
     visited = null;
     painting = false;
@@ -303,8 +295,8 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
-  const epsMag = 0.001;
-  const epsPhase = 0.001;
+  const epsMag = 0.1;
+  const epsPhase = 0.4;
 
   const changedIdxs = [];
   const prevMags = [];
@@ -313,13 +305,17 @@ function newHistory() {
   const h = specHeight;
   const startF = minCol*fftSize/2
   const endF = maxCol*fftSize/2; 
-
+  let totalDiff = 0;
+  let countDiff = 0;
   for (let idx = startF; idx < endF; idx++) {
     const oldM = snapshotMags[idx] || 0;
     const newM = mags[idx] || 0;
     const oldP = snapshotPhases[idx] || 0;
     const newP = phases[idx] || 0;
-    if (Math.abs(oldM - newM) > epsMag || Math.abs(angleDiff(oldP, newP)) > epsPhase) {
+    if (idx%fftSize/2 === 0) {countDiff=0; totalDiff=0;}
+    countDiff++;
+    totalDiff += Math.abs(oldM - newM);  
+    if (Math.abs(oldM - newM) > Math.min(0.4,(totalDiff/countDiff)*0.2)){
       changedIdxs.push(idx);
       prevMags.push(oldM);
       prevPhases.push(snapshotPhases[idx] || 0);

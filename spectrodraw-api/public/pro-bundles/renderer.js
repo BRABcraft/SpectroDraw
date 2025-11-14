@@ -79,7 +79,6 @@ function restartRender(autoPlay){
         if (typeof drawTimeline === 'function') drawTimeline();
         if (typeof drawYAxis === 'function') drawYAxis();
         if (typeof drawLogScale === 'function') drawLogScale();
-        renderSpritesTable();
     }
 }
 

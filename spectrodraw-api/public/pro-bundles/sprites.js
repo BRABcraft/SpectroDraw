@@ -1,3 +1,17 @@
+function forEachSpritePixelInOrder(sprite, cb) {
+  if (!sprite) return;
+  const cols = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
+  for (const x of cols) {
+    const col = sprite.pixels.get(x);
+    // ys are pushed in painting order (top-down if you painted that way), but ensure ascending y:
+    const order = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
+    for (const entry of order) {
+      const i = entry.i;
+      cb(x, col.ys[i], col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+    }
+  }
+}
+
 let selectedSpriteId = null;
 
 // utility to find sprite index by id
@@ -12,8 +26,7 @@ function getSpriteById(id) {
 }
 
 // Render the sprites table
-function renderSpritesTable() {
-  console.log('Rendering sprites table, selectedSpriteId=', selectedSpriteId);
+function renderSpritesTable(line) {
   const tbody = document.getElementById('spriteTableBody');
   tbody.innerHTML = '';
   if (sprites.length == 0) {
@@ -41,12 +54,18 @@ function renderSpritesTable() {
     cb.type = 'checkbox';
     cb.checked = !!sprite.enabled;
     cb.title = 'Toggle sprite enabled';
+    cb.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+    });
+
+    // Keep change handler for toggle logic
     cb.addEventListener('change', (ev) => {
       ev.stopPropagation();
       toggleSpriteEnabled(sprite.id, cb.checked);
-      renderSpritesTable();
+      renderSpritesTable(49);
     });
     tdEnabled.appendChild(cb);
+
 
     // TOOL
     const tdTool = document.createElement('td');
@@ -58,8 +77,12 @@ function renderSpritesTable() {
 
     // click selects
     tr.addEventListener('click', () => {
-      selectedSpriteId = sprite.id;
-      renderSpritesTable();
+      if (selectedSpriteId == sprite.id){
+        selectedSpriteId = null;
+      } else {
+        selectedSpriteId = sprite.id;
+      }
+      renderSpritesTable(63);
       updateEditorSelection(sprite.id);
     });
 
@@ -72,7 +95,6 @@ function updateEditorSelection(spriteId) {
   const nameEl = document.getElementById('selectedName');
   const toolEl = document.getElementById('selectedTool');
   const metaEl = document.getElementById('selectedMeta');
-  console.log(spriteId);
   if (spriteId === null) {
     selectedSpriteId = null;
     nameEl.textContent = 'No sprite selected';
@@ -87,23 +109,20 @@ function updateEditorSelection(spriteId) {
   toolEl.textContent = ' — ' + (s.tool || '');
   const info = `Pixels columns: ${s.pixels ? Array.from(s.pixels.keys()).length : 0}  •  Enabled: ${!!s.enabled}`;
   metaEl.textContent = info;
-  // ensure inputs reset
-  document.getElementById('moveDeltaX').value = 0;
-  document.getElementById('moveDeltaY').value = 0;
 }
 
 // Toggle sprite (apply prev or next values)
 function toggleSpriteEnabled(spriteId, enable) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
-  const minCol = Math.max(0, sprite.minCol || 0);
-  const maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
+  let minCol = Math.max(0, sprite.minCol || 0);
+  let maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
 
   // apply prev (disable) or next (enable)
   if (enable) {
     // write next values at recorded coords
     forEachSpritePixelInOrder(sprite, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
-      const id = y * specWidth + x;
+      const id = x * specHeight + y;
       mags[id] = nextMag;
       phases[id] = nextPhase;
     });
@@ -111,22 +130,22 @@ function toggleSpriteEnabled(spriteId, enable) {
   } else {
     // write prev values back
     forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
-      const id = y * specWidth + x;
+      const id = x * specHeight + y;
       mags[id] = prevMag;
       phases[id] = prevPhase;
     });
     sprite.enabled = false;
   }
-
-  // update image buffer and PCM for affected columns
-  renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
   recomputePCMForCols(minCol, maxCol);
   restartRender(false);
-  updateCanvasScroll();
+  if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
+    // toggleSpriteEnabled(spriteId+1, getSpriteById(spriteId+1).enabled);
+  } else {
 
-  if (playing) {
-    stopSource(true);
-    playPCM(true);
+    if (playing) {
+      stopSource(true);
+      playPCM(true);
+    }
   }
 }
 
@@ -136,7 +155,7 @@ function moveSprite(spriteId, dx, dy) {
   if (!sprite) return;
   // 1) restore prev values at old positions
   forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
-    const idOld = y * specWidth + x;
+    const idOld = x * specHeight + y;
     mags[idOld] = prevMag;
     phases[idOld] = prevPhase;
   });
@@ -171,7 +190,7 @@ function moveSprite(spriteId, dx, dy) {
       // - prev values should be whatever is currently in mags/phases at that destination BEFORE we write next.
       //   However we can store the previous as the current mags/phases (which reflect other layers).
       //   But to be conservative, capture current mags/phases as prev for this moved sprite.
-      const destIdx = ny * specWidth + nx;
+      const destIdx = nx * specHeight + ny;
       const currentDestMag = mags[destIdx] || 0;
       const currentDestPhase = phases[destIdx] || 0;
       ncol.ys.push(ny);
@@ -193,7 +212,7 @@ function moveSprite(spriteId, dx, dy) {
       const y = col.ys[i];
       const nextMag = col.nextMags[i];
       const nextPhase = col.nextPhases[i];
-      const idNew = y * specWidth + x;
+      const idNew = x * specHeight + y;
       mags[idNew] = nextMag;
       phases[idNew] = nextPhase;
     }
@@ -218,8 +237,7 @@ function moveSprite(spriteId, dx, dy) {
     stopSource(true);
     playPCM(true);
   }
-
-  renderSpritesTable();
+  renderSpritesTable(222);
   updateEditorSelection(spriteId);
 }
 
@@ -231,7 +249,7 @@ function deleteSprite(spriteId) {
 
   // restore prev values
   forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
-    const id = y * specWidth + x;
+    const id = x * specHeight + y;
     mags[id] = prevMag;
     phases[id] = prevPhase;
   });
@@ -250,9 +268,8 @@ function deleteSprite(spriteId) {
     stopSource(true);
     playPCM(true);
   }
-
   selectedSpriteId = null;
-  renderSpritesTable();
+  renderSpritesTable(255);
   updateEditorSelection(null);
 }
 

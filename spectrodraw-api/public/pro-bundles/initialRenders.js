@@ -5,4 +5,3 @@ drawTimeline();
 drawYAxis();
 drawLogScale();
 renderFullSpectrogramToImage();
-renderSpritesTable();

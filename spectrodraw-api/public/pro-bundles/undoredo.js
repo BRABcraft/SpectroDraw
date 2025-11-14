@@ -251,6 +251,7 @@ function doUndo() {
 
   // mark disabled
   sprite.enabled = false;
+  renderSpritesTable();
 
   // recompute/render only affected columns
   const minCol = Math.max(0, sprite.minCol);
@@ -292,6 +293,7 @@ function doRedo() {
   });
 
   sprite.enabled = true;
+  renderSpritesTable();
 
   // recompute/render only affected columns
   const minCol = Math.max(0, sprite.minCol);

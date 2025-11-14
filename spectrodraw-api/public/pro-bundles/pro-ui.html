@@ -17,6 +17,7 @@
   - For safety you can set loaderTimeoutMs to a small value to not block page too long.
 */
 (async function () {
+  if (window.parent && window.parent.location.host === "127.0.0.1:5500") return;
   const manifestUrl = 'https://api.spectrodraw.com/spectrodraw-pro/manifest.json'; // adjust if needed
   const loaderTimeoutMs = 3000;
 
@@ -752,3 +753,24 @@
 <script data-manifest="rightClick.js"></script>
 <script data-manifest="initialRenders.js"></script>
 <script data-manifest="eq.js"></script>
+
+<!--Comment out on deploy-->
+
+<!-- <link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" type="text/css" href="style.css">
+<script src="fft.js"></script>
+<script src="initialize.js"></script>
+<script src="ui.js"></script>
+<script src="sprites.js"></script>
+<script src="axes.js"></script>
+<script src="midi.js"></script>
+<script src="recordingAndPresets.js"></script>
+<script src="renderer.js"></script>
+<script src="drawTools.js"></script>
+<script src="undoredo.js"></script>
+<script src="interactive.js"></script>
+<script src="downloads.js"></script>
+<script src="brushPreview.js"></script>
+<script src="rightClick.js"></script>
+<script src="initialRenders.js"></script>
+<script src="eq.js"></script> -->

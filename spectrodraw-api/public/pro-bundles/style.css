@@ -502,13 +502,13 @@ select {
   }
 
   #spriteTable td {
-    padding: 6px 8px;
+    padding: 3px 4px;
     border-bottom: 1px dashed #111;
     font-size: 13px;
   }
 
   #spriteTable tr.sprite-row:hover { background: #444; cursor: pointer; }
-  #spriteTable tr.sprite-row.selected { background: #2b8aef; outline: 1px solid #b7d3ff; }
+  #spriteTable tr.sprite-row.selected { background: #0055af;}
 
   /* Editor area */
   #spriteEditor {

@@ -65,6 +65,15 @@ function renderSpritesTable(line) {
       renderSpritesTable(49);
     });
     tdEnabled.appendChild(cb);
+    tr.addEventListener("mouseover", () => {
+      spritePath = generateSpriteOutlinePath(sprite, { height: specHeight });
+      drawSpriteOutline(false);
+      console.log(spritePath);
+    });
+
+    tr.addEventListener("mouseout", () => {
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    });
 
 
     // TOOL

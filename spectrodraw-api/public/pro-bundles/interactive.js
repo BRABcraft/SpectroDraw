@@ -61,6 +61,7 @@ function canvasMouseDown(e,touch) {
   startX = cx; startY = cy;
   painting = true;
   if (movingSprite) {
+    spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
     return;
   } else {
     snapshotMags = new Float32Array(mags);

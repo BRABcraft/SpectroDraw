@@ -141,3 +141,4 @@ let nextSpriteId = 1;
 let currentSprite = null;
 let spriteRedoQueue = [];
 let movingSprite = false;
+let spritePath = null;

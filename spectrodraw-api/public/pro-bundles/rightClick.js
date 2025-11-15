@@ -416,15 +416,17 @@ function makeTimelineMenu(){
   return menu;
 }
 
-function lsc(f){
-    const denom = Math.log(1 + (logScaleVal-0.999999999) * specHeight);
-    const t = Math.log(1 + (logScaleVal-0.999999999) * (f / (sampleRate / fftSize))) / denom;
-    return Math.floor(t*sampleRate/2);
+function lsc(f,h=(sampleRate/2)){
+  f*=(sampleRate/2)/h;
+  const denom = Math.log(1 + (logScaleVal-0.999999999) * specHeight);
+  const t = Math.log(1 + (logScaleVal-0.999999999) * (f / (sampleRate / fftSize))) / denom;
+  return Math.floor(t*h);
 }
-function invlsc(y){
-    const denom = Math.log(1 + (logScaleVal-0.999999999) * specHeight);
-    const t = (2 * y) / sampleRate;
-    return Math.floor((sampleRate / fftSize) * (Math.exp(t * denom) - 1) / (logScaleVal - 0.999999999));
+function invlsc(y,h=(sampleRate/2)){
+  y*=(sampleRate/2)/h;
+  const denom = Math.log(1 + (logScaleVal-0.999999999) * specHeight);
+  const t = (2 * y) / sampleRate;
+  return Math.floor((sampleRate / fftSize) * (Math.exp(t * denom) - 1) / (logScaleVal - 0.999999999) / ((sampleRate/2)/h));
 }
 
 function makeYAxisMenu(){

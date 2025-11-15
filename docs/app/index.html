@@ -78,7 +78,7 @@
           <div class="sd-pro__text">Loading SpectroDraw Pro…</div>
         </div>
         <iframe class="sd-pro__iframe" title="SpectroDraw Pro"></iframe>
-        <button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>
+        <!--<button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>-->
       </div>
       <style>
         #spectrodraw-pro-iframe-overlay{
@@ -105,7 +105,7 @@
           width:100%;
           height:100%;
           border:0;
-          background: #fff;
+          background: rgba(0,0,0,0.72);
         }
         .sd-pro__loading{
           position: absolute;
@@ -120,26 +120,14 @@
           width:52px;
           height:52px;
           border-radius:50%;
-          border:6px solid rgba(0,0,0,0.08);
-          border-top-color: rgba(0,0,0,0.6);
+          border:6px solid rgba(255,255,255,0.08);
+          border-top-color: rgba(255,255,255,0.6);
           animation: sd-spin 0.9s linear infinite;
           margin:0 auto 12px;
         }
         @keyframes sd-spin{ to{ transform: rotate(360deg); } }
-        .sd-pro__text{ font-size:15px; color:#111; }
-        .sd-pro__close{
-          position: fixed;
-          right:14px;
-          top:12px;
-          z-index:2147483651;
-          background: rgba(255,255,255,0.92);
-          border: none;
-          padding:8px 10px;
-          border-radius:8px;
-          cursor:pointer;
-          font-size:16px;
-          box-shadow:0 6px 18px rgba(0,0,0,0.12);
-        }
+        .sd-pro__text{ font-size:15px; color:#fff; 
+          font-family: 'Inter', 'Segoe UI', sans-serif;}
       </style>
     `;
 
@@ -152,7 +140,7 @@
 
     const iframe = overlay.querySelector('.sd-pro__iframe');
     const loadingEl = overlay.querySelector('.sd-pro__loading');
-    const closeBtn = overlay.querySelector('.sd-pro__close');
+    // const closeBtn = overlay.querySelector('.sd-pro__close');
 
     // set iframe src to Pro UI served from your KV endpoint
     let token;
@@ -191,9 +179,9 @@
 
     // if the iframe navigation fails, keep overlay but show retry by swapping inner content
     // (iframe error events are unreliable for cross-origin; you may choose to provide a manual retry button)
-    closeBtn.addEventListener('click', () => {
-      try { overlay.remove(); } catch (e) {}
-    });
+    // closeBtn.addEventListener('click', () => {
+    //   try { overlay.remove(); } catch (e) {}
+    // });
 
     // optional: allow the embedded UI to request close via postMessage
     window.addEventListener('message', (ev) => {
@@ -203,9 +191,9 @@
         if (ev.origin !== allowedOrigin) return;
       } catch (e) { return; }
       if (!ev.data) return;
-      if (ev.data === 'spectrodraw-pro-close') {
-        try { overlay.remove(); } catch (e) {}
-      }
+      // if (ev.data === 'spectrodraw-pro-close') {
+      //   try { overlay.remove(); } catch (e) {}
+      // }
       // other message handling can go here
     }, false);
 

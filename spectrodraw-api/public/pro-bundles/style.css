@@ -526,3 +526,24 @@ select {
   #spriteInfo { flex:1; font-size:13px; color:#333; }
   .small { font-size:12px; color:#666; }
   .muted { color:#777; font-size:12px; }
+
+#moveSpriteBtn {
+  position: relative;
+  overflow: hidden;
+  z-index: 0;  /* establish stacking context */
+}
+
+/* gradient overlay */
+#moveSpriteBtn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #fe9260ff, #ff35aeff, #f91212ff);
+  opacity: 0;
+  transition: opacity 100ms linear;
+
+  z-index: -1;   /* put gradient behind the text */
+}
+#moveSpriteBtn.moving::before {
+  opacity: 1;
+}

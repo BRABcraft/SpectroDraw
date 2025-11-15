@@ -65,6 +65,45 @@ function previewShape(cx, cy) {
 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
+    if (movingSprite) {
+      const sprite = getSpriteById(selectedSpriteId);
+      if (!sprite) return;
+
+      const path = generateSpriteOutlinePath(sprite, { height: specHeight });
+      if (!path || !path.points || path.points.length === 0) return;
+
+      // Helpers to map bin/frame coords -> canvas pixels
+      // horizontal mapping uses visible range iLow..iHigh like your vertical guide above
+      const framesVisible = Math.max(1, iHigh - iLow);
+      const mapX = (frameX) => ((frameX - iLow) * canvas.width) / framesVisible;
+      const mapY = (binY)   => (binY * canvas.height) / Math.max(1, specHeight);
+
+      const pts = path.points.map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
+
+      // Draw filled translucent shape + stroke
+      ctx.save();
+      ctx.beginPath();
+      let dx = 0.5 + (cx-startX), dy = 0.5+(cy-startY);
+      ctx.moveTo(pts[0].x + dx, pts[0].y + dy);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x + dx, pts[i].y + dy);
+      }
+      ctx.closePath();
+
+      // fill + stroke styles (tweak colors/alpha as you like)
+      ctx.fillStyle = "rgba(255,200,0,0.08)"; // subtle fill
+      ctx.fill();
+
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#ff0000ff";
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+
+      ctx.restore();
+      return;
+    }
+
     const x = (currentCursorX - iLow) * canvas.width / (iHigh - iLow);
     // vertical guide
     ctx.save();
@@ -400,7 +439,7 @@ function commitShape(cx, cy) {
   renderView();
 }
 
-function ftvsy(f) {
+function ftvsy(f) {// frequency to visible spectrogram Y
   const h = specHeight;
   const s = parseFloat(logScaleVal);
   let bin = f / (sampleRate / fftSize);

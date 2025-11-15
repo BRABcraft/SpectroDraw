@@ -22,7 +22,7 @@ async function onReset() {
   snapshotPhases=phases;
   await initEmptyPCM();
   minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
-  sprites = []; renderSpritesTable('reset');
+  sprites = []; movingSprite=false;mvsbtn.classList.toggle('moving', movingSprite);renderSpritesTable('reset');
 }
 function drawLogScale() {
   const lctx = logscaleEl.getContext("2d");

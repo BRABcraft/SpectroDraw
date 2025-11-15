@@ -46,28 +46,30 @@ function frameToCx(frame) {
   return ((frame-iLow)/(iWidth/specWidth)*1);
 }
 function handleMoveSprite(cx,cy) {
-  let dx = cx-startX, dy=cy-startY;
-  moveSprite(currentSprite.id, Math.round(dx), Math.round(dy));
+  let dx = cx-startX, dy=startY-cy;
+  moveSprite(selectedSpriteId, Math.round(dx), Math.round(dy));
 }
 let sx2 = 0, sy2 = 0;
 
 /* ===== Modified canvasMouseDown ===== */
 function canvasMouseDown(e,touch) {
-    if (!touch) zooming=false;
-    if (!mags || !phases) return;
-    if (!touch && e.button !== 0) return;
-    if (pendingHistory) return; 
-
-    painting = true;
-
+  if (!touch) zooming=false;
+  if (!mags || !phases) return;
+  if (!touch && e.button !== 0) return;
+  if (pendingHistory) return; 
+  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  startX = cx; startY = cy;
+  painting = true;
+  if (movingSprite) {
+    return;
+  } else {
     snapshotMags = new Float32Array(mags);
     snapshotPhases = new Float32Array(phases);
 
     visited = new Uint8Array(mags.length);
     stopSource();
     paintedPixels = new Set();
-    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
-    startX = cx; startY = cy;
+    
     if (alignTime) {
       const snapSize = 30/bpm/subBeat;
       const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
@@ -109,6 +111,7 @@ function canvasMouseDown(e,touch) {
           sineOsc.start();
       }
     }
+  }
 }
 canvas.addEventListener("mousedown", e=>{
     canvasMouseDown(e,false);
@@ -118,114 +121,110 @@ canvas.addEventListener("touchstart", e=>{
 });
 let previewingShape = false;
 function canvasMouseMove(e,touch) {
-    const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
-    if (movingSprite) {handleMoveSprite(cx,cy); return;}
-    if (zooming) return;
-    if (!recording) {
-      const hz = getSineFreq(visibleToSpecY(cy));
-      const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
-      const hx = Math.floor(cx);
-      const hy = Math.floor(hz/(sampleRate/fftSize));
-      const i = hx*specHeight+hy;
-      let normalizedMag = Math.min(1, mags[i] / 256);
-      let db = (20 * Math.log10(normalizedMag)).toFixed(1);
-      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
-    }
-    if (!painting && (currentShape === "brush" || currentShape === "image")) {
-        previewShape(cx, cy);
-        previewingShape = true;
-        return;
-    }
-    if(!painting && currentTool != "image") return;
+  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  if (painting && movingSprite) {previewShape(cx, cy);return;}
+  if (zooming) return;
+  if (!recording) {
+    const hz = getSineFreq(visibleToSpecY(cy));
+    const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
+    const hx = Math.floor(cx);
+    const hy = Math.floor(hz/(sampleRate/fftSize));
+    const i = hx*specHeight+hy;
+    let normalizedMag = Math.min(1, mags[i] / 256);
+    let db = (20 * Math.log10(normalizedMag)).toFixed(1);
+    info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
+  }
+  if (!painting && (currentShape === "brush" || currentShape === "image") && !movingSprite) {
+    previewShape(cx, cy);
+    previewingShape = true;
+    return;
+  }
+  if(!painting && currentTool != "image") return;
 
-    if (currentShape !== "brush") {
-        previewShape(cx, cy);
-        previewingShape = true;
-    } else {
-        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        const realY = visibleToSpecY(cy);
-        paint(cx + iLow, realY);
-        drawCursor(true);
-    }
+  if (currentShape !== "brush") {
+    previewShape(cx, cy);
+    previewingShape = true;
+  } else {
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    const realY = visibleToSpecY(cy);
+    paint(cx + iLow, realY);
+    drawCursor(true);
+  }
 
-    currentFrame = Math.floor(cx+iLow);
-    if (mouseDown) {
-        playFrame(currentFrame);
-        if (sineOsc) setSineFreq( visibleToSpecY(cy) ); 
-    }
+  currentFrame = Math.floor(cx+iLow);
+  if (mouseDown) {
+    playFrame(currentFrame);
+    if (sineOsc) setSineFreq( visibleToSpecY(cy) ); 
+  }
 
-    currentCursorX = currentFrame;
+  currentCursorX = currentFrame;
 }
 canvas.addEventListener("mousemove", e=>{
-    canvasMouseMove(e,false);
+  canvasMouseMove(e,false);
 });
 canvas.addEventListener("touchmove", e=>{
-    canvasMouseMove(e,true);
+  canvasMouseMove(e,true);
 });
 function canvasMouseUp(e,touch) {
-    movingSprite = false;
-    previewingShape = false;
-    if (zooming) return;
-    if (!mags || !phases || !painting) return;
-    renderSpritesTable('canvasmouseup');
-    minCol = Infinity; maxCol = -Infinity;
-    visited = null;
-    painting = false;
-    paintedPixels = null;
-    mouseDown = false;
-    stopSource();
-    if (sineOsc) {
-        sineOsc.stop();
-        sineOsc.disconnect();
-        sineOsc = null;
-        sineGain = null;
-    }
-    const { cx, cy } = getCanvasCoords(e,touch);
-    if (currentShape === "rectangle" || currentShape === "line") {
-        commitShape(cx, cy); 
-        overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
-    }
-    if (alignTime && currentTool === "color") {
-      const startFrame = Math.round(cx + iLow);
-      const snapSize = 30/bpm/subBeat;
-      const brushS = brushSize*fWidth/sampleRate*fftSize/512;
+  previewingShape = false;
+  if (zooming) return;
+  if (!mags || !phases || !painting) return;
+  renderSpritesTable('canvasmouseup');
+  
+  minCol = Infinity; maxCol = -Infinity;
+  visited = null;
+  painting = false;
+  paintedPixels = null;
+  mouseDown = false;
+  stopSource();
+  if (sineOsc) {
+    sineOsc.stop();
+    sineOsc.disconnect();
+    sineOsc = null;
+    sineGain = null;
+  }
+  const { cx, cy } = getCanvasCoords(e,touch);
+  if (movingSprite) handleMoveSprite(cx,cy);
+  if (currentShape === "rectangle" || currentShape === "line") {
+    commitShape(cx, cy); 
+    overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+  }
+  if (alignTime && currentTool === "color") {
+    const startFrame = Math.round(cx + iLow);
+    const snapSize = 30/bpm/subBeat;
+    const brushS = brushSize*fWidth/sampleRate*fftSize/512;
 
-      let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
-      let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
+    let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
+    let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
 
-      startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
-      startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
-    }
+    startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
+    startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
+  }
 
-    startX=startY=null;
+  startX=startY=null;
 
-    startTime = performance.now();
-    audioProcessed = 0;
+  startTime = performance.now();
+  audioProcessed = 0;
 
-    if (snapshotMags && snapshotPhases && mags && phases) {
+  if (snapshotMags && snapshotPhases && mags && phases && !movingSprite) {
 
-      autoRecomputePCM(-1,-1);
+    autoRecomputePCM(-1,-1);
 
-      pendingHistory = true;
-      pendingPlayAfterRender = true; 
-    } else {
+    pendingHistory = true;
+    pendingPlayAfterRender = true; 
+  }
 
-      playPCM(startFrame = currentFrame);
-      const playPauseEl = document.getElementById("playPause");
-      if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
-    }
+  let startFrame = calcMinMaxCol().minCol;
+  if (startFrame == Infinity) startFrame = 0;
+  pos = startFrame * hop;
+  x = startFrame;
+  rendering = true;
+  requestAnimationFrame(() => drawLoop());
 
-    let startFrame = calcMinMaxCol().minCol;
-    if (startFrame == Infinity) startFrame = 0;
-    pos = startFrame * hop;
-    x = startFrame;
-    rendering = true;
-    requestAnimationFrame(() => drawLoop());
-
-    startTime = performance.now();
-    audioProcessed = 0;
+  startTime = performance.now();
+  audioProcessed = 0;
 
 }
 

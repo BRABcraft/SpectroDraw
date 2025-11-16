@@ -511,11 +511,7 @@ select {
   #spriteTable tr.sprite-row.selected { background: #0055af;}
 
   /* Editor area */
-  #spriteEditor {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
+  
   #moveControls {
     display: flex;
     flex-direction: column;
@@ -546,4 +542,36 @@ select {
 }
 #moveSpriteBtn.moving::before {
   opacity: 1;
+}
+.spriteEditorRow {
+  display: flex;
+  height: 2rem;
+}
+
+.spriteEditorRow label {
+  width: 80px;
+}
+
+.spriteEditorRow input,
+.spriteEditorRow select{
+  background: #222;
+  border-radius: 5px;
+  height: 1rem;
+  margin-left: 5px;
+  color: white;
+}
+
+/* 🔻 When the entire #spriteEditor is "disabled" */
+#spriteEditor[disabled] {
+  pointer-events: none;      /* block input */
+  opacity: 0.5;              /* fade whole block */
+}
+
+/* 🔻 Optional: stronger muted look for form elements */
+#spriteEditor[disabled] input,
+#spriteEditor[disabled] select,
+#spriteEditor[disabled] button {
+  background: #444 !important;
+  color: #aaa !important;
+  cursor: not-allowed;
 }

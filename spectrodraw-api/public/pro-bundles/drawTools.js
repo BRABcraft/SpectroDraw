@@ -82,6 +82,7 @@ function drawSpriteOutline(useDelta,cx,cy){
   ctx.stroke();
 
   ctx.restore();
+  // console.log(ctx);
 }
 
 function previewShape(cx, cy) {
@@ -324,6 +325,31 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
       imgData[pix + 3] = 255;
     }
   }
+}
+
+function applyEffectToPixel(oldMag, oldPhase, bin, newEffect) {
+  const tool = newEffect.tool || currentTool;
+  const mag = (tool === "eraser" ? 0 : (newEffect.brushColor  !== undefined) ? newEffect.brushColor  :128);
+  const phase=(tool === "eraser" ? 0 : (newEffect.penPhase!== undefined) ? newEffect.penPhase:  0);
+  const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1);
+  const po =  (tool === "eraser" ? 0 : (newEffect.phaseOpacity   !== undefined) ? newEffect.phaseOpacity   :  0);
+  const _amp = newEffect.amp || amp;
+  const dbt = Math.pow(10, newEffect.noiseRemoveFloor / 20)*128;
+  const newMag =  (tool === "amplifier")    ? (oldMag * _amp)
+                : (tool === "noiseRemover") ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
+                :                             (oldMag * (1 - bo) + mag * bo);
+  const type = phaseTextureEl.value;
+  let $phase;
+  if (type === 'Harmonics') {
+    $phase = (bin / specHeight * fftSize / 2);
+  } else if (type === 'Static') {
+    $phase = Math.random()*Math.PI;
+  } else if (type === 'Flat') {
+    $phase = phase;
+  }
+  const newPhase = oldPhase * (1-po) + po * ($phase + phase*2);
+  const clampedMag = Math.min(newMag, 255);
+  return { mag: clampedMag, phase: newPhase};
 }
 
 

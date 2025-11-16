@@ -26,7 +26,7 @@ function getSpriteById(id) {
 }
 
 // Render the sprites table
-function renderSpritesTable(line) {
+function renderSpritesTable() {
   const tbody = document.getElementById('spriteTableBody');
   tbody.innerHTML = '';
   if (sprites.length == 0) {
@@ -44,9 +44,42 @@ function renderSpritesTable(line) {
     tr.dataset.spriteId = sprite.id;
 
     // NAME
-    const name = sprite.name || ('Sprite #' + sprite.id);
     const tdName = document.createElement('td');
-    tdName.textContent = name;
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = sprite.name;
+    nameInput.className = 'sprite-name-input';
+    nameInput.style = 'background:none;border:none;color:white;';
+
+    // auto-size function
+    function autosize() {
+      nameInput.style.width = "10%"; // fallback/minimum
+      const temp = document.createElement("span");
+      temp.style.visibility = "hidden";
+      temp.style.whiteSpace = "pre";
+      temp.style.font = getComputedStyle(nameInput).font;
+      temp.textContent = nameInput.value || "";
+      document.body.appendChild(temp);
+
+      const needed = temp.getBoundingClientRect().width + 12; // padding buffer
+      document.body.removeChild(temp);
+
+      nameInput.style.width = Math.max(10, needed) + "px";
+    }
+
+    autosize();
+    nameInput.addEventListener("input", autosize);
+
+    // block row-select click
+    nameInput.addEventListener('click', ev => ev.stopPropagation());
+
+    // apply changes
+    nameInput.addEventListener('change', ev => {
+      sprite.name = nameInput.value;
+      renderSpritesTable();
+    });
+
+    tdName.appendChild(nameInput);
 
     // ENABLED checkbox
     const tdEnabled = document.createElement('td');
@@ -62,13 +95,12 @@ function renderSpritesTable(line) {
     cb.addEventListener('change', (ev) => {
       ev.stopPropagation();
       toggleSpriteEnabled(sprite.id, cb.checked);
-      renderSpritesTable(49);
+      renderSpritesTable();
     });
     tdEnabled.appendChild(cb);
     tr.addEventListener("mouseover", () => {
       spritePath = generateSpriteOutlinePath(sprite, { height: specHeight });
       drawSpriteOutline(false);
-      console.log(spritePath);
     });
 
     tr.addEventListener("mouseout", () => {
@@ -78,7 +110,7 @@ function renderSpritesTable(line) {
 
     // TOOL
     const tdTool = document.createElement('td');
-    tdTool.textContent = sprite.tool || '';
+    tdTool.textContent = sprite.effect.tool || '';
 
     tr.appendChild(tdName);
     tr.appendChild(tdEnabled);
@@ -91,7 +123,7 @@ function renderSpritesTable(line) {
       } else {
         selectedSpriteId = sprite.id;
       }
-      renderSpritesTable(63);
+      renderSpritesTable();
       updateEditorSelection(sprite.id);
     });
 
@@ -101,24 +133,182 @@ function renderSpritesTable(line) {
 
 // Update editor info for selected sprite
 function updateEditorSelection(spriteId) {
-  const nameEl = document.getElementById('selectedName');
-  const toolEl = document.getElementById('selectedTool');
-  const metaEl = document.getElementById('selectedMeta');
-  if (spriteId === null) {
+  if (spriteId === null || selectedSpriteId === null) {
     selectedSpriteId = null;
-    nameEl.textContent = 'No sprite selected';
-    toolEl.textContent = '';
-    metaEl.textContent = 'Select a sprite to edit — move or delete it.';
-    return;
+    spriteEditorDiv.setAttribute('disabled', 'disabled');
+    spriteEffectSettingsDiv.style.display = 'none';
+    nameEl.value = 'No sprite selected';
+    toolEl.value = '';
+    enabledEl.checked = false;
+  } else {
+    const s=getSpriteById(spriteId);
+    spriteEditorDiv.removeAttribute('disabled');
+    spriteEffectSettingsDiv.style.display = 'block';
+    nameEl.value = s.name;
+    enabledEl.checked = s.enabled;
+    toolEl.value = s.effect.tool;
+    renderToolEditorSettings(s);
   }
-  const s = getSpriteById(spriteId);
-  if (!s) { updateEditorSelection(null); return; }
-  const displayName = s.name || ('Sprite #' + s.id);
-  nameEl.textContent = displayName;
-  toolEl.textContent = ' — ' + (s.tool || '');
-  const info = `Pixels columns: ${s.pixels ? Array.from(s.pixels.keys()).length : 0}  •  Enabled: ${!!s.enabled}`;
-  metaEl.textContent = info;
 }
+
+// ---------- config (top) ----------
+// [ rangeId, textId, assignFn, optionalExtraFn ]
+const sliderDefs = [
+  // [rangeId, textId, effectsKey, optionalCallback]
+  ['sbrushColor',      'sbrushColorInput',       'brushColor'],
+  ['spenPhase',        'spenPhaseInput',         'penPhase'],
+  ['sbrushOpacity',    'sbrushOpacityInput',     'brushOpacity'],
+  ['sphaseOpacity',    'sphaseOpacityInput',     'phaseOpacity'],
+  ['sblurRadius',      'sblurRadiusInput',       'blurRadius'      ],
+  ['samp',             'sampInput',              'amp'             ],
+  ['snoiseRemoveFloor','snoiseRemoveFloorInput', 'noiseRemoveFloor']
+];
+
+const $ = id => document.getElementById(id);
+const parseF = v => parseFloat(v);
+const CLAMP = (v, a, b) =>
+  isNaN(v) ? v :
+  (a != null && v < a ? a :
+  (b != null && v > b ? b : v));
+
+// -------------------------------
+// Universal slider logic
+// -------------------------------
+sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
+  const r = document.getElementById(rangeId);
+  const t = document.getElementById(textId);
+  if (!r || !t) return;
+
+  const assignToSprite = val => {
+    const s = getSpriteById(selectedSpriteId);
+    if (!s) return;
+    if (!s.effect) s.effect = {};
+    s.effect[effectsKey] = val;
+    updateSpriteEffects(selectedSpriteId, s.effect);
+  };
+
+  const handleValueChange = val => {
+    t.value = val;
+    assignToSprite(val);
+  };
+
+  // range input → mirror + assign
+  r.addEventListener('input', () => handleValueChange(parseF(r.value)));
+
+  // detect "stop adjusting" via mouseup
+  r.addEventListener('mouseup', () => console.log(`Stopped adjusting ${effectsKey}, value:`, parseF(r.value)));
+  r.addEventListener('touchend', () => console.log(`Stopped adjusting ${effectsKey}, value:`, parseF(r.value)));
+
+  // text input → Enter → clamp + assign
+  t.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    let val = parseF(t.value);
+    const min = parseF(r.min), max = parseF(r.max);
+    if (isNaN(val)) val = parseF(r.value);
+    val = CLAMP(val, min, max);
+    r.value = val;
+    handleValueChange(val);
+    console.log(`Stopped editing ${effectsKey}, value:`, val);
+  });
+
+  // optional: detect blur from text input too
+  t.addEventListener('blur', () => {
+    let val = parseF(t.value);
+    if (isNaN(val)) val = parseF(r.value);
+    val = CLAMP(val, parseF(r.min), parseF(r.max));
+    r.value = val;
+    handleValueChange(val);
+    console.log(`Stopped editing ${effectsKey}, value:`, val);
+  });
+});
+
+
+function renderToolEditorSettings(sprite) {
+  document.getElementById('samplifyDiv').style.display = 'none';
+  document.getElementById('sblurRadiusDiv').style.display = 'none';
+  document.getElementById('snoiseFloorDiv').style.display = 'none';
+  document.getElementById("sbrushColorDiv").style.display='none';
+  document.getElementById("sev").style.display='flex';
+  document.getElementById("sphaseDiv").style.display='flex';
+  document.getElementById("sphaseStrengthDiv").style.display='flex';
+  if (toolEl.value === 'amplifier') {
+    document.getElementById('samplifyDiv').style.display = 'flex';
+  } else if (toolEl.value === 'blur') {
+    document.getElementById('sblurRadiusDiv').style.display = 'flex';
+  } else if (toolEl.value === 'noiseRemover') {
+    document.getElementById('snoiseFloorDiv').style.display = 'flex';
+    document.getElementById("sev").style.display='none';
+    document.getElementById("sphaseDiv").style.display='none';
+    document.getElementById("sphaseStrengthDiv").style.display='none';
+  } else {
+    document.getElementById("sbrushColorDiv").style.display='flex';
+  }
+  if (!sprite) return;
+
+  // Ensure effects object exists to read from
+  const effects = sprite.effect || {};
+  console.log(effects);
+
+  // Load slider values from sprite.effect for each defined slider
+  sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
+    const r = document.getElementById(rangeId);
+    const t = document.getElementById(textId);
+    if (!r || !t) return;
+
+    // read value from sprite.effect if present; otherwise skip
+    let val = effects.hasOwnProperty(effectsKey) ? parseF(effects[effectsKey]) : undefined;
+
+    // If the effect value is undefined, fall back to current range value (no change)
+    if (val === undefined || isNaN(val)) {
+      // keep as-is (but still ensure text mirrors range)
+      t.value = r.value;
+      return;
+    }
+
+    // clamp to the control's allowed range
+    const min = parseF(r.min);
+    const max = parseF(r.max);
+    val = CLAMP(val, min, max);
+
+    // write into the DOM controls
+    r.value = val;
+    t.value = val;
+
+    // call the optional callback so any preview updates (brush preview, etc.) run
+    if (typeof extraFn === 'function') extraFn(val);
+  });
+}
+
+
+function updateSpriteEffects(spriteId, newEffect) {
+  const sprite = getSpriteById(spriteId);
+  if (!sprite) return;
+  renderToolEditorSettings(sprite);
+  let minCol = Math.max(0, sprite.minCol || 0);
+  let maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
+  const sigSprite = formatSignificantAsSprite(sprite,getSignificantPixels(sprite,{height:specHeight}));
+  forEachSpritePixelInOrder(sigSprite, (x, y, prevMag, prevPhase) => {
+    const id = x * specHeight + y;
+    const newPixel = applyEffectToPixel(prevMag,prevPhase,y,newEffect);
+    mags[id] = newPixel.mag;
+    phases[id] = newPixel.phase;
+  });
+  recomputePCMForCols(minCol, maxCol);
+  restartRender(false);
+  if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
+    // toggleSpriteEnabled(spriteId+1, getSpriteById(spriteId+1).enabled);
+  } else {
+
+    if (playing) {
+      stopSource(true);
+      playPCM(true);
+    }
+  }
+}
+
+nameEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.name = nameEl.value;renderSpritesTable();});
+toolEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.effect.tool = toolEl.value;updateSpriteEffects(selectedSpriteId,c.effect);renderSpritesTable();});
+enabledEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.enabled = enabledEl.checked;toggleSpriteEnabled(selectedSpriteId,c.enabled);renderSpritesTable();});
 
 // Toggle sprite (apply prev or next values)
 function toggleSpriteEnabled(spriteId, enable) {
@@ -262,7 +452,7 @@ function moveSprite(spriteId, dx, dy) {
     playPCM(true);
   }
 
-  renderSpritesTable(222);
+  renderSpritesTable();
   updateEditorSelection(spriteId);
 }
 
@@ -292,7 +482,7 @@ function deleteSprite(spriteId) {
     playPCM(true);
   }
   selectedSpriteId = null;
-  renderSpritesTable(255);
+  renderSpritesTable();
   updateEditorSelection(null);
 }
 
@@ -314,7 +504,82 @@ mvsbtn.addEventListener('click', () => {
     mvsbtn.innerText = 'Move Sprite';
   }
 });
+function formatSignificantAsSprite(origSprite, sig) {
+  if (!sig) return null;
 
+  const { minX, maxX, clusterY0, maskHeight, filled } = sig;
+  const W = (maxX - minX + 1);
+
+  // new sprite container
+  const out = {
+    pixels: new Map(),
+    minCol: Infinity,
+    maxCol: -Infinity
+  };
+
+  // local helper (in case addPixelToSprite isn't available)
+  function _addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase) {
+    let col = sprite.pixels.get(x);
+    if (!col) {
+      col = { ys: [], prevMags: [], prevPhases: [], nextMags: [], nextPhases: [] };
+      sprite.pixels.set(x, col);
+    }
+    col.ys.push(y);
+    col.prevMags.push(prevMag);
+    col.prevPhases.push(prevPhase);
+    col.nextMags.push(nextMag);
+    col.nextPhases.push(nextPhase);
+
+    if (x < sprite.minCol) sprite.minCol = x;
+    if (x > sprite.maxCol) sprite.maxCol = x;
+  }
+
+  const useProvidedAdder = (typeof addPixelToSprite === 'function');
+
+  // iterate over all columns in the filled mask
+  for (let xr = 0; xr < W; xr++) {
+    const colArr = filled[xr];
+    if (!colArr) continue; // defensive
+
+    const xGlobal = minX + xr;
+
+    for (let yr = 0; yr < colArr.length; yr++) {
+      if (!colArr[yr]) continue;
+      const yGlobal = clusterY0 + yr;
+
+      // try to copy actual mags/phases from original sprite if present
+      let prevMag = 0, prevPhase = 0, nextMag = 0, nextPhase = 0;
+      if (origSprite && origSprite.pixels) {
+        const srcCol = origSprite.pixels.get(xGlobal);
+        if (srcCol && Array.isArray(srcCol.ys)) {
+          // locate the same y in the source column
+          const idx = srcCol.ys.findIndex(v => v === yGlobal);
+          if (idx !== -1) {
+            if (srcCol.prevMags && srcCol.prevMags[idx] != null) prevMag = srcCol.prevMags[idx];
+            if (srcCol.prevPhases && srcCol.prevPhases[idx] != null) prevPhase = srcCol.prevPhases[idx];
+            if (srcCol.nextMags && srcCol.nextMags[idx] != null) nextMag = srcCol.nextMags[idx];
+            if (srcCol.nextPhases && srcCol.nextPhases[idx] != null) nextPhase = srcCol.nextPhases[idx];
+          } else {
+            // If exact y not found, as a fallback we could pick nearest neighbor or leave zeros.
+            // For now, leave defaults = 0.
+          }
+        }
+      }
+
+      // add the pixel to the output sprite
+      if (useProvidedAdder) {
+        addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase);
+      } else {
+        _addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase);
+      }
+    }
+  }
+
+  // If no pixels were added, return null so callers can handle empty cases
+  if (out.pixels.size === 0) return null;
+
+  return out;
+}
 
 /**
  * Generate a single outline path (closed loop) for a sprite.
@@ -335,15 +600,26 @@ mvsbtn.addEventListener('click', () => {
  * - clusterOptions: {kernel: int, minFrac: number, stdFactor: number}
  * - simplify: RDP tolerance (0 = no simplify)
  */
-function generateSpriteOutlinePath(sprite, options = {}) {
+/**
+ * Extract the "significant" pixels from a sprite for outlining.
+ * Returns null if nothing significant found, otherwise an object:
+ * {
+ *   minX, maxX, clusterY0, clusterY1, maskHeight,
+ *   W, H, filled, bestComponent, compSet, areaPixels
+ * }
+ *
+ * Options uses:
+ *   options.height (required) - overall spec height used for histogram
+ *   options.clusterOptions - { kernel, minFrac, stdFactor } (optional)
+ *   options.width (optional) - override width
+ */
+function getSignificantPixels(sprite, options = {}) {
   const height = options.height;
-  if (typeof height !== 'number') throw new Error('generateSpriteOutlinePath: options.height (specHeight) is required');
+  if (typeof height !== 'number') throw new Error('getSignificantPixels: options.height is required');
 
   const clusterOptions = Object.assign({ kernel: 3, minFrac: 0.25, stdFactor: 0.5 }, options.clusterOptions || {});
-  const simplifyTolerance = typeof options.simplify === 'number' ? options.simplify : 0;
 
-  // --- 1) Build per-y histogram of magnitude deltas --------------------------
-  // histogram[y] = sum of abs(nextMag - prevMag) across all columns for that y
+  // --- 1) build per-y histogram of magnitude deltas ----------------
   const histogram = new Float64Array(height);
   let maxDelta = 0;
   let anyPixels = false;
@@ -361,13 +637,12 @@ function generateSpriteOutlinePath(sprite, options = {}) {
       anyPixels = true;
     }
   }
-  if (!anyPixels) return { points: [], connections: [], areaPixels: 0, bounds: null };
+  if (!anyPixels) return null;
 
-  // quick stats
+  // quick stats: mean & std
   let sum = 0;
   for (let y = 0; y < height; y++) sum += histogram[y];
   const mean = sum / height;
-  // std
   let varSum = 0;
   for (let y = 0; y < height; y++) {
     const v = histogram[y] - mean;
@@ -375,7 +650,7 @@ function generateSpriteOutlinePath(sprite, options = {}) {
   }
   const std = Math.sqrt(varSum / Math.max(1, height - 1));
 
-  // Smooth histogram with a small box kernel to widen clusters
+  // smooth histogram with box kernel
   function smoothArray(arr, kernel) {
     if (kernel <= 1) return arr.slice();
     const out = new Float64Array(arr.length);
@@ -390,39 +665,34 @@ function generateSpriteOutlinePath(sprite, options = {}) {
   }
   const smoothHist = smoothArray(histogram, clusterOptions.kernel);
 
-  // threshold: choose whichever gives a clearer cluster: scaled max or mean+stdFactor*std
   const byMax = maxDelta * clusterOptions.minFrac;
   const byStd = mean + clusterOptions.stdFactor * std;
   const threshold = Math.max(byMax, byStd);
 
   // find contiguous segments where smoothHist >= threshold
-  let segments = [];
+  const segments = [];
   let s = -1;
   for (let y = 0; y < height; y++) {
     if (smoothHist[y] >= threshold) {
       if (s === -1) s = y;
     } else {
-      if (s !== -1) {
-        segments.push({ y0: s, y1: y - 1 });
-        s = -1;
-      }
+      if (s !== -1) { segments.push({ y0: s, y1: y - 1 }); s = -1; }
     }
   }
   if (s !== -1) segments.push({ y0: s, y1: height - 1 });
 
-  // if no segments pass threshold, fall back to area where histogram > 0
+  // fallback: use areas where histogram > 0 if no segments found
   if (segments.length === 0) {
     let y0 = -1, y1 = -1;
     for (let y = 0; y < height; y++) {
       if (histogram[y] > 0) { if (y0 === -1) y0 = y; y1 = y; }
     }
-    if (y0 === -1) return { points: [], connections: [], areaPixels: 0, bounds: null };
+    if (y0 === -1) return null;
     segments.push({ y0, y1 });
   }
 
-  // pick the largest contiguous segment by total histogram mass
-  let bestSeg = null;
-  let bestMass = -Infinity;
+  // pick best segment by total histogram mass
+  let bestSeg = null, bestMass = -Infinity;
   for (const seg of segments) {
     let mass = 0;
     for (let y = seg.y0; y <= seg.y1; y++) mass += histogram[y];
@@ -431,16 +701,15 @@ function generateSpriteOutlinePath(sprite, options = {}) {
   const clusterY0 = bestSeg.y0;
   const clusterY1 = bestSeg.y1;
 
-  // --- 2) Build mask (binary) limited to columns & cluster Y-range -----------
-  // determine column range
-  const colsList = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
-  if (colsList.length === 0) return { points: [], connections: [], areaPixels: 0, bounds: null };
+  // --- 2) build mask limited to cluster Y-range and columns -----------
+  const colsList = Array.from(sprite.pixels.keys()).sort((a, b) => a - b);
+  if (colsList.length === 0) return null;
   const minX = colsList[0], maxX = colsList[colsList.length - 1];
   const width = ('width' in options && options.width != null) ? options.width : (maxX - minX + 1);
 
-  // Represent mask as object keyed by column index relative to minX => Uint8Array of height cluster slice
   const maskHeight = clusterY1 - clusterY0 + 1;
-  const maskCols = {}; // xRel -> Uint8Array(maskHeight)
+  // temporary marker map: xRel -> Uint8Array(maskHeight) marking presence before thresholding
+  const maskCols = {};
   let maxCellDelta = 0;
 
   for (const x of colsList) {
@@ -457,35 +726,29 @@ function generateSpriteOutlinePath(sprite, options = {}) {
       const next = (col.nextMags && col.nextMags[i] != null) ? col.nextMags[i] : 0;
       const d = Math.abs(next - prev);
       if (d > maxCellDelta) maxCellDelta = d;
-      // temporarily store the delta magnitude in the mask as >0 via setting 1 - we'll filter by cell threshold next
       arr[yRel] = Math.max(arr[yRel], d > 0 ? 1 : 0);
     }
   }
 
-  // If mask empty (no pixels in cluster), expand cluster bounds to include any non-empty Y rows
+  // check if any mask content exists
   let anyInMask = false;
-  for (const k in maskCols) { const a = maskCols[k]; for (let i=0;i<a.length;i++) if (a[i]) { anyInMask = true; break; } if (anyInMask) break; }
+  for (const k in maskCols) { const a = maskCols[k]; for (let i = 0; i < a.length; i++) if (a[i]) { anyInMask = true; break; } if (anyInMask) break; }
   if (!anyInMask) {
-    // fallback: use any y with histogram>0 across full range; rebuild
-    let newY0 = clusterY0, newY1 = clusterY1;
-    for (let y = 0; y < height; y++) if (histogram[y] > 0) { newY0 = Math.min(newY0, y); newY1 = Math.max(newY1, y); }
-    // rebuild mask columns quickly using this range
-    // (for brevity here we simply return empty outline if nothing else)
-    return { points: [], connections: [], areaPixels: 0, bounds: null };
+    // fallback: consider histogram>0 rows across full height (caller may decide to abort)
+    return null;
   }
 
-  // choose per-cell threshold relative to maxCellDelta (if it's 0, keep any presence)
+  // choose per-cell threshold relative to maxCellDelta
   const cellThreshold = maxCellDelta > 0 ? Math.max(maxCellDelta * 0.15, 1e-12) : 0;
 
-  // Build boolean mask (filled pixel) for columns from minX..maxX
-  const filled = {}; // xRel -> Uint8Array(maskHeight) (0/1)
+  // build boolean filled mask for x in [minX..maxX]
+  const filled = {};
   let totalFilled = 0;
   for (let x = minX; x <= maxX; x++) {
     const xRel = x - minX;
     const colSrc = sprite.pixels.get(x);
     const arr = new Uint8Array(maskHeight);
     if (colSrc) {
-      // for each y in column, set if delta >= cellThreshold
       for (let i = 0; i < colSrc.ys.length; i++) {
         const y = colSrc.ys[i];
         if (y < clusterY0 || y > clusterY1) continue;
@@ -495,13 +758,12 @@ function generateSpriteOutlinePath(sprite, options = {}) {
         if (d >= cellThreshold) { arr[y - clusterY0] = 1; totalFilled++; }
       }
     }
-    // store even empty columns as zeros to simplify connectivity code
     filled[xRel] = arr;
   }
 
-  if (totalFilled === 0) return { points: [], connections: [], areaPixels: 0, bounds: null };
+  if (totalFilled === 0) return null;
 
-  // --- 3) find the largest connected component (4-connected) ----------------
+  // --- 3) find largest connected component (4-connected) ----------------
   const W = maxX - minX + 1;
   const H = maskHeight;
   const visited = {};
@@ -523,7 +785,6 @@ function generateSpriteOutlinePath(sprite, options = {}) {
         const k = q.pop();
         const [cx, cy] = k.split(',').map(n => parseInt(n, 10));
         component.push([cx, cy]);
-        // neighbors 4-connected
         const neigh = [[cx-1,cy],[cx+1,cy],[cx,cy-1],[cx,cy+1]];
         for (const [nx, ny] of neigh) {
           if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
@@ -536,35 +797,52 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     }
   }
 
-  if (!bestComponent || bestComponent.length === 0) return { points: [], connections: [], areaPixels: 0, bounds: null };
+  if (!bestComponent || bestComponent.length === 0) return null;
 
-  // Build a fast lookup set for component membership
   const compSet = new Set(bestComponent.map(([cx,cy]) => `${cx},${cy}`));
   const areaPixels = bestComponent.length;
 
-  // --- 4) For component pixels, produce exposed edges (top/right/bottom/left),
-  // store them as segments between integer corner coordinates (in global bin/frame coords).
-  // Pixel at (xr,yr) corresponds to global pixel coords (x = minX + xr, y = clusterY0 + yr).
-  segments = []; // each segment: [[x1,y1],[x2,y2]]
+  return {
+    minX, maxX, clusterY0, clusterY1, maskHeight,
+    W, H, filled, bestComponent, compSet, areaPixels
+  };
+}
+
+/**
+ * Main: generate outline path from sprite (uses getSignificantPixels)
+ * Mostly unchanged logic after we obtain the significant pixels/component.
+ */
+function generateSpriteOutlinePath(sprite, options = {}) {
+  const height = options.height;
+  if (typeof height !== 'number') throw new Error('generateSpriteOutlinePath: options.height (specHeight) is required');
+
+  const simplifyTolerance = typeof options.simplify === 'number' ? options.simplify : 1;
+
+  // get the component / mask / bounds
+  const sig = getSignificantPixels(sprite, options);
+  if (!sig) return { points: [], connections: [], areaPixels: 0, bounds: null };
+
+  const { minX, maxX, clusterY0, clusterY1, maskHeight, W, H, filled, bestComponent, compSet, areaPixels } = sig;
+
+  // --- 4) produce exposed edge segments from component pixels ------------
+  let segments = [];
   function addSegment(p1, p2) { segments.push([p1, p2]); }
 
   for (const [cx, cy] of bestComponent) {
     const xGlobal = minX + cx;
     const yGlobal = clusterY0 + cy;
-    // neighbors in component coordinates
     const left = compSet.has(`${cx-1},${cy}`);
     const right = compSet.has(`${cx+1},${cy}`);
     const up = compSet.has(`${cx},${cy-1}`);
     const down = compSet.has(`${cx},${cy+1}`);
-    // corners of pixel square: top-left (x,y), top-right (x+1,y), bottom-right (x+1,y+1), bottom-left (x,y+1)
-    if (!up)    addSegment([xGlobal, yGlobal], [xGlobal + 1, yGlobal]); // top edge
-    if (!right) addSegment([xGlobal + 1, yGlobal], [xGlobal + 1, yGlobal + 1]); // right edge
-    if (!down)  addSegment([xGlobal + 1, yGlobal + 1], [xGlobal, yGlobal + 1]); // bottom edge
-    if (!left)  addSegment([xGlobal, yGlobal + 1], [xGlobal, yGlobal]); // left edge
+    if (!up)    addSegment([xGlobal, yGlobal], [xGlobal + 1, yGlobal]); // top
+    if (!right) addSegment([xGlobal + 1, yGlobal], [xGlobal + 1, yGlobal + 1]); // right
+    if (!down)  addSegment([xGlobal + 1, yGlobal + 1], [xGlobal, yGlobal + 1]); // bottom
+    if (!left)  addSegment([xGlobal, yGlobal + 1], [xGlobal, yGlobal]); // left
   }
 
   if (segments.length === 0) {
-    // single pixel that somehow had no edges; give rectangle
+    // single pixel fallback: return 1-pixel rectangle
     const cx = bestComponent[0][0], cy = bestComponent[0][1];
     const xGlobal = minX + cx, yGlobal = clusterY0 + cy;
     const pts = [[xGlobal,yGlobal],[xGlobal+1,yGlobal],[xGlobal+1,yGlobal+1],[xGlobal,yGlobal+1]];
@@ -577,9 +855,8 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     };
   }
 
-  // --- 5) Stitch segments into loops ------------------------------------------------
-  // Deduplicate points and map to indices
-  const pointIndex = new Map(); // "x,y" -> idx
+  // --- 5) stitch segments into loops (dedupe points -> adjacency -> walk) ---
+  const pointIndex = new Map();
   const pointsArr = [];
   function getPointIdx(pt) {
     const key = pt[0] + ',' + pt[1];
@@ -592,8 +869,7 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     return idx;
   }
 
-  // adjacency lists of indices
-  const adj = new Map(); // idx -> Set(idx)
+  const adj = new Map();
   function addEdgeIdx(a,b) {
     if (!adj.has(a)) adj.set(a, new Set());
     if (!adj.has(b)) adj.set(b, new Set());
@@ -607,41 +883,33 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     addEdgeIdx(a,b);
   }
 
-  // Now build loops by walking unvisited adjacency edges
-  const visitedEdge = new Set(); // "a,b" canonical ordered
+  const visitedEdge = new Set();
   const loops = [];
-
   function edgeKey(a,b) { return a < b ? `${a},${b}` : `${b},${a}`; }
 
   for (const [startIdx, neighSet] of adj.entries()) {
     for (const nb of neighSet) {
       const k = edgeKey(startIdx, nb);
       if (visitedEdge.has(k)) continue;
-      // walk a loop starting with edge (startIdx -> nb)
       const loop = [];
       let a = startIdx, b = nb;
       loop.push(a);
       visitedEdge.add(edgeKey(a,b));
-      // follow chain: choose next neighbor of b that isn't a (prefer deterministic ordering)
+      // walk
       while (true) {
         loop.push(b);
         const nbSet = Array.from(adj.get(b) || []);
-        // choose neighbor nextC: the neighbor of b that's not prev a and where edge hasn't been visited if possible
         let nextC = null;
         for (const c of nbSet) {
           if (c === a) continue;
           const k2 = edgeKey(b, c);
           if (!visitedEdge.has(k2)) { nextC = c; break; }
         }
-        if (nextC == null) {
-          // try choosing the previous a to close loop
-          nextC = a;
-        }
+        if (nextC == null) nextC = a;
         visitedEdge.add(edgeKey(b, nextC));
         a = b;
         b = nextC;
-        if (b === loop[0]) break; // closed
-        // defensive break to avoid infinite loop
+        if (b === loop[0]) break;
         if (loop.length > pointsArr.length * 4) break;
       }
       loops.push(loop);
@@ -650,7 +918,7 @@ function generateSpriteOutlinePath(sprite, options = {}) {
 
   if (loops.length === 0) return { points: [], connections: [], areaPixels, bounds: {minX, maxX, minY: clusterY0, maxY: clusterY1} };
 
-  // pick the loop with largest perimeter (sum of segment lengths)
+  // choose largest-perimeter loop
   function loopPerimeter(loop) {
     let per = 0;
     for (let i = 0; i < loop.length; i++) {
@@ -662,21 +930,17 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     return per;
   }
   let bestLoop = loops[0], bestPer = loopPerimeter(loops[0]);
-  for (let i=1;i<loops.length;i++) {
+  for (let i = 1; i < loops.length; i++) {
     const p = loopPerimeter(loops[i]);
     if (p > bestPer) { bestPer = p; bestLoop = loops[i]; }
   }
-
-  // produce ordered points for the best loop
   const loopPoints = bestLoop.map(idx => pointsArr[idx]);
 
-  // optional simplification using Ramer–Douglas–Peucker on the polygon (closed)
+  // optional simplification (RDP)
   function rdp(points, eps) {
     if (eps <= 0 || points.length < 4) return points.slice();
-    // treat closed polygon -> duplicate first point at end for convenience then remove later
     const closed = points.concat([points[0]]);
     function perpDist(a,b,p) {
-      // distance from p to line a-b
       const vx = b.x - a.x, vy = b.y - a.y;
       const wx = p.x - a.x, wy = p.y - a.y;
       const denom = vx*vx + vy*vy;
@@ -702,32 +966,21 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     keep[0] = keep[n-1] = true;
     rdpRec(closed, 0, n-1, keep);
     const out = [];
-    for (let i = 0; i < n-1; i++) if (keep[i]) out.push(closed[i]);
+    for (let i = 0; i < n - 1; i++) if (keep[i]) out.push(closed[i]);
     return out;
   }
 
   let finalPoints = loopPoints;
   if (simplifyTolerance > 0) {
-    finalPoints = rdp(loopPoints, simplifyTolerance);
-    // ensure closedness: rdp returns without duplicate final point, it's OK
-    if (finalPoints.length < 3) {
-      finalPoints = loopPoints; // fallback
-    }
+    const candidate = rdp(loopPoints, simplifyTolerance);
+    if (candidate.length >= 3) finalPoints = candidate;
   }
 
-  // build connections (ordered edges forming closed loop)
-  const pointsIndexMap = new Map();
-  const finalPointsArr = [];
-  for (let i = 0; i < finalPoints.length; i+=4) {
-    const p = finalPoints[i];
-    const key = p.x + ',' + p.y;
-    pointsIndexMap.set(key, i);
-    finalPointsArr.push({x: p.x, y: specHeight-lsc(p.y,specHeight)});
-  }
+  // build final points array and connections (note: your code previously referenced specHeight & lsc)
+  // keep the same transformation you used previously so behaviour remains identical.
+  const finalPointsArr = finalPoints.map(p => ({ x: p.x, y: specHeight-lsc(p.y,specHeight) }));
   const connections = [];
-  for (let i = 0; i < finalPointsArr.length; i++) {
-    connections.push([i, (i+1) % finalPointsArr.length]);
-  }
+  for (let i = 0; i < finalPointsArr.length; i++) connections.push([i, (i + 1) % finalPointsArr.length]);
 
   const bounds = { minX, maxX, minY: clusterY0, maxY: clusterY1 };
 

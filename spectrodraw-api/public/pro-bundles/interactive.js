@@ -81,15 +81,22 @@ function canvasMouseDown(e,touch) {
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
     const realY = visibleToSpecY(cy);
 
+    let count = 1;
+    for (let sprite of sprites) {
+      if (sprite.tool === currentTool) count++;
+    }
+    let name = currentTool + `_${count}`;
+
     // --- CREATE NEW SPRITE FOR THIS STROKE ---
     currentSprite = {
       id: nextSpriteId++,
-      tool: currentTool,
+      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseOpacity, penPhase, amp, noiseRemoveFloor, blurRadius},
       enabled: true,
       pixels: new Map(), // Map<columnX, {ys:[], prevMags:[], prevPhases:[], nextMags:[], nextPhases:[]}>
       minCol: Infinity,
       maxCol: -Infinity,
-      createdAt: performance.now()
+      createdAt: performance.now(),
+      name
     };
     sprites.push(currentSprite);
 
@@ -170,7 +177,7 @@ function canvasMouseUp(e,touch) {
   previewingShape = false;
   if (zooming) return;
   if (!mags || !phases || !painting) return;
-  renderSpritesTable('canvasmouseup');
+  renderSpritesTable();
   
   minCol = Infinity; maxCol = -Infinity;
   visited = null;

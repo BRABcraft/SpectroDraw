@@ -83,6 +83,12 @@ const EQcanvas = document.getElementById("eqCanvas");
 const eCtx = EQcanvas.getContext("2d"); 
 const eqPresets = document.getElementById("eqPresets");
 const lockHopBtn = document.getElementById("lockHopBtn");
+const spriteEffectSettingsDiv = document.getElementById("spriteEffectSettings");
+
+const nameEl = document.getElementById('spriteName');
+const toolEl = document.getElementById('spriteTool');
+const enabledEl = document.getElementById('spriteEnabled');
+const spriteEditorDiv = document.getElementById('spriteEditor');
 
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;

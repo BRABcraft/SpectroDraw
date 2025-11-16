@@ -598,12 +598,65 @@
           </tbody>
         </table>
       </div>
-      <strong id="selectedName">No sprite selected</strong>
-      <span class="small" id="selectedTool"></span>
-      <span class="small" id="selectedMeta"></span>
-      <div id="spriteEditor">
-        <button id="moveSpriteBtn" class="leftBtn">Move Sprite</button>
-        <button id="deleteSpriteBtn" class="leftBtn" style="color:Red;">Delete Sprite</button>
+      <div id="spriteEditor" disabled>
+        <div class="spriteEditorRow" style="gap: 12px;align-items: center;height:4rem;">
+          <button id="moveSpriteBtn" class="leftBtn">Move Sprite</button>
+          <button id="deleteSpriteBtn" class="leftBtn" style="color:Red;">Delete Sprite</button>
+        </div>
+        <div class="spriteEditorRow"><label for="spriteName">Name:</label><input id="spriteName" value="No sprite selected"></input></div>
+        <div class="spriteEditorRow"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
+        <div class="spriteEditorRow"><label for="spriteTool">Tool:</label><select id="spriteTool" style="padding:2px;height:1.5rem;">
+          <option value="color">Color</option>
+          <option value="blur">Blur</option>
+          <option value="eraser">Eraser</option>
+          <option value="amplifier">Amplify</option>
+          <option value="noiseRemover">Noise Remover</option>
+        </select></div>
+        <div style="display:none;" id="spriteEffectSettings">
+          <div class="slider-row" title="Brightness" id="sbrushColorDiv">
+              <label class="h2">Brush Brightness</label>
+              <input id="sbrushColor" type="range" min="0" max="255" value="255">
+              <input id="sbrushColorInput" type="number" value="255" min="0" max="255">
+          </div>
+          <div class="slider-row" title="Blur Radius" id="sblurRadiusDiv">
+              <label class="h2">Blur Radius</label>
+              <input id="sblurRadius"  type="range" min="0" max="10" value="1.5" step="0.1">
+              <input id="sblurRadiusInput" type="number" value="1.5" min="0" max="10">
+          </div>
+          <div class="slider-row" title="Blur Radius" id="samplifyDiv">
+              <label class="h2">Amplifier</label>
+              <input id="samp"  type="range" min="0" max="2" value="2" step="0.01">
+              <input id="sampInput" type="number" value="2" min="0" max="2">
+          </div>
+          <div class="slider-row" title="Remove noise below this threshold" id="snoiseFloorDiv">
+              <label class="h2">Noise Threshold (dB)</label>
+              <input id="snoiseRemoveFloor"  type="range" min="-60" max="0" value="-10" step="0.1">
+              <input id="snoiseRemoveFloorInput" type="number" value="-10" min="-60" max="0">
+          </div>
+          <div id="sev" class="slider-row" title="Phase texture">
+            <label class="h2" for="sphaseTexture">Phase texture</label>
+            <select id="sphaseTexture">
+              <option value="Harmonics">Harmonics</option>
+              <option value="Static">Static</option>
+              <option value="Flat">Flat</option>
+            </select>
+          </div>
+          <div class="slider-row" title="Phase" id="sphaseDiv">
+              <label class="h2">Phase shift</label>
+              <input id="spenPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+              <input id="spenPhaseInput" type="number" value="0" min="0" max="3.1415">
+          </div>
+          <div class="slider-row" title="Brightness strength" id="sbrushOpacityDiv">
+              <label class="h2">Opacity</label>
+              <input id="sbrushOpacity"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="sbrushOpacityInput" type="number" value="1" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Phase strength" id="sphaseStrengthDiv">
+              <label class="h2">Phase Strength</label>
+              <input id="sphaseOpacity"  type="range" min="0" max="100" value="0">
+              <input id="sphaseOpacityInput" type="number" value="0" min="0" max="100">
+          </div>
+        </div>
       </div>
     </div>
     <!--Uploads-->

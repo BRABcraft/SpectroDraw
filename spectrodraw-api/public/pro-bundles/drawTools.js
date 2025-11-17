@@ -338,7 +338,7 @@ function applyEffectToPixel(oldMag, oldPhase, bin, newEffect) {
   const newMag =  (tool === "amplifier")    ? (oldMag * _amp)
                 : (tool === "noiseRemover") ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
                 :                             (oldMag * (1 - bo) + mag * bo);
-  const type = phaseTextureEl.value;
+  const type = newEffect.phaseTexture;
   let $phase;
   if (type === 'Harmonics') {
     $phase = (bin / specHeight * fftSize / 2);

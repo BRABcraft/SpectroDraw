@@ -152,6 +152,14 @@ function updateEditorSelection(spriteId) {
   }
 }
 
+document.getElementById('sphaseTexture').addEventListener('change', () => {
+  const s = getSpriteById(selectedSpriteId);
+  if (!s) return;
+  s.effect.phaseTexture = document.getElementById('sphaseTexture').value;
+  console.log('Phase texture changed to', s.effect.phaseTexture);
+  updateSpriteEffects(selectedSpriteId, s.effect);
+});
+
 // ---------- config (top) ----------
 // [ rangeId, textId, assignFn, optionalExtraFn ]
 const sliderDefs = [
@@ -278,6 +286,7 @@ function renderToolEditorSettings(sprite) {
     // call the optional callback so any preview updates (brush preview, etc.) run
     if (typeof extraFn === 'function') extraFn(val);
   });
+  document.getElementById('sphaseTexture').value = effects.phaseTexture || 'none';
 }
 
 

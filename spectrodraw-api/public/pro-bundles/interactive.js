@@ -90,7 +90,7 @@ function canvasMouseDown(e,touch) {
     // --- CREATE NEW SPRITE FOR THIS STROKE ---
     currentSprite = {
       id: nextSpriteId++,
-      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseOpacity, penPhase, amp, noiseRemoveFloor, blurRadius},
+      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseOpacity, penPhase, amp, noiseRemoveFloor, blurRadius,phaseTexture:phaseTextureEl.value},
       enabled: true,
       pixels: new Map(), // Map<columnX, {ys:[], prevMags:[], prevPhases:[], nextMags:[], nextPhases:[]}>
       minCol: Infinity,

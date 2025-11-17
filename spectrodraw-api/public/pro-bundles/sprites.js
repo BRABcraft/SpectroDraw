@@ -1,5 +1,6 @@
 function forEachSpritePixelInOrder(sprite, cb) {
   if (!sprite) return;
+  //console.log(sprite);
   const cols = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
   for (const x of cols) {
     const col = sprite.pixels.get(x);
@@ -247,7 +248,7 @@ function renderToolEditorSettings(sprite) {
 
   // Ensure effects object exists to read from
   const effects = sprite.effect || {};
-  console.log(effects);
+  //console.log(effects);
 
   // Load slider values from sprite.effect for each defined slider
   sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
@@ -283,28 +284,79 @@ function renderToolEditorSettings(sprite) {
 function updateSpriteEffects(spriteId, newEffect) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
+
+  // keep a copy of the old effect to detect instant zeroing
+  const oldEffect = Object.assign({}, sprite.effect || {});
+
   renderToolEditorSettings(sprite);
-  let minCol = Math.max(0, sprite.minCol || 0);
-  let maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
-  const sigSprite = formatSignificantAsSprite(sprite,getSignificantPixels(sprite,{height:specHeight}));
+
+  // compute local sig sprite once
+  const sigSprite = formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight }));
+  if (!sigSprite) return;
+
+  // write new mags/phases for significant pixels
   forEachSpritePixelInOrder(sigSprite, (x, y, prevMag, prevPhase) => {
     const id = x * specHeight + y;
-    const newPixel = applyEffectToPixel(prevMag,prevPhase,y,newEffect);
+    const newPixel = applyEffectToPixel(prevMag, prevPhase, y, newEffect);
     mags[id] = newPixel.mag;
     phases[id] = newPixel.phase;
   });
-  recomputePCMForCols(minCol, maxCol);
-  restartRender(false);
-  if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
-    // toggleSpriteEnabled(spriteId+1, getSpriteById(spriteId+1).enabled);
-  } else {
 
+  // ---- IMPORTANT: expand recomputation range to account for FFT overlap ----
+  // Determine hop size (try common names, fall back to fftSize to mean "no expansion")
+  const hopSamples = (typeof hop === 'number' && hop > 0) ? hop :
+                     (typeof fftHop === 'number' && fftHop > 0) ? fftHop :
+                     fftSize;
+
+  // how many analysis frames (columns) an FFT can affect laterally:
+  // ceil(fftSize / hop) is number of overlapped frames per FFT window.
+  // padCols here is conservative: expand by that many columns on each side.
+  const padCols = Math.max(0, Math.ceil(fftSize / hopSamples));
+
+  // compute sigSprite bounds
+  const sigCols = Array.from(sigSprite.pixels.keys()).sort((a,b)=>a-b);
+  const minCol = sigCols.length ? Math.max(0, sigCols[0]) : Math.max(0, sprite.minCol || 0);
+  const maxCol = sigCols.length ? Math.min(specWidth - 1, sigCols[sigCols.length - 1]) : Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
+
+  // expand bounds to include FFT overlap region
+  const recomputeMin = Math.max(0, minCol - padCols);
+  const recomputeMax = Math.min(specWidth - 1, maxCol + padCols);
+
+  // Additional safeguard: if the user instantly set brushColor to zero, aggressively clear
+  // a small neighborhood so partial overlap contributions get zeroed immediately.
+  // (Only do this when brushColor exists in effects and it changed to 0.)
+  if (typeof newEffect === 'object' &&
+      typeof newEffect.brushColor !== 'undefined' &&
+      newEffect.brushColor === 0 &&
+      typeof oldEffect.brushColor !== 'undefined' &&
+      oldEffect.brushColor !== 0) {
+
+    // zero mags/phases in expanded recompute window to remove residuals
+    for (let c = recomputeMin; c <= recomputeMax; c++) {
+      const colBase = c * specHeight;
+      for (let r = 0; r < specHeight; r++) {
+        const idx = colBase + r;
+        mags[idx] = 0;
+        phases[idx] = 0;
+      }
+    }
+  }
+
+  // Recompute PCM for the expanded area and restart render / audio
+  recomputePCMForCols(recomputeMin, recomputeMax);
+  restartRender(false);
+
+  // keep previous behaviour for audio restart
+  if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
+    // no-op (kept to match original)
+  } else {
     if (playing) {
       stopSource(true);
       playPCM(true);
     }
   }
 }
+
 
 nameEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.name = nameEl.value;renderSpritesTable();});
 toolEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.effect.tool = toolEl.value;updateSpriteEffects(selectedSpriteId,c.effect);renderSpritesTable();});
@@ -504,121 +556,48 @@ mvsbtn.addEventListener('click', () => {
     mvsbtn.innerText = 'Move Sprite';
   }
 });
+
 function formatSignificantAsSprite(origSprite, sig) {
   if (!sig) return null;
-
   const { minX, maxX, clusterY0, maskHeight, filled } = sig;
   const W = (maxX - minX + 1);
-
-  // new sprite container
   const out = {
     pixels: new Map(),
     minCol: Infinity,
     maxCol: -Infinity
   };
-
-  // local helper (in case addPixelToSprite isn't available)
-  function _addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase) {
-    let col = sprite.pixels.get(x);
-    if (!col) {
-      col = { ys: [], prevMags: [], prevPhases: [], nextMags: [], nextPhases: [] };
-      sprite.pixels.set(x, col);
-    }
-    col.ys.push(y);
-    col.prevMags.push(prevMag);
-    col.prevPhases.push(prevPhase);
-    col.nextMags.push(nextMag);
-    col.nextPhases.push(nextPhase);
-
-    if (x < sprite.minCol) sprite.minCol = x;
-    if (x > sprite.maxCol) sprite.maxCol = x;
-  }
-
-  const useProvidedAdder = (typeof addPixelToSprite === 'function');
-
-  // iterate over all columns in the filled mask
   for (let xr = 0; xr < W; xr++) {
-    const colArr = filled[xr];
-    if (!colArr) continue; // defensive
-
+    const colArr = filled[xr]; if (!colArr) continue;
     const xGlobal = minX + xr;
-
     for (let yr = 0; yr < colArr.length; yr++) {
       if (!colArr[yr]) continue;
       const yGlobal = clusterY0 + yr;
-
-      // try to copy actual mags/phases from original sprite if present
       let prevMag = 0, prevPhase = 0, nextMag = 0, nextPhase = 0;
       if (origSprite && origSprite.pixels) {
         const srcCol = origSprite.pixels.get(xGlobal);
         if (srcCol && Array.isArray(srcCol.ys)) {
-          // locate the same y in the source column
           const idx = srcCol.ys.findIndex(v => v === yGlobal);
           if (idx !== -1) {
             if (srcCol.prevMags && srcCol.prevMags[idx] != null) prevMag = srcCol.prevMags[idx];
             if (srcCol.prevPhases && srcCol.prevPhases[idx] != null) prevPhase = srcCol.prevPhases[idx];
             if (srcCol.nextMags && srcCol.nextMags[idx] != null) nextMag = srcCol.nextMags[idx];
             if (srcCol.nextPhases && srcCol.nextPhases[idx] != null) nextPhase = srcCol.nextPhases[idx];
-          } else {
-            // If exact y not found, as a fallback we could pick nearest neighbor or leave zeros.
-            // For now, leave defaults = 0.
           }
         }
       }
-
-      // add the pixel to the output sprite
-      if (useProvidedAdder) {
-        addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase);
-      } else {
-        _addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase);
-      }
+      addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase);
     }
   }
-
-  // If no pixels were added, return null so callers can handle empty cases
   if (out.pixels.size === 0) return null;
-
   return out;
 }
 
-/**
- * Generate a single outline path (closed loop) for a sprite.
- * - sprite.pixels is a Map<x, { ys:[], prevMags:[], nextMags:[], ... }>
- * - Coordinates returned are in bin/frame space. Each pixel at (x,y) is treated as the unit square [x,x+1] x [y,y+1].
- *
- * Returns:
- * {
- *   points: [{x:number,y:number}],       // ordered vertices of chosen loop (clockwise/ccw)
- *   connections: [[i,j], ...],           // edges between point indices (in order form a closed loop)
- *   areaPixels: number,                  // area in pixels of chosen component
- *   bounds: {minX,maxX,minY,maxY}
- * }
- *
- * Options:
- * - height: (required) vertical size / specHeight
- * - width: optional (used only for bounds); if omitted inferred from sprite columns
- * - clusterOptions: {kernel: int, minFrac: number, stdFactor: number}
- * - simplify: RDP tolerance (0 = no simplify)
- */
-/**
- * Extract the "significant" pixels from a sprite for outlining.
- * Returns null if nothing significant found, otherwise an object:
- * {
- *   minX, maxX, clusterY0, clusterY1, maskHeight,
- *   W, H, filled, bestComponent, compSet, areaPixels
- * }
- *
- * Options uses:
- *   options.height (required) - overall spec height used for histogram
- *   options.clusterOptions - { kernel, minFrac, stdFactor } (optional)
- *   options.width (optional) - override width
- */
+
 function getSignificantPixels(sprite, options = {}) {
   const height = options.height;
   if (typeof height !== 'number') throw new Error('getSignificantPixels: options.height is required');
 
   const clusterOptions = Object.assign({ kernel: 3, minFrac: 0.25, stdFactor: 0.5 }, options.clusterOptions || {});
-
   // --- 1) build per-y histogram of magnitude deltas ----------------
   const histogram = new Float64Array(height);
   let maxDelta = 0;

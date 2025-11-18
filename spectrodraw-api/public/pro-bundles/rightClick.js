@@ -600,7 +600,6 @@ function makeLogscaleMenu() {
 function makeEQMenu(cx,cy){
   const h = EQcanvas.height;
   const w = EQcanvas.width;
-
   const addPoint = () => {
     const newPoint = {
         type: "peaking",
@@ -610,14 +609,11 @@ function makeEQMenu(cx,cy){
         angle: Math.PI/2,
         tLen: 60
     };
-
-    // find the insertion index (first band with freq > newPoint.freq)
     let idx = eqBands.findIndex(b => b.freq > newPoint.freq);
-    if (idx === -1) idx = eqBands.length; // insert at end if none is greater
-
+    if (idx === -1) idx = eqBands.length;
     eqBands.splice(idx, 0, newPoint);
     applyEQChanges();
-};
+  };
   const removePoint = ()=> {
     const pos = {x:cx, y:cy};
     const hit = findHit(pos);
@@ -626,10 +622,19 @@ function makeEQMenu(cx,cy){
         applyEQChanges();
     }
   };
-
   const items = [
     { label: 'Add point', onClick: addPoint },
     { label: 'Remove point', onClick: removePoint }
+  ];
+  return buildMenu(items);
+}
+
+function makeFadeMenu(cx,cy){
+  const h = fadeCanvas.height;
+  const w = fadeCanvas.width;
+  const items = [
+    { label: 'Add point', onClick: () => newFadePt(cx,cy) },
+    { label: 'Remove point', onClick: () => removeFadePt(cx,cy) }
   ];
   return buildMenu(items);
 }
@@ -659,6 +664,12 @@ EQcanvas && EQcanvas.addEventListener('contextmenu', (e)=> {
     const cx = Math.floor((e.clientX - rect.left));
     const cy = Math.floor((e.clientY - rect.top));
     preventAndOpen(e, ()=> makeEQMenu(cx,cy))});
+
+fadeCanvas.addEventListener('contextmenu', (e)=> {
+    const rect = fadeCanvas.getBoundingClientRect();
+    const cx = Math.floor((e.clientX - rect.left));
+    const cy = Math.floor((e.clientY - rect.top));
+    preventAndOpen(e, ()=> makeFadeMenu(cx,cy))});
 
 // close on window resize/scroll
 window.addEventListener('resize', closeMenu);

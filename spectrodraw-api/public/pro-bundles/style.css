@@ -544,20 +544,21 @@ select {
   opacity: 1;
 }
 .spriteEditorRow {
+  font-size: 0.8rem;
   display: flex;
-  height: 2rem;
+  height: 1.5rem;
 }
 
 .spriteEditorRow label {
-  width: 80px;
+  width: 70px;
 }
 
-.spriteEditorRow input,
-.spriteEditorRow select{
-  background: #222;
+.spriteEditorRow input, .slider-row input[type="text"]{
+  background: #333;
+  border: 1px solid #aaa;
   border-radius: 5px;
-  height: 1rem;
-  margin-left: 5px;
+  height: 1.0rem;
+  width:100%;
   color: white;
 }
 
@@ -574,4 +575,39 @@ select {
   background: #444 !important;
   color: #aaa !important;
   cursor: not-allowed;
+}
+.left-panel .slider-row > label {
+  flex: 0 0 140px;
+  width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.section-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin-left: 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: #e6eef8;
+  cursor: pointer;
+  transition: transform .08s ease, background .08s ease, box-shadow .08s ease;
+}
+.section-toggle:active { transform: scale(.98); }
+.section-toggle:hover { background: rgba(255,255,255,0.04); box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.section-toggle svg { width: 14px; height: 14px; display:block; }
+
+/* ensure h3 uses flex so the button sits nicely to the right of the title */
+#spriteEffectSettings h3,
+#spriteFadeDiv h3 {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* title left, button follows */
+  gap: 8px;
+  margin: 0 0 10px 0;
+  padding-right: 6px;
 }

@@ -599,20 +599,29 @@
         </table>
       </div>
       <div id="spriteEditor" disabled>
-        <div class="spriteEditorRow" style="gap: 12px;align-items: center;height:4rem;">
+        <div class="spriteEditorRow" style="gap: 12px;align-items: center;height:3rem;">
           <button id="moveSpriteBtn" class="leftBtn">Move Sprite</button>
           <button id="deleteSpriteBtn" class="leftBtn" style="color:Red;">Delete Sprite</button>
         </div>
-        <div class="spriteEditorRow"><label for="spriteName">Name:</label><input id="spriteName" value="No sprite selected"></input></div>
-        <div class="spriteEditorRow"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
-        <div class="spriteEditorRow"><label for="spriteTool">Tool:</label><select id="spriteTool" style="padding:2px;height:1.5rem;">
+        <div class="slider-row"><label for="spriteName">Name:</label><input type="text" id="spriteName" value="No sprite selected"></input></div>
+        <div class="slider-row"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
+        <div class="slider-row"><label for="spriteTool">Tool:</label><select id="spriteTool">
           <option value="color">Color</option>
           <option value="blur">Blur</option>
           <option value="eraser">Eraser</option>
           <option value="amplifier">Amplify</option>
           <option value="noiseRemover">Noise Remover</option>
         </select></div>
-        <div style="display:none;" id="spriteEffectSettings">
+        <div id="spriteEffectSettings">
+          <h3>
+            Effect settings
+            <button type="button"
+                    class="section-toggle"
+                    data-target="spriteEffectSettings"
+                    aria-expanded="false"
+                    aria-label="Toggle Effect settings"
+                    id="effectSettingsToggleBtn"></button>
+          </h3>
           <div class="slider-row" title="Brightness" id="sbrushColorDiv">
               <label class="h2">Brush Brightness</label>
               <input id="sbrushColor" type="range" min="0" max="255" value="255">
@@ -656,6 +665,17 @@
               <input id="sphaseOpacity"  type="range" min="0" max="1" value="0" step="0.01">
               <input id="sphaseOpacityInput" type="number" value="0" min="0" max="1">
           </div>
+        </div>
+        <div id="spriteFadeDiv">
+          <h3>
+            Fade
+            <button type="button"
+                    class="section-toggle"
+                    data-target="spriteFadeDiv"
+                    aria-expanded="true"
+                    aria-label="Toggle Fade"></button>
+          </h3>
+          <canvas id="spriteFadeCanvas" style="border:1px solid #ccc; display:block; margin-top:10px;width:100%;"></canvas>
         </div>
       </div>
     </div>
@@ -829,5 +849,5 @@
 <script src="downloads.js"></script>
 <script src="brushPreview.js"></script>
 <script src="rightClick.js"></script>
-<script src="initialRenders.js"></script>
 <script src="eq.js"></script>
+<script src="initialRenders.js"></script>

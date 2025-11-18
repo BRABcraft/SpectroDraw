@@ -10,12 +10,10 @@ let defaultEQBands= [
     { type: "high_shelf", freq: sampleRate/2}
 ];
 let eqBands = defaultEQBands.map(band => ({ ...band }));
-const POINT_HIT_RADIUS = 7.5;
-const HANDLE_HIT_RADIUS = 7.5;
 
-let draggingPointIndex = -1;
-let draggingTangentIndex = -1;
-let dragOffset = { x: 0, y: 0 };
+let _draggingPointIndex = -1;
+let _draggingTangentIndex = -1;
+let _dragOffset = { x: 0, y: 0 };
 let ptsCache = null;         
 let ptsCacheW = 0, ptsCacheH = 0;
 let ptsDirty = true;
@@ -241,9 +239,9 @@ const rotateCursorUrl = makeSvgCursor(rotateSvg, 16, 16);
 
 function updateCanvasCursorFromPos(pos) {
   const hit = findHit(pos);
-  if (!hit && draggingPointIndex === -1 && draggingTangentIndex === -1) {
+  if (!hit && _draggingPointIndex === -1 && _draggingTangentIndex === -1) {
     if (EQcanvas) EQcanvas.style.cursor = 'crosshair';
-  } else if (draggingPointIndex !== -1 || (hit && hit.type === 'point')) {
+  } else if (_draggingPointIndex !== -1 || (hit && hit.type === 'point')) {
     EQcanvas.style.cursor = 'pointer';
   } else {
     EQcanvas.style.cursor = rotateCursorUrl;
@@ -342,7 +340,7 @@ function onPointerDown(evt) {
     try { EQcanvas.setPointerCapture(evt.pointerId); } catch(e) {}
   }
   if (!hit) {
-    draggingPointIndex = -1; draggingTangentIndex = -1;
+    _draggingPointIndex = -1; _draggingTangentIndex = -1;
     if (EQcanvas) EQcanvas.style.cursor = "crosshair";
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp, { once: true });
@@ -350,14 +348,14 @@ function onPointerDown(evt) {
   }
   if (hit.type === 'point') {
     EQcanvas.style.cursor = "pointer";
-    draggingPointIndex = hit.index;
+    _draggingPointIndex = hit.index;
     const b = eqBands[hit.index];
     const sx = gainToX(b.gain, EQcanvas.width);
     const sy = freqToY(b.freq, EQcanvas.height);
-    dragOffset.x = pos.x - sx; dragOffset.y = pos.y - sy;
+    _dragOffset.x = pos.x - sx; _dragOffset.y = pos.y - sy;
   } else if (hit.type === 'handle') {
     EQcanvas.style.cursor = rotateCursorUrl;
-    draggingTangentIndex = hit.index;
+    _draggingTangentIndex = hit.index;
   }
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp, { once: true });
@@ -396,18 +394,18 @@ function onPointerMove(evt) {
   updateCanvasCursorFromPos(pos);
   if (sineOsc) {sineOsc.frequency.setTargetAtTime(yToFreq(pos.y, EQcanvas.height), audioCtx.currentTime, 0.01);}
 
-  if (draggingPointIndex !== -1) {
-    const idx = draggingPointIndex;
+  if (_draggingPointIndex !== -1) {
+    const idx = _draggingPointIndex;
     const b = eqBands[idx];
-    const newX = pos.x - dragOffset.x;
-    const newY = pos.y - dragOffset.y;
+    const newX = pos.x - _dragOffset.x;
+    const newY = pos.y - _dragOffset.y;
     const newGain = xToGain(newX, EQcanvas.width);
     const newFreq = yToFreq(newY, EQcanvas.height);
     if (b.type !== "low_shelf" && b.type !== "high_shelf") b.freq = clamp(newFreq, 20, sampleRate / 2);
     b.gain = clamp(Number(newGain.toFixed(2)), 0-gainScale, gainScale);
     ptsDirty = true;
-  } else if (draggingTangentIndex !== -1) {
-    const idx = draggingTangentIndex;
+  } else if (_draggingTangentIndex !== -1) {
+    const idx = _draggingTangentIndex;
     const b = eqBands[idx];
     const px = gainToX(b.gain, EQcanvas.width);
     const py = freqToY(b.freq, EQcanvas.height);
@@ -425,8 +423,8 @@ function onPointerMove(evt) {
 }
 
 function onPointerUp(evt) {
-  draggingPointIndex = -1;
-  draggingTangentIndex = -1;
+  _draggingPointIndex = -1;
+  _draggingTangentIndex = -1;
   window.removeEventListener('pointermove', onPointerMove);
   ptsDirty = true;
   scheduleDraw();

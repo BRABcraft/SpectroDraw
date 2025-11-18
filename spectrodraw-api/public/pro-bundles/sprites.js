@@ -1,6 +1,5 @@
 function forEachSpritePixelInOrder(sprite, cb) {
   if (!sprite) return;
-  //console.log(sprite);
   const cols = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
   for (const x of cols) {
     const col = sprite.pixels.get(x);
@@ -137,14 +136,12 @@ function updateEditorSelection(spriteId) {
   if (spriteId === null || selectedSpriteId === null) {
     selectedSpriteId = null;
     spriteEditorDiv.setAttribute('disabled', 'disabled');
-    spriteEffectSettingsDiv.style.display = 'none';
     nameEl.value = 'No sprite selected';
     toolEl.value = '';
     enabledEl.checked = false;
   } else {
     const s=getSpriteById(spriteId);
     spriteEditorDiv.removeAttribute('disabled');
-    spriteEffectSettingsDiv.style.display = 'block';
     nameEl.value = s.name;
     enabledEl.checked = s.enabled;
     toolEl.value = s.effect.tool;
@@ -156,7 +153,6 @@ document.getElementById('sphaseTexture').addEventListener('change', () => {
   const s = getSpriteById(selectedSpriteId);
   if (!s) return;
   s.effect.phaseTexture = document.getElementById('sphaseTexture').value;
-  console.log('Phase texture changed to', s.effect.phaseTexture);
   updateSpriteEffects(selectedSpriteId, s.effect);
 });
 
@@ -204,10 +200,6 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
   // range input → mirror + assign
   r.addEventListener('input', () => handleValueChange(parseF(r.value)));
 
-  // detect "stop adjusting" via mouseup
-  r.addEventListener('mouseup', () => console.log(`Stopped adjusting ${effectsKey}, value:`, parseF(r.value)));
-  r.addEventListener('touchend', () => console.log(`Stopped adjusting ${effectsKey}, value:`, parseF(r.value)));
-
   // text input → Enter → clamp + assign
   t.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
@@ -217,7 +209,6 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     val = CLAMP(val, min, max);
     r.value = val;
     handleValueChange(val);
-    console.log(`Stopped editing ${effectsKey}, value:`, val);
   });
 
   // optional: detect blur from text input too
@@ -227,12 +218,12 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     val = CLAMP(val, parseF(r.min), parseF(r.max));
     r.value = val;
     handleValueChange(val);
-    console.log(`Stopped editing ${effectsKey}, value:`, val);
   });
 });
 
 
 function renderToolEditorSettings(sprite) {
+  if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
   document.getElementById('samplifyDiv').style.display = 'none';
   document.getElementById('sblurRadiusDiv').style.display = 'none';
   document.getElementById('snoiseFloorDiv').style.display = 'none';
@@ -256,7 +247,6 @@ function renderToolEditorSettings(sprite) {
 
   // Ensure effects object exists to read from
   const effects = sprite.effect || {};
-  //console.log(effects);
 
   // Load slider values from sprite.effect for each defined slider
   sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
@@ -979,3 +969,531 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     bounds
   };
 }
+
+
+const svgPlus = `
+  <svg aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="1.5" width="21" height="21" rx="3" ry="3" fill="transparent"/>
+    <path d="M12 6.5v11M6.5 12h11"/>
+  </svg>`;
+
+const svgMinus = `
+  <svg aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="1.5" width="21" height="21" rx="3" ry="3" fill="transparent"/>
+    <path d="M6.5 12h11"/>
+  </svg>`;
+
+/* Toggle function: hide/show all children of the target section except its H3 */
+function toggleSection(btn) {
+  const targetId = btn.dataset.target;
+  if (!targetId) return;
+  const section = document.getElementById(targetId);
+  if (!section) return;
+
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  if (expanded) {
+    // collapse: hide everything except the H3
+    Array.from(section.children).forEach(child => {
+      if (child.tagName === 'H3') return;
+      child.style.display = 'none';
+    });
+    btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = svgPlus;
+  } else {
+    // expand: restore display for children (let CSS decide)
+    Array.from(section.children).forEach(child => {
+      if (child.tagName === 'H3') return;
+      child.style.display = '';
+    });
+    btn.setAttribute('aria-expanded', 'true');
+    btn.innerHTML = svgMinus;
+  }
+}
+
+/* Initialize toggles on DOM ready */
+function initSectionToggles() {
+  const buttons = document.querySelectorAll('.section-toggle');
+
+  buttons.forEach(btn => {
+    const targetId = btn.dataset.target;
+    const section = document.getElementById(targetId);
+    if (!section) return;
+
+    // FORCE START COLLAPSED
+    btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = svgPlus;
+    Array.from(section.children).forEach(child => {
+      if (child.tagName === 'H3') return;
+      child.style.display = 'none';
+    });
+
+    // Add click listener
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSection(btn);
+    });
+  });
+}
+
+initSectionToggles();
+
+const fadeCanvas = document.getElementById("spriteFadeCanvas");
+const fcctx = fadeCanvas.getContext("2d");
+// Editable horizontal fade curve for spriteFade
+// Requires: fadeCanvas, fcctx (2D context)
+
+// configuration
+const GRID_W = 500, GRID_H = 300;
+const POINT_HIT_RADIUS = 8;
+const HANDLE_HIT_RADIUS = 8;
+
+// exported array: one value per canvas pixel column (0..1)
+let spriteFade = new Float32Array(GRID_W);
+
+// internal state for points and interaction
+let fadePoints = [
+  // x in [0..1], y in [0..1] where 0 = bottom, 1 = top
+  { x: 0.0, y: 1.0, mx: 120, my: 0, tLen: 120 },
+  { x: 0.5, y: 1.0, mx: 120, my: 0, tLen: 120 },
+  { x: 1.0, y: 1.0, mx: 120, my: 0, tLen: 120 }
+];
+
+let draggingPointIndex = -1;
+let draggingTangentIndex = -1;
+let draggingTangentSide = 0;
+let dragOffset = { x: 0, y: 0 };
+
+// helper: convert normalized point to canvas coords
+function pxX(normX, w) { return normX * w; }
+function pxY(normY, h) { return (1 - normY) * h; } // invert: 1 top, 0 bottom
+
+// crisp 1px helper (when not using hi-dpi scaling)
+const crisp = v => Math.round(v) + 0.5;
+
+// cubic hermite eval (returns {X, Y})
+function evalHermiteAt(p0, p1, t) {
+  const t2 = t * t, t3 = t2 * t;
+  const h00 = 2 * t3 - 3 * t2 + 1;
+  const h10 = t3 - 2 * t2 + t;
+  const h01 = -2 * t3 + 3 * t2;
+  const h11 = t3 - t2;
+  const X = h00 * p0.x + h10 * p0.mx + h01 * p1.x + h11 * p1.mx;
+  const Y = h00 * p0.y + h10 * p0.my + h01 * p1.y + h11 * p1.my;
+  return { X, Y };
+}
+
+// find t on a segment for a target canvas X (pixel coord). returns t in [0,1] or null
+function findTForXOnSegment(p0c, p1c, targetX) {
+  // p0c/p1c are objects with x,y,mx,my in canvas coordinates
+  const minX = Math.min(p0c.x, p1c.x) - Math.abs(p0c.mx) - Math.abs(p1c.mx) - 2;
+  const maxX = Math.max(p0c.x, p1c.x) + Math.abs(p0c.mx) + Math.abs(p1c.mx) + 2;
+  if (targetX < minX || targetX > maxX) return null;
+
+  const SAMPLES = 28;
+  let prevT = 0;
+  let prevF = evalHermiteAt(p0c, p1c, 0).X - targetX;
+  if (Math.abs(prevF) < 0.5) return 0;
+  for (let i = 1; i <= SAMPLES; i++) {
+    const t = i / SAMPLES;
+    const f = evalHermiteAt(p0c, p1c, t).X - targetX;
+    if (Math.abs(f) < 0.5) return t;
+    if (prevF * f <= 0) {
+      // binary search between prevT and t
+      let a = prevT, b = t;
+      let fa = prevF, fb = f;
+      for (let iter = 0; iter < 28; iter++) {
+        const m = 0.5 * (a + b);
+        const fm = evalHermiteAt(p0c, p1c, m).X - targetX;
+        if (Math.abs(fm) < 0.5) return m;
+        if (fa * fm <= 0) { b = m; fb = fm; } else { a = m; fa = fm; }
+      }
+      return 0.5 * (a + b);
+    }
+    prevT = t;
+    prevF = f;
+  }
+  return null;
+}
+
+// build canvas-space representation of points (with tangents in pixels)
+function buildCanvasPts(w, h) {
+  const pts = fadePoints.map(p => {
+    const cx = pxX(p.x, w);
+    const cy = pxY(p.y, h);
+    return { p, x: cx, y: cy, mx:p.mx, my:p.my };
+  });
+  // ensure sorted by x
+  pts.sort((A, B) => A.x - B.x);
+  return pts;
+}
+
+// populate spriteFade[] by sampling the curve per pixel column
+function sampleSpriteFade(w, h) {
+  if (!spriteFade || spriteFade.length !== w) spriteFade = new Float32Array(w);
+  const pts = buildCanvasPts(w, h);
+  if (pts.length === 0) {
+    for (let i = 0; i < w; i++) spriteFade[i] = 1.0;
+    return;
+  }
+
+  for (let xi = 0; xi < w; xi++) {
+    const targetX = xi + 0.5; // pixel center
+    // find segment containing this X
+    if (targetX <= pts[0].x) {
+      // left of first point => use first point y
+      const v = 1 - (pts[0].y / h);
+      spriteFade[xi] = Math.max(0, Math.min(1, v));
+      continue;
+    }
+    if (targetX >= pts[pts.length - 1].x) {
+      const v = 1 - (pts[pts.length - 1].y / h);
+      spriteFade[xi] = Math.max(0, Math.min(1, v));
+      continue;
+    }
+    // find segment
+    let found = false;
+    for (let si = 0; si < pts.length - 1; si++) {
+      const p0c = pts[si];
+      const p1c = pts[si + 1];
+      if (targetX + 1 < Math.min(p0c.x, p1c.x) || targetX - 1 > Math.max(p0c.x, p1c.x)) {
+        // quick skip
+        continue;
+      }
+      const t = findTForXOnSegment(p0c, p1c, targetX);
+      if (t === null) continue;
+      const { X, Y } = evalHermiteAt(p0c, p1c, t);
+      const v = 1 - (Y / h); // convert canvas Y -> normalized (0 bottom -> 1 top)
+      spriteFade[xi] = Math.max(0, Math.min(1, v));
+      found = true;
+      break;
+    }
+    if (!found) {
+      // fallback linear lerp between nearest points
+      // find nearest next point index
+      let k = 0;
+      while (k < pts.length - 1 && targetX > pts[k + 1].x) k++;
+      const p0 = pts[k], p1 = pts[Math.min(k + 1, pts.length - 1)];
+      const alpha = (targetX - p0.x) / Math.max(1e-6, (p1.x - p0.x));
+      const ly = p0.y * (1 - alpha) + p1.y * alpha;
+      spriteFade[xi] = Math.max(0, Math.min(1, 1 - (ly / h)));
+    }
+  }
+}
+
+// draw the grid and curve
+function renderSpriteFade() {
+  // ensure canvas size (fixed for now to match reference)
+  fadeCanvas.width = GRID_W;
+  fadeCanvas.height = GRID_H;
+  const w = fadeCanvas.width, h = fadeCanvas.height;
+
+  // clear
+  fcctx.clearRect(0, 0, w, h);
+
+  // background (optional) - keep transparent; draw grid lines
+  fcctx.strokeStyle = "#333";
+  fcctx.lineWidth = 3;
+
+  // vertical grid (4 interior lines for 5 columns)
+  for (let i = 1; i <= 4; i++) {
+    const x = crisp((w * i) / 5);
+    fcctx.beginPath();
+    fcctx.moveTo(x, 0.5);
+    fcctx.lineTo(x, h - 0.5);
+    fcctx.stroke();
+  }
+  // horizontal grid (2 interior lines for 3 rows)
+  for (let j = 1; j <= 2; j++) {
+    const y = crisp((h * j) / 3);
+    fcctx.beginPath();
+    fcctx.moveTo(0.5, y);
+    fcctx.lineTo(w - 0.5, y);
+    fcctx.stroke();
+  }
+
+  // draw the curve
+  const pts = buildCanvasPts(w, h);
+
+  // stroke background band for clarity
+  fcctx.lineWidth = 2;
+  fcctx.strokeStyle = "#fff";
+  fcctx.beginPath();
+  if (pts.length > 0) {
+    // walk segments
+    const first = pts[0];
+    // move to first point (Hermite at t=0)
+    const start = evalHermiteAt(first, pts[1] || first, 0);
+    fcctx.moveTo(start.X, start.Y);
+    for (let si = 0; si < pts.length - 1; si++) {
+      const p0 = pts[si], p1 = pts[si + 1];
+      const dx = p1.x - p0.x, dy = p1.y - p0.y;
+      const dist = Math.hypot(dx, dy);
+      const steps = Math.max(8, Math.floor(dist / 6));
+      for (let s = 1; s <= steps; s++) {
+        const t = s / steps;
+        const { X, Y } = evalHermiteAt(p0, p1, t);
+        fcctx.lineTo(X, Y);
+      }
+    }
+  }
+  fcctx.stroke();
+
+  // draw handles
+  for (let i = 0; i < pts.length; i++) {
+  const p = pts[i];
+
+  // tangent line (from negative handle to positive handle)
+  fcctx.lineWidth = 2;
+  fcctx.strokeStyle = "#888";
+  fcctx.beginPath();
+  fcctx.moveTo(p.x - p.mx / 3, p.y - p.my / 3);
+  fcctx.lineTo(p.x + p.mx / 3, p.y + p.my / 3);
+  fcctx.stroke();
+
+  // negative-side handle (left/behind)
+  let nx = p.x - p.mx / 3;
+  let ny = p.y - p.my / 3;
+  fcctx.fillStyle = "#ff0";
+  fcctx.beginPath();
+  fcctx.arc(nx, ny, 4, 0, Math.PI * 2);
+  fcctx.fill();
+  // visual small stroke so handles are visible
+  fcctx.lineWidth = 1;
+  fcctx.strokeStyle = "#000";
+  fcctx.stroke();
+
+  // positive-side handle (right/ahead)
+  let hx = p.x + p.mx / 3;
+  let hy = p.y + p.my / 3;
+  fcctx.fillStyle = "#ff0";
+  fcctx.beginPath();
+  fcctx.arc(hx, hy, 4, 0, Math.PI * 2);
+  fcctx.fill();
+  fcctx.lineWidth = 1;
+  fcctx.strokeStyle = "#000";
+  fcctx.stroke();
+
+  // point (white)
+  fcctx.fillStyle = "#fff";
+  fcctx.beginPath();
+  fcctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+  fcctx.fill();
+}
+
+  // sample into spriteFade per pixel column
+  sampleSpriteFade(w, h);
+}
+
+// hit testing: returns {type: 'point'|'handle', index}
+function getFadeHit(pos) {
+  const w = fadeCanvas.width, h = fadeCanvas.height;
+  const pts = buildCanvasPts(w, h);
+  // check handles first (both sides)
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const hxPos = { x: p.x + p.mx / 3, y: p.y + p.my / 3 };
+    const hxNeg = { x: p.x - p.mx / 3, y: p.y - p.my / 3 };
+
+    const dxp = pos.x - hxPos.x, dyp = pos.y - hxPos.y;
+    if ((dxp * dxp + dyp * dyp) <= (HANDLE_HIT_RADIUS * HANDLE_HIT_RADIUS)) {
+      return { type: 'handle', index: i, side: +1 };
+    }
+
+    const dxn = pos.x - hxNeg.x, dyn = pos.y - hxNeg.y;
+    if ((dxn * dxn + dyn * dyn) <= (HANDLE_HIT_RADIUS * HANDLE_HIT_RADIUS)) {
+      return { type: 'handle', index: i, side: -1 };
+    }
+  }
+  // points
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const dx = pos.x - p.x, dy = pos.y - p.y;
+    if ((dx * dx + dy * dy) <= (POINT_HIT_RADIUS * POINT_HIT_RADIUS)) {
+      return { type: 'point', index: i };
+    }
+  }
+  return null;
+}
+
+// pointer helpers
+function getCanvasPosFade(evt) {
+  const rect = fadeCanvas.getBoundingClientRect();
+  let clientX, clientY;
+  if (evt.touches && evt.touches[0]) {
+    clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY;
+  } else {
+    clientX = evt.clientX; clientY = evt.clientY;
+  }
+  clientX -= rect.left; clientY -= rect.top;
+  clientX *= GRID_W/rect.width; clientY *= GRID_H/rect.height;
+  return { x: clientX, y: clientY};
+}
+
+function onFadePointerDown(evt) {
+  //updateFadeCursor(evt);
+  evt.preventDefault();
+  fadeCanvas.setPointerCapture && fadeCanvas.setPointerCapture(evt.pointerId);
+  const pos = getCanvasPosFade(evt);
+  const hit = getFadeHit(pos);
+  if (!hit) {
+    // nothing hit: do nothing (could add logic to insert new point)
+    draggingPointIndex = -1;
+    draggingTangentIndex = -1;
+    return;
+  }
+  if (hit.type === 'point') {
+    draggingPointIndex = hit.index;
+    const cp = fadePoints[hit.index];
+    const w = fadeCanvas.width, h = fadeCanvas.height;
+    const sx = pxX(cp.x, w), sy = pxY(cp.y, h);
+    dragOffset.x = (pos.x - sx);
+    dragOffset.y = (pos.y - sy);
+  } else {
+    // handle hit: store index + which side (+1 or -1)
+    draggingTangentIndex = hit.index;
+    draggingTangentSide = (typeof hit.side === 'number') ? hit.side : +1;
+  }
+  window.addEventListener('pointermove', onFadePointerMove);
+  window.addEventListener('pointerup', onFadePointerUp, { once: true });
+}
+
+function onFadePointerMove(evt) {
+  //updateFadeCursor(evt);
+  evt.preventDefault();
+  const pos = getCanvasPosFade(evt);
+  const w = fadeCanvas.width, h = fadeCanvas.height;
+
+  if (draggingPointIndex !== -1) {
+    const idx = draggingPointIndex;
+
+    // convert pointer → canvas pixels
+    let newX = pos.x - dragOffset.x;
+    let newY = pos.y - dragOffset.y;
+
+    // clamp to canvas
+    newX = Math.max(0, Math.min(w, newX));
+    newY = Math.max(0, Math.min(h, newY));
+
+    // normalize Y
+    fadePoints[idx].y = 1 - (newY / h);
+
+    // SPECIAL RULES:
+    // ------------------------------------------
+    // LOCK FIRST POINT X = 0
+    if (idx === 0) {
+      fadePoints[idx].x = 0;
+    }
+    // LOCK LAST POINT X = 1
+    else if (idx === fadePoints.length - 1) {
+      fadePoints[idx].x = 1;
+    }
+    else {
+      // interior points drag normally
+      fadePoints[idx].x = newX / w;
+
+      // enforce ordering to prevent crossing
+      if (idx > 0 && fadePoints[idx].x < fadePoints[idx - 1].x + 0.001)
+        fadePoints[idx].x = fadePoints[idx - 1].x + 0.001;
+
+      if (idx < fadePoints.length - 1 && fadePoints[idx].x > fadePoints[idx + 1].x - 0.001)
+        fadePoints[idx].x = fadePoints[idx + 1].x - 0.001;
+    }
+  }
+  else if (draggingTangentIndex !== -1) {
+    const idx = draggingTangentIndex;
+    const cp = fadePoints[idx];
+    const px = pxX(cp.x, w), py = pxY(cp.y, h);
+
+    // vector from point -> pointer in canvas pixels
+    let vx = (pos.x - px);
+    let vy = (pos.y - py);
+
+    // if dragging negative-side handle, invert vector so stored mx,my always represent
+    // the positive-side tangent direction (so both handles are symmetric)
+    if (draggingTangentSide === -1) {
+      vx = -vx;
+      vy = -vy;
+    }
+
+    // scale factor to map pointer->model tangent length (same as before)
+    const mx = vx * 3;
+    const my = vy * 3;
+
+    // store mx,my so draw & sampling use these. We keep a single mx,my representing
+    // the "positive side" direction; negative side will be drawn as -mx,-my.
+    fadePoints[idx].mx = mx;
+    fadePoints[idx].my = my;
+  }
+
+  renderSpriteFade();
+}
+
+function updateFadeCursor(evt){
+  const hit = getFadeHit(getCanvasPosFade(evt));
+  if (hit === null) {
+    fadeCanvas.style.cursor = 'crosshair';
+  } else if (draggingPointIndex !== -1 || (hit && hit.type === 'point')) {
+    fadeCanvas.style.cursor = 'pointer';
+  } else {
+    fadeCanvas.style.cursor = rotateCursorUrl;
+  }
+}
+
+
+function onFadePointerUp(evt) {
+  draggingPointIndex = -1;
+  draggingTangentIndex = -1;
+  draggingTangentSide = 0;
+  window.removeEventListener('pointermove', onFadePointerMove);
+  // final sample
+  renderSpriteFade();
+}
+
+fadeCanvas.addEventListener('mousemove',(evt)=>updateFadeCursor(evt))
+
+const newFadePt = (cx,cy) => {
+  const w = fadeCanvas.width, h = fadeCanvas.height;
+  const rect = fadeCanvas.getBoundingClientRect();
+  cx *= w/rect.width; cy *= h/rect.height;
+  const nx = cx / w; const ny = 1 - (cy / h);
+  let insertAt = fadePoints.findIndex(p => p.x > nx);
+  if (insertAt === -1) insertAt = fadePoints.length;
+  fadePoints.splice(insertAt, 0, { x: nx, y: ny, mx: 120, my: 0, tLen: 120 });
+  renderSpriteFade();
+}
+
+const removeFadePt = (cx,cy) => {
+  const w = fadeCanvas.width, h = fadeCanvas.height;
+  const rect = fadeCanvas.getBoundingClientRect();
+  cx *= w/rect.width; cy *= h/rect.height;
+  const nx = cx / w; const ny = 1 - (cy / h);
+  
+  if (!fadePoints.length) {
+    renderSpriteFade();
+    return;
+  }
+  let nearestIndex = -1;
+  let nearestDist = Infinity;
+  for (let i = 0; i < fadePoints.length; i++) {
+    const p = fadePoints[i];
+    const dx = p.x - nx;
+    const dy = p.y - ny;
+    const dist = dx * dx + dy * dy; // squared distance
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearestIndex = i;
+    }
+  }
+  const REMOVE_THRESHOLD = 0.02 * 0.02;
+  if (nearestDist <= REMOVE_THRESHOLD) {
+    fadePoints.splice(nearestIndex, 1);
+  }
+  renderSpriteFade();
+}
+
+// attach events
+fadeCanvas.style.touchAction = 'none';
+fadeCanvas.addEventListener('pointerdown', onFadePointerDown);
+
+// initial render and populate spriteFade
+renderSpriteFade();

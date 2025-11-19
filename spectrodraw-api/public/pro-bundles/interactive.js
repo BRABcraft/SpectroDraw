@@ -83,7 +83,7 @@ function canvasMouseDown(e,touch) {
 
     let count = 1;
     for (let sprite of sprites) {
-      if (sprite.tool === currentTool) count++;
+      if (sprite.effect.tool === currentTool) count++;
     }
     let name = currentTool + `_${count}`;
 
@@ -96,6 +96,13 @@ function canvasMouseDown(e,touch) {
       minCol: Infinity,
       maxCol: -Infinity,
       createdAt: performance.now(),
+      fadePoints: [
+        { x: 0.0, y: 1.0, mx: 120, my: 0, tLen: 120 },
+        { x: 0.5, y: 1.0, mx: 120, my: 0, tLen: 120 },
+        { x: 1.0, y: 1.0, mx: 120, my: 0, tLen: 120 }
+      ],
+      spriteFade: [],
+      prevSpriteFade: [],
       name
     };
     sprites.push(currentSprite);

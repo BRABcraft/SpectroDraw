@@ -146,6 +146,8 @@ function updateEditorSelection(spriteId) {
     enabledEl.checked = s.enabled;
     toolEl.value = s.effect.tool;
     renderToolEditorSettings(s);
+    renderSpriteFade();
+    processSpriteFade();
   }
 }
 
@@ -1047,16 +1049,6 @@ const GRID_W = 500, GRID_H = 300;
 const POINT_HIT_RADIUS = 8;
 const HANDLE_HIT_RADIUS = 8;
 
-// exported array: one value per canvas pixel column (0..1)
-let spriteFade = new Float32Array(GRID_W);
-
-// internal state for points and interaction
-let fadePoints = [
-  // x in [0..1], y in [0..1] where 0 = bottom, 1 = top
-  { x: 0.0, y: 1.0, mx: 120, my: 0, tLen: 120 },
-  { x: 0.5, y: 1.0, mx: 120, my: 0, tLen: 120 },
-  { x: 1.0, y: 1.0, mx: 120, my: 0, tLen: 120 }
-];
 
 let draggingPointIndex = -1;
 let draggingTangentIndex = -1;
@@ -1117,7 +1109,8 @@ function findTForXOnSegment(p0c, p1c, targetX) {
 
 // build canvas-space representation of points (with tangents in pixels)
 function buildCanvasPts(w, h) {
-  const pts = fadePoints.map(p => {
+  const s = getSpriteById(selectedSpriteId);
+  const pts = s.fadePoints.map(p => {
     const cx = pxX(p.x, w);
     const cy = pxY(p.y, h);
     return { p, x: cx, y: cy, mx:p.mx, my:p.my };
@@ -1129,7 +1122,20 @@ function buildCanvasPts(w, h) {
 
 // populate spriteFade[] by sampling the curve per pixel column
 function sampleSpriteFade(w, h) {
-  if (!spriteFade || spriteFade.length !== w) spriteFade = new Float32Array(w);
+  const s = getSpriteById(selectedSpriteId);
+  if (!s) return;
+
+  // ensure spriteFade exists and has correct length
+  if (!s.spriteFade || !(s.spriteFade instanceof Float32Array) || s.spriteFade.length !== w) {
+    s.spriteFade = new Float32Array(w);
+  }
+
+  // now local reference always points to the authoritative array
+  const spriteFade = s.spriteFade;
+
+  // clone values into prevSpriteFade (new buffer, not same reference)
+  s.prevSpriteFade = new Float32Array(spriteFade);
+
   const pts = buildCanvasPts(w, h);
   if (pts.length === 0) {
     for (let i = 0; i < w; i++) spriteFade[i] = 1.0;
@@ -1138,9 +1144,7 @@ function sampleSpriteFade(w, h) {
 
   for (let xi = 0; xi < w; xi++) {
     const targetX = xi + 0.5; // pixel center
-    // find segment containing this X
     if (targetX <= pts[0].x) {
-      // left of first point => use first point y
       const v = 1 - (pts[0].y / h);
       spriteFade[xi] = Math.max(0, Math.min(1, v));
       continue;
@@ -1150,26 +1154,22 @@ function sampleSpriteFade(w, h) {
       spriteFade[xi] = Math.max(0, Math.min(1, v));
       continue;
     }
-    // find segment
+
     let found = false;
     for (let si = 0; si < pts.length - 1; si++) {
       const p0c = pts[si];
       const p1c = pts[si + 1];
-      if (targetX + 1 < Math.min(p0c.x, p1c.x) || targetX - 1 > Math.max(p0c.x, p1c.x)) {
-        // quick skip
-        continue;
-      }
+      if (targetX + 1 < Math.min(p0c.x, p1c.x) || targetX - 1 > Math.max(p0c.x, p1c.x)) continue;
       const t = findTForXOnSegment(p0c, p1c, targetX);
       if (t === null) continue;
       const { X, Y } = evalHermiteAt(p0c, p1c, t);
-      const v = 1 - (Y / h); // convert canvas Y -> normalized (0 bottom -> 1 top)
+      const v = 1 - (Y / h);
       spriteFade[xi] = Math.max(0, Math.min(1, v));
       found = true;
       break;
     }
+
     if (!found) {
-      // fallback linear lerp between nearest points
-      // find nearest next point index
       let k = 0;
       while (k < pts.length - 1 && targetX > pts[k + 1].x) k++;
       const p0 = pts[k], p1 = pts[Math.min(k + 1, pts.length - 1)];
@@ -1179,6 +1179,7 @@ function sampleSpriteFade(w, h) {
     }
   }
 }
+
 
 // draw the grid and curve
 function renderSpriteFade() {
@@ -1240,49 +1241,85 @@ function renderSpriteFade() {
 
   // draw handles
   for (let i = 0; i < pts.length; i++) {
-  const p = pts[i];
+    const p = pts[i];
 
-  // tangent line (from negative handle to positive handle)
-  fcctx.lineWidth = 2;
-  fcctx.strokeStyle = "#888";
-  fcctx.beginPath();
-  fcctx.moveTo(p.x - p.mx / 3, p.y - p.my / 3);
-  fcctx.lineTo(p.x + p.mx / 3, p.y + p.my / 3);
-  fcctx.stroke();
+    // tangent line (from negative handle to positive handle)
+    fcctx.lineWidth = 2;
+    fcctx.strokeStyle = "#888";
+    fcctx.beginPath();
+    fcctx.moveTo(p.x - p.mx / 3, p.y - p.my / 3);
+    fcctx.lineTo(p.x + p.mx / 3, p.y + p.my / 3);
+    fcctx.stroke();
 
-  // negative-side handle (left/behind)
-  let nx = p.x - p.mx / 3;
-  let ny = p.y - p.my / 3;
-  fcctx.fillStyle = "#ff0";
-  fcctx.beginPath();
-  fcctx.arc(nx, ny, 4, 0, Math.PI * 2);
-  fcctx.fill();
-  // visual small stroke so handles are visible
-  fcctx.lineWidth = 1;
-  fcctx.strokeStyle = "#000";
-  fcctx.stroke();
+    // negative-side handle (left/behind)
+    let nx = p.x - p.mx / 3;
+    let ny = p.y - p.my / 3;
+    fcctx.fillStyle = "#ff0";
+    fcctx.beginPath();
+    fcctx.arc(nx, ny, 4, 0, Math.PI * 2);
+    fcctx.fill();
+    // visual small stroke so handles are visible
+    fcctx.lineWidth = 1;
+    fcctx.strokeStyle = "#000";
+    fcctx.stroke();
 
-  // positive-side handle (right/ahead)
-  let hx = p.x + p.mx / 3;
-  let hy = p.y + p.my / 3;
-  fcctx.fillStyle = "#ff0";
-  fcctx.beginPath();
-  fcctx.arc(hx, hy, 4, 0, Math.PI * 2);
-  fcctx.fill();
-  fcctx.lineWidth = 1;
-  fcctx.strokeStyle = "#000";
-  fcctx.stroke();
+    // positive-side handle (right/ahead)
+    let hx = p.x + p.mx / 3;
+    let hy = p.y + p.my / 3;
+    fcctx.fillStyle = "#ff0";
+    fcctx.beginPath();
+    fcctx.arc(hx, hy, 4, 0, Math.PI * 2);
+    fcctx.fill();
+    fcctx.lineWidth = 1;
+    fcctx.strokeStyle = "#000";
+    fcctx.stroke();
 
-  // point (white)
-  fcctx.fillStyle = "#fff";
-  fcctx.beginPath();
-  fcctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
-  fcctx.fill();
-}
+    // point (white)
+    fcctx.fillStyle = "#fff";
+    fcctx.beginPath();
+    fcctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    fcctx.fill();
+  }
 
   // sample into spriteFade per pixel column
-  sampleSpriteFade(w, h);
+  sampleSpriteFade(50, 30);
+  const s = getSpriteById(selectedSpriteId);
+  function areArraysIdentical(arr1, arr2) {
+    for (let i = 0; i < arr1.length; i++) if (Math.abs(arr1[i] - arr2[i])>0.000001) return false;
+    return true;
+  }
+  if (!areArraysIdentical(s.prevSpriteFade,s.spriteFade)) {
+    processSpriteFade();
+  }
 }
+
+function processSpriteFade() {
+  const s = getSpriteById(selectedSpriteId);
+  if (!s) return;
+
+  // build a significant-sprite and bail if nothing significant
+  const sigSprite = formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
+  if (!sigSprite) return;
+
+  const cols = [...sigSprite.pixels.keys()].sort((a,b)=>a-b);
+  if (cols.length === 0) return;
+
+  const last = Math.max(0, s.spriteFade.length - 1);
+  const span = Math.max(1, s.maxCol - s.minCol);
+
+  // iterate every significant pixel and apply multiplier based on its column
+  forEachSpritePixelInOrder(sigSprite, (x, y, _prevMag, _prevPhase, nextMag /*, nextPhase */) => {
+    const t = (x - s.minCol) / span;
+    const idx = Math.round(t * last);
+    const factor = s.spriteFade[idx] || 0;
+    const id = x * specHeight + y;
+    mags[id] = nextMag * factor;
+  });
+
+  recomputePCMForCols(s.minCol, s.maxCol);
+}
+
+
 
 // hit testing: returns {type: 'point'|'handle', index}
 function getFadeHit(pos) {
@@ -1343,7 +1380,8 @@ function onFadePointerDown(evt) {
   }
   if (hit.type === 'point') {
     draggingPointIndex = hit.index;
-    const cp = fadePoints[hit.index];
+    const s = getSpriteById(selectedSpriteId);
+    const cp = s.fadePoints[hit.index];
     const w = fadeCanvas.width, h = fadeCanvas.height;
     const sx = pxX(cp.x, w), sy = pxY(cp.y, h);
     dragOffset.x = (pos.x - sx);
@@ -1362,6 +1400,7 @@ function onFadePointerMove(evt) {
   evt.preventDefault();
   const pos = getCanvasPosFade(evt);
   const w = fadeCanvas.width, h = fadeCanvas.height;
+  const s = getSpriteById(selectedSpriteId);
 
   if (draggingPointIndex !== -1) {
     const idx = draggingPointIndex;
@@ -1375,33 +1414,33 @@ function onFadePointerMove(evt) {
     newY = Math.max(0, Math.min(h, newY));
 
     // normalize Y
-    fadePoints[idx].y = 1 - (newY / h);
+    s.fadePoints[idx].y = 1 - (newY / h);
 
     // SPECIAL RULES:
     // ------------------------------------------
     // LOCK FIRST POINT X = 0
     if (idx === 0) {
-      fadePoints[idx].x = 0;
+      s.fadePoints[idx].x = 0;
     }
     // LOCK LAST POINT X = 1
-    else if (idx === fadePoints.length - 1) {
-      fadePoints[idx].x = 1;
+    else if (idx === s.fadePoints.length - 1) {
+      s.fadePoints[idx].x = 1;
     }
     else {
       // interior points drag normally
-      fadePoints[idx].x = newX / w;
+      s.fadePoints[idx].x = newX / w;
 
       // enforce ordering to prevent crossing
-      if (idx > 0 && fadePoints[idx].x < fadePoints[idx - 1].x + 0.001)
-        fadePoints[idx].x = fadePoints[idx - 1].x + 0.001;
+      if (idx > 0 && s.fadePoints[idx].x < s.fadePoints[idx - 1].x + 0.001)
+        s.fadePoints[idx].x = s.fadePoints[idx - 1].x + 0.001;
 
-      if (idx < fadePoints.length - 1 && fadePoints[idx].x > fadePoints[idx + 1].x - 0.001)
-        fadePoints[idx].x = fadePoints[idx + 1].x - 0.001;
+      if (idx < s.fadePoints.length - 1 && s.fadePoints[idx].x > s.fadePoints[idx + 1].x - 0.001)
+        s.fadePoints[idx].x = s.fadePoints[idx + 1].x - 0.001;
     }
   }
   else if (draggingTangentIndex !== -1) {
     const idx = draggingTangentIndex;
-    const cp = fadePoints[idx];
+    const cp = s.fadePoints[idx];
     const px = pxX(cp.x, w), py = pxY(cp.y, h);
 
     // vector from point -> pointer in canvas pixels
@@ -1421,8 +1460,8 @@ function onFadePointerMove(evt) {
 
     // store mx,my so draw & sampling use these. We keep a single mx,my representing
     // the "positive side" direction; negative side will be drawn as -mx,-my.
-    fadePoints[idx].mx = mx;
-    fadePoints[idx].my = my;
+    s.fadePoints[idx].mx = mx;
+    s.fadePoints[idx].my = my;
   }
 
   renderSpriteFade();
@@ -1452,30 +1491,32 @@ function onFadePointerUp(evt) {
 fadeCanvas.addEventListener('mousemove',(evt)=>updateFadeCursor(evt))
 
 const newFadePt = (cx,cy) => {
+  const s = getSpriteById(selectedSpriteId);
   const w = fadeCanvas.width, h = fadeCanvas.height;
   const rect = fadeCanvas.getBoundingClientRect();
   cx *= w/rect.width; cy *= h/rect.height;
   const nx = cx / w; const ny = 1 - (cy / h);
-  let insertAt = fadePoints.findIndex(p => p.x > nx);
-  if (insertAt === -1) insertAt = fadePoints.length;
-  fadePoints.splice(insertAt, 0, { x: nx, y: ny, mx: 120, my: 0, tLen: 120 });
+  let insertAt = s.fadePoints.findIndex(p => p.x > nx);
+  if (insertAt === -1) insertAt = s.fadePoints.length;
+  s.fadePoints.splice(insertAt, 0, { x: nx, y: ny, mx: 120, my: 0, tLen: 120 });
   renderSpriteFade();
 }
 
 const removeFadePt = (cx,cy) => {
+  const s = getSpriteById(selectedSpriteId);
   const w = fadeCanvas.width, h = fadeCanvas.height;
   const rect = fadeCanvas.getBoundingClientRect();
   cx *= w/rect.width; cy *= h/rect.height;
   const nx = cx / w; const ny = 1 - (cy / h);
   
-  if (!fadePoints.length) {
+  if (!s.fadePoints.length) {
     renderSpriteFade();
     return;
   }
   let nearestIndex = -1;
   let nearestDist = Infinity;
-  for (let i = 0; i < fadePoints.length; i++) {
-    const p = fadePoints[i];
+  for (let i = 0; i < s.fadePoints.length; i++) {
+    const p = s.fadePoints[i];
     const dx = p.x - nx;
     const dy = p.y - ny;
     const dist = dx * dx + dy * dy; // squared distance
@@ -1486,7 +1527,7 @@ const removeFadePt = (cx,cy) => {
   }
   const REMOVE_THRESHOLD = 0.02 * 0.02;
   if (nearestDist <= REMOVE_THRESHOLD) {
-    fadePoints.splice(nearestIndex, 1);
+    s.fadePoints.splice(nearestIndex, 1);
   }
   renderSpriteFade();
 }
@@ -1494,6 +1535,3 @@ const removeFadePt = (cx,cy) => {
 // attach events
 fadeCanvas.style.touchAction = 'none';
 fadeCanvas.addEventListener('pointerdown', onFadePointerDown);
-
-// initial render and populate spriteFade
-renderSpriteFade();

@@ -65,9 +65,14 @@ function drawSpriteOutline(useDelta,cx,cy){
   ctx.save();
   ctx.beginPath();
   let dx = useDelta?(0.5 + (cx-startX)):0, dy = useDelta?(0.5+(cy-startY)):0;
-  ctx.moveTo(pts[0].x + dx, pts[0].y + dy);
+  const yf = (sampleRate/2)/fWidth;
+  function getY(i){
+    return (pts[i].y + dy);
+    //return specHeight-binToDisplayY((pts[i].y + dy)*yf+fLow/(sampleRate/fftSize),specHeight);
+  }
+  ctx.moveTo(pts[0].x + dx, getY(0));
   for (let i = 1; i < pts.length; i++) {
-    ctx.lineTo(pts[i].x + dx, pts[i].y + dy);
+    ctx.lineTo(pts[i].x + dx, getY(i));
   }
   ctx.closePath();
 
@@ -327,10 +332,24 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   }
 }
 
-function applyEffectToPixel(oldMag, oldPhase, bin, newEffect) {
+function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const tool = newEffect.tool || currentTool;
-  const mag = (tool === "eraser" ? 0 : (newEffect.brushColor  !== undefined) ? newEffect.brushColor  :128);
-  const phase=(tool === "eraser" ? 0 : (newEffect.penPhase!== undefined) ? newEffect.penPhase:  0);
+  let mag, phase;
+  if (tool === "blur") {
+    const binCenter = Math.round(displayYToBin(bin, specHeight));
+    const r = newEffect.blurRadius;
+    const x0 = Math.max(0, x - r);
+    const x1 = Math.min(specWidth - 1, x + r);
+    const y0 = Math.max(0, binCenter - r);
+    const y1 = Math.min(specHeight - 1, binCenter + r);
+
+    const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
+    const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
+    mag = sumMag / count; phase = sumPhase / count;
+  } else {
+    mag = (tool === "eraser" ? 0 : (newEffect.brushColor  !== undefined) ? newEffect.brushColor  :128);
+    phase=(tool === "eraser" ? 0 : (newEffect.penPhase!== undefined) ? newEffect.penPhase:  0);
+  }
   const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1);
   const po =  (tool === "eraser" ? 0 : (newEffect.phaseOpacity   !== undefined) ? newEffect.phaseOpacity   :  0);
   const _amp = newEffect.amp || amp;

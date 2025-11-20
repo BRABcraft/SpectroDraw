@@ -31,7 +31,8 @@ function syncNumberAndRange(numberInput, rangeInput) {
                    [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
                    [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
                    [document.getElementById('amp'), document.getElementById('ampInput')],
-                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true]];
+                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
+                   [document.getElementById('channels'), document.getElementById('channelsInput'),true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][1].addEventListener('keydown', (e) => {
@@ -92,6 +93,9 @@ sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); up
 sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
 sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
     if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
+sliders[19][0].addEventListener('input', () => {channels = parseFloat(sliders[19][0].value); sliders[19][1].value = channels;});
+sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[19][1].value);const min = parseFloat(sliders[19][0].min);const max = parseFloat(sliders[19][0].max);
+    if (isNaN(val)) val = channels;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;channels = val;}});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -226,7 +230,6 @@ function toggleLockHop() {
   }
   lockHop = !lockHop;
 }
-let $x = 0, $y = 0;
 document.addEventListener('mousemove', e=>{
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false);
   $x=cx;$y=cy;
@@ -348,4 +351,210 @@ window.addEventListener('beforeunload', function (e) {
     const confirmationMessage = "Changes may not be saved.";
     e.preventDefault();
     e.returnValue = confirmationMessage;
+});
+
+// Make sure you include JSZip in your HTML:
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+async function saveProject() {
+  // helper to delta-encode a Float32Array with quantization
+  function deltaEncode(typedArr, decimals) {
+    if (!typedArr) return null;
+    const len = typedArr.length;
+    const out = new Array(len);
+    if (len === 0) return out;
+    let prev = 0;
+    const factor = Math.pow(10, decimals);
+    for (let i = 0; i < len; ++i) {
+      const v = typedArr[i];
+      const delta = v - prev;
+      // quantize
+      out[i] = Math.round(delta * factor) / factor;
+      prev = v;
+    }
+    return out;
+  }
+
+  const project = {
+    name: document.getElementById("projectName").value,
+    channels,
+    fftSize,
+    hop: hopSizeEl.value,
+    bufferLength: emptyAudioLengthEl.value,
+    previewWhileDrawing: document.getElementById("previewWhileDrawing").checked,
+    logScale: logscaleEl.value,
+    trueScaleVal,
+    useHz,
+    iLow,
+    iHigh,
+    fLow,
+    fHigh,
+    currentTool,
+    currentShape,
+    mags: mags ? deltaEncode(mags, 8) : null,     // 8 decimals
+    phases: phases ? deltaEncode(phases, 3) : null, // 3 decimals
+    deltaEncoded: true,
+    sprites
+  };
+
+  const json = JSON.stringify(project);
+
+  const zip = new JSZip();
+  zip.file("project.json", json);
+
+  const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(zipBlob);
+  const safeName = (project.name || "spectro_project").replace(/[^\w\-]+/g, "_");
+  a.download = `${safeName}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
+
+function openProject(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try {
+      const zip = await JSZip.loadAsync(ev.target.result);
+      const jsonFile = zip.file("project.json");
+      if (!jsonFile) throw new Error("project.json not found in ZIP");
+
+      const jsonText = await jsonFile.async("string");
+      const parsed = JSON.parse(jsonText);
+
+      // Apply to DOM & global state (same as your current code)
+      if (parsed.name !== undefined) {
+        const nameEl = document.getElementById("projectName");
+        if (nameEl) nameEl.value = parsed.name;
+      }
+      if (parsed.fftSize !== undefined) fftSize = parsed.fftSize;
+      if (parsed.channels !== undefined) channels = parsed.channels;
+      if (parsed.hop !== undefined) hopSizeEl.value = parsed.hop;
+      if (parsed.bufferLength !== undefined) emptyAudioLengthEl.value = parsed.bufferLength;
+      if (parsed.previewWhileDrawing !== undefined) {
+        const pEl = document.getElementById("previewWhileDrawing");
+        if (pEl) pEl.checked = !!parsed.previewWhileDrawing;
+        window.previewWhileDrawing = !!parsed.previewWhileDrawing;
+      }
+      if (parsed.logScale !== undefined) {
+        if (typeof logscaleEl !== "undefined") logscaleEl.value = parsed.logScale;
+        window.logScale = parsed.logScale;
+      }
+      if (parsed.trueScaleVal !== undefined) window.trueScaleVal = parsed.trueScaleVal;
+      if (parsed.useHz !== undefined) {
+        const uEl = document.getElementById("useHz");
+        if (uEl) uEl.checked = !!parsed.useHz;
+        window.useHz = !!parsed.useHz;
+      }
+
+      if (parsed.iLow !== undefined) iLow = parsed.iLow;
+      if (parsed.iHigh !== undefined) iHigh = parsed.iHigh;
+      if (parsed.fLow !== undefined) fLow = parsed.fLow;
+      if (parsed.fHigh !== undefined) fHigh = parsed.fHigh;
+
+      if (parsed.currentTool !== undefined) currentTool = parsed.currentTool;
+      if (parsed.currentShape !== undefined) currentShape = parsed.currentShape;
+
+      // helper to decode delta-encoded arrays into Float32Array
+      function deltaDecodeToFloat32(arr) {
+        if (!arr) return null;
+        const len = arr.length;
+        const out = new Float32Array(len);
+        if (len === 0) return out;
+        let acc = 0;
+        for (let i = 0; i < len; ++i) {
+          acc += arr[i];
+          out[i] = acc;
+        }
+        return out;
+      }
+
+      // If file was saved with delta encoding (new format), decode.
+      // If not deltaEncoded, assume mags/phases are raw arrays and just convert to Float32Array.
+      if (parsed.mags !== undefined) {
+        if (parsed.deltaEncoded) {
+          mags = deltaDecodeToFloat32(parsed.mags);
+        } else {
+          // older format: raw numeric array
+          mags = parsed.mags ? new Float32Array(parsed.mags) : null;
+        }
+      }
+
+      if (parsed.phases !== undefined) {
+        if (parsed.deltaEncoded) {
+          phases = deltaDecodeToFloat32(parsed.phases);
+        } else {
+          phases = parsed.phases ? new Float32Array(parsed.phases) : null;
+        }
+      }
+
+      if (parsed.sprites !== undefined) sprites = parsed.sprites;
+
+      recomputePCMForCols(0, Math.floor(parsed.bufferLength*sampleRate/parsed.hop));
+
+      window.dispatchEvent(new CustomEvent("projectLoaded", { detail: parsed }));
+
+      if (typeof applyProject === "function") {
+        try { applyProject(parsed); } catch (err) { console.warn("applyProject failed", err); }
+      }
+    } catch (err) {
+      console.error("Failed to open project", err);
+      alert("Invalid or corrupted project ZIP.");
+    }
+  };
+
+  reader.onerror = (err) => {
+    console.error("File read error", err);
+    alert("Failed to read project file.");
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+
+
+const saveBtn = document.getElementById("saveProject");
+const newProjectBtn = document.getElementById("startNewProjectBtn");
+const openProjectBtn = document.getElementById("saveAndOpenProject");
+const modal = document.getElementById('presetsModal');
+const closeBtn = document.getElementById('closeProjectModalBtn');
+
+saveBtn.addEventListener('click', () => {
+  saveProject();
+  console.log('hi');
+});
+// Open modal on button click
+newProjectBtn.addEventListener('click', () => {
+  saveProject();
+  modal.style.display = 'flex';
+});
+openProjectBtn.addEventListener('click', () => {
+  document.getElementById("openProject").click();
+});
+document.getElementById("openProject").addEventListener('change',(e)=>{
+  openProject(e.target.files[0]);
+});
+
+// Close modal
+closeBtn.addEventListener('click', () => {
+  modal.style.display = 'none';
+});
+
+// Optionally start new project with selected preset
+newProjectBtn.addEventListener('click', () => {
+  const preset = document.getElementById('presets').value;
+  console.log('Starting new project with preset:', preset);
+  modal.style.display = 'none';
+  // call your existing logic to actually start a new project here
+});
+
+// Close modal if clicking outside modal content
+window.addEventListener('click', e => {
+  if (e.target === modal) modal.style.display = 'none';
 });

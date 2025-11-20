@@ -148,3 +148,5 @@ let currentSprite = null;
 let spriteRedoQueue = [];
 let movingSprite = false;
 let spritePath = null;
+let channels = 1;
+let $x = 0, $y = 0;

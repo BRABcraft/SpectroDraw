@@ -296,9 +296,10 @@ function updateSpriteEffects(spriteId, newEffect) {
   if (!sigSprite) return;
 
   // write new mags/phases for significant pixels
+  const integral = buildIntegral(specWidth, specHeight, mags, phases);
   forEachSpritePixelInOrder(sigSprite, (x, y, prevMag, prevPhase) => {
     const id = x * specHeight + y;
-    const newPixel = applyEffectToPixel(prevMag, prevPhase, y, newEffect);
+    const newPixel = applyEffectToPixel(prevMag, prevPhase, x, y, newEffect, integral);
     mags[id] = newPixel.mag;
     phases[id] = newPixel.phase;
   });
@@ -958,7 +959,9 @@ function generateSpriteOutlinePath(sprite, options = {}) {
 
   // build final points array and connections (note: your code previously referenced specHeight & lsc)
   // keep the same transformation you used previously so behaviour remains identical.
-  const finalPointsArr = finalPoints.map(p => ({ x: p.x, y: specHeight-lsc(p.y,specHeight) }));
+  //*((sampleRate/2)/fWidth)+fLow/(sampleRate/fftSize)
+  const shift = fLow/(sampleRate/2)*specHeight;
+  const finalPointsArr = finalPoints.map(p => ({ x: p.x, y: specHeight-((lsc(p.y,specHeight)-shift)*((sampleRate/2)/fWidth))}));
   const connections = [];
   for (let i = 0; i < finalPointsArr.length; i++) connections.push([i, (i + 1) % finalPointsArr.length]);
 
@@ -1009,6 +1012,7 @@ function toggleSection(btn) {
     });
     btn.setAttribute('aria-expanded', 'true');
     btn.innerHTML = svgMinus;
+    renderToolEditorSettings(getSpriteById(selectedSpriteId));
   }
 }
 

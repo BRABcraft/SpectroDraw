@@ -9,7 +9,7 @@ function restartRender(autoPlay){
     hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
     win = hann(fftSize);
 
-    framesTotal = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
+    framesTotal = Math.max(1, Math.floor((emptyAudioLengthEl.value*sampleRate - fftSize) / hop) + 1);
     iLow = 0;
     iHigh = framesTotal;
     const freqBins = Math.floor(fftSize / 2);
@@ -393,7 +393,7 @@ function processPendingFramesLive(){
 
   if (!pcm || !fftSize) return;
 
-  while (pos + fftSize <= pcm.length) {
+  while (pos + fftSize <= emptyAudioLengthEl.value*sampleRate) {
     if (!drawFrame(specWidth, specHeight)) break;
   }
 

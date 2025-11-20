@@ -1,22 +1,34 @@
 function initEmptyPCM() {
     const sampleRateLocal = 48000;
-    let duration = emptyAudioLengthEl.value; 
-    if (duration  < 0.01) duration = 10;
-    const type = phaseTextureEl.value;
-    const length = sampleRateLocal * duration; 
-    const tinyNoiseAmplitude = 0.0001; 
+    let duration = parseFloat(emptyAudioLengthEl.value);
+    if (duration < 0.01) duration = 10;
 
-    const pcmArray = new Float32Array(length);
-    for (let i = 0; i < length; i++) {
-      pcmArray[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+    const length = Math.floor(sampleRateLocal * duration);
+    const tinyNoiseAmplitude = 0.0001;
+
+    if (!pcm) {
+        // If pcm doesn't exist yet, create an empty array
+        pcm = new Float32Array(0);
     }
-    pcm = pcmArray;
-    sampleRate = sampleRateLocal;
 
+    if (pcm.length < length) {
+        // Create a new Float32Array with additional space
+        const newPCM = new Float32Array(length);
+        newPCM.set(pcm); // copy old samples
+        for (let i = pcm.length; i < length; i++) {
+            newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+        }
+        pcm = newPCM;
+    }
+    // If pcm is already long enough, leave it as-is
+
+    sampleRate = sampleRateLocal;
     iLow = null;
-    minCol = 0; maxCol = 
+    minCol = 0; 
+    maxCol = 0; // or whatever value is intended
     restartRender(false);
 }
+
 async function onReset() {
   snapshotMags=mags;
   snapshotPhases=phases;
@@ -236,7 +248,7 @@ async function startRecording() {
 
       processPendingFramesLive();
       iLow = 0;
-      const framesSoFar = Math.max(1, Math.floor((pcm.length - fftSize) / hop) + 1);
+      const framesSoFar = Math.max(1, Math.floor((emptyAudioLengthEl.value*sampleRate - fftSize) / hop) + 1);
       iHigh = Math.max(1000, framesSoFar);
       updateCanvasScroll();
       info.innerHTML = `Recording...<br>${(framesSoFar/(sampleRate/hopSizeEl.value)).toFixed(1)} secs<br>Press record or ctrl+space to stop`;

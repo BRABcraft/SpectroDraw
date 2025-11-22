@@ -93,9 +93,9 @@ sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); up
 sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
 sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
     if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
-sliders[19][0].addEventListener('input', () => {channels = parseFloat(sliders[19][0].value); sliders[19][1].value = channels;});
+sliders[19][0].addEventListener('input', () => {channelCount = parseFloat(sliders[19][0].value); sliders[19][1].value = channelCount;updateChannels();});
 sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[19][1].value);const min = parseFloat(sliders[19][0].min);const max = parseFloat(sliders[19][0].max);
-    if (isNaN(val)) val = channels;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;channels = val;}});
+    if (isNaN(val)) val = channelCount;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;channelCount = val;updateChannels();}});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -132,7 +132,7 @@ panelButtons.forEach(btn => {
     }
 
     // Call drawEQ if panel 2 is active
-    if (currentPanel == "2") drawEQ();
+    if (currentPanel == "5") drawEQ();
   });
 });
 
@@ -377,7 +377,7 @@ async function saveProject() {
 
   const project = {
     name: document.getElementById("projectName").value,
-    channels,
+    channelCount,
     fftSize,
     hop: hopSizeEl.value,
     bufferLength: emptyAudioLengthEl.value,
@@ -434,7 +434,7 @@ function openProject(file) {
         if (nameEl) nameEl.value = parsed.name;
       }
       if (parsed.fftSize !== undefined) fftSize = parsed.fftSize;
-      if (parsed.channels !== undefined) channels = parsed.channels;
+      if (parsed.channelCount !== undefined) channelCount = parsed.channelCount;
       if (parsed.hop !== undefined) hopSizeEl.value = parsed.hop;
       if (parsed.bufferLength !== undefined) emptyAudioLengthEl.value = parsed.bufferLength;
       if (parsed.previewWhileDrawing !== undefined) {
@@ -527,7 +527,6 @@ const closeBtn = document.getElementById('closeProjectModalBtn');
 
 saveBtn.addEventListener('click', () => {
   saveProject();
-  console.log('hi');
 });
 // Open modal on button click
 newProjectBtn.addEventListener('click', () => {

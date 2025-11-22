@@ -54,10 +54,13 @@ let sx2 = 0, sy2 = 0;
 /* ===== Modified canvasMouseDown ===== */
 function canvasMouseDown(e,touch) {
   if (!touch) zooming=false;
-  if (!mags || !phases) return;
   if (!touch && e.button !== 0) return;
-  if (pendingHistory) return; 
+  if (pendingHistory) return;
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
+  let snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases=channels[currentChannel].snapshotPhases;
+  const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
+  const overlayCtx = overlayCanvas.getContext("2d");//CHANGE LATER
   startX = cx; startY = cy;
   painting = true;
   if (movingSprite) {
@@ -128,15 +131,14 @@ function canvasMouseDown(e,touch) {
     }
   }
 }
-canvas.addEventListener("mousedown", e=>{
-    canvasMouseDown(e,false);
-});
-canvas.addEventListener("touchstart", e=>{
-    canvasMouseDown(e,true);
-});
+
 let previewingShape = false;
-function canvasMouseMove(e,touch) {
+function canvasMouseMove(e,touch,el) {
+  currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  let mags = channels[currentChannel].mags; //change to channel that mouse is touching
+  const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
+  const overlayCtx = overlayCanvas.getContext("2d");//CHANGE LATER
   if (painting && movingSprite) {previewShape(cx, cy);return;}
   if (zooming) return;
   if (!recording) {
@@ -174,16 +176,9 @@ function canvasMouseMove(e,touch) {
 
   currentCursorX = currentFrame;
 }
-canvas.addEventListener("mousemove", e=>{
-  canvasMouseMove(e,false);
-});
-canvas.addEventListener("touchmove", e=>{
-  canvasMouseMove(e,true);
-});
 function canvasMouseUp(e,touch) {
   previewingShape = false;
-  if (zooming) return;
-  if (!mags || !phases || !painting) return;
+  if (zooming || !painting) return;
   renderSpritesTable();
   
   minCol = Infinity; maxCol = -Infinity;
@@ -200,6 +195,8 @@ function canvasMouseUp(e,touch) {
   }
   const { cx, cy } = getCanvasCoords(e,touch);
   if (movingSprite) handleMoveSprite(cx,cy);
+  const overlayCanvas = document.getElementById("overlay-"+currentChannel);
+  const overlayCtx = overlayCanvas.getContext("2d");
   if (currentShape === "rectangle" || currentShape === "line") {
     commitShape(cx, cy); 
     overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
@@ -223,7 +220,7 @@ function canvasMouseUp(e,touch) {
   startTime = performance.now();
   audioProcessed = 0;
 
-  if (snapshotMags && snapshotPhases && mags && phases && !movingSprite) {
+  if (!movingSprite) {
 
     autoRecomputePCM(-1,-1);
 
@@ -240,12 +237,12 @@ function canvasMouseUp(e,touch) {
 
   startTime = performance.now();
   audioProcessed = 0;
-
 }
 
 let minCol = Infinity; maxCol = -Infinity;
 function calcMinMaxCol() {
   if (minCol != Infinity) return {minCol,maxCol};
+  let mags = channels[currentChannel].mags, phases = channels[currentChannel].phases, snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;//CHANGE LATER
   if (snapshotMags == null || snapshotMags.length != mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
   const epsMag = 1e-6;
   const epsPhase = 1e-3;
@@ -309,6 +306,8 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
+  let mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
+  let snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;
   const epsMag = 0.1;
   const epsPhase = 0.4;
 
@@ -355,23 +354,25 @@ let wasPlayingDuringDrag = false;
 initEmptyPCM();
 
 function updateCursorLoop() {
-    if (playing && !painting && pcm && sourceNode) {
-        const elapsed = audioCtx.currentTime - sourceStartTime; 
-        let samplePos = elapsed * sampleRate;
+  const specCanvas = document.getElementById("spec-"+currentChannel);
+  const specCtx = specCanvas.getContext("2d");
+  if (playing && !painting && channels[currentChannel].pcm && sourceNode) {
+    const elapsed = audioCtx.currentTime - sourceStartTime; 
+    let samplePos = elapsed * sampleRate;
 
-        if (sourceNode.loop) {
-            samplePos = samplePos % pcm.length; 
-        }
-
-        const frame = Math.floor(samplePos / hop);
-        currentCursorX = Math.min(frame, specWidth - 1);
-
-        specCtx.putImageData(imageBuffer, 0, 0);
-        renderView();
-        drawCursor(false);
-        drawEQ();
+    if (sourceNode.loop) {
+      samplePos = samplePos % channels[currentChannel].pcm.length; 
     }
-    requestAnimationFrame(updateCursorLoop);
+
+    const frame = Math.floor(samplePos / hop);
+    currentCursorX = Math.min(frame, specWidth - 1);
+
+    specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+    renderView();
+    drawCursor(false);
+    drawEQ();
+  }
+  requestAnimationFrame(updateCursorLoop);
 }
 updateCursorLoop();
 
@@ -403,21 +404,56 @@ function _getPlaybackTarget() {
 
 
 async function playPCM(loop = true, startFrame = null) {
-  if (!pcm) return;
   ensureAudioCtx();
 
   stopSource(true);
 
-  let startSample = 0;
-  if (startFrame !== null && !isNaN(startFrame)) {
-      startSample = Math.max(0, Math.min(pcm.length - 1, startFrame * hop));
-  } else if (pausedAtSample !== null) {
-      startSample = Math.max(0, Math.min(pcm.length - 1, pausedAtSample));
+  if (!channels || channels.length === 0) {
+    console.warn("No channels to play.");
+    return;
   }
 
+  // Determine total length (use longest channel)
+  const totalSamples = channels.reduce((max, ch) => {
+    const len = ch && ch.pcm ? ch.pcm.length : 0;
+    return Math.max(max, len);
+  }, 0);
+
+  if (totalSamples === 0) {
+    console.warn("Channels contain no PCM data.");
+    return;
+  }
+
+  // Compute startSample clamped to the totalSamples
+  let startSample = 0;
+  if (startFrame !== null && !isNaN(startFrame)) {
+    startSample = Math.max(0, Math.min(totalSamples - 1, Math.floor(startFrame * hop)));
+  } else if (pausedAtSample !== null) {
+    startSample = Math.max(0, Math.min(totalSamples - 1, pausedAtSample));
+  }
+
+  sourceNode && tryStopSource && tryStopSource(); // keep your existing stop behaviour if you have helper; otherwise just stopSource(true)
+  stopSource(true);
+
   sourceNode = audioCtx.createBufferSource();
-  const buffer = audioCtx.createBuffer(1, pcm.length, sampleRate);
-  buffer.copyToChannel(pcm, 0);
+  const buffer = audioCtx.createBuffer(channelCount, totalSamples, sampleRate);
+
+  // Copy each channel's pcm into the AudioBuffer. If a channel is shorter, leave the remainder as silence (it's already zero).
+  for (let ch = 0; ch < channelCount; ch++) {
+    const pcm = channels[ch].pcm;
+    if (pcm) {
+      // If pcm length equals totalSamples, copy directly.
+      if (pcm.length === totalSamples) {
+        buffer.copyToChannel(pcm, ch);
+      } else {
+        // create a temp Float32Array sized to totalSamples and copy pcm into it (rest stays 0)
+        const tmp = new Float32Array(totalSamples);
+        tmp.set(pcm.subarray(0, Math.min(pcm.length, totalSamples)), 0);
+        buffer.copyToChannel(tmp, ch);
+      }
+    } // else leave the channel silent
+  }
+
   sourceNode.buffer = buffer;
   sourceNode.loop = !!loop;
 
@@ -430,14 +466,39 @@ async function playPCM(loop = true, startFrame = null) {
 
   const offsetSec = startSample / sampleRate;
   sourceStartTime = audioCtx.currentTime - offsetSec;
+
   try {
     sourceNode.start(0, offsetSec);
   } catch (e) {
-    const remaining = pcm.length - startSample;
-    const shortBuf = audioCtx.createBuffer(1, Math.max(1, remaining), sampleRate);
-    shortBuf.copyToChannel(pcm.subarray(startSample, startSample + remaining), 0);
+    // Fallback for when start with offset fails (create a shorter buffer that starts from startSample)
+    const remaining = Math.max(0, totalSamples - startSample);
+    if (remaining <= 0) {
+      console.warn("No remaining samples to play after start offset.");
+      return;
+    }
+
     try { sourceNode.stop(); } catch(_) {}
     try { sourceNode.disconnect(); } catch(_) {}
+
+    // Create a multi-channel short buffer and copy each channel's remaining samples
+    const shortBuf = audioCtx.createBuffer(channelCount, remaining, sampleRate);
+    for (let ch = 0; ch < channelCount; ch++) {
+      const pcm = (channels[ch] && channels[ch].pcm) ? channels[ch].pcm : null;
+      if (pcm && pcm.length > startSample) {
+        // copy the remaining portion
+        const slice = pcm.subarray(startSample, startSample + remaining);
+        // if slice length < remaining, create temp to pad; otherwise copy directly
+        if (slice.length === remaining) {
+          shortBuf.copyToChannel(slice, ch);
+        } else {
+          const tmp = new Float32Array(remaining);
+          tmp.set(slice, 0);
+          shortBuf.copyToChannel(tmp, ch);
+        }
+      }
+      // else leave channel silent for this shortBuf
+    }
+
     sourceNode = audioCtx.createBufferSource();
     sourceNode.buffer = shortBuf;
     sourceNode.loop = !!loop;
@@ -455,27 +516,60 @@ async function playPCM(loop = true, startFrame = null) {
   pausedAtSample = null;
 }
 
+
 async function playFrame(frameX) {
   currentCursorX = frameX;
-  if (!pcm) return;
   ensureAudioCtx();
+
+  if (!channels || channels.length === 0) {
+    console.warn("No channels available to play.");
+    return;
+  }
 
   if (audioCtx.state === 'suspended') {
     try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume() failed:", e); }
   }
 
   stopSource(true);
-  const start = frameX * hop;
-  const end = Math.min(start + fftSize, pcm.length);
-  if (end <= start) return;
-  const frameLen = end - start;
 
-  const buffer = audioCtx.createBuffer(1, frameLen, sampleRate);
-  buffer.copyToChannel(pcm.subarray(start, end), 0);
+  const start = Math.floor(frameX * hop);
+
+  // Compute how many samples are available per channel after start, and use the maximum (so we don't cut off any channel).
+  const maxRemaining = channels.reduce((max, ch) => {
+    const len = (ch && ch.pcm) ? Math.max(0, ch.pcm.length - start) : 0;
+    return Math.max(max, len);
+  }, 0);
+
+  // frame length limited by fftSize and what's remaining
+  const frameLen = Math.min(fftSize, maxRemaining);
+  if (frameLen <= 0) return;
+
+  const buffer = audioCtx.createBuffer(channelCount, frameLen, sampleRate);
+
+  // Copy each channel's slice (or leave as silence if not available)
+  for (let ch = 0; ch < channelCount; ch++) {
+    const pcm = (channels[ch] && channels[ch].pcm) ? channels[ch].pcm : null;
+    if (!pcm || pcm.length <= start) {
+      // leave channel silent
+      continue;
+    }
+    const available = pcm.length - start;
+    const copyLen = Math.min(frameLen, available);
+    const slice = pcm.subarray(start, start + copyLen);
+
+    if (copyLen === frameLen) {
+      buffer.copyToChannel(slice, ch);
+    } else {
+      // pad smaller slice into a tmp buffer of frameLen
+      const tmp = new Float32Array(frameLen);
+      tmp.set(slice, 0);
+      buffer.copyToChannel(tmp, ch);
+    }
+  }
 
   sourceNode = audioCtx.createBufferSource();
   sourceNode.buffer = buffer;
-  sourceNode.loop = true; 
+  sourceNode.loop = true;
 
   try {
     const targetNode = _getPlaybackTarget();

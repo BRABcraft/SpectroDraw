@@ -1,8 +1,12 @@
 const fileEl=document.getElementById("file");
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
-const overlayCanvas = document.getElementById("overlay");
-const overlayCtx = overlayCanvas.getContext("2d");
+// let canvas=document.getElementById("canvas-0");
+// let ctx=canvas.getContext("2d");
+// let overlayCanvas = document.getElementById("overlay-0");
+// let overlayCtx = overlayCanvas.getContext("2d");
+// let yAxis=document.getElementById("freq-0");
+// let yctx=yAxis.getContext("2d");
+// let timeline = document.getElementById('timeline-0');
+// let tctx = timeline.getContext('2d');
 const status=document.getElementById("status");
 const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
@@ -21,8 +25,6 @@ const recordBtn = document.getElementById("rec");
 const preset = document.getElementById("presets");
 const es = document.getElementById("es");
 const ev = document.getElementById("ev");
-const yAxis=document.getElementById("freq");
-const yctx=yAxis.getContext("2d");
 const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
 const alignPitchBtn = document.getElementById("alignPitch");
@@ -102,8 +104,8 @@ let iLow = null;
 let iHigh = null;
 let fLow = null;
 let fHigh = null;
-let specCanvas = document.createElement("canvas");
-let specCtx = specCanvas.getContext("2d");
+// let specCanvas = document.createElement("canvas");
+// let specCtx = specCanvas.getContext("2d");
 let logScaleVal = 1.12;
 
 let mags = null;     
@@ -148,5 +150,47 @@ let currentSprite = null;
 let spriteRedoQueue = [];
 let movingSprite = false;
 let spritePath = null;
-let channels = 1;
+let channelCount = 1;
 let $x = 0, $y = 0;
+let currentChannel = 0;
+let handlers = {
+  "canvas-": (el) => {
+    el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});
+    el.addEventListener("touchstart",e=>{canvasMouseDown(e,true);});
+    el.addEventListener("mousemove", e=>{canvasMouseMove(e,false,el);});
+    el.addEventListener("touchmove", e=>{canvasMouseMove(e,true,el);});
+    el.addEventListener("contextmenu", (e) => {
+      const rect = el.getBoundingClientRect();
+      const cx = Math.floor(e.clientX - rect.left);
+      const cy = Math.floor(e.clientY - rect.top);
+      preventAndOpen(e, () => makeCanvasMenu(cx, cy));
+    });
+    el.addEventListener('wheel', makeWheelZoomHandler(el, {zoomTimeline:true, zoomYAxis:false}), {passive:false});
+  },
+  "timeline-": (el) => {
+    el.addEventListener("contextmenu", (e) => {preventAndOpen(e, makeTimelineMenu);});
+    el.addEventListener('wheel', makeWheelZoomHandler(el, {zoomTimeline:true, zoomYAxis:false}), {passive:false});
+    el.addEventListener("mousedown", (e) => {timelineMousedown(e,false);});
+    el.addEventListener("touchstart", (e) => {timelineMousedown(e,false);});
+  },
+  "freq-": (el) => {
+    el.addEventListener("contextmenu", (e) => {preventAndOpen(e, makeYAxisMenu);});
+    el.addEventListener('wheel', makeWheelZoomHandler(el, {zoomTimeline:false, zoomYAxis:true}), {passive:false});
+    el.addEventListener("mousedown", (e) => {yAxisMousedown(e,false);});
+    el.addEventListener("touchstart", (e) => {yAxisMousedown(e,false);});
+  }
+}
+
+
+//GLOBAL HELPER FUNCTIONS
+
+function addEventListeners(){
+  for (let ch = 0; ch < channelCount; ch++) {
+    for (const prefix in handlers) {
+      const id = prefix + ch;
+      const el = document.getElementById(id);
+      if (!el) continue;
+      handlers[prefix](el);
+    }
+  }
+}

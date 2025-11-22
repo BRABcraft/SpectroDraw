@@ -1,25 +1,27 @@
 function initEmptyPCM() {
+    channels = new Array(channelCount);
     const sampleRateLocal = 48000;
     let duration = parseFloat(emptyAudioLengthEl.value);
     if (duration < 0.01) duration = 10;
 
     const length = Math.floor(sampleRateLocal * duration);
     const tinyNoiseAmplitude = 0.0001;
-
-    if (!pcm) {
-        // If pcm doesn't exist yet, create an empty array
-        pcm = new Float32Array(0);
+    for (let ch =0; ch<channelCount;ch++){
+      channels[ch] = {
+        pcm: [],
+        mags: [],
+        phases: [],
+        snapshotMags: [],
+        snapshotPhases: []
+      };
+      const newPCM = new Float32Array(length);
+      newPCM.set(channels[ch].pcm);
+      for (let i = channels[ch].pcm.length; i < length; i++) {
+        newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+      }
+      channels[ch].pcm = newPCM;
     }
-
-    if (pcm.length < length) {
-        // Create a new Float32Array with additional space
-        const newPCM = new Float32Array(length);
-        newPCM.set(pcm); // copy old samples
-        for (let i = pcm.length; i < length; i++) {
-            newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
-        }
-        pcm = newPCM;
-    }
+    
     // If pcm is already long enough, leave it as-is
 
     sampleRate = sampleRateLocal;
@@ -325,34 +327,57 @@ function ensureAudioCtx(){
 let startTime=0; 
 let audioProcessed=0; 
 
-fileEl.addEventListener("change", async e=>{
-    const f=e.target.files[0]; if(!f)return;
-    const buf=await f.arrayBuffer();
-    snapshotMags = mags; snapshotPhases = phases;
-    ensureAudioCtx();
-    fHigh = sampleRate/2;
+fileEl.addEventListener("change", async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+
+  const buf = await f.arrayBuffer();
+
+  // clear previous snapshot references (we'll rebuild them below)
+  snapshotMags = null;
+  snapshotPhases = null;
+
+  ensureAudioCtx();
+
+  let ab;
+  try {
+    ab = await audioCtx.decodeAudioData(buf.slice(0));
+    const nChannels = ab.numberOfChannels || 1;
+    sampleRate = ab.sampleRate || 48000;
+    fHigh = sampleRate / 2;
     fWidth = fHigh;
-    let ab;
-    try {
-      ab = await audioCtx.decodeAudioData(buf.slice(0));
-      pcm = new Float32Array(ab.getChannelData(0));
-      sampleRate = ab.sampleRate || 48000;
-      minCol=Infinity;maxCol=0;
 
-      status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
-      status.style.display = "block";
-      await restartRender(true);
+    minCol = Infinity;
+    maxCol = 0;
 
-    //   newHistory();
-      
-    let t = pcm.length / sampleRate;
-    hopSizeEl.value = t<0.5?128:(t<5?512:1024);
-      iLow = 0;
-      iHigh = framesTotal;
-
-    } catch (err){
-      alert("Error decoding video. Please try a different video.");
+    // build channels[] where each channel holds its own pcm/mags/phases/snapshots
+    channels = new Array(nChannels);
+    for (let ch = 0; ch < nChannels; ch++) {
+      channels[ch] = {
+        pcm: new Float32Array(ab.getChannelData(ch)),
+        mags: [],
+        phases: [],
+        snapshotMags: [],
+        snapshotPhases: []
+      };
     }
+
+    status.textContent = `Loaded ${f.name}, ${channels[0].pcm.length} samples @ ${sampleRate} Hz (${nChannels} channel${nChannels>1 ? "s" : ""})`;
+    status.style.display = "block";
+
+    await restartRender(true);
+
+    // hop size based on channel 0 length (all channels same length normally)
+    const t = channels[0].pcm.length / sampleRate;
+    hopSizeEl.value = t < 0.5 ? 128 : (t < 5 ? 512 : 1024);
+
+    iLow = 0;
+    iHigh = framesTotal;
+
+  } catch (err) {
+    alert("Error decoding audio. Please try a different file.");
+    console.error(err);
+  }
 });
 preset.addEventListener("change", async (e) => {
   const val = e.target.value;
@@ -425,3 +450,22 @@ preset.addEventListener("change", async (e) => {
     status.textContent = "Error loading preset: " + (err.message || err);
   }
 });
+function updateChannels(){
+  while (channelCount > channels.length) {
+    let length = Math.floor(sampleRate*emptyAudioLengthEl.value);
+    let pcm=new Float32Array(length);
+    const tinyNoiseAmplitude = 0.0001;
+    for (let i = 0; i < length; i++) {
+      pcm[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+    }
+    channels.push({
+      pcm,
+      mags: [],
+      phases: [],
+      snapshotMags: [],
+      snapshotPhases: []
+    });
+  }
+  restartRender(false);
+  renderFullSpectrogramToImage();
+}

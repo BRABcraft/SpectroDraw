@@ -31,10 +31,10 @@ function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
 
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + x) * 4;
-      imageBuffer.data[pix]     = r;
-      imageBuffer.data[pix + 1] = g;
-      imageBuffer.data[pix + 2] = b;
-      imageBuffer.data[pix + 3] = 255;
+      imageBuffer[ch].data[pix]     = r;
+      imageBuffer[ch].data[pix + 1] = g;
+      imageBuffer[ch].data[pix + 2] = b;
+      imageBuffer[ch].data[pix + 3] = 255;
     }
 }
 function zoomTimelineFit(){
@@ -240,6 +240,8 @@ function makeCanvasMenu(cx0, cy0){
   const rect = canvas.getBoundingClientRect();
   const cx = cx0 * canvas.width / rect.width + iLow;
   const cy = cy0 * canvas.height / rect.height;
+  const specCanvas = document.getElementById("spec-"+currentChannel);
+  const specCtx = specCanvas.getContext("2d");
 
   let hz = 0, secs = 0, i = -1, normalizedMag = 0, db = -200, phaseVal = 0;
   try {
@@ -647,16 +649,6 @@ function preventAndOpen(e, menuFactory){
   openMenuAt(menu, e.clientX, e.clientY);
 }
 
-canvas && canvas.addEventListener('contextmenu', (e)=> {
-  // pass canvas pixel location (example from mouse)
-  const rect = canvas.getBoundingClientRect();
-  const cx = Math.floor((e.clientX - rect.left));
-  const cy = Math.floor((e.clientY - rect.top));
-  preventAndOpen(e, ()=> makeCanvasMenu(cx, cy));
-});
-
-timeline && timeline.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeTimelineMenu));
-yAxis && yAxis.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeYAxisMenu));
 // attach plain contextmenu to logscaleEl too:
 logscaleEl && logscaleEl.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
 EQcanvas && EQcanvas.addEventListener('contextmenu', (e)=> {
@@ -676,7 +668,15 @@ window.addEventListener('resize', closeMenu);
 window.addEventListener('scroll', closeMenu, true);
 
 // Prevent native menu globally on targets (optional)
-[canvas, timeline, yAxis, EQcanvas].forEach(el=> {
+let rightClickPreventList = [];
+for (let ch=0;ch<channelCount;ch++){
+  rightClickPreventList.push(document.getElementById("canvas-"+ch));
+  rightClickPreventList.push(document.getElementById("timeline-"+ch));
+  rightClickPreventList.push(document.getElementById("freq-"+ch));
+}
+rightClickPreventList.push(EQcanvas);
+rightClickPreventList.push(fadeCanvas);
+rightClickPreventList.forEach(el=> {
   if (!el) return;
   el.addEventListener('mousedown', (ev)=> {
     ev.preventDefault();

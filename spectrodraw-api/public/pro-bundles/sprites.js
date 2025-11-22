@@ -27,6 +27,8 @@ function getSpriteById(id) {
 
 // Render the sprites table
 function renderSpritesTable() {
+  const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
+  const overlayCtx = overlayCanvas.getContext("2d");
   const tbody = document.getElementById('spriteTableBody');
   tbody.innerHTML = '';
   if (sprites.length == 0) {
@@ -286,6 +288,7 @@ function updateSpriteEffects(spriteId, newEffect) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
 
+  const mags = channels[0].mags, phases = channels[0].phases;
   // keep a copy of the old effect to detect instant zeroing
   const oldEffect = Object.assign({}, sprite.effect || {});
 
@@ -1300,6 +1303,7 @@ function renderSpriteFade() {
 function processSpriteFade() {
   const s = getSpriteById(selectedSpriteId);
   if (!s) return;
+  const mags = channels[0].mags;
 
   // build a significant-sprite and bail if nothing significant
   const sigSprite = formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));

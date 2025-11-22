@@ -3,18 +3,51 @@ fftSizeEl.addEventListener("change",()=>{if (lockHop) {hopSizeEl.value = parseIn
 hopSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();});
 
 function restartRender(autoPlay){
-    if(!pcm) return;
-    autoPlayOnFinish = !!playing || !!autoPlay;
-    fftSize = parseInt(fftSizeEl.value);
-    hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
-    win = hann(fftSize);
+  autoPlayOnFinish = !!playing || !!autoPlay;
+  fftSize = parseInt(fftSizeEl.value);
+  hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
+  win = hann(fftSize);
 
-    framesTotal = Math.max(1, Math.floor((emptyAudioLengthEl.value*sampleRate - fftSize) / hop) + 1);
-    iLow = 0;
-    iHigh = framesTotal;
-    const freqBins = Math.floor(fftSize / 2);
+  framesTotal = Math.max(1, Math.floor((emptyAudioLengthEl.value*sampleRate - fftSize) / hop) + 1);
+  iLow = 0;
+  iHigh = framesTotal;
+  const freqBins = Math.floor(fftSize / 2);
+  const offsetY = (window.innerHeight - 70)/channelCount;
+
+  const wrapper = document.getElementById("canvasWrapper");
+  wrapper.innerHTML = "";
+  imageBuffer = new Array(channelCount);
+  for (let ch = 0; ch < channelCount; ch++){
+    const timeline = document.createElement("canvas");
+    timeline.id = `timeline-${ch}`;
+    timeline.style.cssText ="height:40px;background:#222;position:absolute;left:40px;z-index:9998;top:"+(0 + ch*offsetY)+"px";
+    wrapper.appendChild(timeline);
+
+    // main canvas
+    const canvas = document.createElement("canvas");
+    canvas.id = `canvas-${ch}`;
+    canvas.style.cssText = "cursor:crosshair;position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
+    wrapper.appendChild(canvas);
+
+    // overlay
+    const overlayCanvas = document.createElement("canvas");
+    overlayCanvas.id = `overlay-${ch}`;
+    overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
+    wrapper.appendChild(overlayCanvas);
+
+    // freq bar
+    const yAxis = document.createElement("canvas");
+    yAxis.id = `freq-${ch}`;
+    yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
+    wrapper.appendChild(yAxis);
+
+    // specCanvas bar
+    const specCanvas = document.createElement("canvas"); specCanvas.style="display:none;"
+    specCanvas.id = `spec-${ch}`;wrapper.appendChild(specCanvas);
+    const specCtx = specCanvas.getContext("2d");
+
     canvas.width = framesTotal;
-    canvas.height = freqBins;
+    canvas.height = freqBins; 
     if (trueScaleVal) {
       const maxHeight = (window.innerHeight - 110);
       const containerWidth = canvas.parentElement.clientWidth;
@@ -26,8 +59,7 @@ function restartRender(autoPlay){
       canvas.style.height = (canvas.height * scale) + "px";
     } else {
       canvas.style.width = "calc(100% - 40px)";
-      let h = window.innerHeight - 110;
-      canvas.style.height = h+"px";
+      canvas.style.height = ((window.innerHeight - 70)/channelCount-40)+"px";
     }
 
     overlayCanvas.style.width = canvas.style.width;
@@ -40,77 +72,81 @@ function restartRender(autoPlay){
     specWidth = canvas.width;
     specHeight = canvas.height;
 
-    syncOverlaySize();
+    syncOverlaySize(canvas,overlayCanvas);
 
-    const timeline = document.getElementById('timeline');
     timeline.width = window.innerWidth*1.2;
     timeline.style.width = canvas.style.width;
     timeline.height = 40;
 
-    imageBuffer = new ImageData(canvas.width, canvas.height);
+    imageBuffer[ch] = new ImageData(canvas.width, canvas.height);
     specWidth = canvas.width;
     specHeight = canvas.height;
 
     specCanvas.width = specWidth;
     specCanvas.height = specHeight;
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
-    specCtx.putImageData(imageBuffer, 0, 0);
-
+    specCtx.putImageData(imageBuffer[ch], 0, 0);
+    
+    let mags = channels[ch].mags;
+    let phases = channels[ch].phases;
     mags = new Float32Array(specWidth * specHeight);
     phases = new Float32Array(specWidth * specHeight);
     for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
-
-    let startFrame = calcMinMaxCol().minCol;
-    if (startFrame == Infinity) startFrame = 0;
-    pos = startFrame * hop;
-    x = startFrame;
-    rendering = true;
-
+    const ctx = canvas.getContext("2d");
     ctx.fillStyle = "black";
     ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  addEventListeners();
 
-    startTime = performance.now();
-    audioProcessed = 0;
+  let startFrame = calcMinMaxCol().minCol;
+  if (startFrame == Infinity) startFrame = 0;
+  pos = startFrame * hop;
+  x = startFrame;
+  rendering = true;
 
-    if (playing) stopSource(true);
-    requestAnimationFrame(drawLoop);
 
-    if (!autoPlay) {
-        if (typeof drawTimeline === 'function') drawTimeline();
-        if (typeof drawYAxis === 'function') drawYAxis();
-        if (typeof drawLogScale === 'function') drawLogScale();
-    }
+  startTime = performance.now();
+  audioProcessed = 0;
+
+  if (playing) stopSource(true);
+  requestAnimationFrame(drawLoop);
+
+  if (!autoPlay) {
+    if (typeof drawTimeline === 'function') drawTimeline();
+    if (typeof drawYAxis === 'function') drawYAxis();
+    if (typeof drawLogScale === 'function') drawLogScale();
+  }
 }
 
 function magPhaseToRGB(mag, phase){
-    const hp = ((phase / (2*Math.PI) + 1) % 1)*6; 
-    const v = Math.min(mag/60,1);
-    const x = v*(1-Math.abs(hp%2-1));
-    let r,g,b;
-    if     (hp < 1){ r=v; g=x; b=0; }
-    else if(hp < 2){ r=x; g=v; b=0; }
-    else if(hp < 3){ r=0; g=v; b=x; }
-    else if(hp < 4){ r=0; g=x; b=v; }
-    else if(hp < 5){ r=x; g=0; b=v; }
-    else           { r=v; g=0; b=x; }
-    return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
+  const hp = ((phase / (2*Math.PI) + 1) % 1)*6; 
+  const v = Math.min(mag/60,1);
+  const x = v*(1-Math.abs(hp%2-1));
+  let r,g,b;
+  if     (hp < 1){ r=v; g=x; b=0; }
+  else if(hp < 2){ r=x; g=v; b=0; }
+  else if(hp < 3){ r=0; g=v; b=x; }
+  else if(hp < 4){ r=0; g=x; b=v; }
+  else if(hp < 5){ r=x; g=0; b=v; }
+  else           { r=v; g=0; b=x; }
+  return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
 }
 
 function rgbToMagPhase(r, g, b) {
-    let rf=r/255,gf=g/255,bf=b/255;
-    const mx=Math.max(rf,gf,bf), mn=Math.min(rf,gf,bf);
-    const d=mx-mn;
-    let h=0,s=0,v=mx;
-    s=mx===0?0:d/mx;
-    if(d!==0){
-        if(mx===rf) h=((gf-bf)/d)%6;
-        else if(mx===gf) h=(bf-rf)/d+2;
-        else h=(rf-gf)/d+4;
-        h/=6; if(h<0) h+=1;
-    }
-    const phase=h*2*Math.PI;
-    const mag=v*60;
-    return [mag, phase];
+  let rf=r/255,gf=g/255,bf=b/255;
+  const mx=Math.max(rf,gf,bf), mn=Math.min(rf,gf,bf);
+  const d=mx-mn;
+  let h=0,s=0,v=mx;
+  s=mx===0?0:d/mx;
+  if(d!==0){
+    if(mx===rf) h=((gf-bf)/d)%6;
+    else if(mx===gf) h=(bf-rf)/d+2;
+    else h=(rf-gf)/d+4;
+    h/=6; if(h<0) h+=1;
+  }
+  const phase=h*2*Math.PI;
+  const mag=v*60;
+  return [mag, phase];
 }
 
 function getLogScaleSlider() { return Math.max(1, parseFloat(logScaleVal) || 1); }
@@ -147,38 +183,46 @@ function displayYToBin(y, h) {
 }
 
 function drawFrame(w,h) {
-    if (pos + fftSize > pcm.length) { rendering = false; status.style.display = "none"; return false; }
-
+  if (pos + fftSize > channels[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
+  for (let ch = 0; ch<channelCount; ch++){
+    const c = channels[ch];
+    let mags = c.mags, phases = c.phases, pcm = c.pcm;
     const re = new Float32Array(fftSize);
     const im = new Float32Array(fftSize);
     for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
     fft_inplace(re, im);
 
     for (let bin = 0; bin < h; bin++) {
-        const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
-        const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
-        const idx = x * h + bin; 
-        mags[idx] = mag;
-        phases[idx] = phase;
+      const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
+      const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
+      const idx = x * h + bin; 
+      mags[idx] = mag;
+      phases[idx] = phase;
     }
-
-    for (let yy = 0; yy < h; yy+=recording?4:1) {
-        const mappedBin = displayYToBin(yy, h);
-        const idx = x * h + mappedBin;
-        const mag = mags[idx] || 0;
-        const phase = phases[idx] || 0;
-        const [r, g, b] = magPhaseToRGB(mag, phase);
-        for (let i = 0; i < (recording?4:1); i++) {       
-          const pix = ((yy+i) * w + x) * 4; 
-          imageBuffer.data[pix]     = r;
-          imageBuffer.data[pix + 1] = g;
-          imageBuffer.data[pix + 2] = b;
-          imageBuffer.data[pix + 3] = 255;
-        }
+    const skipY = (recording?4:1)*channels;
+    for (let yy = 0; yy < h; yy+=skipY) {
+      const mappedBin = displayYToBin(yy, h);
+      const idx = x * h + mappedBin;
+      const mag = mags[idx] || 0;
+      const phase = phases[idx] || 0;
+      const [r, g, b] = magPhaseToRGB(mag, phase);
+      for (let i = 0; i < skipY; i++) {       
+        const pix = ((yy+i) * w + x) * 4; 
+        imageBuffer[currentChannel].data[pix]     = r;
+        imageBuffer[currentChannel].data[pix + 1] = g;
+        imageBuffer[currentChannel].data[pix + 2] = b;
+        imageBuffer[currentChannel].data[pix + 3] = 255;
+      }
     }
-    pos += hop; x++;
-    audioProcessed += hop;
+  }
+  
+  pos += hop; x++;
+  audioProcessed += hop;
+  //for (let ch = 0; ch<channels.length; ch++){
+  ch = currentChannel;
     if (x >= (maxCol==0?w:maxCol)) {
+      const c = channels[ch];
+      let mags = c.mags, phases = c.phases, snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
       rendering = false;
       if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
         pendingHistory = false; 
@@ -211,16 +255,17 @@ function drawFrame(w,h) {
       }
 
       if (!painting && autoPlayOnFinish) {
-          autoPlayOnFinish = false;
-          playing = true;
-          playPause.innerHTML = pauseHtml;
-          playPCM(true,currentFrame<specWidth*0.8?minCol:0);
+        autoPlayOnFinish = false;
+        playing = true;
+        playPause.innerHTML = pauseHtml;
+        playPCM(true,currentFrame<specWidth*0.8?minCol:0);
       }
       status.style.display = "none";
       minCol = Infinity;
       return false;
     }
-    return true;
+  //}
+  return true;
 }
 
 let requestSpecUpdate = false;      
@@ -258,43 +303,45 @@ function waitForSpecUpdate(timeout = SPEC_UPDATE_TIMEOUT_MS) {
 }
 
 function drawLoop() {
-    if (!rendering) return;
+  if (!rendering) return;
+  const specCanvas = document.getElementById("spec-"+currentChannel);
+  const specCtx = specCanvas.getContext("2d");
 
-    const framesPerTick = 200;
+  const framesPerTick = 200;
 
-    const h = specHeight;
-    const w = specWidth;
+  const h = specHeight;
+  const w = specWidth;
 
-    for (let f = 0; f < framesPerTick; f++) {
-        if (!drawFrame(w,h)) break;
-    }
+  for (let f = 0; f < framesPerTick; f++) {
+      if (!drawFrame(w,h)) break;
+  }
+  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+  renderView();
+  drawCursor(true);
 
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
-    drawCursor(true);
+  if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') resolveSpecUpdate(true);
 
-    if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') {
-
-      resolveSpecUpdate(true);
-
-    }
-
-    const elapsedMS = performance.now() - startTime;
-    const elapsedSec = elapsedMS / 1000;
-    const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
-    const audioSec = pcm.length / sampleRate; 
-    const processedSec = audioProcessed / sampleRate;
-    status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
-        + `Elapsed: ${elapsedSec.toFixed(2)}s | `
-        + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
-        + `Speed: ${(speed/sampleRate).toFixed(2)}x realtime`;
-    if (rendering) {
-      status.style.display = "block";
-      requestAnimationFrame(() => drawLoop());
-    }
+  const elapsedMS = performance.now() - startTime;
+  const elapsedSec = elapsedMS / 1000;
+  const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
+  let pcm = channels[0].pcm;
+  const audioSec = pcm.length / sampleRate; 
+  const processedSec = audioProcessed / sampleRate;
+  status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
+      + `Elapsed: ${elapsedSec.toFixed(2)}s | `
+      + `Audio processed: ${processedSec.toFixed(2)}/${audioSec.toFixed(2)}s | `
+      + `Speed: ${(speed/sampleRate).toFixed(2)}x realtime`;
+  if (rendering) {
+    status.style.display = "block";
+    requestAnimationFrame(() => drawLoop());
+  }
 }
 
 function drawCursor(clear){
+  for (let ch=0;ch<channelCount;ch++){
+    const canvas = document.getElementById("canvas-"+ch);
+    const overlayCanvas = document.getElementById("overlay-"+ch);
+    const overlayCtx = overlayCanvas.getContext("2d");
     if (previewingShape && clear) {
       previewShape($x, $y);
     } else {
@@ -317,15 +364,22 @@ function drawCursor(clear){
         }
       }
     }
+  }
 }
 
 function updateCanvasScroll() {
-    if (!imageBuffer || !specCanvas) return;
 
-    const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
-    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
-    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
-    const viewHeight = Math.max(1, fEnd - fStart);
+  const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
+  const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+  const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
+  const viewHeight = Math.max(1, fEnd - fStart);
+  for (let ch=0;ch<channelCount;ch++){
+    const specCanvas=document.getElementById("spec-"+ch);
+    if (!imageBuffer[currentChannel] || !specCanvas) return;
+    const canvas = document.getElementById("canvas-"+ch);
+    const ctx = canvas.getContext("2d");
+    const overlayCanvas = document.getElementById("overlay-"+ch);
+    const overlayCtx = overlayCanvas.getContext("2d");
 
     canvas.width = viewWidth;
     canvas.height = viewHeight;
@@ -342,84 +396,90 @@ function updateCanvasScroll() {
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-    drawCursor(true);
+  }
+  drawCursor(true);
 }
 
 function renderView() {
-    if (!specCanvas || !imageBuffer) return;
 
-    const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
-    const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
-    const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
-    const viewHeight = Math.max(1, fEnd - fStart);
-
+  const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
+  const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
+  const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
+  const viewHeight = Math.max(1, fEnd - fStart);
+  for (let ch=0;ch<channelCount;ch++){
+    const specCanvas=document.getElementById("spec-"+ch);
+    if (!specCanvas || !imageBuffer[currentChannel]) continue;
+    const canvas = document.getElementById("canvas-"+ch);
+    const ctx = canvas.getContext("2d");
+    const overlayCanvas = document.getElementById("overlay-"+ch);
     canvas.width = viewWidth;
     canvas.height = viewHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
-        specCanvas,
-        Math.max(0, Math.floor(iLow)), fStart, 
-        viewWidth, viewHeight,                 
-        0, 0,                                  
-        canvas.width, canvas.height            
+      specCanvas,
+      Math.max(0, Math.floor(iLow)), fStart, 
+      viewWidth, viewHeight,                 
+      0, 0,                                  
+      canvas.width, canvas.height            
     );
 
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
+  }
 }
 
 let painting=false;
 let paintedPixels=null;
 
 function getCanvasCoords(e,touch){
-    const rect=canvas.getBoundingClientRect();
-    const scaleX=canvas.width/rect.width;
-    const scaleY=canvas.height/rect.height;
-    let x; let y;
-    if (touch && e.touches.length === 0) {
-        x = _cx; y = _cy;
-    } else {
-        x = touch ? e.touches[0].clientX : e.clientX;
-        y = touch ? e.touches[0].clientY : e.clientY;
-        _cx = x; _cy = y;
-    }
-    return {cx:(x-rect.left)*scaleX, cy:(y-rect.top)*scaleY, scaleX, scaleY};
+  const canvas = document.getElementById("canvas-"+currentChannel);
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width;
+  const scaleY=canvas.height/rect.height;
+  let x; let y;
+  if (touch && e.touches.length === 0) {
+      x = _cx; y = _cy;
+  } else {
+      x = touch ? e.touches[0].clientX : e.clientX;
+      y = touch ? e.touches[0].clientY : e.clientY;
+      _cx = x; _cy = y;
+  }
+  return {cx:(x-rect.left)*scaleX, cy:(y-rect.top)*scaleY, scaleX, scaleY};
 }
 function processPendingFramesLive(){
-
-  if (!pcm || !fftSize) return;
-
   while (pos + fftSize <= emptyAudioLengthEl.value*sampleRate) {
     if (!drawFrame(specWidth, specHeight)) break;
   }
-
-  if (imageBuffer && specCtx) specCtx.putImageData(imageBuffer, 0, 0);
+  
+  const specCanvas=document.getElementById("spec-"+currentChannel);
+  const specCtx = specCanvas.getContext("2d");
+  if (imageBuffer[currentChannel] && specCtx) specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
   renderView();
   drawCursor(true);
 }
 function renderFullSpectrogramToImage() {
-    if (!imageBuffer || !mags || !phases) return;
-    const w = specWidth, h = specHeight;
-    for(let xx=0; xx<w; xx++){
-
-        for(let yy=0; yy<h; yy++){
-
-            const bin = displayYToBin(yy, h);
-            const idx = xx * h + bin;
-            const mag = mags[idx] || 0;
-            const phase = phases[idx] || 0;
-            const [r,g,b] = magPhaseToRGB(mag, phase);
-            const pix = (yy * w + xx) * 4;
-            imageBuffer.data[pix] = r;
-            imageBuffer.data[pix+1] = g;
-            imageBuffer.data[pix+2] = b;
-            imageBuffer.data[pix+3] = 255;
-        }
+  const specCanvas=document.getElementById("spec-"+currentChannel);
+  const specCtx = specCanvas.getContext("2d");
+  let mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
+  if (!imageBuffer[currentChannel] || !mags || !phases) return;
+  const w = specWidth, h = specHeight;
+  for(let xx=0; xx<w; xx++){
+    for(let yy=0; yy<h; yy++){
+      const bin = displayYToBin(yy, h);
+      const idx = xx * h + bin;
+      const mag = mags[idx] || 0;
+      const phase = phases[idx] || 0;
+      const [r,g,b] = magPhaseToRGB(mag, phase);
+      const pix = (yy * w + xx) * 4;
+      imageBuffer[currentChannel].data[pix] = r;
+      imageBuffer[currentChannel].data[pix+1] = g;
+      imageBuffer[currentChannel].data[pix+2] = b;
+      imageBuffer[currentChannel].data[pix+3] = 255;
     }
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
+  }
+  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+  renderView();
 }

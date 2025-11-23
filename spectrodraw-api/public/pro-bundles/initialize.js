@@ -41,6 +41,8 @@ const AIMidiOptions = document.getElementById("AiMidiDiv");
 const tQs = document.getElementById("tQs");
 const tQt = document.getElementById("tQt");
 const tQd = document.getElementById("tQd");
+const midiChannelMode = document.getElementById("midiChannelMode");
+const midiSingleChannelDiv = document.getElementById("midiSingleChannelDiv");
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {
   process(inputs) {
@@ -117,7 +119,7 @@ let trueScaleVal=false;
 let overlayImage = null;
 let useHz = false;
 let autoPlayOnFinish = true;
-let alignPitch=false;let alignTime=false;midiAlignTime=true;useMidiAI=true;
+let alignPitch=false;let alignTime=false;midiAlignTime=true;useMidiAI=useAIEl.checked;
 let subBeat = 1;mSubBeat=16;midiBpm=120;
 let tQTempo=120;tQStrength=0;
 let useVolumeControllers = false;
@@ -151,6 +153,7 @@ let spriteRedoQueue = [];
 let movingSprite = false;
 let spritePath = null;
 let channelCount = 1;
+let channelHeight = window.innerHeight - 70;
 let $x = 0, $y = 0;
 let currentChannel = 0;
 let handlers = {

@@ -12,7 +12,7 @@ function restartRender(autoPlay){
   iLow = 0;
   iHigh = framesTotal;
   const freqBins = Math.floor(fftSize / 2);
-  const offsetY = (window.innerHeight - 70)/channelCount;
+  const offsetY = channelHeight;
 
   const wrapper = document.getElementById("canvasWrapper");
   wrapper.innerHTML = "";
@@ -66,7 +66,7 @@ function restartRender(autoPlay){
       canvas.style.height = (canvas.height * scale) + "px";
     } else {
       canvas.style.width = "calc(100% - 40px)";
-      canvas.style.height = ((window.innerHeight - 70)/channelCount-40)+"px";
+      canvas.style.height = (channelHeight-40)+"px";
     }
 
     overlayCanvas.style.width = canvas.style.width;

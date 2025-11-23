@@ -611,3 +611,12 @@ select {
   margin: 0 0 10px 0;
   padding-right: 6px;
 }
+
+.channelWrapper {
+  width: 315px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid #666;
+  background: #222;
+  box-sizing: border-box;
+}

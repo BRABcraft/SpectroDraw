@@ -616,7 +616,23 @@ function normalizeNoteFromModel(n) {
   }
   return copy;
 }
-function detectPitchesLegacy(alignPitch) {
+function determinePcm(ch) {
+  let pcm;
+  if (channelCount == 1) {
+    pcm = channels[0].pcm;
+  } else if (midiChannelMode.value==="single") {
+    pcm = channels[parseInt(document.getElementById("midiSingleChannel").value)].pcm;
+  } else if (midiChannelMode.value==="allMixToMono") {
+    const pcs = channels.map(ch => ch.pcm);
+    const len = pcs[0].length;
+    pcm = Float32Array.from({ length: len },(_, i) => pcs.reduce((sum, a) => sum + a[i], 0) / pcs.length);
+  } else if (midiChannelMode.value==="all") {
+    pcm = channels[ch].pcm;
+  }
+  return pcm;
+}
+function detectPitchesLegacy(alignPitch, ch) {
+  let pcm = determinePcm(ch);
   detectedPitches = [];
   if (pos + fftSize > pcm.length) { rendering = false; if(status) status.style.display = "none"; return false; }
   const re = new Float32Array(fftSize);
@@ -652,7 +668,8 @@ function detectPitchesLegacy(alignPitch) {
   if (x >= specWidth && status) { rendering = false; status.style.display = "none"; }
   return detectedPitches;
 }
-function exportMidiLegacy(progressCb = () => {}) {
+function exportMidiLegacy(ch) {
+  const progressCb = () => {};
   const velSplitTolerance = 40; 
   const minVelocityDb = -60;
   pos = 0;
@@ -661,7 +678,7 @@ function exportMidiLegacy(progressCb = () => {}) {
   let detectedPitches = [];
   audioProcessed = 0;
   for (let frame = 0; frame < w; frame++) {
-    detectedPitches.push(detectPitchesLegacy(true));
+    detectedPitches.push(detectPitchesLegacy(true,ch));
     try {
       const pct = Math.round(((frame + 1) / Math.max(1, w)) * 100);
       progressCb(pct);
@@ -825,9 +842,9 @@ function exportMidiLegacy(progressCb = () => {}) {
   try { progressCb(100); } catch(e){}
   return { notes };
 }
-async function getNotes() {
+async function getNotes(ch) {
   if (!useMidiAI) {
-    const out = exportMidiLegacy();
+    const out = exportMidiLegacy(ch);
     return out.notes;
   }
   try {
@@ -907,22 +924,23 @@ async function getNotes() {
       if (gpt) gpt.innerText=""; else mInfo.innerHTML="Model loaded<br><br>";
       const hopSamples = typeof hop === 'number' ? hop : (fftSize ? (fftSize / 4) : 512);
       await yieldToUI();
+      let pcm = determinePcm(ch);
       const notes = await runBasicPitchAndReturnNotes({ pcmFloat32: pcm, sampleRate, hopSamples },
         (pct) => { try { setGlobalProgress(pct); } catch(e){} });
       try { setGlobalProgress(100); } catch(e){}
-      gpbl.style.display = "none";
+      if (gpbl) gpbl.style.display = "none";
       return notes;
     }
-    const out = exportMidiLegacy();
+    const out = exportMidiLegacy(ch);
     console.log(out.notes);
     return out.notes;
   } catch (err) {
     console.warn('BasicPitch inference failed — falling back to legacy pipeline:', err);
-    const out = exportMidiLegacy();
+    const out = exportMidiLegacy(ch);
     return out.notes;
   }
 }
-function filterNotes() {
+function filterNotes(notes) {
   if (useMidiAI) {
     let i = 0;
     while (i < notes.length) if (notes[i].lengthSeconds < dCutoff) notes.splice(i, 1); else i++;
@@ -946,13 +964,20 @@ function filterNotes() {
       }
     };
   }
+  return notes;
 }
 async function exportMidi(opts = {}) {
   const downloadName = opts.downloadName ?? "export.mid";
-  let notes = await getNotes();
-  filterNotes();
-  writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });
-  return notes;
+  if (midiChannelMode.value==="all" && channelCount>1){
+    for (let ch=0;ch<channelCount;ch++){
+      let notes = filterNotes(await getNotes(ch));
+      writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });
+    }
+  } else {
+    let notes = filterNotes(await getNotes());
+    writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });
+    return notes;
+  }
 }
 function writeMidiFile(notes, opts = {}) {
   const ppq = opts.ppq ?? 480;

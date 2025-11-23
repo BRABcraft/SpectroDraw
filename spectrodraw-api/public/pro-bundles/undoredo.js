@@ -104,7 +104,6 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
 
     // write back into channel PCM
     channel.pcm.set(newSegment, sampleStart);
-    console.log('107');
     // Re-render the spectrogram columns affected
     renderSpectrogramColumnsToImageBuffer(colFirst, colLast, ch);
   } // end channel loop
@@ -176,6 +175,7 @@ function doUndo() {
   }
   if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
   const sprite = sprites[idx];
+  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
   console.log("Undoing sprite:", sprite);
   // restore sprite's prev values (iterate left->right, top->bottom)
   forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
@@ -191,9 +191,9 @@ function doUndo() {
   // recompute/render only affected columns
   const minCol = Math.max(0, sprite.minCol);
   const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-  renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
+  renderSpectrogramColumnsToImageBuffer(minCol, maxCol,sprite.ch);
   recomputePCMForCols(minCol, maxCol);
-  restartRender(false);
+  //restartRender(false);
 
   // update UI scroll / view
   iLow = 0; iHigh = specWidth; updateCanvasScroll();
@@ -212,6 +212,7 @@ function doUndo() {
 */
 function doRedo() {
   if (rendering) return;
+  
   // find oldest disabled sprite
   let idx = -1;
   for (let i = 0; i < sprites.length; i++) {
@@ -219,6 +220,8 @@ function doRedo() {
   }
   if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
   const sprite = sprites[idx];
+  
+  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
 
   // apply sprite's recorded "next" values
   forEachSpritePixelInOrder(sprite, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
@@ -233,9 +236,8 @@ function doRedo() {
   // recompute/render only affected columns
   const minCol = Math.max(0, sprite.minCol);
   const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-  renderSpectrogramColumnsToImageBuffer(minCol, maxCol);
+  renderSpectrogramColumnsToImageBuffer(minCol, maxCol,sprite.ch);
   recomputePCMForCols(minCol, maxCol);
-  restartRender(false);
 
   // remove from redo queue if tracked
   const rqidx = spriteRedoQueue.indexOf(sprite);

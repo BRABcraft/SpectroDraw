@@ -32,7 +32,8 @@ function syncNumberAndRange(numberInput, rangeInput) {
                    [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
                    [document.getElementById('amp'), document.getElementById('ampInput')],
                    [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
-                   [document.getElementById('channels'), document.getElementById('channelsInput'),true]];
+                   [document.getElementById('channels'), document.getElementById('channelsInput'),true],
+                   [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][1].addEventListener('keydown', (e) => {
@@ -96,6 +97,9 @@ sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
 sliders[19][0].addEventListener('input', () => {channelCount = parseFloat(sliders[19][0].value); sliders[19][1].value = channelCount;updateChannels();});
 sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[19][1].value);const min = parseFloat(sliders[19][0].min);const max = parseFloat(sliders[19][0].max);
     if (isNaN(val)) val = channelCount;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;channelCount = val;updateChannels();}});
+sliders[20][0].addEventListener('input', () => {channelHeight = parseFloat(sliders[20][0].value); sliders[20][1].value = channelHeight;updateChannelHeight();});
+sliders[20][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[20][1].value);const min = parseFloat(sliders[20][0].min);const max = parseFloat(sliders[20][0].max);
+    if (isNaN(val)) val = channelHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;channelHeight = val;updateChannelHeight();}});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -130,8 +134,6 @@ panelButtons.forEach(btn => {
       panel.style.display = (i == currentPanel) ? "block" : "none";
       i++;
     }
-
-    // Call drawEQ if panel 2 is active
     if (currentPanel == "5") drawEQ();
   });
 });
@@ -563,7 +565,6 @@ function openProject(file) {
       if (parsed.sprites !== undefined) sprites = parsed.sprites;
 
       recomputePCMForCols(0, Math.floor(parsed.bufferLength * sampleRate / parsed.hop));
-      console.log(channelCount,channels,Math.floor(parsed.bufferLength * sampleRate / parsed.hop));
 
       window.dispatchEvent(new CustomEvent("projectLoaded", { detail: parsed }));
 
@@ -624,4 +625,7 @@ newProjectBtn.addEventListener('click', () => {
 // Close modal if clicking outside modal content
 window.addEventListener('click', e => {
   if (e.target === modal) modal.style.display = 'none';
+});
+midiChannelMode.addEventListener("change",(e)=>{
+  midiSingleChannelDiv.style.display = (midiChannelMode.value === "single") ? "block" : "none";
 });

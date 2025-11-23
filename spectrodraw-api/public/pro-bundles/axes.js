@@ -194,7 +194,7 @@ function timelineMouseup(e) {
   } else {
     const specCanvas = document.getElementById("spec-"+currentChannel);
     const specCtx = specCanvas.getContext("2d");
-    specCtx.putImageData(imageBuffer, 0, 0);
+    specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
     renderView();
     drawCursor(true);
   }
@@ -240,7 +240,7 @@ function drawYAxis() {
     const yFactor = specHeight/parseInt(yAxis.style.height); 
     function fToVisY(f) {
       const h = specHeight;
-      const s = parseFloat(logScaleVal);
+      const s = parseFloat(logScaleVal[ch]);
       let bin = f / (sampleRate / fftSize);
       let cy;
       if (s <= 1.0000001) {
@@ -474,49 +474,6 @@ function zoomTimelineAt(clientX, elem, scaleFactor){
   renderView && renderView();
 }
 
-// Convert frequency -> displayed Y using the same mapping as drawYAxis()
-// (returns y in pixels relative to the y-axis canvas coordinate system)
-function _freqToVisY(f, rectHeight){
-  const h = specHeight;
-  const s = parseFloat(logScaleVal) || 1;
-  const bin = f / (sampleRate / fftSize);
-  let cy;
-  if (s <= 1.0000001) {
-    cy = h - 1 - bin;
-  } else {
-    const a = s - 1;
-    const denom = Math.log(1 + a * (h - 1));
-    const t = Math.log(1 + a * bin) / denom;
-    cy = (1 - t) * (h - 1);
-  }
-  const fStart = Math.max(0, Math.floor(h * (1 - fHigh / (sampleRate / 2))));
-  const fEnd   = Math.min(h, Math.floor(h * (1 - fLow / (sampleRate / 2))));
-  const viewHeight = Math.max(1, fEnd - fStart);
-  const visY = ((cy - fStart) / viewHeight) * h;
-
-  // match the transform used in drawYAxis() where they scale by yFactor/(fftSize/2048)
-  const yFactor = specHeight / parseInt(yAxis.style.height || yAxis.height || rectHeight);
-  return visY / yFactor / (fftSize / 2048); // pixel coordinate in yAxis canvas space
-}
-
-// Invert y -> frequency via binary search (robust for both linear and log scale)
-function getFreqAtY(pixelY, rectHeight){
-  // pixelY is in the same coordinate system as drawYAxis() draws (i.e. local yAxis client pixels)
-  const target = pixelY;
-  let lo = 0, hi = sampleRate / 2;
-  for (let iter = 0; iter < 30; iter++){
-    const mid = (lo + hi) / 2;
-    const yMid = _freqToVisY(mid, rectHeight);
-    if (yMid > target) {
-      // mid maps lower on screen (higher pixel value) -> increase frequency? adjust
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-  return (lo + hi) / 2;
-}
-
 // Zoom y-axis centered at clientY (relative to element rect)
 function zoomYAxisAt(clientY, elem, scaleFactor){
   let canvas = document.getElementById("canvas-"+currentChannel);//CHANGE LATER
@@ -525,7 +482,7 @@ function zoomYAxisAt(clientY, elem, scaleFactor){
   const rect = canvas.getBoundingClientRect();
   const cy = (clientY - rect.top) * canvas.height/rect.height;
   // console.log(getSineFreq(visibleToSpecY(0)))
-  const centerFrame = (lsc(getSineFreq(visibleToSpecY(cy))))/yf;
+  const centerFrame = (lsc(getSineFreq(visibleToSpecY(cy))),logScaleVal[currentChannel])/yf;
   const centerFrac = centerFrame/specHeight;
   const newHeight = _clamp((fWidth)/yf / scaleFactor, 1, specHeight);
   let newLow = centerFrame - centerFrac * newHeight;

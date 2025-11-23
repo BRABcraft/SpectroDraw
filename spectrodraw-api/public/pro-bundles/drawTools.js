@@ -54,8 +54,8 @@ function queryIntegralSum(integral, x0, y0, x1, y1) {
 }
 
 function drawSpriteOutline(useDelta,cx,cy){
-  const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
-  const canvas = document.getElementById("canvas-"+currentChannel);//CHANGE LATER
+  const overlayCanvas = document.getElementById("overlay-"+spritePath.ch);//CHANGE LATER
+  const canvas = document.getElementById("canvas-"+spritePath.ch);//CHANGE LATER
   const overlayCtx = overlayCanvas.getContext("2d");
   const framesVisible = Math.max(1, iHigh - iLow);
   const mapX = (frameX) => ((frameX - iLow) * canvas.width) / framesVisible;
@@ -70,7 +70,6 @@ function drawSpriteOutline(useDelta,cx,cy){
   const yf = (sampleRate/2)/fWidth;
   function getY(i){
     return (pts[i].y + dy);
-    //return specHeight-binToDisplayY((pts[i].y + dy)*yf+fLow/(sampleRate/fftSize),specHeight);
   }
   ctx.moveTo(pts[0].x + dx, getY(0));
   for (let i = 1; i < pts.length; i++) {
@@ -216,14 +215,16 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
 }
 
 // call when spectrogram parameters change:
-let binToTopDisplay = null;
-let binToBottomDisplay = null;
+let binToTopDisplay = new Array(channelCount);
+let binToBottomDisplay = new Array(channelCount);
 function buildBinDisplayLookup() {
-  binToTopDisplay = new Float32Array(specHeight);
-  binToBottomDisplay = new Float32Array(specHeight);
-  for (let b = 0; b < specHeight; b++) {
-    binToTopDisplay[b] = binToDisplayY(b - 0.5, specHeight);
-    binToBottomDisplay[b] = binToDisplayY(b + 0.5, specHeight);
+  for (let ch=0;ch<channelCount;ch++){
+    binToTopDisplay[ch] = new Float32Array(specHeight);
+    binToBottomDisplay[ch] = new Float32Array(specHeight);
+    for (let b = 0; b < specHeight; b++) {
+      binToTopDisplay[ch][b] = binToDisplayY(b - 0.5, specHeight,ch);
+      binToBottomDisplay[ch][b] = binToDisplayY(b + 0.5, specHeight,ch);
+    }
   }
 }
 
@@ -263,78 +264,77 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   const imgData = imageBuffer[currentChannel].data;
   const dbt = Math.pow(10, noiseRemoveFloor / 20)*128;
 
-  for (/*let ch = 0; ch<channels.length; ch++*/ let ch=currentChannel;ch==currentChannel;ch++) {
-    const magsArr = channels[ch].mags;
-    const phasesArr = channels[ch].phases;
+  let ch=currentChannel;
+  const magsArr = channels[ch].mags;
+  const phasesArr = channels[ch].phases;
 
-    // optional pitch-align (keep this branch but hoist helpers)
-    let displayYFloat = yDisplay;
-    const f = getSineFreq(yDisplay);
-    if (alignPitch) {
-      let nearestPitch = Math.round(npo * Math.log2(f / startOnP));
-      nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
-      displayYFloat = ftvsy(nearestPitch);
+  // optional pitch-align (keep this branch but hoist helpers)
+  let displayYFloat = yDisplay;
+  const f = getSineFreq(yDisplay);
+  if (alignPitch) {
+    let nearestPitch = Math.round(npo * Math.log2(f / startOnP));
+    nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
+    displayYFloat = ftvsy(nearestPitch,currentChannel);
+  }
+
+  // get float bin boundaries using lookup tables
+  const topBinF = displayYToBin(displayYFloat - 0.5, fullH, currentChannel);
+  const botBinF = displayYToBin(displayYFloat + 0.5, fullH, currentChannel);
+
+  let binStart = Math.floor(Math.min(topBinF, botBinF));
+  let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
+  if (!Number.isFinite(binStart)) binStart = 0;
+  if (!Number.isFinite(binEnd))   binEnd   = 0;
+  if (binStart < 0) binStart = 0;
+  if (binEnd > fullH - 1) binEnd = fullH - 1;
+
+  for (let bin = binStart; bin <= binEnd; bin++) {
+    const idx = idxBase + bin;
+    // bounds check not needed if idxBase/bin clamped, but keep safe:
+    if (idx < 0 || idx >= magsArr.length) continue;
+    if (visited && visited[idx] === 1) continue;
+    if (visited) visited[idx] = 1;
+    
+    let pd = (bin%2<1)?1:1-po;
+
+    const oldMag = magsArr[idx] || 0;
+    const oldPhase = phasesArr[idx] || 0;
+    const newMag = (currentTool === "amplifier")
+                ? (oldMag * amp)
+                : (currentTool === "noiseRemover")
+                ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
+                :(oldMag * (1 - bo) + mag * bo);
+    const type = phaseTextureEl.value;
+    let $phase;
+    if (type === 'Harmonics') {
+      $phase = (bin / specHeight * fftSize / 2);
+    } else if (type === 'Static') {
+      $phase = Math.random()*Math.PI;
+    } else if (type === 'Flat') {
+      $phase = phase;
     }
+    const newPhase = oldPhase * (1-po) + po * ($phase + phase*2);
+    const clampedMag = Math.min(newMag, 255);
+    magsArr[idx] = clampedMag;
+    phasesArr[idx] = newPhase;
+    channels[ch].mags=magsArr;
 
-    // get float bin boundaries using lookup tables
-    const topBinF = displayYToBin(displayYFloat - 0.5, fullH);
-    const botBinF = displayYToBin(displayYFloat + 0.5, fullH);
+    // use lookup tables to avoid recomputing bin->display bounds
+    const yTopF = binToTopDisplay[ch][bin];
+    const yBotF = binToBottomDisplay[ch][bin];
+    const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
+    const yEnd   = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
 
-    let binStart = Math.floor(Math.min(topBinF, botBinF));
-    let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
-    if (!Number.isFinite(binStart)) binStart = 0;
-    if (!Number.isFinite(binEnd))   binEnd   = 0;
-    if (binStart < 0) binStart = 0;
-    if (binEnd > fullH - 1) binEnd = fullH - 1;
+    // RGB conversion - this may still be expensive; could cache per (idx) or per mag/phase pair
+    const [r, g, b] = magPhaseToRGB(clampedMag, newPhase);
 
-    for (let bin = binStart; bin <= binEnd; bin++) {
-      const idx = idxBase + bin;
-      // bounds check not needed if idxBase/bin clamped, but keep safe:
-      if (idx < 0 || idx >= magsArr.length) continue;
-      if (visited && visited[idx] === 1) continue;
-      if (visited) visited[idx] = 1;
-      
-      let pd = (bin%2<1)?1:1-po;
-
-      const oldMag = magsArr[idx] || 0;
-      const oldPhase = phasesArr[idx] || 0;
-      const newMag = (currentTool === "amplifier")
-                  ? (oldMag * amp)
-                  : (currentTool === "noiseRemover")
-                  ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
-                  :(oldMag * (1 - bo) + mag * bo);
-      const type = phaseTextureEl.value;
-      let $phase;
-      if (type === 'Harmonics') {
-        $phase = (bin / specHeight * fftSize / 2);
-      } else if (type === 'Static') {
-        $phase = Math.random()*Math.PI;
-      } else if (type === 'Flat') {
-        $phase = phase;
-      }
-      const newPhase = oldPhase * (1-po) + po * ($phase + phase*2);
-      const clampedMag = Math.min(newMag, 255);
-      magsArr[idx] = clampedMag;
-      phasesArr[idx] = newPhase;
-      channels[ch].mags=magsArr;
-
-      // use lookup tables to avoid recomputing bin->display bounds
-      const yTopF = binToTopDisplay[bin];
-      const yBotF = binToBottomDisplay[bin];
-      const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
-      const yEnd   = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
-
-      // RGB conversion - this may still be expensive; could cache per (idx) or per mag/phase pair
-      const [r, g, b] = magPhaseToRGB(clampedMag, newPhase);
-
-      // write rows
-      for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
-        const pix = (yPixel * width + xI) * 4;
-        imgData[pix]     = r;
-        imgData[pix + 1] = g;
-        imgData[pix + 2] = b;
-        imgData[pix + 3] = 255;
-      }
+    // write rows
+    for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+      const pix = (yPixel * width + xI) * 4;
+      imgData[pix]     = r;
+      imgData[pix + 1] = g;
+      imgData[pix + 2] = b;
+      imgData[pix + 3] = 255;
     }
   }
 }
@@ -343,7 +343,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const tool = newEffect.tool || currentTool;
   let mag, phase;
   if (tool === "blur") {
-    const binCenter = Math.round(displayYToBin(bin, specHeight));
+    const binCenter = Math.round(displayYToBin(bin, specHeight, currentChannel));
     const r = newEffect.blurRadius;
     const x0 = Math.max(0, x - r);
     const x1 = Math.min(specWidth - 1, x + r);
@@ -416,7 +416,7 @@ function commitShape(cx, cy) {
     function dp(xFrame, yDisplay, mag, phase, bo, po){
       if (currentTool === "blur") {
         // map displayY to the nearest bin once
-        const binCenter = Math.round(displayYToBin(yDisplay, fullH));
+        const binCenter = Math.round(displayYToBin(yDisplay, fullH, currentChannel));
         const r = blurRadius | 0;
         const x0 = Math.max(0, xFrame - r);
         const x1 = Math.min(fullW - 1, xFrame + r);
@@ -436,8 +436,8 @@ function commitShape(cx, cy) {
       const minX = x0Frame;
       const maxX = x1Frame;
 
-      let binA = displayYToBin(y0Spec, fullH);
-      let binB = displayYToBin(y1Spec, fullH);
+      let binA = displayYToBin(y0Spec, fullH, currentChannel);
+      let binB = displayYToBin(y1Spec, fullH, currentChannel);
       if (binA > binB) { const t = binA; binA = binB; binB = t; }
 
       binA = Math.max(0, Math.min(fullH - 1, Math.round(binA)));
@@ -445,7 +445,7 @@ function commitShape(cx, cy) {
 
       for (let xx = minX; xx <= maxX; xx++) {
         for (let bin = binA; bin <= binB; bin++) {
-          const displayY = binToDisplayY(bin, fullH);
+          const displayY = binToDisplayY(bin, fullH,currentChannel);
           dp(xx, displayY, brushMag, brushPhase, bo, po);
         }
       }
@@ -491,9 +491,9 @@ function commitShape(cx, cy) {
   renderView();
 }
 
-function ftvsy(f) {// frequency to visible spectrogram Y
+function ftvsy(f,ch) {// frequency to visible spectrogram Y
   const h = specHeight;
-  const s = parseFloat(logScaleVal);
+  const s = parseFloat(logScaleVal[ch]);
   let bin = f / (sampleRate / fftSize);
   let cy;
   if (s <= 1.0000001) {
@@ -596,7 +596,7 @@ function paint(cx, cy) {
         if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
 
         // map display Y to bin center (rounded)
-        const binCenter = Math.round(displayYToBin(yy, fullH));
+        const binCenter = Math.round(displayYToBin(yy, fullH, currentChannel));
         const r = blurRadius | 0;
         const x0 = Math.max(0, xx - r);
         const x1 = Math.min(fullW - 1, xx + r);

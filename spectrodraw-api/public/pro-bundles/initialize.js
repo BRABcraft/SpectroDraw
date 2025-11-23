@@ -7,6 +7,7 @@ const fileEl=document.getElementById("file");
 // let yctx=yAxis.getContext("2d");
 // let timeline = document.getElementById('timeline-0');
 // let tctx = timeline.getContext('2d');
+//const logscaleEl = document.getElementById("logscale");
 const status=document.getElementById("status");
 const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
@@ -18,7 +19,6 @@ const blurRadiusEl=document.getElementById("blurRadius");
 const ampEl=document.getElementById("amp");
 const noiseRemoveFloorEl=document.getElementById("noiseRemoveFloor");
 const penPhaseEl=document.getElementById("penPhase");
-const logscaleEl = document.getElementById("logscale");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
 const phaseTextureEl = document.getElementById("phaseTexture");
 const recordBtn = document.getElementById("rec");
@@ -106,7 +106,7 @@ let fLow = null;
 let fHigh = null;
 // let specCanvas = document.createElement("canvas");
 // let specCtx = specCanvas.getContext("2d");
-let logScaleVal = 1.12;
+let logScaleVal = [1.12];
 
 let mags = null;     
 let phases = null;   
@@ -178,9 +178,14 @@ let handlers = {
     el.addEventListener('wheel', makeWheelZoomHandler(el, {zoomTimeline:false, zoomYAxis:true}), {passive:false});
     el.addEventListener("mousedown", (e) => {yAxisMousedown(e,false);});
     el.addEventListener("touchstart", (e) => {yAxisMousedown(e,false);});
+  },
+  "logscale-": (el) => {
+    el.addEventListener("mousedown", e=> {logScaleMouseDown(e,false,el);});
+    el.addEventListener("touchstart", e=> {logScaleMouseDown(e,true,el);});
+    el.addEventListener("mousemove", e=> {el.title = "Log scale: " + el.value;currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);});
+    el.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
   }
 }
-
 
 //GLOBAL HELPER FUNCTIONS
 

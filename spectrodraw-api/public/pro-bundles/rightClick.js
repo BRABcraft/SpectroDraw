@@ -15,8 +15,8 @@ function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
     const idx = x*specHeight + y
     mags[idx] = mag;
     phases[idx] = phase;
-    const topEdge = binToDisplayY(y - 0.5, specHeight);
-    const botEdge = binToDisplayY(y + 0.5, specHeight);
+    const topEdge = binToDisplayY(y - 0.5, specHeight,currentChannel);
+    const botEdge = binToDisplayY(y + 0.5, specHeight,currentChannel);
 
     // ensure proper ordering (display coordinates may invert with freq mapping)
     const yTopF = Math.min(topEdge, botEdge);
@@ -237,6 +237,7 @@ const TOOLS = ['brush','rectangle','line','blur','eraser','amplifier','image'];
 
 //Need to remove the up/down arrow in the inputs
 function makeCanvasMenu(cx0, cy0){
+  const canvas = document.getElementById("canvas-"+currentChannel);
   const rect = canvas.getBoundingClientRect();
   const cx = cx0 * canvas.width / rect.width + iLow;
   const cy = cy0 * canvas.height / rect.height;
@@ -418,13 +419,13 @@ function makeTimelineMenu(){
   return menu;
 }
 
-function lsc(f,h=(sampleRate/2)){
+function lsc(f,h=(sampleRate/2),logScaleVal){
   f*=(sampleRate/2)/h;
   const denom = Math.log(1 + (logScaleVal-0.999999999) * specHeight);
   const t = Math.log(1 + (logScaleVal-0.999999999) * (f / (sampleRate / fftSize))) / denom;
   return Math.floor(t*h);
 }
-function invlsc(y,h=(sampleRate/2)){
+function invlsc(y,h=(sampleRate/2),logScaleVal){
   y*=(sampleRate/2)/h;
   const denom = Math.log(1 + (logScaleVal-0.999999999) * specHeight);
   const t = (2 * y) / sampleRate;
@@ -470,7 +471,7 @@ function makeYAxisMenu(){
   if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', invlsc(fHigh), fLow, sampleRate/2, 1); // assume 20kHz upper limit
 
   // replace log scale row
-  if(logItem) logItem.innerHTML = makeSliderRow('Log scale', Number(logScaleVal), 1, 2, 0.01);
+  if(logItem) logItem.innerHTML = makeSliderRow('Log scale', Number(logScaleVal[currentChannel]), 1, 2, 0.01);
 
   // wiring helpers
   function wireSliderRow(itemEl, getValue, setValue, minVal, maxVal){
@@ -494,9 +495,10 @@ function makeYAxisMenu(){
 
   wireSliderRow(minItem, ()=>fLow, v=>{ fLow=v; if(v>fHigh) fHigh=v; }, 0, fHigh);
   wireSliderRow(maxItem, ()=>fHigh, v=>{ fHigh=v; if(v<fLow) fLow=v; }, fLow, sampleRate/2);
-  wireSliderRow(logItem, ()=>Number(logscaleEl.value), v=>{
+  wireSliderRow(logItem, ()=>Number(document.getElementById("logscale-"+currentChannel).value), v=>{
+    const logscaleEl = document.getElementById("logscale-"+currentChannel);
     logscaleEl.value = v;
-    logScaleVal = v;
+    logScaleVal[currentChannel] = v;
     logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
     buildBinDisplayLookup();
     restartRender();
@@ -549,7 +551,7 @@ function wireSliderRow(itemEl, getValue, setValue, minVal, maxVal){
 }
 
 function makeLogscaleMenu() {
-  const value = logScaleVal;
+  const value = logScaleVal[currentChannel];
   const items = [
     { type: 'input', label: 'Logscale', value: value },
     { label:'Reset', onClick:()=>apply(1.12) }
@@ -580,13 +582,15 @@ function makeLogscaleMenu() {
 
   const apply = (v) => {
     const val = Math.max(1, Math.min(2, Number(v)));
+    const logscaleEl = document.getElementById("logscale-"+currentChannel);
     logscaleEl.value = val;
-    logScaleVal = val;
+    logScaleVal[currentChannel] = val;
     slider.value = numberInput.value = val;
     logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
     buildBinDisplayLookup();
     drawYAxis();
     restartRender();
+    renderSpectrogramColumnsToImageBuffer(0,framesTotal,currentChannel);
   };
 
   slider.addEventListener('input', e => apply(e.target.value));
@@ -650,7 +654,6 @@ function preventAndOpen(e, menuFactory){
 }
 
 // attach plain contextmenu to logscaleEl too:
-logscaleEl && logscaleEl.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
 EQcanvas && EQcanvas.addEventListener('contextmenu', (e)=> {
     const rect = EQcanvas.getBoundingClientRect();
     const cx = Math.floor((e.clientX - rect.left));

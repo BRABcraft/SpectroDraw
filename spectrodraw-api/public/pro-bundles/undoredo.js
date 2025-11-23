@@ -8,7 +8,7 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;
-
+  
   const marginCols = Math.ceil(fftSize / hop) + 2;
   const colFirst = Math.max(0, colStart - marginCols);
   const colLast  = Math.min(specWidth - 1, colEnd + marginCols);
@@ -104,6 +104,7 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
 
     // write back into channel PCM
     channel.pcm.set(newSegment, sampleStart);
+    console.log('107');
     // Re-render the spectrogram columns affected
     renderSpectrogramColumnsToImageBuffer(colFirst, colLast, ch);
   } // end channel loop
@@ -129,7 +130,7 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
 
   for (let xx = colStart; xx <= colEnd; xx++) {
     for (let yy = 0; yy < h; yy++) {
-      const bin = displayYToBin(yy, h);
+      const bin = displayYToBin(yy, h, ch);
       const idx = xx * h + bin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;

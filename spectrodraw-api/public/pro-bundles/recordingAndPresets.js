@@ -32,31 +32,36 @@ function initEmptyPCM() {
 }
 
 async function onReset() {
-  snapshotMags=mags;
-  snapshotPhases=phases;
+  for (let ch=0;ch<channelCount;ch++){
+    channels[ch].snapshotMags=channels[ch].mags;
+    channels[ch].snapshotPhases=channels[ch].phases;
+  }
   await initEmptyPCM();
   minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
   sprites = []; movingSprite=false;mvsbtn.classList.toggle('moving', movingSprite);renderSpritesTable('reset');
 }
 function drawLogScale() {
-  const lctx = logscaleEl.getContext("2d");
+  for (let ch=0;ch<channelCount;ch++){
+    const logscaleEl = document.getElementById("logscale-"+ch);
+    const lctx = logscaleEl.getContext("2d");
 
-  const w = 40, h = 40;
-  lctx.clearRect(0, 0, w, h);
+    const w = 40, h = 40;
+    lctx.clearRect(0, 0, w, h);
 
-  lctx.beginPath();
-  const steps = 40;
-  for (let i = 0; i <= steps; i++) {
-    const x = i / steps;              
-    const y = 1-Math.pow(0-(x-1), Math.pow(logScaleVal,2)); 
-    const px = x * w;                 
-    const py = h - y * h;             
-    if (i === 0) lctx.moveTo(px, py);
-    else lctx.lineTo(px, py);
+    lctx.beginPath();
+    const steps = 40;
+    for (let i = 0; i <= steps; i++) {
+      const x = i / steps;              
+      const y = 1-Math.pow(0-(x-1), Math.pow(logScaleVal[ch],2)); 
+      const px = x * w;                 
+      const py = h - y * h;             
+      if (i === 0) lctx.moveTo(px, py);
+      else lctx.lineTo(px, py);
+    }
+    lctx.strokeStyle = "white";
+    lctx.lineWidth = 3;
+    lctx.stroke();
   }
-  lctx.strokeStyle = "white";
-  lctx.lineWidth = 3;
-  lctx.stroke();
 }
 let changingLogScale = false;
 function getMouseXY(e,touch) {
@@ -66,35 +71,23 @@ function getMouseXY(e,touch) {
     return [e.clientX, e.clientY];
   }
 }
-logscaleEl.addEventListener("mousedown", e=> {
-  logScaleMouseDown(e,false);
-});
-logscaleEl.addEventListener("touchstart", e=> {
-  logScaleMouseDown(e.true);
-});
-function logScaleMouseDown(e,touch) {
+
+function logScaleMouseDown(e,touch,logscaleEl) {
   if (e.button !== 0) return;
-  const rect= logscaleEl.getBoundingClientRect();
   changingLogScale = true;
   [startX, startY] = getMouseXY(e,touch);
   buildBinDisplayLookup();
   renderFullSpectrogramToImage();
   drawLogScale();
 }
-logscaleEl.addEventListener("mousedown", e=> {
-  logScaleMouseDown(e,false);
-});
-logscaleEl.addEventListener("touchstart", e=> {
-  logScaleMouseDown(e,true);
-});
 
 function logScaleMouseMove(e,touch) {
+  const logscaleEl = document.getElementById("logscale-"+currentChannel);
   logscaleEl.style.cursor = "n-resize";
   if (!changingLogScale) return;
-  const rect= logscaleEl.getBoundingClientRect();
-  logScaleVal -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
-  if (logScaleVal < 1) logScaleVal = 1;
-  if (logScaleVal > 2) logScaleVal = 2;
+  logScaleVal[currentChannel] -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
+  if (logScaleVal[currentChannel] < 1) logScaleVal[currentChannel] = 1;
+  if (logScaleVal[currentChannel] > 2) logScaleVal[currentChannel] = 2;
   [startX, startY] = getMouseXY(e,touch);
   buildBinDisplayLookup();
   renderFullSpectrogramToImage();
@@ -107,10 +100,6 @@ document.addEventListener("mousemove", e=> {
 });
 document.addEventListener("touchmove", e=> {
   logScaleMouseMove(e,true);
-});
-
-logscaleEl.addEventListener("mousemove", e=> {
-  logscaleEl.title = "Log scale: " + logScaleVal;
 });
 
 document.addEventListener("mouseup", e=>{changingLogScale=false;})
@@ -465,7 +454,9 @@ function updateChannels(){
       snapshotMags: [],
       snapshotPhases: []
     });
+    logScaleVal.push(1.12);
   }
   restartRender(false);
+  for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
   renderFullSpectrogramToImage();
 }

@@ -17,6 +17,7 @@ function restartRender(autoPlay){
   const wrapper = document.getElementById("canvasWrapper");
   wrapper.innerHTML = "";
   imageBuffer = new Array(channelCount);
+  if (currentChannel >= channelCount) currentChannel = channelCount-1;
   for (let ch = 0; ch < channelCount; ch++){
     const timeline = document.createElement("canvas");
     timeline.id = `timeline-${ch}`;
@@ -26,7 +27,7 @@ function restartRender(autoPlay){
     // main canvas
     const canvas = document.createElement("canvas");
     canvas.id = `canvas-${ch}`;
-    canvas.style.cssText = "cursor:crosshair;position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
+    canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
     wrapper.appendChild(canvas);
 
     // overlay
@@ -40,6 +41,12 @@ function restartRender(autoPlay){
     yAxis.id = `freq-${ch}`;
     yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
     wrapper.appendChild(yAxis);
+    
+    // logscale
+    const logscaleEl = document.createElement("canvas");
+    logscaleEl.id = `logscale-${ch}`;logscaleEl.width=40;logscaleEl.height=40;
+    logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
+    wrapper.appendChild(logscaleEl);
 
     // specCanvas bar
     const specCanvas = document.createElement("canvas"); specCanvas.style="display:none;"
@@ -97,6 +104,7 @@ function restartRender(autoPlay){
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
   addEventListeners();
+  buildBinDisplayLookup();
 
   let startFrame = calcMinMaxCol().minCol;
   if (startFrame == Infinity) startFrame = 0;
@@ -149,11 +157,11 @@ function rgbToMagPhase(r, g, b) {
   return [mag, phase];
 }
 
-function getLogScaleSlider() { return Math.max(1, parseFloat(logScaleVal) || 1); }
+function getLogScaleSlider(ch) { return Math.max(1, parseFloat(logScaleVal[ch]) || 1); }
 
-function binToDisplayY(bin, h) {
+function binToDisplayY(bin, h,ch) {
     if (!h) return 0;
-    const s = getLogScaleSlider();
+    const s = getLogScaleSlider(ch);
     if (s <= 1.0000001) {
         return Math.round(h - 1 - bin); 
     } else {
@@ -166,9 +174,9 @@ function binToDisplayY(bin, h) {
     }
 }
 
-function displayYToBin(y, h) {
+function displayYToBin(y, h, ch) {
     if (!h) return 0;
-    const s = getLogScaleSlider();
+    const s = getLogScaleSlider(ch);
     if (s <= 1.0000001) {
         return Math.max(0, Math.min(h - 1, Math.round(h - 1 - y)));
     } else {
@@ -201,7 +209,7 @@ function drawFrame(w,h) {
     }
     const skipY = (recording?4:1)*channels;
     for (let yy = 0; yy < h; yy+=skipY) {
-      const mappedBin = displayYToBin(yy, h);
+      const mappedBin = displayYToBin(yy, h, currentChannel);
       const idx = x * h + mappedBin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;
@@ -218,53 +226,51 @@ function drawFrame(w,h) {
   
   pos += hop; x++;
   audioProcessed += hop;
-  //for (let ch = 0; ch<channels.length; ch++){
   ch = currentChannel;
-    if (x >= (maxCol==0?w:maxCol)) {
-      const c = channels[ch];
-      let mags = c.mags, phases = c.phases, snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
-      rendering = false;
-      if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
-        pendingHistory = false; 
+  if (x >= (maxCol==0?w:maxCol)) {
+    const c = channels[ch];
+    let mags = c.mags, phases = c.phases, snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
+    rendering = false;
+    if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
+      pendingHistory = false; 
 
-        newHistory(); 
+      newHistory(); 
 
-        const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
-        if (!pendingRecomputeDone) {
-          if (lastEntry) {
-            recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
-          }
-        } else {
-
-          pendingRecomputeDone = false;
-          pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
+      const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
+      if (!pendingRecomputeDone) {
+        if (lastEntry) {
+          recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
         }
+      } else {
 
-        snapshotMags = null;
-        snapshotPhases = null;
-      }
-      if (pendingPlayAfterRender) {
-        pendingPlayAfterRender = false;
-        try {
-          playing = true;
-          playPause.innerHTML = pauseHtml;
-          playPCM(false,currentFrame<specWidth*0.8?minCol:0); 
-        } catch (e) { console.warn("playPCM() failed after render:", e); }
-        const playPauseEl = document.getElementById("playPause");
-        if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
+        pendingRecomputeDone = false;
+        pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
       }
 
-      if (!painting && autoPlayOnFinish) {
-        autoPlayOnFinish = false;
+      snapshotMags = null;
+      snapshotPhases = null;
+    }
+    if (pendingPlayAfterRender) {
+      pendingPlayAfterRender = false;
+      try {
         playing = true;
         playPause.innerHTML = pauseHtml;
-        playPCM(true,currentFrame<specWidth*0.8?minCol:0);
-      }
-      status.style.display = "none";
-      minCol = Infinity;
-      return false;
+        playPCM(false,currentFrame<specWidth*0.8?minCol:0); 
+      } catch (e) { console.warn("playPCM() failed after render:", e); }
+      const playPauseEl = document.getElementById("playPause");
+      if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
     }
-  //}
+
+    if (!painting && autoPlayOnFinish) {
+      autoPlayOnFinish = false;
+      playing = true;
+      playPause.innerHTML = pauseHtml;
+      playPCM(true,currentFrame<specWidth*0.8?minCol:0);
+    }
+    status.style.display = "none";
+    minCol = Infinity;
+    return false;
+  }
   return true;
 }
 
@@ -468,7 +474,7 @@ function renderFullSpectrogramToImage() {
   const w = specWidth, h = specHeight;
   for(let xx=0; xx<w; xx++){
     for(let yy=0; yy<h; yy++){
-      const bin = displayYToBin(yy, h);
+      const bin = displayYToBin(yy, h, currentChannel);
       const idx = xx * h + bin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;

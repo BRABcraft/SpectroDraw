@@ -27,8 +27,6 @@ function getSpriteById(id) {
 
 // Render the sprites table
 function renderSpritesTable() {
-  const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
-  const overlayCtx = overlayCanvas.getContext("2d");
   const tbody = document.getElementById('spriteTableBody');
   tbody.innerHTML = '';
   if (sprites.length == 0) {
@@ -106,6 +104,8 @@ function renderSpritesTable() {
     });
 
     tr.addEventListener("mouseout", () => {
+      const overlayCanvas = document.getElementById("overlay-"+sprite.ch);
+      const overlayCtx = overlayCanvas.getContext("2d");
       overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     });
 
@@ -288,7 +288,7 @@ function updateSpriteEffects(spriteId, newEffect) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
 
-  const mags = channels[0].mags, phases = channels[0].phases;
+  const mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
   // keep a copy of the old effect to detect instant zeroing
   const oldEffect = Object.assign({}, sprite.effect || {});
 
@@ -350,6 +350,7 @@ function updateSpriteEffects(spriteId, newEffect) {
   // Recompute PCM for the expanded area and restart render / audio
   recomputePCMForCols(recomputeMin, recomputeMax);
   restartRender(false);
+  renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,sprite.ch);
 
   // keep previous behaviour for audio restart
   if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
@@ -373,6 +374,7 @@ function toggleSpriteEnabled(spriteId, enable) {
   if (!sprite) return;
   let minCol = Math.max(0, sprite.minCol || 0);
   let maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
+  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
 
   // apply prev (disable) or next (enable)
   if (enable) {
@@ -392,8 +394,9 @@ function toggleSpriteEnabled(spriteId, enable) {
     });
     sprite.enabled = false;
   }
+  renderSpectrogramColumnsToImageBuffer(minCol,maxCol,sprite.ch);
+  //restartRender(false);
   recomputePCMForCols(minCol, maxCol);
-  restartRender(false);
   if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
     // toggleSpriteEnabled(spriteId+1, getSpriteById(spriteId+1).enabled);
   } else {
@@ -413,6 +416,7 @@ function moveSprite(spriteId, dx, dy) {
   // old range (may be Infinity if empty)
   const oldMinCol = sprite.minCol;
   const oldMaxCol = sprite.maxCol;
+  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
 
   // 1) restore prev values at old positions (keep same behaviour)
   forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
@@ -438,8 +442,9 @@ function moveSprite(spriteId, dx, dy) {
 
       const nx = oldX + dx;
       const f = sampleRate / fftSize;
-      const ny = Math.floor(invlsc(lsc(oldY * f) + dy * f) / f);
-      const ny1 = Math.floor(invlsc(lsc((oldY + 1) * f) + dy * f) / f);
+      const $s = sampleRate/2, $l = logScaleVal[sprite.ch];
+      const ny  = Math.floor(invlsc(lsc(oldY * f,$s,$l) + dy * f,$s,$l) / f);
+      const ny1 = Math.floor(invlsc(lsc(oldY*f+f,$s,$l) + dy * f,$s,$l) / f);
 
       if (nx < 0 || nx >= specWidth || ny < 0 || ny1 >= specHeight) {
         continue; // out of bounds
@@ -503,6 +508,7 @@ function moveSprite(spriteId, dx, dy) {
 
   // Only restart render / audio if necessary
   restartRender(false);
+  renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,sprite.ch);
 
   if (playing) {
     stopSource(true);
@@ -519,6 +525,7 @@ function deleteSprite(spriteId) {
   const idx = getSpriteIndexById(spriteId);
   if (idx === -1) return;
   const sprite = sprites[idx];
+  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
 
   // restore prev values
   forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
@@ -533,6 +540,7 @@ function deleteSprite(spriteId) {
   sprites.splice(idx, 1);
   recomputePCMForCols(minCol, maxCol);
   restartRender(false);
+  renderSpectrogramColumnsToImageBuffer(minCol,maxCol,sprite.ch);
 
   if (playing) {
     stopSource(true);
@@ -554,10 +562,10 @@ mvsbtn.addEventListener('click', () => {
   movingSprite = !movingSprite;
   mvsbtn.classList.toggle('moving', movingSprite);
   if (movingSprite) {
-    canvas.style.cursor = 'grabbing';
+    document.getElementById("canvas-"+currentChannel).style.cursor = 'grabbing';
     mvsbtn.innerText = 'Moving Sprite';
   } else {
-    canvas.style.cursor = 'crosshair';
+    document.getElementById("canvas-"+currentChannel).style.cursor = 'crosshair';
     mvsbtn.innerText = 'Move Sprite';
   }
 });
@@ -964,7 +972,7 @@ function generateSpriteOutlinePath(sprite, options = {}) {
   // keep the same transformation you used previously so behaviour remains identical.
   //*((sampleRate/2)/fWidth)+fLow/(sampleRate/fftSize)
   const shift = fLow/(sampleRate/2)*specHeight;
-  const finalPointsArr = finalPoints.map(p => ({ x: p.x, y: specHeight-((lsc(p.y,specHeight)-shift)*((sampleRate/2)/fWidth))}));
+  const finalPointsArr = finalPoints.map(p => ({ x: p.x, y: specHeight-((lsc(p.y,specHeight,logScaleVal[sprite.ch])-shift)*((sampleRate/2)/fWidth))}));
   const connections = [];
   for (let i = 0; i < finalPointsArr.length; i++) connections.push([i, (i + 1) % finalPointsArr.length]);
 
@@ -974,7 +982,8 @@ function generateSpriteOutlinePath(sprite, options = {}) {
     points: finalPointsArr,
     connections,
     areaPixels,
-    bounds
+    bounds,
+    ch:sprite.ch
   };
 }
 
@@ -1303,7 +1312,7 @@ function renderSpriteFade() {
 function processSpriteFade() {
   const s = getSpriteById(selectedSpriteId);
   if (!s) return;
-  const mags = channels[0].mags;
+  const mags = channels[s.ch].mags;
 
   // build a significant-sprite and bail if nothing significant
   const sigSprite = formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));

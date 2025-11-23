@@ -356,6 +356,7 @@ window.addEventListener('beforeunload', function (e) {
 // Make sure you include JSZip in your HTML:
 // <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
+// --- saveProject (updated) ---
 async function saveProject() {
   // helper to delta-encode a Float32Array with quantization
   function deltaEncode(typedArr, decimals) {
@@ -375,6 +376,32 @@ async function saveProject() {
     return out;
   }
 
+  // Build channels array to save. Prefer existing global `channels` if present,
+  // otherwise fall back to using top-level mags/phases for channel 0.
+  const outChannels = new Array(Math.max(0, channelCount || 0));
+  const srcChannels = (typeof channels !== "undefined" && Array.isArray(channels)) ? channels : null;
+
+  for (let i = 0; i < outChannels.length; ++i) {
+    let src = null;
+    if (srcChannels && srcChannels[i]) {
+      src = srcChannels[i];
+    } else {
+      // fallback: place top-level mags/phases into channel 0
+      if (i === 0 && typeof mags !== "undefined" && (mags || phases)) {
+        src = { mags: mags || null, phases: phases || null };
+      } else {
+        src = { mags: null, phases: null };
+      }
+    }
+
+    // Quantize & delta-encode per-channel (keep only mags & phases in saved file)
+    const encoded = {
+      mags: src.mags ? deltaEncode(src.mags, 8) : null,     // 8 decimals
+      phases: src.phases ? deltaEncode(src.phases, 3) : null // 3 decimals
+    };
+    outChannels[i] = encoded;
+  }
+
   const project = {
     name: document.getElementById("projectName").value,
     channelCount,
@@ -382,7 +409,7 @@ async function saveProject() {
     hop: hopSizeEl.value,
     bufferLength: emptyAudioLengthEl.value,
     previewWhileDrawing: document.getElementById("previewWhileDrawing").checked,
-    logScale: logscaleEl.value,
+    logScaleVal,
     trueScaleVal,
     useHz,
     iLow,
@@ -391,8 +418,8 @@ async function saveProject() {
     fHigh,
     currentTool,
     currentShape,
-    mags: mags ? deltaEncode(mags, 8) : null,     // 8 decimals
-    phases: phases ? deltaEncode(phases, 3) : null, // 3 decimals
+    // save channels array (each channel only contains mags & phases)
+    channels: outChannels,
     deltaEncoded: true,
     sprites
   };
@@ -415,6 +442,7 @@ async function saveProject() {
 }
 
 
+// --- openProject (updated) ---
 function openProject(file) {
   if (!file) return;
 
@@ -440,24 +468,18 @@ function openProject(file) {
       if (parsed.previewWhileDrawing !== undefined) {
         const pEl = document.getElementById("previewWhileDrawing");
         if (pEl) pEl.checked = !!parsed.previewWhileDrawing;
-        window.previewWhileDrawing = !!parsed.previewWhileDrawing;
       }
-      if (parsed.logScale !== undefined) {
-        if (typeof logscaleEl !== "undefined") logscaleEl.value = parsed.logScale;
-        window.logScale = parsed.logScale;
-      }
+      if (parsed.logScaleVal !== undefined) logScaleVal = parsed.logScaleVal;
       if (parsed.trueScaleVal !== undefined) window.trueScaleVal = parsed.trueScaleVal;
       if (parsed.useHz !== undefined) {
         const uEl = document.getElementById("useHz");
         if (uEl) uEl.checked = !!parsed.useHz;
-        window.useHz = !!parsed.useHz;
+        useHz = !!parsed.useHz;
       }
-
       if (parsed.iLow !== undefined) iLow = parsed.iLow;
       if (parsed.iHigh !== undefined) iHigh = parsed.iHigh;
       if (parsed.fLow !== undefined) fLow = parsed.fLow;
       if (parsed.fHigh !== undefined) fHigh = parsed.fHigh;
-
       if (parsed.currentTool !== undefined) currentTool = parsed.currentTool;
       if (parsed.currentShape !== undefined) currentShape = parsed.currentShape;
 
@@ -475,28 +497,73 @@ function openProject(file) {
         return out;
       }
 
-      // If file was saved with delta encoding (new format), decode.
-      // If not deltaEncoded, assume mags/phases are raw arrays and just convert to Float32Array.
-      if (parsed.mags !== undefined) {
-        if (parsed.deltaEncoded) {
-          mags = deltaDecodeToFloat32(parsed.mags);
-        } else {
-          // older format: raw numeric array
-          mags = parsed.mags ? new Float32Array(parsed.mags) : null;
+      // Reconstruct channels from parsed data
+      const reconstructedChannels = [];
+
+      if (Array.isArray(parsed.channels)) {
+        // New format: channels array present
+        for (let i = 0; i < parsed.channels.length; ++i) {
+          const src = parsed.channels[i] || {};
+          const ch = {
+            mags: null,
+            phases: null,
+            // per request: initialize these as empty lists when opening
+            pcm: new Float32Array(parsed.bufferLength * sampleRate),
+            snapshotMags: [],
+            snapshotPhases: []
+          };
+
+          if (src.mags !== undefined && src.mags !== null) {
+            if (parsed.deltaEncoded) {
+              ch.mags = deltaDecodeToFloat32(src.mags);
+            } else {
+              ch.mags = src.mags ? new Float32Array(src.mags) : null;
+            }
+          }
+          if (src.phases !== undefined && src.phases !== null) {
+            if (parsed.deltaEncoded) {
+              ch.phases = deltaDecodeToFloat32(src.phases);
+            } else {
+              ch.phases = src.phases ? new Float32Array(src.phases) : null;
+            }
+          }
+          reconstructedChannels[i] = ch;
         }
+      } else {
+        // older format: top-level mags/phases saved previously -> convert into channel 0
+        const ch = {
+          mags: null,
+          phases: null,
+          pcm: new Float32Array(parsed.bufferLength * sampleRate),
+          snapshotMags: [],
+          snapshotPhases: []
+        };
+        if (parsed.mags !== undefined && parsed.mags !== null) {
+          if (parsed.deltaEncoded) ch.mags = deltaDecodeToFloat32(parsed.mags);
+          else ch.mags = parsed.mags ? new Float32Array(parsed.mags) : null;
+        }
+        if (parsed.phases !== undefined && parsed.phases !== null) {
+          if (parsed.deltaEncoded) ch.phases = deltaDecodeToFloat32(parsed.phases);
+          else ch.phases = parsed.phases ? new Float32Array(parsed.phases) : null;
+        }
+        reconstructedChannels[0] = ch;
       }
 
-      if (parsed.phases !== undefined) {
-        if (parsed.deltaEncoded) {
-          phases = deltaDecodeToFloat32(parsed.phases);
-        } else {
-          phases = parsed.phases ? new Float32Array(parsed.phases) : null;
-        }
+      // Ensure reconstructedChannels length matches parsed.channelCount (fill with empty channels if needed)
+      const desiredCount = parsed.channelCount || reconstructedChannels.length || 1;
+      while (reconstructedChannels.length < desiredCount) {
+        reconstructedChannels.push({ mags: null, phases: null, pcm: [], snapshotMags: [], snapshotPhases: [] });
+      }
+      if (reconstructedChannels.length > desiredCount) {
+        reconstructedChannels.length = desiredCount;
       }
 
+      // Expose reconstructed channels to app globals
+      channels = reconstructedChannels;
       if (parsed.sprites !== undefined) sprites = parsed.sprites;
 
-      recomputePCMForCols(0, Math.floor(parsed.bufferLength*sampleRate/parsed.hop));
+      recomputePCMForCols(0, Math.floor(parsed.bufferLength * sampleRate / parsed.hop));
+      console.log(channelCount,channels,Math.floor(parsed.bufferLength * sampleRate / parsed.hop));
 
       window.dispatchEvent(new CustomEvent("projectLoaded", { detail: parsed }));
 
@@ -516,6 +583,7 @@ function openProject(file) {
 
   reader.readAsArrayBuffer(file);
 }
+
 
 
 

@@ -14,7 +14,7 @@ let sineOsc = null;
 let sineGain = null;
 function getSineFreq(cy) {
     const h = specHeight;
-    const s = parseFloat(logScaleVal); 
+    const s = parseFloat(logScaleVal[currentChannel]); 
     let bin;
     if (s <= 1.0000001) {
         bin = h - 1 - cy;
@@ -58,7 +58,6 @@ function canvasMouseDown(e,touch) {
   if (pendingHistory) return;
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
-  let snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases=channels[currentChannel].snapshotPhases;
   const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
   const overlayCtx = overlayCanvas.getContext("2d");//CHANGE LATER
   startX = cx; startY = cy;
@@ -67,8 +66,8 @@ function canvasMouseDown(e,touch) {
     spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
     return;
   } else {
-    snapshotMags = new Float32Array(mags);
-    snapshotPhases = new Float32Array(phases);
+    channels[currentChannel].snapshotMags = new Float32Array(mags);
+    channels[currentChannel].snapshotPhases = new Float32Array(phases);
 
     visited = new Uint8Array(mags.length);
     stopSource();
@@ -106,7 +105,8 @@ function canvasMouseDown(e,touch) {
       ],
       spriteFade: [],
       prevSpriteFade: [],
-      name
+      name,
+      ch: currentChannel
     };
     sprites.push(currentSprite);
 
@@ -242,23 +242,23 @@ function canvasMouseUp(e,touch) {
 let minCol = Infinity; maxCol = -Infinity;
 function calcMinMaxCol() {
   if (minCol != Infinity) return {minCol,maxCol};
-  let mags = channels[currentChannel].mags, phases = channels[currentChannel].phases, snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;//CHANGE LATER
+  const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases, snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;//CHANGE LATER
   if (snapshotMags == null || snapshotMags.length != mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
-  const epsMag = 1e-6;
-  const epsPhase = 1e-3;
+  const epsMag = 1e-3;
+  const epsPhase = 1e-2;
   const h = specHeight;
   const total = mags.length;
   for (let idx = 0; idx < total; idx++) {
-    const oldM = (snapshotMags) ? snapshotMags[idx] : 0;
-    const newM = mags[idx] ?? 0;
+    const oldM = snapshotMags[idx];
+    const newM = mags[idx];
     if (Math.abs(oldM - newM) > epsMag) {
       const col = Math.floor(idx / h);
       if (col < minCol) minCol = col;
       if (col > maxCol) maxCol = col;
       continue;
     }
-    const oldP = (snapshotPhases) ? snapshotPhases[idx] : 0;
-    const newP = phases[idx] || 0;
+    const oldP = snapshotPhases[idx];
+    const newP = phases[idx];
     if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
       const col = Math.floor(idx / h);
       if (col < minCol) minCol = col;

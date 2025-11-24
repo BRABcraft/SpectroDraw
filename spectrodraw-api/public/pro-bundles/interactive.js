@@ -436,23 +436,43 @@ async function playPCM(loop = true, startFrame = null) {
   stopSource(true);
 
   sourceNode = audioCtx.createBufferSource();
-  const buffer = audioCtx.createBuffer(channelCount, totalSamples, sampleRate);
 
-  // Copy each channel's pcm into the AudioBuffer. If a channel is shorter, leave the remainder as silence (it's already zero).
+  // We mix all logical channels into a stereo output buffer according to channels[ch].audioDevice
+  const outChannels = 2; // stereo: 0 = left, 1 = right
+  const buffer = audioCtx.createBuffer(outChannels, totalSamples, sampleRate);
+
+  // get direct access to channel arrays
+  const left = buffer.getChannelData(0);
+  const right = buffer.getChannelData(1);
+
+  // Mix channels into left/right
   for (let ch = 0; ch < channelCount; ch++) {
-    const pcm = channels[ch].pcm;
-    if (pcm) {
-      // If pcm length equals totalSamples, copy directly.
-      if (pcm.length === totalSamples) {
-        buffer.copyToChannel(pcm, ch);
-      } else {
-        // create a temp Float32Array sized to totalSamples and copy pcm into it (rest stays 0)
-        const tmp = new Float32Array(totalSamples);
-        tmp.set(pcm.subarray(0, Math.min(pcm.length, totalSamples)), 0);
-        buffer.copyToChannel(tmp, ch);
+    const chObj = channels[ch];
+    if (!chObj || !chObj.pcm) continue;
+
+    const pcm = chObj.pcm;
+    const device = (chObj.audioDevice || "both").toLowerCase(); // left/right/both/none
+    const vol = (typeof chObj.volume === "number") ? chObj.volume : 1;
+
+    if (device === "none") continue;
+
+    const maxI = Math.min(pcm.length, totalSamples);
+    for (let i = 0; i < maxI; i++) {
+      const s = pcm[i] * vol;
+      if (device === "left") {
+        left[i] += s;
+      } else if (device === "right") {
+        right[i] += s;
+      } else { // "both" or anything else defaults to both
+        left[i] += s;
+        right[i] += s;
       }
-    } // else leave the channel silent
+    }
+    // remainder of pcm (if pcm shorter) => left/right remain unaffected (silence)
   }
+
+  // NOTE: this simple additive mix can clip if summed samples exceed [-1,1].
+  // If you want, we can add normalization or soft clipping here.
 
   sourceNode.buffer = buffer;
   sourceNode.loop = !!loop;
@@ -480,23 +500,35 @@ async function playPCM(loop = true, startFrame = null) {
     try { sourceNode.stop(); } catch(_) {}
     try { sourceNode.disconnect(); } catch(_) {}
 
-    // Create a multi-channel short buffer and copy each channel's remaining samples
-    const shortBuf = audioCtx.createBuffer(channelCount, remaining, sampleRate);
-    for (let ch = 0; ch < channelCount; ch++) {
-      const pcm = (channels[ch] && channels[ch].pcm) ? channels[ch].pcm : null;
-      if (pcm && pcm.length > startSample) {
-        // copy the remaining portion
-        const slice = pcm.subarray(startSample, startSample + remaining);
-        // if slice length < remaining, create temp to pad; otherwise copy directly
-        if (slice.length === remaining) {
-          shortBuf.copyToChannel(slice, ch);
+    // Create a stereo short buffer and copy each channel's remaining samples according to audioDevice
+    const shortBuf = audioCtx.createBuffer(outChannels, remaining, sampleRate);
+    const sLeft = shortBuf.getChannelData(0);
+    const sRight = shortBuf.getChannelData(1);
+
+    for (let ch = 0; ch < channels.length; ch++) {
+      const chObj = channels[ch];
+      if (!chObj || !chObj.pcm) continue;
+
+      const pcm = chObj.pcm;
+      const device = (chObj.audioDevice || "both").toLowerCase();
+      const vol = (typeof chObj.volume === "number") ? chObj.volume : 1;
+
+      if (device === "none") continue;
+      if (startSample >= pcm.length) continue; // nothing left to copy
+
+      const slice = pcm.subarray(startSample, Math.min(pcm.length, startSample + remaining));
+      for (let i = 0; i < slice.length; i++) {
+        const s = slice[i] * vol;
+        if (device === "left") {
+          sLeft[i] += s;
+        } else if (device === "right") {
+          sRight[i] += s;
         } else {
-          const tmp = new Float32Array(remaining);
-          tmp.set(slice, 0);
-          shortBuf.copyToChannel(tmp, ch);
+          sLeft[i] += s;
+          sRight[i] += s;
         }
       }
-      // else leave channel silent for this shortBuf
+      // if slice.length < remaining, the rest stays silent
     }
 
     sourceNode = audioCtx.createBufferSource();
@@ -515,6 +547,7 @@ async function playPCM(loop = true, startFrame = null) {
   playing = true;
   pausedAtSample = null;
 }
+
 
 
 async function playFrame(frameX) {

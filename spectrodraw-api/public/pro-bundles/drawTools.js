@@ -510,8 +510,8 @@ function ftvsy(f,ch) {// frequency to visible spectrogram Y
   return visY;
 }
 function paint(cx, cy) {
-  const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases; //CHANGE LATER
-  const canvas = document.getElementById("canvas-"+currentChannel);//CHANGE LATER
+  const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
+  const canvas = document.getElementById("canvas-"+currentChannel);
   const fullW = specWidth;
   const fullH = specHeight;
   const po = currentTool === "eraser" ? 1 : phaseOpacity;

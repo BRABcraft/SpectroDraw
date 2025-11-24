@@ -12,7 +12,11 @@ function initEmptyPCM() {
         mags: [],
         phases: [],
         snapshotMags: [],
-        snapshotPhases: []
+        snapshotPhases: [],
+        enabled: true,
+        volume: 1,
+        brushPressure: 1,
+        audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none"))
       };
       const newPCM = new Float32Array(length);
       newPCM.set(channels[ch].pcm);
@@ -322,22 +326,19 @@ fileEl.addEventListener("change", async e => {
 
   const buf = await f.arrayBuffer();
 
-  // clear previous snapshot references (we'll rebuild them below)
-  snapshotMags = null;
-  snapshotPhases = null;
-
   ensureAudioCtx();
 
   let ab;
   try {
     ab = await audioCtx.decodeAudioData(buf.slice(0));
     const nChannels = ab.numberOfChannels || 1;
+    channelCount = nChannels; updateChannels();
     sampleRate = ab.sampleRate || 48000;
     fHigh = sampleRate / 2;
     fWidth = fHigh;
 
-    minCol = Infinity;
-    maxCol = 0;
+    minCol = 0;
+    maxCol = ab.getChannelData(0).length/hop;
 
     // build channels[] where each channel holds its own pcm/mags/phases/snapshots
     channels = new Array(nChannels);
@@ -347,16 +348,23 @@ fileEl.addEventListener("change", async e => {
         mags: [],
         phases: [],
         snapshotMags: [],
-        snapshotPhases: []
+        snapshotPhases: [],
+        enabled:true,
+        audioDevice: nChannels==1?"both":(ch==0?"left":(ch==1?"right":"none")),
+        volume: 1,
+        brushPressure: 1
       };
     }
 
     status.textContent = `Loaded ${f.name}, ${channels[0].pcm.length} samples @ ${sampleRate} Hz (${nChannels} channel${nChannels>1 ? "s" : ""})`;
     status.style.display = "block";
 
-    await restartRender(true);
-
-    // hop size based on channel 0 length (all channels same length normally)
+    restartRender(false);
+    async function waitFor(fn, interval = 10) {while (!fn()) await new Promise(r => setTimeout(r, interval));}
+    await waitFor(() => channels[0].mags.length > 0);
+    const ft = Math.ceil(ab.getChannelData(0).length/hop);
+    for(let ch=0;ch<nChannels;ch++)renderSpectrogramColumnsToImageBuffer(0,ft,ch);
+    
     const t = channels[0].pcm.length / sampleRate;
     hopSizeEl.value = t < 0.5 ? 128 : (t < 5 ? 512 : 1024);
 
@@ -457,12 +465,13 @@ function updateChannels(){
       snapshotPhases: [],
       enabled: true,           // default props we will sync with UI
       volume: 1,
-      brushPressure: 1
+      brushPressure: 1,
+      audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none"))
     });
     logScaleVal.push(1.12);
-
-    // === DOM for the new channel ===
-    const ch = channels.length - 1; // new channel index
+  }
+  document.getElementById('channelsMixerDiv').innerHTML="";
+  for (let ch=0;ch<channelCount;ch++){
     const mixerDiv = document.getElementById('channelsMixerDiv');
     if (!mixerDiv) {
       console.warn('channelsMixerDiv not found in DOM');
@@ -473,26 +482,28 @@ function updateChannels(){
     wrapper.className = 'channelWrapper';
     wrapper.dataset.channel = ch;
     wrapper.innerHTML = `
-      <div class="slider-row">
+      <div style="display:flex;gap:10px;margin-top:5px;">
         <b>Channel ${ch}</b>
         <input id="channelEnable-${ch}" type="checkbox" checked aria-label="Enable channel ${ch}">
+        <label class="h2" style="margin-left:60px;" id="speakerLabel${ch}">Speaker</label>
+        <select id="audioDevices-${ch}" class="channel-audio-devices" aria-label="Audio device for channel ${ch}">
+          <option value="left"${channels[ch].audioDevice=="left"?"selected":""}>Left</option>
+          <option value="right"${channels[ch].audioDevice=="right"?"selected":""}>Right</option>
+          <option value="both"${channels[ch].audioDevice=="both"?"selected":""}>Both</option>
+          <option value="none"${channels[ch].audioDevice=="none"?"selected":""}>None</option>
+        </select>
       </div>
-
-      <div class="slider-row">
-        <label class="h2">Audio Device</label>
-        <select id="audioDevices-${ch}" class="channel-audio-devices" aria-label="Audio device for channel ${ch}"></select>
-      </div>
-
-      <div class="slider-row" title="Channel Volume">
-        <label class="h2">Volume</label>
-        <input id="channelVolume-${ch}" type="range" min="0" max="1.25" step="0.01" value="${channels[ch].volume}">
-        <input id="channelVolumeInput-${ch}" type="number" value="${channels[ch].volume}" min="0" max="1.25" step="0.01">
-      </div>
-
-      <div class="slider-row" title="Channel Brush Pressure">
-        <label class="h2">Brush Pressure</label>
-        <input id="channelBrushPressure-${ch}" type="range" min="0" max="1" step="0.01" value="${channels[ch].brushPressure}">
-        <input id="channelBrushPressureInput-${ch}" type="number" value="${channels[ch].brushPressure}" min="0" max="1" step="0.01">
+      <div id="chsliders${ch}">
+        <div class="slider-row" title="Channel Volume">
+          <label class="h2">Volume</label>
+          <input id="channelVolume-${ch}" type="range" min="0" max="1.25" step="0.01" value="${channels[ch].volume}">
+          <input id="channelVolumeInput-${ch}" type="number" value="${channels[ch].volume}" min="0" max="1.25" step="0.01">
+        </div>
+        <div class="slider-row" title="Channel Brush Pressure">
+          <label class="h2">Brush Pressure</label>
+          <input id="channelBrushPressure-${ch}" type="range" min="0" max="1" step="0.01" value="${channels[ch].brushPressure}">
+          <input id="channelBrushPressureInput-${ch}" type="number" value="${channels[ch].brushPressure}" min="0" max="1" step="0.01">
+        </div>
       </div>
     `;
 
@@ -505,25 +516,25 @@ function updateChannels(){
     const volInput = wrapper.querySelector(`#channelVolumeInput-${ch}`);
     const brushRange = wrapper.querySelector(`#channelBrushPressure-${ch}`);
     const brushInput = wrapper.querySelector(`#channelBrushPressureInput-${ch}`);
+    const speakerLabel = document.getElementById("speakerLabel"+ch);
+    const chsliders = document.getElementById("chsliders"+ch);
 
     // keep channel object in sync
     enableEl.addEventListener('change', e => {
       channels[ch].enabled = !!e.target.checked;
+      if (enableEl.checked){
+        audioSelect.classList.remove("disabled");
+        speakerLabel.classList.remove("disabled");
+        chsliders.classList.remove("disabled");
+      } else {
+        audioSelect.classList.add("disabled");
+        speakerLabel.classList.add("disabled");
+        chsliders.classList.add("disabled");
+      }
     });
-
-    // populate audio devices select by cloning a master list if present
-    // (you can maintain a template select with id="audioDevicesTemplate" or a global list)
-    const masterDevices = document.getElementById('audioDevicesTemplate') || document.getElementById('audioDevicesTemplateMaster') || document.querySelector('.audioDevicesMaster');
-    if (masterDevices && masterDevices.options && masterDevices.options.length) {
-      // clone options
-      Array.from(masterDevices.options).forEach(opt => audioSelect.appendChild(opt.cloneNode(true)));
-    } else {
-      // fallback: leave empty or add a default option
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = 'Default';
-      audioSelect.appendChild(opt);
-    }
+    audioSelect.addEventListener('change', e => {
+      channels[ch].audioDevice = audioSelect.value;
+    });
 
     // Volume sync
     const setVolume = v => {
@@ -548,7 +559,16 @@ function updateChannels(){
     // ensure initial values were applied to the channel object
     setVolume(channels[ch].volume);
     setBrush(channels[ch].brushPressure);
-  } // end while
+  }
+  const wrappers = document.querySelectorAll('.channelWrapper');
+
+  wrappers.forEach((wrapper, index) => {
+    if (index < channelCount) {
+      wrapper.style.display = "block";   // show active channels
+    } else {
+      wrapper.style.display = "none";    // hide extras
+    }
+  });
 
   // rest of your existing code...
   document.getElementById("midiChannelSettings").style.display = (channelCount>1)?"block":"none";
@@ -559,23 +579,29 @@ function updateChannels(){
     newOption.textContent = "Channel "+ch;
     newOption.value = ch;
     selectElement.appendChild(newOption);
-  }
+  } 
   channelHeight = (window.innerHeight - 70)/channelCount;
-  const channelHeightEl = document.getElementById('channelHeight').value;
-  channelHeightEl.value = channelHeight; channelHeightEl.max = window.innerHeight - 70;
-  const channelHeightElInput = document.getElementById('channelHeightInput');
-  channelHeightElInput.value = channelHeight; channelHeightElInput.max = window.innerHeight - 70;
-
+  updateChannelHeightInputs();
+  minCol = 0; maxCol = framesTotal;
   restartRender(false);
   for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
   renderFullSpectrogramToImage();
 }
 
+function updateChannelHeightInputs(){
+  const channelHeightEl = document.getElementById('channelHeight');
+  channelHeightEl.value = channelHeight; channelHeightEl.max = window.innerHeight - 70;
+  const channelHeightElInput = document.getElementById('channelHeightInput');
+  channelHeightElInput.value = channelHeight; channelHeightElInput.max = window.innerHeight - 70;
+}
 
-function updateChannelHeight(){
+channelHeight = window.innerHeight - 70;
+updateChannelHeightInputs();
+function updateChannelHeight(newch = null){
+  if (newch !== null) channelHeight = newch;
   function doChangeHeight(name,ch) {
     let style = document.getElementById(name+ch).style;
-    style.top = ((channelHeight*ch)+((name==="timeline-"||name==="logscale-")?0:40)) + "px"; if (name==="canvas-"||name==="freq-")style.height = (channelHeight-40) + "px";
+    style.top = ((channelHeight*ch)+((name==="timeline-"||name==="logscale-")?0:40)) + "px"; if (name==="canvas-"||name==="freq-"||name==="overlay-")style.height = (channelHeight-40) + "px";
   }
   for (let ch=0;ch<channelCount;ch++){
     doChangeHeight("canvas-",ch);
@@ -584,4 +610,5 @@ function updateChannelHeight(){
     doChangeHeight("freq-",ch);
     doChangeHeight("logscale-",ch);
   }
+  drawYAxis();
 }

@@ -466,7 +466,6 @@
       </svg>
     </button>
   </aside>
-
   <aside class="left-panel">
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <!--Project settings-->
@@ -846,7 +845,7 @@
     <!--Channels-->
     <div id="d6" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Channels</h2>
-      <div class="slider-row" title="Channel Display Height">
+      <div class="slider-row" title="Channel Display Height" id="chdiv">
         <label class="h2">Channel height</label>
         <input id="channelHeight" type="range" min="0" max="500" step="1" value="500">
         <input id="channelHeightInput" type="number" value="500" min="0" max="500">
@@ -855,52 +854,21 @@
           <label class="h2">Sync channels</label>
           <input id="syncChannels" type="checkbox">
       </div>
-      <div id="channelsMixerDiv">
-        <div class="channelWrapper">
-          <div class="slider-row">
-            <b>Channel 0</b>
-            <input id="channelEnable" type="checkbox" checked>
-          </div>
-          <div class="slider-row">
-            <label class="h2">Audio Device</label>
-            <select id="audioDevices"></select>
-          </div>
-          <div class="slider-row" title="Channel Volume">
-            <label class="h2">Volume</label>
-            <input id="channelVolume" type="range" min="0" max="1.25" step="0.01" value="1">
-            <input id="channelVolumeInput" type="number" value="1" min="0" max="1.25">
-          </div>
-          <div class="slider-row" title="Channel Brush Pressure">
-            <label class="h2">Brush Pressure</label>
-            <input id="channelBrushPressure" type="range" min="0" max="1" step="0.01" value="1">
-            <input id="channelBrushPressureInput" type="number" value="1" min="0" max="1">
-          </div>
-        </div>
-      </div>
+      <div id="channelsMixerDiv"></div>
     </div>
     <!--Macros-->
     <div id="d7" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Macros</h2>
     </div>
   </aside>
-
-  <main class="main-area">
-    <!-- paste your canvas wrapper here -->
-    <div id="canvasWrapper" style="position:absolute; width:100%;">
-      <canvas id="timeline-0" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
-      <canvas id="canvas-0" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
-      <canvas id="overlay-0" style="background: transparent; position:absolute; left:40px; pointer-events:none; z-index:10; top:40px"></canvas>
-      <canvas id="freq-0" style="width:40px; background:#222; position:absolute; left:0; ; top:40px"></canvas>
-      <canvas id="logscale-0" width=40 height = 40 style="position:absolute; top:0px; background: #111;z-index: 999; top:0px"></canvas>
-    </div>
-  </main>
+  <main class="main-area"><div id="canvasWrapper" style="width:100%; top:0px"></div></main>
 </div>
 <div id="status" style="position:absolute;bottom:0px;"></div>
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
 
-<!-- <script data-manifest="fft.js"></script>
+<script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="ui.js"></script>
 <script data-manifest="sprites.js"></script>
@@ -915,11 +883,11 @@
 <script data-manifest="brushPreview.js"></script>
 <script data-manifest="rightClick.js"></script>
 <script data-manifest="initialRenders.js"></script>
-<script data-manifest="eq.js"></script> -->
+<script data-manifest="eq.js"></script>
 
 <!--Comment out on deploy-->
 
-<link rel="icon" type="image/x-icon" href="favicon.ico">
+<!-- <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="stylesheet" type="text/css" href="style.css">
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
@@ -936,4 +904,4 @@
 <script src="brushPreview.js"></script>
 <script src="rightClick.js"></script>
 <script src="eq.js"></script>
-<script src="initialRenders.js"></script>
+<script src="initialRenders.js"></script> -->

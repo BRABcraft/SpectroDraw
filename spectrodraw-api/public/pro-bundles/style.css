@@ -233,14 +233,19 @@ canvas {
 }
 
 .main-area {
-  grid-column: 3;   /* <-- changed from 2 to 3 */
-  grid-row: 2;
-  position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: stretch;
+  min-height: 0;
+}
+
+#canvasWrapper {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .top-bar .tool-btn,
@@ -563,7 +568,7 @@ select {
 }
 
 /* 🔻 When the entire #spriteEditor is "disabled" */
-#spriteEditor[disabled] {
+#spriteEditor[disabled], #chdiv[disabled] {
   pointer-events: none;      /* block input */
   opacity: 0.5;              /* fade whole block */
 }
@@ -614,9 +619,35 @@ select {
 
 .channelWrapper {
   width: 315px;
-  padding: 4px;
+  padding-left: 4px;
   border-radius: 8px;
   border: 1px solid #666;
   background: #222;
   box-sizing: border-box;
+}
+
+/***************************/
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: none;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+  transition: background-color 0.2s ease; /* IMPORTANT: must be here */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555; /* must match property above */
+}
+
+::-webkit-scrollbar-corner {
+  background: none;
 }

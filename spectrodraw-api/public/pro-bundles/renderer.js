@@ -2,7 +2,7 @@ if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
 fftSizeEl.addEventListener("change",()=>{if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}restartRender();buildBinDisplayLookup();});
 hopSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();});
 
-function restartRender(autoPlay){
+async function restartRender(autoPlay){
   autoPlayOnFinish = !!playing || !!autoPlay;
   fftSize = parseInt(fftSizeEl.value);
   hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
@@ -12,8 +12,13 @@ function restartRender(autoPlay){
   iLow = 0;
   iHigh = framesTotal;
   const freqBins = Math.floor(fftSize / 2);
-  const offsetY = channelHeight;
-
+  
+  const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (window.innerHeight - 70) / freqBins, 1) : channelHeight;
+  if (trueScaleVal) {
+    document.getElementById("chdiv").setAttribute('disabled', 'disabled');
+  } else {
+    document.getElementById("chdiv").removeAttribute('disabled');
+  }
   const wrapper = document.getElementById("canvasWrapper");
   wrapper.innerHTML = "";
   imageBuffer = new Array(channelCount);

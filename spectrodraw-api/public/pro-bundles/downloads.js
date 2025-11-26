@@ -31,6 +31,7 @@ function writeWavHeader(view, sampleRate, numSamples) {
     view.setUint32(40, numSamples * 2, true);
 }
 async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' && curveEQ && curveEQ.bandCount) ? curveEQ.bandCount : 24) {
+  let pcm = channels[0].pcm;
   if (!pcm) throw new Error("No PCM to render.");
   const nyquist = sampleRate * 0.5;
   const fMin = 20;
@@ -117,6 +118,7 @@ async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' &&
 }
 
 document.getElementById('downloadWav').addEventListener('click', async () => {
+  let pcm = channels[0].pcm;
   if (!pcm) return alert('No PCM loaded!');
   try {
     // try to render with EQ; choose bandCount based on curveEQ or use default 24
@@ -170,6 +172,7 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
 document.getElementById('downloadButton').addEventListener('click', function() {
     let oil = iLow; oih = iHigh; ofl = fLow; ofh = fHigh;
     iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2; updateCanvasScroll();
+    const canvas = document.getElementById("canvas-0");//CHANGE LATER
     let canvasUrl = canvas.toDataURL('image/png');
     const downloadLink = document.createElement('a');
     downloadLink.href = canvasUrl;

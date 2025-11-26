@@ -1,14 +1,21 @@
-function initEmptyPCM() {
-    channels = new Array(channelCount);
-    const sampleRateLocal = 48000;
-    let duration = parseFloat(emptyAudioLengthEl.value);
-    if (duration < 0.01) duration = 10;
+async function initEmptyPCM() {
+  if (channels === null) channels = new Array(channelCount);
+  const sampleRateLocal = 48000;
+  let duration = parseFloat(emptyAudioLengthEl.value);
+  if (duration < 0.01) duration = 10;
 
-    const length = Math.floor(sampleRateLocal * duration);
-    const tinyNoiseAmplitude = 0.0001;
+  const length = Math.floor(sampleRateLocal * duration);
+  const tinyNoiseAmplitude = 0.0001;
+  let p = channels[0] ? channels[0].pcm : [];
+  if (length>p.length) {
     for (let ch =0; ch<channelCount;ch++){
+      const newPCM = new Float32Array(length);
+      newPCM.set(p);
+      for (let i = p.length; i < length; i++) {
+        newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+      }
       channels[ch] = {
-        pcm: [],
+        pcm: newPCM,
         mags: [],
         phases: [],
         snapshotMags: [],
@@ -18,21 +25,18 @@ function initEmptyPCM() {
         brushPressure: 1,
         audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none"))
       };
-      const newPCM = new Float32Array(length);
-      newPCM.set(channels[ch].pcm);
-      for (let i = channels[ch].pcm.length; i < length; i++) {
-        newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
-      }
-      channels[ch].pcm = newPCM;
     }
-    
-    // If pcm is already long enough, leave it as-is
+  }
+  
+  // If pcm is already long enough, leave it as-is
 
-    sampleRate = sampleRateLocal;
-    iLow = null;
-    minCol = 0; 
-    maxCol = 0; // or whatever value is intended
-    restartRender(false);
+  sampleRate = sampleRateLocal;
+  iLow = 0; iHigh = framesTotal;
+  restartRender(false);
+  minCol = 0; 
+  maxCol = framesTotal;
+  // await waitFor(() => !rendering);
+  // for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
 }
 
 async function onReset() {
@@ -118,7 +122,6 @@ let recording = false;
 let mediaStream = null;
 let mediaSource = null;
 let processor = null;
-let workletNode = null;
 
 function countdown(seconds) {
   return new Promise(resolve => {
@@ -189,7 +192,23 @@ function countdown(seconds) {
   });
 }
 
-async function startRecording() { 
+// Add near your other globals
+let workletRegistered = false;  // <- new
+let workletNode = null;         // you already had this
+let silentGain = null;          // make silentGain global so you can disconnect it
+let updatingChannel = false;
+
+/* -------- startRecording (updated) -------- */
+async function startRecording() {
+  updatingChannel = true;
+  channelCount++;
+  sliders[19][0].value = sliders[19][1].value = channelCount;
+  updateChannels();
+  currentChannel = channelCount-1;
+  let ch = currentChannel;
+  await waitFor(() => x>=maxCol && !updatingChannel);
+  recording = true;
+
   ensureAudioCtx();
   fHigh = sampleRate/2;
   fWidth = fHigh;
@@ -200,13 +219,15 @@ async function startRecording() {
 
   await countdown(3);
   status.textContent = "Recording...";
-  recordBtn.innerHTML = recHTML; 
+  recordBtn.innerHTML = recHTML;
   if (!recording) return;
-  pcmChunks = [];        
-  pcm = new Float32Array(0);
+
+  pcmChunks = [];
+  channels[ch].pcm = new Float32Array(0);
   pos = 0;
   x = 0;
   rendering = false;
+
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -215,10 +236,16 @@ async function startRecording() {
     await audioCtx.resume();
     sampleRate = audioCtx.sampleRate || sampleRate;
 
-    const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    await audioCtx.audioWorklet.addModule(url);
+    // Register the worklet module only once
+    if (!workletRegistered) {
+      const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      await audioCtx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      workletRegistered = true;
+    }
 
+    // create a fresh node every recording
     workletNode = new AudioWorkletNode(audioCtx, 'recorder-processor', {
       numberOfInputs: 1,
       numberOfOutputs: 1,
@@ -226,31 +253,32 @@ async function startRecording() {
       channelCount: 1
     });
 
-    pcmChunks = [];
-    pcm = new Float32Array(0);
-
+    // message handler
     workletNode.port.onmessage = (ev) => {
       const chunk = ev.data;
       if (!(chunk instanceof Float32Array)) return;
-      try {pcmChunks.push(chunk);} catch(e) {}
+      pcmChunks.push(chunk);
 
+      // quick merged view for live display
       let total = 0;
       for (let c of pcmChunks) total += c.length;
       const merged = new Float32Array(total);
       let off = 0;
       for (let c of pcmChunks) { merged.set(c, off); off += c.length; }
-      pcm = merged;
-
-      processPendingFramesLive();
+      channels[ch].pcm = merged;
+      
+      if (Math.floor(merged.length/hop) != Math.floor((merged.length-chunk.length)/hop)) processPendingFramesLive();
       iLow = 0;
-      const framesSoFar = Math.max(1, Math.floor((emptyAudioLengthEl.value*sampleRate - fftSize) / hop) + 1);
-      iHigh = Math.max(1000, framesSoFar);
-      updateCanvasScroll();
+      const framesSoFar = Math.max(1, Math.floor((merged.length - fftSize) / hopSizeEl.value) + 1);
+      iHigh = Math.max(Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value), framesSoFar);
       info.innerHTML = `Recording...<br>${(framesSoFar/(sampleRate/hopSizeEl.value)).toFixed(1)} secs<br>Press record or ctrl+space to stop`;
     };
 
-    const silentGain = audioCtx.createGain();
+    // keep silentGain global so we can disconnect later
+    silentGain = audioCtx.createGain();
     silentGain.gain.value = 0.0;
+
+    // connect graph
     mediaSource.connect(workletNode);
     workletNode.connect(silentGain);
     silentGain.connect(audioCtx.destination);
@@ -262,48 +290,47 @@ async function startRecording() {
   }
 }
 
-function stopRecording() {  
+/* -------- stopRecording (updated) -------- */
+function stopRecording() {
   recordBtn.innerHTML = micHTML;
   recording = false;
   status.textContent = "Recording stopped.";
   info.textContent = "";
+  mediaSource.disconnect();
+  mediaSource = null;
+  mediaStream.getTracks().forEach(t => t.stop());
+  mediaStream = null;
+  workletNode.port.onmessage = null;
+  workletNode.port.close();
+  workletNode.disconnect();
+  workletNode = null;
+  silentGain.disconnect();
+  silentGain = null;
+  let ch = currentChannel;
 
-  if (processor) {
-    processor.disconnect();
-    processor.onaudioprocess = null;
-    processor = null;
-  }
-  if (mediaSource) {
-    mediaSource.disconnect();
-    mediaSource = null;
-  }
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(t => t.stop());
-    mediaStream = null;
-  }
-
-  if (pcm && Array.isArray(pcm)) {
-    let length = pcm.reduce((sum, arr) => sum + arr.length, 0);
-    let merged = new Float32Array(length);
-    let offset = 0;
-    for (let chunk of pcm) {
-      merged.set(chunk, offset);
-      offset += chunk.length;
+  if (channels[ch].pcm.length>emptyAudioLengthEl.value*sampleRate) {
+    emptyAudioLengthEl.value = Math.floor(channels[ch].pcm.length/sampleRate);
+    for (let c=0;c<channelCount;c++){
+      if (c==ch) continue;
+      const addon = new Float32Array(channels[ch].pcm.length-channels[c].pcm.length);
+      for (let i = 0; i < addon.length; i++) {
+        addon[i] = (Math.random() * 2 - 1) * 0.0001;
+      }
+      channels[c].pcm = Float32Array.from([...channels[c].pcm, ...addon]);
     }
-    pcm = merged;
+  } else {
+    const addon = new Float32Array(Math.floor(emptyAudioLengthEl.value*sampleRate)-channels[ch].pcm.length);
+    for (let i = 0; i < addon.length; i++) {
+      addon[i] = (Math.random() * 2 - 1) * 0.0001;
+    }
+    channels[ch].pcm = Float32Array.from([...channels[ch].pcm, ...addon]);
   }
-  iLow = null;
-  pcmChunks = null;
-
-    let t = pcm.length / sampleRate;
-    hopSizeEl.value = t<0.5?128:(t<5?512:1024);
-  restartRender(true);
-    
+  //restartRender(false);
 }
+
 
 recordBtn.addEventListener("click", async () => {
   if (!recording) {
-    recording = true;
     await startRecording();
   } else {
     stopRecording();
@@ -360,11 +387,10 @@ fileEl.addEventListener("change", async e => {
     status.style.display = "block";
 
     restartRender(false);
-    async function waitFor(fn, interval = 10) {while (!fn()) await new Promise(r => setTimeout(r, interval));}
     await waitFor(() => channels[0].mags.length > 0);
     const ft = Math.ceil(ab.getChannelData(0).length/hop);
     for(let ch=0;ch<nChannels;ch++)renderSpectrogramColumnsToImageBuffer(0,ft,ch);
-    
+
     const t = channels[0].pcm.length / sampleRate;
     hopSizeEl.value = t < 0.5 ? 128 : (t < 5 ? 512 : 1024);
 
@@ -447,7 +473,7 @@ preset.addEventListener("change", async (e) => {
     status.textContent = "Error loading preset: " + (err.message || err);
   }
 });
-function updateChannels(){
+async function updateChannels(){
   while (channelCount > channels.length) {
     let length = Math.floor(sampleRate * emptyAudioLengthEl.value);
     let pcm = new Float32Array(length);
@@ -584,8 +610,10 @@ function updateChannels(){
   updateChannelHeightInputs();
   minCol = 0; maxCol = framesTotal;
   restartRender(false);
+  await waitFor(() => !channels[0].mags.every(item => item == 0));
   for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
-  renderFullSpectrogramToImage();
+  //renderFullSpectrogramToImage();
+  updatingChannel = false;
 }
 
 function updateChannelHeightInputs(){

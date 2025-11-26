@@ -119,7 +119,7 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
 
 function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
   let mags = channels[ch].mags, phases = channels[ch].phases;
-  console.log(channels[ch]);
+  //console.log(channels[ch]);
   const specCanvas = document.getElementById("spec-"+ch);
   const specCtx = specCanvas.getContext("2d");
   colStart = Math.max(0, Math.floor(colStart));
@@ -127,7 +127,6 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
   if (!imageBuffer[ch] || !specCtx) return;
   const h = specHeight;
   const w = specWidth;
-
   for (let xx = colStart; xx <= colEnd; xx++) {
     for (let yy = 0; yy < h; yy++) {
       const bin = displayYToBin(yy, h, ch);

@@ -1,8 +1,17 @@
 if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
-fftSizeEl.addEventListener("change",()=>{if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}restartRender();buildBinDisplayLookup();});
-hopSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();});
+fftSizeEl.addEventListener("change",()=>{
+  if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
+  restartRender(false);
+  // await waitFor(() => !rendering);
+  // for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value),ch);
+  buildBinDisplayLookup();});
+hopSizeEl.addEventListener("change",()=>{
+  restartRender(false);
+  // await waitFor(() => !rendering);
+  // for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value),ch);
+  buildBinDisplayLookup();});
 
-async function restartRender(autoPlay){
+function restartRender(autoPlay){
   autoPlayOnFinish = !!playing || !!autoPlay;
   fftSize = parseInt(fftSizeEl.value);
   hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
@@ -21,7 +30,7 @@ async function restartRender(autoPlay){
   }
   const wrapper = document.getElementById("canvasWrapper");
   wrapper.innerHTML = "";
-  imageBuffer = new Array(channelCount);
+  if (imageBuffer === null) imageBuffer = new Array(channelCount);
   if (currentChannel >= channelCount) currentChannel = channelCount-1;
   for (let ch = 0; ch < channelCount; ch++){
     const timeline = document.createElement("canvas");
@@ -99,10 +108,10 @@ async function restartRender(autoPlay){
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
     specCtx.putImageData(imageBuffer[ch], 0, 0);
     
+    channels[ch].mags = new Float32Array(specWidth * specHeight);
+    channels[ch].phases = new Float32Array(specWidth * specHeight);
     let mags = channels[ch].mags;
     let phases = channels[ch].phases;
-    mags = new Float32Array(specWidth * specHeight);
-    phases = new Float32Array(specWidth * specHeight);
     for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "black";
@@ -197,7 +206,8 @@ function displayYToBin(y, h, ch) {
 
 function drawFrame(w,h) {
   if (pos + fftSize > channels[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
-  for (let ch = 0; ch<channelCount; ch++){
+  let _s = recording?currentChannel:0; _e = recording?currentChannel+1:channelCount;
+  for (let ch = _s; ch<_e; ch++){
     const c = channels[ch];
     let mags = c.mags, phases = c.phases, pcm = c.pcm;
     const re = new Float32Array(fftSize);
@@ -212,19 +222,19 @@ function drawFrame(w,h) {
       mags[idx] = mag;
       phases[idx] = phase;
     }
-    const skipY = (recording?4:1)*channels;
+    const skipY = (recording?8:1)*channelCount;
     for (let yy = 0; yy < h; yy+=skipY) {
-      const mappedBin = displayYToBin(yy, h, currentChannel);
+      const mappedBin = displayYToBin(yy, h, ch);
       const idx = x * h + mappedBin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;
       const [r, g, b] = magPhaseToRGB(mag, phase);
       for (let i = 0; i < skipY; i++) {       
         const pix = ((yy+i) * w + x) * 4; 
-        imageBuffer[currentChannel].data[pix]     = r;
-        imageBuffer[currentChannel].data[pix + 1] = g;
-        imageBuffer[currentChannel].data[pix + 2] = b;
-        imageBuffer[currentChannel].data[pix + 3] = 255;
+        imageBuffer[ch].data[pix]     = r;
+        imageBuffer[ch].data[pix + 1] = g;
+        imageBuffer[ch].data[pix + 2] = b;
+        imageBuffer[ch].data[pix + 3] = 255;
       }
     }
   }
@@ -233,25 +243,22 @@ function drawFrame(w,h) {
   audioProcessed += hop;
   ch = currentChannel;
   if (x >= (maxCol==0?w:maxCol)) {
+    if (recording) return false;
     const c = channels[ch];
     let mags = c.mags, phases = c.phases, snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
     rendering = false;
-    if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
+    if (pendingHistory) {
       pendingHistory = false; 
-
       newHistory(); 
-
-      const lastEntry = historyStack.length ? historyStack[historyStack.length - 1] : null;
       if (!pendingRecomputeDone) {
-        if (lastEntry) {
-          recomputePCMForCols(lastEntry.minCol, lastEntry.maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
-        }
+        recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
+        pendingRecomputeDone = true;
+        pendingRecomputeMinCol = minCol;
+        pendingRecomputeMaxCol = maxCol;
       } else {
-
         pendingRecomputeDone = false;
         pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
       }
-
       snapshotMags = null;
       snapshotPhases = null;
     }
@@ -327,7 +334,6 @@ function drawLoop() {
       if (!drawFrame(w,h)) break;
   }
   specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
-  renderView();
   drawCursor(true);
 
   if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') resolveSpecUpdate(true);
@@ -335,7 +341,7 @@ function drawLoop() {
   const elapsedMS = performance.now() - startTime;
   const elapsedSec = elapsedMS / 1000;
   const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
-  let pcm = channels[0].pcm;
+  let pcm = channels[currentChannel].pcm;
   const audioSec = pcm.length / sampleRate; 
   const processedSec = audioProcessed / sampleRate;
   status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
@@ -344,7 +350,7 @@ function drawLoop() {
       + `Speed: ${(speed/sampleRate).toFixed(2)}x realtime`;
   if (rendering) {
     status.style.display = "block";
-    requestAnimationFrame(() => drawLoop());
+    requestAnimationFrame(drawLoop);
   }
 }
 
@@ -353,7 +359,7 @@ function drawCursor(clear){
     const canvas = document.getElementById("canvas-"+ch);
     const overlayCanvas = document.getElementById("overlay-"+ch);
     const overlayCtx = overlayCanvas.getContext("2d");
-    if (previewingShape && clear) {
+    if (previewingShape && clear && !recording) {
       previewShape($x, $y);
     } else {
       const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
@@ -384,7 +390,8 @@ function updateCanvasScroll() {
   const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
   const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
   const viewHeight = Math.max(1, fEnd - fStart);
-  for (let ch=0;ch<channelCount;ch++){
+  let _s = recording?currentChannel:0; _e = recording?currentChannel+1:channelCount;
+  for (let ch = _s; ch<_e; ch++){
     const specCanvas=document.getElementById("spec-"+ch);
     if (!imageBuffer[currentChannel] || !specCanvas) return;
     const canvas = document.getElementById("canvas-"+ch);
@@ -412,12 +419,12 @@ function updateCanvasScroll() {
 }
 
 function renderView() {
-
   const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
   const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
   const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
   const viewHeight = Math.max(1, fEnd - fStart);
-  for (let ch=0;ch<channelCount;ch++){
+  let _s = recording?currentChannel:0; _e = recording?currentChannel+1:channelCount;
+  for (let ch = _s; ch<_e; ch++){
     const specCanvas=document.getElementById("spec-"+ch);
     if (!specCanvas || !imageBuffer[currentChannel]) continue;
     const canvas = document.getElementById("canvas-"+ch);
@@ -461,7 +468,8 @@ function getCanvasCoords(e,touch){
   return {cx:(x-rect.left)*scaleX, cy:(y-rect.top)*scaleY, scaleX, scaleY};
 }
 function processPendingFramesLive(){
-  while (pos + fftSize <= emptyAudioLengthEl.value*sampleRate) {
+  let count=0;
+  while (pos + fftSize <= channels[currentChannel].pcm.length) {
     if (!drawFrame(specWidth, specHeight)) break;
   }
   

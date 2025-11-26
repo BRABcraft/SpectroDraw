@@ -215,21 +215,24 @@ overlayFile.addEventListener("change", e => {
   img.src = URL.createObjectURL(f);
 });
 let ogHSv = hopSizeEl.value;
-function toggleLockHop() {
+async function toggleLockHop() {
+  const len = emptyAudioLengthEl.value*sampleRate;
   if (lockHop) {
     lockHopBtn.innerHTML=unlockHTML;
     hopSize.classList.remove("disabled");
     hopSizeEl.value = ogHSv;
-    iLow = 0; iHigh = Math.max(1, Math.floor((pcm.length - fftSize) / ogHSv) + 1);
-    restartRender();
+    iLow = 0; iHigh = Math.max(1, Math.floor((len - fftSize) / ogHSv) + 1);
   } else {
     lockHopBtn.innerHTML=lockHTML;
     hopSize.classList.add("disabled");
     ogHSv = hopSizeEl.value;
     hopSizeEl.value = fftSizeEl.value;
-    iLow = 0; iHigh = Math.max(1, Math.floor((pcm.length - fftSize) / fftSizeEl.value) + 1);
-    restartRender();
+    iLow = 0; iHigh = Math.max(1, Math.floor((len - fftSize) / fftSizeEl.value) + 1);
   }
+  minCol = 0; maxCol = Math.floor(len/hopSizeEl.value);
+  restartRender(false);
+  await waitFor(() => !rendering);
+  for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
   lockHop = !lockHop;
 }
 document.addEventListener('mousemove', e=>{

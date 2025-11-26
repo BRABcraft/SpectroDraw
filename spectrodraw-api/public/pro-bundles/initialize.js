@@ -153,9 +153,11 @@ let spriteRedoQueue = [];
 let movingSprite = false;
 let spritePath = null;
 let channelCount = 1;
+let channels = null;
 let channelHeight = window.innerHeight - 70;
 let $x = 0, $y = 0;
 let currentChannel = 0;
+// let updatingChannel = false;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});
@@ -202,3 +204,5 @@ function addEventListeners(){
     }
   }
 }
+
+async function waitFor(fn, interval = 10) {while (!fn()) await new Promise(r => setTimeout(r, interval));}

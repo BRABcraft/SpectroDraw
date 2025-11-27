@@ -88,13 +88,15 @@ function canvasMouseDown(e,touch) {
       if (sprite.effect.tool === currentTool) count++;
     }
     let name = currentTool + `_${count}`;
+    let pixelmap=[];
+    for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
 
     // --- CREATE NEW SPRITE FOR THIS STROKE ---
     currentSprite = {
       id: nextSpriteId++,
       effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseOpacity, penPhase, amp, noiseRemoveFloor, blurRadius,phaseTexture:phaseTextureEl.value},
       enabled: true,
-      pixels: new Map(), // Map<columnX, {ys:[], prevMags:[], prevPhases:[], nextMags:[], nextPhases:[]}>
+      pixels: pixelmap,
       minCol: Infinity,
       maxCol: -Infinity,
       createdAt: performance.now(),
@@ -332,7 +334,7 @@ function newHistory() {
       changedIdxs.push(idx);
       prevMags.push(oldM);
       prevPhases.push(snapshotPhases[idx] || 0);
-      addPixelToSprite(currentSprite, Math.floor(idx/(fftSize/2)), idx%(fftSize/2), oldM, oldP, newM, newP);
+      addPixelToSprite(currentSprite, Math.floor(idx/(fftSize/2)), idx%(fftSize/2), oldM, oldP, newM, newP, currentChannel);
     }
   }
 }

@@ -632,3 +632,7 @@ window.addEventListener('click', e => {
 midiChannelMode.addEventListener("change",(e)=>{
   midiSingleChannelDiv.style.display = (midiChannelMode.value === "single") ? "block" : "none";
 });
+
+document.getElementById("syncChannels").addEventListener("change", (e)=>{
+  syncChannels = document.getElementById("syncChannels").checked;
+});

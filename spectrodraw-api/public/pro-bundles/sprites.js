@@ -1,8 +1,8 @@
-function forEachSpritePixelInOrder(sprite, cb) {
+function forEachSpritePixelInOrder(sprite, ch, cb) {
   if (!sprite) return;
-  const cols = Array.from(sprite.pixels.keys()).sort((a,b)=>a-b);
+  const cols = Array.from(sprite.pixels[ch].keys()).sort((a,b)=>a-b);
   for (const x of cols) {
-    const col = sprite.pixels.get(x);
+    const col = sprite.pixels[ch].get(x);
     // ys are pushed in painting order (top-down if you painted that way), but ensure ascending y:
     const order = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
     for (const entry of order) {
@@ -104,9 +104,17 @@ function renderSpritesTable() {
     });
 
     tr.addEventListener("mouseout", () => {
-      const overlayCanvas = document.getElementById("overlay-"+sprite.ch);
-      const overlayCtx = overlayCanvas.getContext("2d");
-      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      if (sprite.ch==="all") {
+        for (let ch=0;ch<channelCount;ch++){
+          const overlayCanvas = document.getElementById("overlay-"+ch);
+          const overlayCtx = overlayCanvas.getContext("2d");
+          overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        }
+      } else {
+        const overlayCanvas = document.getElementById("overlay-"+sprite.ch);
+        const overlayCtx = overlayCanvas.getContext("2d");
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      }
     });
 
 
@@ -141,12 +149,14 @@ function updateEditorSelection(spriteId) {
     nameEl.value = 'No sprite selected';
     toolEl.value = '';
     enabledEl.checked = false;
+    sChannelEl.value = '';
   } else {
     const s=getSpriteById(spriteId);
     spriteEditorDiv.removeAttribute('disabled');
     nameEl.value = s.name;
     enabledEl.checked = s.enabled;
     toolEl.value = s.effect.tool;
+    sChannelEl.value = s.ch;
     renderToolEditorSettings(s);
     renderSpriteFade();
     processSpriteFade();
@@ -225,7 +235,6 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
   });
 });
 
-
 function renderToolEditorSettings(sprite) {
   if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
   document.getElementById('samplifyDiv').style.display = 'none';
@@ -283,6 +292,59 @@ function renderToolEditorSettings(sprite) {
   document.getElementById('sphaseTexture').value = effects.phaseTexture || 'none';
 }
 
+document.getElementById("spriteChannel").addEventListener("change",()=>{updateSpriteChannels();});
+
+async function updateSpriteChannels(){
+  const type = document.getElementById("spriteChannel").value;
+  const s = getSpriteById(selectedSpriteId);
+  if (type === "all"){
+    s.ch = "all";
+    let v = -1;
+    for (let c=0;c<channelCount;c++){
+      if (s.pixels[c] instanceof Map && s.pixels[c].size !== 0) {
+        if (v<0) v = c;
+      } else {
+        s.pixels[c] = new Map();
+      }
+    }
+    forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
+      const id = x * specHeight + y;
+      for (let ch=0;ch<channelCount;ch++) {
+        if (ch==v) continue;
+        addPixelToSprite(s, x, y, channels[ch].mags[id], channels[ch].phases[id], nextMag, nextPhase, ch);
+        channels[ch].mags[id] = nextMag;
+        channels[ch].phases[id] = nextPhase;
+      }
+    });
+  } else {
+    const ch = parseInt(type);
+    s.ch = ch;
+    for (let c=0;c<channelCount;c++){
+      if (s.pixels[c] !== null) {
+        s.pixels[ch] = new Map();
+        forEachSpritePixelInOrder(s, c, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
+          const id = x * specHeight + y;
+          addPixelToSprite(s, x, y, channels[ch].mags[id], channels[ch].phases[id], nextMag, nextPhase, ch);
+          channels[ch].mags[id] = nextMag;
+          channels[c].mags[id] = prevMag;
+          channels[ch].phases[id] = nextPhase;
+          channels[c].phases[id] = prevPhase;
+        });
+        s.pixels[c] = null;
+        break;
+      }
+    }
+  }
+  recomputePCMForCols(s.minCol, s.maxCol);
+  restartRender(false);
+  await waitFor(()=>!rendering);
+  if (s.ch === "all") {
+    for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(s.minCol,s.maxCol,ch);
+  } else {
+    renderSpectrogramColumnsToImageBuffer(s.minCol,s.maxCol,s.ch);
+  }
+} 
+
 
 function updateSpriteEffects(spriteId, newEffect) {
   const sprite = getSpriteById(spriteId);
@@ -300,7 +362,7 @@ function updateSpriteEffects(spriteId, newEffect) {
 
   // write new mags/phases for significant pixels
   const integral = buildIntegral(specWidth, specHeight, mags, phases);
-  forEachSpritePixelInOrder(sigSprite, (x, y, prevMag, prevPhase) => {
+  forEachSpritePixelInOrder(sigSprite, 0, (x, y, prevMag, prevPhase) => {
     const id = x * specHeight + y;
     const newPixel = applyEffectToPixel(prevMag, prevPhase, x, y, newEffect, integral);
     mags[id] = newPixel.mag;
@@ -319,7 +381,7 @@ function updateSpriteEffects(spriteId, newEffect) {
   const padCols = Math.max(0, Math.ceil(fftSize / hopSamples));
 
   // compute sigSprite bounds
-  const sigCols = Array.from(sigSprite.pixels.keys()).sort((a,b)=>a-b);
+  const sigCols = Array.from(sigSprite.pixels[0].keys()).sort((a,b)=>a-b);
   const minCol = sigCols.length ? Math.max(0, sigCols[0]) : Math.max(0, sprite.minCol || 0);
   const maxCol = sigCols.length ? Math.min(specWidth - 1, sigCols[sigCols.length - 1]) : Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
 
@@ -379,7 +441,7 @@ function toggleSpriteEnabled(spriteId, enable) {
   // apply prev (disable) or next (enable)
   if (enable) {
     // write next values at recorded coords
-    forEachSpritePixelInOrder(sprite, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
+    forEachSpritePixelInOrder(sprite, 0, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
       const id = x * specHeight + y;
       mags[id] = nextMag;
       phases[id] = nextPhase;
@@ -387,7 +449,7 @@ function toggleSpriteEnabled(spriteId, enable) {
     sprite.enabled = true;
   } else {
     // write prev values back
-    forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
+    forEachSpritePixelInOrder(sprite, 0, (x, y, prevMag, prevPhase) => {
       const id = x * specHeight + y;
       mags[id] = prevMag;
       phases[id] = prevPhase;
@@ -409,7 +471,7 @@ function toggleSpriteEnabled(spriteId, enable) {
 }
 
 // Move sprite by dx (frames) and dy (bins). Best-effort handling.
-function moveSprite(spriteId, dx, dy) {
+async function moveSprite(spriteId, dx, dy) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
 
@@ -419,7 +481,7 @@ function moveSprite(spriteId, dx, dy) {
   let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
 
   // 1) restore prev values at old positions (keep same behaviour)
-  forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
+  forEachSpritePixelInOrder(sprite, sprite.ch, (x, y, prevMag, prevPhase) => {
     const idOld = x * specHeight + y;
     mags[idOld] = prevMag;
     phases[idOld] = prevPhase;
@@ -430,9 +492,9 @@ function moveSprite(spriteId, dx, dy) {
   const newMap = new Map();
   let newMin = Infinity, newMax = -Infinity;
 
-  const cols = Array.from(sprite.pixels.keys()); // no sort - insertion order is fine
+  const cols = Array.from(sprite.pixels[0].keys()); // no sort - insertion order is fine
   for (const oldX of cols) {
-    const col = sprite.pixels.get(oldX);
+    const col = sprite.pixels[0].get(oldX);
     if (!col) continue;
 
     for (let i = 0; i < col.ys.length; i++) {
@@ -443,8 +505,8 @@ function moveSprite(spriteId, dx, dy) {
       const nx = oldX + dx;
       const f = sampleRate / fftSize;
       const $s = sampleRate/2, $l = logScaleVal[sprite.ch];
-      const ny  = Math.floor(invlsc(lsc(oldY * f,$s,$l) + dy * f,$s,$l) / f);
-      const ny1 = Math.floor(invlsc(lsc(oldY*f+f,$s,$l) + dy * f,$s,$l) / f);
+      const ny  = Math.floor(invlsc(lsc( oldY   *f,$s,$l) + dy * f,$s,$l) / f);
+      const ny1 = Math.floor(invlsc(lsc((oldY+1)*f,$s,$l) + dy * f,$s,$l) / f);
 
       if (nx < 0 || nx >= specWidth || ny < 0 || ny1 >= specHeight) {
         continue; // out of bounds
@@ -461,13 +523,10 @@ function moveSprite(spriteId, dx, dy) {
       for (let j = ny; j < ny1; j++) {
         const destIdx = nx * specHeight + j;
         ncol.ys.push(j);
-        // capture prev values once before any writes
         ncol.prevMags.push(mags[destIdx]);
         ncol.prevPhases.push(phases[destIdx]);
         ncol.nextMags.push(nextMag);
-        // your original used phases[destIdx] + nextPhase; I preserve that behaviour:
         ncol.nextPhases.push(phases[destIdx] + nextPhase);
-        // NOTE: we DO NOT write mags[destIdx]/phases[destIdx] here.
       }
 
       if (nx < newMin) newMin = nx;
@@ -488,7 +547,7 @@ function moveSprite(spriteId, dx, dy) {
   }
 
   // 4) replace sprite.pixels, update bounds
-  sprite.pixels = newMap;
+  sprite.pixels[0] = newMap;
   sprite.minCol = newMin === Infinity ? Infinity : Math.max(0, newMin);
   sprite.maxCol = newMax === -Infinity ? -1 : Math.min(specWidth - 1, newMax);
 
@@ -508,6 +567,7 @@ function moveSprite(spriteId, dx, dy) {
 
   // Only restart render / audio if necessary
   restartRender(false);
+  await waitFor(()=>!rendering);
   renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,sprite.ch);
 
   if (playing) {
@@ -516,7 +576,7 @@ function moveSprite(spriteId, dx, dy) {
   }
 
   renderSpritesTable();
-  updateEditorSelection(spriteId);
+  // updateEditorSelection(spriteId);
 }
 
 
@@ -528,7 +588,7 @@ function deleteSprite(spriteId) {
   let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
 
   // restore prev values
-  forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
+  forEachSpritePixelInOrder(sprite, 0, (x, y, prevMag, prevPhase) => {
     const id = x * specHeight + y;
     mags[id] = prevMag;
     phases[id] = prevPhase;
@@ -574,11 +634,14 @@ function formatSignificantAsSprite(origSprite, sig) {
   if (!sig) return null;
   const { minX, maxX, clusterY0, maskHeight, filled } = sig;
   const W = (maxX - minX + 1);
+  let pixelmap=[];
+  for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
   const out = {
-    pixels: new Map(),
+    pixels: pixelmap,
     minCol: Infinity,
     maxCol: -Infinity
   };
+  let ch = currentChannel;
   for (let xr = 0; xr < W; xr++) {
     const colArr = filled[xr]; if (!colArr) continue;
     const xGlobal = minX + xr;
@@ -586,8 +649,8 @@ function formatSignificantAsSprite(origSprite, sig) {
       if (!colArr[yr]) continue;
       const yGlobal = clusterY0 + yr;
       let prevMag = 0, prevPhase = 0, nextMag = 0, nextPhase = 0;
-      if (origSprite && origSprite.pixels) {
-        const srcCol = origSprite.pixels.get(xGlobal);
+      if (origSprite && origSprite.pixels[ch]) {
+        const srcCol = origSprite.pixels[ch].get(xGlobal);
         if (srcCol && Array.isArray(srcCol.ys)) {
           const idx = srcCol.ys.findIndex(v => v === yGlobal);
           if (idx !== -1) {
@@ -598,10 +661,10 @@ function formatSignificantAsSprite(origSprite, sig) {
           }
         }
       }
-      addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase);
+      addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase, ch);
     }
   }
-  if (out.pixels.size === 0) return null;
+  if (out.pixels[0].size === 0) return null;
   return out;
 }
 
@@ -615,8 +678,9 @@ function getSignificantPixels(sprite, options = {}) {
   const histogram = new Float64Array(height);
   let maxDelta = 0;
   let anyPixels = false;
+  let ch= sprite.ch=="all"?0:sprite.ch;
 
-  for (const [x, col] of sprite.pixels) {
+  for (const [x, col] of sprite.pixels[ch]) {
     if (!col || !col.ys) continue;
     for (let i = 0; i < col.ys.length; i++) {
       const y = col.ys[i];
@@ -694,7 +758,7 @@ function getSignificantPixels(sprite, options = {}) {
   const clusterY1 = bestSeg.y1;
 
   // --- 2) build mask limited to cluster Y-range and columns -----------
-  const colsList = Array.from(sprite.pixels.keys()).sort((a, b) => a - b);
+  const colsList = Array.from(sprite.pixels[ch].keys()).sort((a, b) => a - b);
   if (colsList.length === 0) return null;
   const minX = colsList[0], maxX = colsList[colsList.length - 1];
   const width = ('width' in options && options.width != null) ? options.width : (maxX - minX + 1);
@@ -705,7 +769,7 @@ function getSignificantPixels(sprite, options = {}) {
   let maxCellDelta = 0;
 
   for (const x of colsList) {
-    const col = sprite.pixels.get(x);
+    const col = sprite.pixels[ch].get(x);
     if (!col) continue;
     const xRel = x - minX;
     let arr = maskCols[xRel];
@@ -738,7 +802,7 @@ function getSignificantPixels(sprite, options = {}) {
   let totalFilled = 0;
   for (let x = minX; x <= maxX; x++) {
     const xRel = x - minX;
-    const colSrc = sprite.pixels.get(x);
+    const colSrc = sprite.pixels[ch].get(x);
     const arr = new Uint8Array(maskHeight);
     if (colSrc) {
       for (let i = 0; i < colSrc.ys.length; i++) {
@@ -972,7 +1036,8 @@ function generateSpriteOutlinePath(sprite, options = {}) {
   // keep the same transformation you used previously so behaviour remains identical.
   //*((sampleRate/2)/fWidth)+fLow/(sampleRate/fftSize)
   const shift = fLow/(sampleRate/2)*specHeight;
-  const finalPointsArr = finalPoints.map(p => ({ x: p.x, y: specHeight-((lsc(p.y,specHeight,logScaleVal[sprite.ch])-shift)*((sampleRate/2)/fWidth))}));
+  let ch= sprite.ch=="all"?0:sprite.ch;
+  const finalPointsArr = finalPoints.map(p => ({ x: p.x, y: specHeight-((lsc(p.y,specHeight,logScaleVal[ch])-shift)*((sampleRate/2)/fWidth))}));
   const connections = [];
   for (let i = 0; i < finalPointsArr.length; i++) connections.push([i, (i + 1) % finalPointsArr.length]);
 
@@ -1318,14 +1383,14 @@ function processSpriteFade() {
   const sigSprite = formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
   if (!sigSprite) return;
 
-  const cols = [...sigSprite.pixels.keys()].sort((a,b)=>a-b);
+  const cols = [...sigSprite.pixels[0].keys()].sort((a,b)=>a-b);
   if (cols.length === 0) return;
 
   const last = Math.max(0, s.spriteFade.length - 1);
   const span = Math.max(1, s.maxCol - s.minCol);
 
   // iterate every significant pixel and apply multiplier based on its column
-  forEachSpritePixelInOrder(sigSprite, (x, y, _prevMag, _prevPhase, nextMag /*, nextPhase */) => {
+  forEachSpritePixelInOrder(sigSprite, 0, (x, y, _prevMag, _prevPhase, nextMag /*, nextPhase */) => {
     const t = (x - s.minCol) / span;
     const idx = Math.round(t * last);
     const factor = s.spriteFade[idx] || 0;

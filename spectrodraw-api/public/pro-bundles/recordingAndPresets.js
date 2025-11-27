@@ -590,22 +590,27 @@ async function updateChannels(){
 
   wrappers.forEach((wrapper, index) => {
     if (index < channelCount) {
-      wrapper.style.display = "block";   // show active channels
+      wrapper.style.display = "block";
     } else {
-      wrapper.style.display = "none";    // hide extras
+      wrapper.style.display = "none";
     }
   });
-
-  // rest of your existing code...
-  document.getElementById("midiChannelSettings").style.display = (channelCount>1)?"block":"none";
-  const selectElement = document.getElementById("midiSingleChannel");
-  selectElement.innerHTML = "";
+  const selectElement0 = document.getElementById("midiSingleChannel");
+  const selectElement1 = document.getElementById("spriteChannel");
+  document.getElementById("midiChannelSettings").style.display = document.getElementById("spriteChannelDiv").style.display = (channelCount>1)?"block":"none";
+  selectElement0.innerHTML = selectElement1.innerHTML = "";
   for (let ch = 0; ch<channelCount;ch++) {
     const newOption = document.createElement("option");
     newOption.textContent = "Channel "+ch;
     newOption.value = ch;
-    selectElement.appendChild(newOption);
-  } 
+    selectElement0.appendChild(newOption);
+    newOption.textContent = ch;
+    selectElement1.appendChild(newOption);
+  }
+  const newOption = document.createElement("option");
+  newOption.textContent = "All";
+  newOption.value = "all";
+  selectElement1.appendChild(newOption);
   channelHeight = (window.innerHeight - 70)/channelCount;
   updateChannelHeightInputs();
   minCol = 0; maxCol = framesTotal;

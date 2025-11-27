@@ -93,6 +93,7 @@ const nameEl = document.getElementById('spriteName');
 const toolEl = document.getElementById('spriteTool');
 const enabledEl = document.getElementById('spriteEnabled');
 const spriteEditorDiv = document.getElementById('spriteEditor');
+const sChannelEl = document.getElementById('spriteChannel');
 
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
@@ -157,6 +158,7 @@ let channels = null;
 let channelHeight = window.innerHeight - 70;
 let $x = 0, $y = 0;
 let currentChannel = 0;
+let syncChannels = false;
 // let updatingChannel = false;
 let handlers = {
   "canvas-": (el) => {

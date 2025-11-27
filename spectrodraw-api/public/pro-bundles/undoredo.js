@@ -28,7 +28,7 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
   const im = new Float32Array(fftSize);
 
   const EPS = 1e-8;
-  const fadeCap = 128;
+  const fadeCap = Infinity;
 
   // Process each channel independently
   for (let ch = 0; ch < channelCount; ch++) {

@@ -54,40 +54,43 @@ function queryIntegralSum(integral, x0, y0, x1, y1) {
 }
 
 function drawSpriteOutline(useDelta,cx,cy){
-  const overlayCanvas = document.getElementById("overlay-"+spritePath.ch);//CHANGE LATER
-  const canvas = document.getElementById("canvas-"+spritePath.ch);//CHANGE LATER
-  const overlayCtx = overlayCanvas.getContext("2d");
-  const framesVisible = Math.max(1, iHigh - iLow);
-  const mapX = (frameX) => ((frameX - iLow) * canvas.width) / framesVisible;
-  const mapY = (binY)   => (binY * canvas.height) / Math.max(1, specHeight);
+  let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?channelCount:spritePath.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    const overlayCanvas = document.getElementById("overlay-"+ch);
+    const canvas = document.getElementById("canvas-"+ch);
+    const overlayCtx = overlayCanvas.getContext("2d");
+    const framesVisible = Math.max(1, iHigh - iLow);
+    const mapX = (frameX) => ((frameX - iLow) * canvas.width) / framesVisible;
+    const mapY = (binY)   => (binY * canvas.height) / Math.max(1, specHeight);
 
-  const pts = spritePath.points.map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-  // Draw filled translucent shape + stroke
-  const ctx = overlayCtx;
-  ctx.save();
-  ctx.beginPath();
-  let dx = useDelta?(0.5 + (cx-startX)):0, dy = useDelta?(0.5+(cy-startY)):0;
-  const yf = (sampleRate/2)/fWidth;
-  function getY(i){
-    return (pts[i].y + dy);
+    const pts = spritePath.points.map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
+    // Draw filled translucent shape + stroke
+    const ctx = overlayCtx;
+    ctx.save();
+    ctx.beginPath();
+    let dx = useDelta?(0.5 + (cx-startX)):0, dy = useDelta?(0.5+(cy-startY)):0;
+    const yf = (sampleRate/2)/fWidth;
+    function getY(i){
+      return (pts[i].y + dy);
+    }
+    ctx.moveTo(pts[0].x + dx, getY(0));
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x + dx, getY(i));
+    }
+    ctx.closePath();
+
+    // fill + stroke styles (tweak colors/alpha as you like)
+    ctx.fillStyle = "rgba(255,200,0,0.08)"; // subtle fill
+    ctx.fill();
+
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#ff0000ff";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    ctx.restore();
   }
-  ctx.moveTo(pts[0].x + dx, getY(0));
-  for (let i = 1; i < pts.length; i++) {
-    ctx.lineTo(pts[i].x + dx, getY(i));
-  }
-  ctx.closePath();
-
-  // fill + stroke styles (tweak colors/alpha as you like)
-  ctx.fillStyle = "rgba(255,200,0,0.08)"; // subtle fill
-  ctx.fill();
-
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = "#ff0000ff";
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.stroke();
-
-  ctx.restore();
 }
 
 function previewShape(cx, cy) {
@@ -228,9 +231,9 @@ function buildBinDisplayLookup() {
   }
 }
 
-function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase) {
+function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase, ch) {
   if (!sprite) return;
-  let col = sprite.pixels.get(x);
+  let col = sprite.pixels[ch].get(x);//CHANGE LATER
   if (!col) {
     col = {
       ys: [],
@@ -239,7 +242,7 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase) 
       nextMags: [],
       nextPhases: []
     };
-    sprite.pixels.set(x, col);
+    sprite.pixels[ch].set(x, col);//CHANGE LATER
   }
   col.ys.push(y);
   col.prevMags.push(prevMag);

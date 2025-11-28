@@ -318,101 +318,101 @@ async function updateSpriteChannels(){
     });
   } else {
     const ch = parseInt(type);
-    s.ch = ch;
-    for (let c=0;c<channelCount;c++){
-      if (s.pixels[c] !== null) {
-        s.pixels[ch] = new Map();
-        forEachSpritePixelInOrder(s, c, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
-          const id = x * specHeight + y;
-          addPixelToSprite(s, x, y, channels[ch].mags[id], channels[ch].phases[id], nextMag, nextPhase, ch);
-          channels[ch].mags[id] = nextMag;
-          channels[c].mags[id] = prevMag;
-          channels[ch].phases[id] = nextPhase;
-          channels[c].phases[id] = prevPhase;
-        });
-        s.pixels[c] = null;
-        break;
-      }
+    if (s.ch!=="all")s.pixels[ch] = new Map();
+    let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?channelCount:s.ch+1;
+    for (let c = $s;c<$e;c++){
+      if (c==ch) continue;
+      forEachSpritePixelInOrder(s, c, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
+        const id = x * specHeight + y;
+        if (s.ch!=="all")addPixelToSprite(s, x, y, channels[ch].mags[id], channels[ch].phases[id], nextMag, nextPhase, ch);
+        channels[ch].mags[id] = nextMag;
+        channels[c].mags[id] = prevMag;
+        channels[ch].phases[id] = nextPhase;
+        channels[c].phases[id] = prevPhase;
+      });
+      s.pixels[c] = null;
     }
+    s.ch = ch;
   }
   recomputePCMForCols(s.minCol, s.maxCol);
   restartRender(false);
   await waitFor(()=>!rendering);
-  if (s.ch === "all") {
-    for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(s.minCol,s.maxCol,ch);
-  } else {
-    renderSpectrogramColumnsToImageBuffer(s.minCol,s.maxCol,s.ch);
-  }
+  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(s.minCol,s.maxCol,ch);
 } 
 
 
-function updateSpriteEffects(spriteId, newEffect) {
+async function updateSpriteEffects(spriteId, newEffect) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
+  let recomputeMin = Infinity, recomputeMax = -Infinity;
 
-  const mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
-  // keep a copy of the old effect to detect instant zeroing
-  const oldEffect = Object.assign({}, sprite.effect || {});
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    const mags = channels[ch].mags, phases = channels[ch].phases;
+    // keep a copy of the old effect to detect instant zeroing
+    const oldEffect = Object.assign({}, sprite.effect || {});
 
-  renderToolEditorSettings(sprite);
+    renderToolEditorSettings(sprite);
 
-  // compute local sig sprite once
-  const sigSprite = formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight }));
-  if (!sigSprite) return;
+    // compute local sig sprite once
+    const sigSprite = formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight }));
+    if (!sigSprite) return;
 
-  // write new mags/phases for significant pixels
-  const integral = buildIntegral(specWidth, specHeight, mags, phases);
-  forEachSpritePixelInOrder(sigSprite, 0, (x, y, prevMag, prevPhase) => {
-    const id = x * specHeight + y;
-    const newPixel = applyEffectToPixel(prevMag, prevPhase, x, y, newEffect, integral);
-    mags[id] = newPixel.mag;
-    phases[id] = newPixel.phase;
-  });
+    // write new mags/phases for significant pixels
+    const integral = buildIntegral(specWidth, specHeight, mags, phases);
+    forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase) => {
+      const id = x * specHeight + y;
+      const newPixel = applyEffectToPixel(prevMag, prevPhase, x, y, newEffect, integral);
+      mags[id] = newPixel.mag;
+      phases[id] = newPixel.phase;
+    });
 
-  // ---- IMPORTANT: expand recomputation range to account for FFT overlap ----
-  // Determine hop size (try common names, fall back to fftSize to mean "no expansion")
-  const hopSamples = (typeof hop === 'number' && hop > 0) ? hop :
-                     (typeof fftHop === 'number' && fftHop > 0) ? fftHop :
-                     fftSize;
+    // ---- IMPORTANT: expand recomputation range to account for FFT overlap ----
+    // Determine hop size (try common names, fall back to fftSize to mean "no expansion")
+    const hopSamples = (typeof hop === 'number' && hop > 0) ? hop :
+                      (typeof fftHop === 'number' && fftHop > 0) ? fftHop :
+                      fftSize;
 
-  // how many analysis frames (columns) an FFT can affect laterally:
-  // ceil(fftSize / hop) is number of overlapped frames per FFT window.
-  // padCols here is conservative: expand by that many columns on each side.
-  const padCols = Math.max(0, Math.ceil(fftSize / hopSamples));
+    // how many analysis frames (columns) an FFT can affect laterally:
+    // ceil(fftSize / hop) is number of overlapped frames per FFT window.
+    // padCols here is conservative: expand by that many columns on each side.
+    const padCols = Math.max(0, Math.ceil(fftSize / hopSamples));
 
-  // compute sigSprite bounds
-  const sigCols = Array.from(sigSprite.pixels[0].keys()).sort((a,b)=>a-b);
-  const minCol = sigCols.length ? Math.max(0, sigCols[0]) : Math.max(0, sprite.minCol || 0);
-  const maxCol = sigCols.length ? Math.min(specWidth - 1, sigCols[sigCols.length - 1]) : Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
+    // compute sigSprite bounds
+    const sigCols = Array.from(sigSprite.pixels[ch].keys()).sort((a,b)=>a-b);
+    const minCol = sigCols.length ? Math.max(0, sigCols[0]) : Math.max(0, sprite.minCol || 0);
+    const maxCol = sigCols.length ? Math.min(specWidth - 1, sigCols[sigCols.length - 1]) : Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
 
-  // expand bounds to include FFT overlap region
-  const recomputeMin = Math.max(0, minCol - padCols);
-  const recomputeMax = Math.min(specWidth - 1, maxCol + padCols);
+    // expand bounds to include FFT overlap region
+    const min = Math.max(0, minCol - padCols);
+    const max = Math.min(specWidth - 1, maxCol + padCols);
 
-  // Additional safeguard: if the user instantly set brushColor to zero, aggressively clear
-  // a small neighborhood so partial overlap contributions get zeroed immediately.
-  // (Only do this when brushColor exists in effects and it changed to 0.)
-  if (typeof newEffect === 'object' &&
-      typeof newEffect.brushColor !== 'undefined' &&
-      newEffect.brushColor === 0 &&
-      typeof oldEffect.brushColor !== 'undefined' &&
-      oldEffect.brushColor !== 0) {
+    // Additional safeguard: if the user instantly set brushColor to zero, aggressively clear
+    // a small neighborhood so partial overlap contributions get zeroed immediately.
+    // (Only do this when brushColor exists in effects and it changed to 0.)
+    if (typeof newEffect === 'object' &&
+        typeof newEffect.brushColor !== 'undefined' &&
+        newEffect.brushColor === 0 &&
+        typeof oldEffect.brushColor !== 'undefined' &&
+        oldEffect.brushColor !== 0) {
 
-    // zero mags/phases in expanded recompute window to remove residuals
-    for (let c = recomputeMin; c <= recomputeMax; c++) {
-      const colBase = c * specHeight;
-      for (let r = 0; r < specHeight; r++) {
-        const idx = colBase + r;
-        mags[idx] = 0;
-        phases[idx] = 0;
+      // zero mags/phases in expanded recompute window to remove residuals
+      for (let c = min; c <= max; c++) {
+        const colBase = c * specHeight;
+        for (let r = 0; r < specHeight; r++) {
+          const idx = colBase + r;
+          mags[idx] = 0;
+          phases[idx] = 0;
+        }
       }
     }
+    if (min<recomputeMin)recomputeMin=min;if (max>recomputeMax)recomputeMax=max;
   }
-
   // Recompute PCM for the expanded area and restart render / audio
   recomputePCMForCols(recomputeMin, recomputeMax);
   restartRender(false);
-  renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,sprite.ch);
+  await waitFor(()=>!rendering);
+  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,ch);
 
   // keep previous behaviour for audio restart
   if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
@@ -436,27 +436,30 @@ function toggleSpriteEnabled(spriteId, enable) {
   if (!sprite) return;
   let minCol = Math.max(0, sprite.minCol || 0);
   let maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
-  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = channels[ch].mags, phases = channels[ch].phases;
 
-  // apply prev (disable) or next (enable)
-  if (enable) {
-    // write next values at recorded coords
-    forEachSpritePixelInOrder(sprite, 0, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
-      const id = x * specHeight + y;
-      mags[id] = nextMag;
-      phases[id] = nextPhase;
-    });
-    sprite.enabled = true;
-  } else {
-    // write prev values back
-    forEachSpritePixelInOrder(sprite, 0, (x, y, prevMag, prevPhase) => {
-      const id = x * specHeight + y;
-      mags[id] = prevMag;
-      phases[id] = prevPhase;
-    });
-    sprite.enabled = false;
+    // apply prev (disable) or next (enable)
+    if (enable) {
+      // write next values at recorded coords
+      forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
+        const id = x * specHeight + y;
+        mags[id] = nextMag;
+        phases[id] = nextPhase;
+      });
+      sprite.enabled = true;
+    } else {
+      // write prev values back
+      forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+        const id = x * specHeight + y;
+        mags[id] = prevMag;
+        phases[id] = prevPhase;
+      });
+      sprite.enabled = false;
+    }
   }
-  renderSpectrogramColumnsToImageBuffer(minCol,maxCol,sprite.ch);
+  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(minCol,maxCol,ch);
   //restartRender(false);
   recomputePCMForCols(minCol, maxCol);
   if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
@@ -473,93 +476,97 @@ function toggleSpriteEnabled(spriteId, enable) {
 // Move sprite by dx (frames) and dy (bins). Best-effort handling.
 async function moveSprite(spriteId, dx, dy) {
   const sprite = getSpriteById(spriteId);
+  let recomputeMax = -Infinity, recomputeMin = Infinity;
   if (!sprite) return;
 
   // old range (may be Infinity if empty)
   const oldMinCol = sprite.minCol;
   const oldMaxCol = sprite.maxCol;
-  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = channels[ch].mags, phases = channels[ch].phases;
 
-  // 1) restore prev values at old positions (keep same behaviour)
-  forEachSpritePixelInOrder(sprite, sprite.ch, (x, y, prevMag, prevPhase) => {
-    const idOld = x * specHeight + y;
-    mags[idOld] = prevMag;
-    phases[idOld] = prevPhase;
-  });
+    // 1) restore prev values at old positions (keep same behaviour)
+    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+      const idOld = x * specHeight + y;
+      mags[idOld] = prevMag;
+      phases[idOld] = prevPhase;
+    });
 
-  // We'll build a fresh map for the new sprite pixels.
-  // But avoid writing to mags/phases until we've finished building the structure.
-  const newMap = new Map();
-  let newMin = Infinity, newMax = -Infinity;
+    // We'll build a fresh map for the new sprite pixels.
+    // But avoid writing to mags/phases until we've finished building the structure.
+    const newMap = new Map();
+    let newMin = Infinity, newMax = -Infinity;
 
-  const cols = Array.from(sprite.pixels[0].keys()); // no sort - insertion order is fine
-  for (const oldX of cols) {
-    const col = sprite.pixels[0].get(oldX);
-    if (!col) continue;
+    const cols = Array.from(sprite.pixels[ch].keys()); // no sort - insertion order is fine
+    for (const oldX of cols) {
+      const col = sprite.pixels[ch].get(oldX);
+      if (!col) continue;
 
-    for (let i = 0; i < col.ys.length; i++) {
-      const oldY = col.ys[i];
-      const nextMag = col.nextMags ? col.nextMags[i] : col.prevMags[i]; // keep your pattern
-      const nextPhase = col.nextPhases ? col.nextPhases[i] : col.prevPhases[i];
+      for (let i = 0; i < col.ys.length; i++) {
+        const oldY = col.ys[i];
+        const nextMag = col.nextMags ? col.nextMags[i] : col.prevMags[i]; // keep your pattern
+        const nextPhase = col.nextPhases ? col.nextPhases[i] : col.prevPhases[i];
 
-      const nx = oldX + dx;
-      const f = sampleRate / fftSize;
-      const $s = sampleRate/2, $l = logScaleVal[sprite.ch];
-      const ny  = Math.floor(invlsc(lsc( oldY   *f,$s,$l) + dy * f,$s,$l) / f);
-      const ny1 = Math.floor(invlsc(lsc((oldY+1)*f,$s,$l) + dy * f,$s,$l) / f);
+        const nx = oldX + dx;
+        const f = sampleRate / fftSize;
+        const $s = sampleRate/2, $l = logScaleVal[ch];
+        const ny  = Math.floor(invlsc(lsc( oldY   *f,$s,$l) + dy * f,$s,$l) / f);
+        const ny1 = Math.floor(invlsc(lsc((oldY+1)*f,$s,$l) + dy * f,$s,$l) / f);
 
-      if (nx < 0 || nx >= specWidth || ny < 0 || ny1 >= specHeight) {
-        continue; // out of bounds
+        if (nx < 0 || nx >= specWidth || ny < 0 || ny1 >= specHeight) {
+          continue; // out of bounds
+        }
+
+        // ensure column entry exists
+        let ncol = newMap.get(nx);
+        if (!ncol) {
+          // Only store the arrays we actually need. We'll capture prev values lazily.
+          ncol = { ys: [], prevMags: [], prevPhases: [], nextMags: [], nextPhases: [] };
+          newMap.set(nx, ncol);
+        }
+
+        for (let j = ny; j < ny1; j++) {
+          const destIdx = nx * specHeight + j;
+          ncol.ys.push(j);
+          ncol.prevMags.push(mags[destIdx]);
+          ncol.prevPhases.push(phases[destIdx]);
+          ncol.nextMags.push(nextMag);
+          ncol.nextPhases.push(phases[destIdx] + nextPhase);
+        }
+
+        if (nx < newMin) newMin = nx;
+        if (nx > newMax) newMax = nx;
       }
-
-      // ensure column entry exists
-      let ncol = newMap.get(nx);
-      if (!ncol) {
-        // Only store the arrays we actually need. We'll capture prev values lazily.
-        ncol = { ys: [], prevMags: [], prevPhases: [], nextMags: [], nextPhases: [] };
-        newMap.set(nx, ncol);
-      }
-
-      for (let j = ny; j < ny1; j++) {
-        const destIdx = nx * specHeight + j;
-        ncol.ys.push(j);
-        ncol.prevMags.push(mags[destIdx]);
-        ncol.prevPhases.push(phases[destIdx]);
-        ncol.nextMags.push(nextMag);
-        ncol.nextPhases.push(phases[destIdx] + nextPhase);
-      }
-
-      if (nx < newMin) newMin = nx;
-      if (nx > newMax) newMax = nx;
     }
-  }
 
-  // 3) single pass: write next values into mags/phases for the new positions
-  for (const [x, col] of newMap) {
-    for (let i = 0; i < col.ys.length; i++) {
-      const y = col.ys[i];
-      const nextMag = col.nextMags[i];
-      const nextPhase = col.nextPhases[i];
-      const idNew = x * specHeight + y;
-      mags[idNew] = nextMag;
-      phases[idNew] = nextPhase;
+    // 3) single pass: write next values into mags/phases for the new positions
+    for (const [x, col] of newMap) {
+      for (let i = 0; i < col.ys.length; i++) {
+        const y = col.ys[i];
+        const nextMag = col.nextMags[i];
+        const nextPhase = col.nextPhases[i];
+        const idNew = x * specHeight + y;
+        mags[idNew] = nextMag;
+        phases[idNew] = nextPhase;
+      }
     }
+
+    // 4) replace sprite.pixels, update bounds
+    sprite.pixels[ch] = newMap;
+    sprite.minCol = newMin === Infinity ? Infinity : Math.max(0, newMin);
+    sprite.maxCol = newMax === -Infinity ? -1 : Math.min(specWidth - 1, newMax);
+
+    // Recompute columns once over the union of old/new ranges
+    let min = Math.min(
+      Number.isFinite(oldMinCol) ? oldMinCol : Infinity,
+      Number.isFinite(sprite.minCol) ? sprite.minCol : Infinity
+    ); if (min<recomputeMin) recomputeMin = min;
+    let max = recomputeMax = Math.max(
+      Number.isFinite(oldMaxCol) ? oldMaxCol : -Infinity,
+      Number.isFinite(sprite.maxCol) ? sprite.maxCol : -Infinity
+    ); if (max>recomputeMax) recomputeMax = max;
   }
-
-  // 4) replace sprite.pixels, update bounds
-  sprite.pixels[0] = newMap;
-  sprite.minCol = newMin === Infinity ? Infinity : Math.max(0, newMin);
-  sprite.maxCol = newMax === -Infinity ? -1 : Math.min(specWidth - 1, newMax);
-
-  // Recompute columns once over the union of old/new ranges
-  const recomputeMin = Math.min(
-    Number.isFinite(oldMinCol) ? oldMinCol : Infinity,
-    Number.isFinite(sprite.minCol) ? sprite.minCol : Infinity
-  );
-  const recomputeMax = Math.max(
-    Number.isFinite(oldMaxCol) ? oldMaxCol : -Infinity,
-    Number.isFinite(sprite.maxCol) ? sprite.maxCol : -Infinity
-  );
 
   if (recomputeMin <= recomputeMax && Number.isFinite(recomputeMin)) {
     recomputePCMForCols(recomputeMin, recomputeMax);
@@ -568,7 +575,7 @@ async function moveSprite(spriteId, dx, dy) {
   // Only restart render / audio if necessary
   restartRender(false);
   await waitFor(()=>!rendering);
-  renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,sprite.ch);
+  for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,ch);
 
   if (playing) {
     stopSource(true);
@@ -581,26 +588,27 @@ async function moveSprite(spriteId, dx, dy) {
 
 
 // Delete sprite: disable (restore prev) then remove from sprites array
-function deleteSprite(spriteId) {
+async function deleteSprite(spriteId) {
   const idx = getSpriteIndexById(spriteId);
   if (idx === -1) return;
   const sprite = sprites[idx];
-  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
-
-  // restore prev values
-  forEachSpritePixelInOrder(sprite, 0, (x, y, prevMag, prevPhase) => {
-    const id = x * specHeight + y;
-    mags[id] = prevMag;
-    phases[id] = prevPhase;
-  });
-
+  let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?channelCount:spritePath.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    const mags = channels[ch].mags, phases = channels[ch].phases;
+    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+      const id = x * specHeight + y;
+      mags[id] = prevMag;
+      phases[id] = prevPhase;
+    });
+  }
   const minCol = Math.max(0, sprite.minCol || 0);
   const maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
-  // remove from array
   sprites.splice(idx, 1);
   recomputePCMForCols(minCol, maxCol);
   restartRender(false);
-  renderSpectrogramColumnsToImageBuffer(minCol,maxCol,sprite.ch);
+  
+  await waitFor(()=>!rendering);
+  for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(minCol,maxCol,ch);
 
   if (playing) {
     stopSource(true);
@@ -635,36 +643,38 @@ function formatSignificantAsSprite(origSprite, sig) {
   const { minX, maxX, clusterY0, maskHeight, filled } = sig;
   const W = (maxX - minX + 1);
   let pixelmap=[];
-  for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
-  const out = {
+  for(let c=0;c<channelCount;c++) pixelmap.push((origSprite.ch==="all"||c==origSprite.ch)?(new Map()):null);
+  let out = {
     pixels: pixelmap,
     minCol: Infinity,
     maxCol: -Infinity
   };
-  let ch = currentChannel;
-  for (let xr = 0; xr < W; xr++) {
-    const colArr = filled[xr]; if (!colArr) continue;
-    const xGlobal = minX + xr;
-    for (let yr = 0; yr < colArr.length; yr++) {
-      if (!colArr[yr]) continue;
-      const yGlobal = clusterY0 + yr;
-      let prevMag = 0, prevPhase = 0, nextMag = 0, nextPhase = 0;
-      if (origSprite && origSprite.pixels[ch]) {
-        const srcCol = origSprite.pixels[ch].get(xGlobal);
-        if (srcCol && Array.isArray(srcCol.ys)) {
-          const idx = srcCol.ys.findIndex(v => v === yGlobal);
-          if (idx !== -1) {
-            if (srcCol.prevMags && srcCol.prevMags[idx] != null) prevMag = srcCol.prevMags[idx];
-            if (srcCol.prevPhases && srcCol.prevPhases[idx] != null) prevPhase = srcCol.prevPhases[idx];
-            if (srcCol.nextMags && srcCol.nextMags[idx] != null) nextMag = srcCol.nextMags[idx];
-            if (srcCol.nextPhases && srcCol.nextPhases[idx] != null) nextPhase = srcCol.nextPhases[idx];
+  let $s = origSprite.ch==="all"?0:origSprite.ch, $e = origSprite.ch==="all"?channelCount:origSprite.ch+1;
+  for (let ch=$s;ch<$e;ch++) {
+    for (let xr = 0; xr < W; xr++) {
+        const colArr = filled[xr]; if (!colArr) continue;
+        const xGlobal = minX + xr;
+        for (let yr = 0; yr < colArr.length; yr++) {
+          if (!colArr[yr]) continue;
+          const yGlobal = clusterY0 + yr;
+          let prevMag = 0, prevPhase = 0, nextMag = 0, nextPhase = 0;
+          if (origSprite && origSprite.pixels[ch]) {
+            const srcCol = origSprite.pixels[ch].get(xGlobal);
+            if (srcCol && Array.isArray(srcCol.ys)) {
+              const idx = srcCol.ys.findIndex(v => v === yGlobal);
+              if (idx !== -1) {
+                if (srcCol.prevMags && srcCol.prevMags[idx] != null) prevMag = srcCol.prevMags[idx];
+                if (srcCol.prevPhases && srcCol.prevPhases[idx] != null) prevPhase = srcCol.prevPhases[idx];
+                if (srcCol.nextMags && srcCol.nextMags[idx] != null) nextMag = srcCol.nextMags[idx];
+                if (srcCol.nextPhases && srcCol.nextPhases[idx] != null) nextPhase = srcCol.nextPhases[idx];
+              }
+            }
           }
+          addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase, ch);
         }
       }
-      addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase, ch);
-    }
+      if (out.pixels[ch].size === 0) out = null;
   }
-  if (out.pixels[0].size === 0) return null;
   return out;
 }
 
@@ -1377,31 +1387,26 @@ function renderSpriteFade() {
 function processSpriteFade() {
   const s = getSpriteById(selectedSpriteId);
   if (!s) return;
-  const mags = channels[s.ch].mags;
 
-  // build a significant-sprite and bail if nothing significant
-  const sigSprite = formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
-  if (!sigSprite) return;
-
-  const cols = [...sigSprite.pixels[0].keys()].sort((a,b)=>a-b);
-  if (cols.length === 0) return;
-
-  const last = Math.max(0, s.spriteFade.length - 1);
-  const span = Math.max(1, s.maxCol - s.minCol);
-
-  // iterate every significant pixel and apply multiplier based on its column
-  forEachSpritePixelInOrder(sigSprite, 0, (x, y, _prevMag, _prevPhase, nextMag /*, nextPhase */) => {
-    const t = (x - s.minCol) / span;
-    const idx = Math.round(t * last);
-    const factor = s.spriteFade[idx] || 0;
-    const id = x * specHeight + y;
-    mags[id] = nextMag * factor;
-  });
-
-  recomputePCMForCols(s.minCol, s.maxCol);
+  let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?channelCount:s.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    const mags = channels[ch].mags;
+    const sigSprite = formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
+    if (!sigSprite) return;
+    const cols = [...sigSprite.pixels[ch].keys()].sort((a,b)=>a-b);
+    if (cols.length === 0) return;
+    const last = Math.max(0, s.spriteFade.length - 1);
+    const span = Math.max(1, s.maxCol - s.minCol);
+    forEachSpritePixelInOrder(sigSprite, ch, (x, y, _prevMag, _prevPhase, nextMag /*, nextPhase */) => {
+      const t = (x - s.minCol) / span;
+      const idx = Math.round(t * last);
+      const factor = s.spriteFade[idx] || 0;
+      const id = x * specHeight + y;
+      mags[id] = nextMag * factor;
+    });
+    recomputePCMForCols(s.minCol, s.maxCol);
+  }
 }
-
-
 
 // hit testing: returns {type: 'point'|'handle', index}
 function getFadeHit(pos) {

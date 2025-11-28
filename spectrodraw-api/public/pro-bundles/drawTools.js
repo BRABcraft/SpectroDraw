@@ -184,36 +184,39 @@ function previewShape(cx, cy) {
 
 
 function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
-  let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
-  let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
-  const startWasLeft = (startFrame <= endFrame);
-  let yStartSpec = startWasLeft ? startSpecY : endSpecY;
-  let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
-  const brushMag = (brushColor / 255) * 128;
+  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  for (let ch=$s;ch<$e;ch++){
+    let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
+    let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
+    const startWasLeft = (startFrame <= endFrame);
+    let yStartSpec = startWasLeft ? startSpecY : endSpecY;
+    let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
+    const brushMag = (brushColor / 255) * 128;
 
-  x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
-  x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
-  let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
-  let y1 = Math.max(0, Math.min(specHeight - 1, Math.round(yEndSpec)));
+    x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
+    x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
+    let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
+    let y1 = Math.max(0, Math.min(specHeight - 1, Math.round(yEndSpec)));
 
-  const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-  const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-  let err = (dx > dy ? dx : -dy) / 2;
+    const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    let err = (dx > dy ? dx : -dy) / 2;
 
-  const half = Math.floor(lineWidth / 2);
+    const half = Math.floor(lineWidth / 2);
 
- while (true) {
-    for (let dy = -half; dy <= half; dy++) {
-      const px = x0;
-      const py = y0 + dy;
-      if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-        drawPixelFrame(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
+    while (true) {
+      for (let dy = -half; dy <= half; dy++) {
+        const px = x0;
+        const py = y0 + dy;
+        if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
+          drawPixelFrame(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity, ch); 
+        }
       }
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = err;
+      if (e2 > -dx) { err -= dy; x0 += sx; }
+      if (e2 < dy)  { err += dx; y0 += sy; }
     }
-    if (x0 === x1 && y0 === y1) break;
-    const e2 = err;
-    if (e2 > -dx) { err -= dy; x0 += sx; }
-    if (e2 < dy)  { err += dx; y0 += sy; }
   }
 }
 
@@ -231,9 +234,10 @@ function buildBinDisplayLookup() {
   }
 }
 
-function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase, ch) {
+function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,ch) {
   if (!sprite) return;
-  let col = sprite.pixels[ch].get(x);//CHANGE LATER
+  let col;
+  try{col=sprite.pixels[ch].get(x);}catch(e){console.log(sprite,ch);col=null};
   if (!col) {
     col = {
       ys: [],
@@ -244,17 +248,26 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase, 
     };
     sprite.pixels[ch].set(x, col);//CHANGE LATER
   }
-  col.ys.push(y);
-  col.prevMags.push(prevMag);
-  col.prevPhases.push(prevPhase);
-  col.nextMags.push(nextMag);
-  col.nextPhases.push(nextPhase);
+  if (col.ys.includes(y)){
+    const idx = col.ys.indexOf(y);
+    col.prevMags[idx]=prevMag;
+    col.prevPhases[idx]=prevPhase;
+    col.nextMags[idx]=nextMag;
+    col.nextPhases[idx]=nextPhase;
+  } else {
+    col.ys.push(y);
+    col.prevMags.push(prevMag);
+    col.prevPhases.push(prevPhase);
+    col.nextMags.push(nextMag);
+    col.nextPhases.push(nextPhase);
+  }
+  
 
   if (x < sprite.minCol) sprite.minCol = x;
   if (x > sprite.maxCol) sprite.maxCol = x;
 }
 
-function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
+function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
 
@@ -264,10 +277,9 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   const width = fullW;
   const height = fullH;
   const idxBase = xI * fullH;
-  const imgData = imageBuffer[currentChannel].data;
+  const imgData = imageBuffer[ch].data;
   const dbt = Math.pow(10, noiseRemoveFloor / 20)*128;
 
-  let ch=currentChannel;
   const magsArr = channels[ch].mags;
   const phasesArr = channels[ch].phases;
 
@@ -277,12 +289,12 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
   if (alignPitch) {
     let nearestPitch = Math.round(npo * Math.log2(f / startOnP));
     nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
-    displayYFloat = ftvsy(nearestPitch,currentChannel);
+    displayYFloat = ftvsy(nearestPitch,ch);
   }
 
   // get float bin boundaries using lookup tables
-  const topBinF = displayYToBin(displayYFloat - 0.5, fullH, currentChannel);
-  const botBinF = displayYToBin(displayYFloat + 0.5, fullH, currentChannel);
+  const topBinF = displayYToBin(displayYFloat - 0.5, fullH, ch);
+  const botBinF = displayYToBin(displayYFloat + 0.5, fullH, ch);
 
   let binStart = Math.floor(Math.min(topBinF, botBinF));
   let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
@@ -295,8 +307,8 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     const idx = idxBase + bin;
     // bounds check not needed if idxBase/bin clamped, but keep safe:
     if (idx < 0 || idx >= magsArr.length) continue;
-    if (visited && visited[idx] === 1) continue;
-    if (visited) visited[idx] = 1;
+    if (visited && visited[ch][idx] === 1) continue;
+    if (visited) visited[ch][idx] = 1;
     
     let pd = (bin%2<1)?1:1-po;
 
@@ -360,7 +372,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
     mag = (tool === "eraser" ? 0 : (newEffect.brushColor  !== undefined) ? newEffect.brushColor  :128);
     phase=(tool === "eraser" ? 0 : (newEffect.penPhase!== undefined) ? newEffect.penPhase:  0);
   }
-  const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1);
+  const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* channels[ch].brushPressure;
   const po =  (tool === "eraser" ? 0 : (newEffect.phaseOpacity   !== undefined) ? newEffect.phaseOpacity   :  0);
   const _amp = newEffect.amp || amp;
   const dbt = Math.pow(10, newEffect.noiseRemoveFloor / 20)*128;
@@ -383,114 +395,117 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
 
 
 function commitShape(cx, cy) {
-  let mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
-  if (!mags || !phases) return;
+  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = channels[ch].mags, phases = channels[ch].phases;
+    if (!mags || !phases) return;
 
-  const fullW = specWidth;
-  const fullH = specHeight;
-  const po = currentTool === "eraser" ? 1 : phaseOpacity;
-  const bo = currentTool === "eraser" ? 1 : brushOpacity;
-  const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-  const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+    const fullW = specWidth;
+    const fullH = specHeight;
+    const po = currentTool === "eraser" ? 1 : phaseOpacity;
+    const bo = currentTool === ("eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
+    const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+    const brushPhase = currentTool === "eraser" ? 0 : penPhase;
 
-  const visitedLocal = new Uint8Array(fullW * fullH);
-  const savedVisited = visited;
-  visited = visitedLocal;
-  let integral = null;
-  if (currentTool === "blur") {
-    // You can instead compute a sub-rectangle bounding box and build integral only for that
-    // to save time/memory. For simplicity we build full-image integral here:
-    integral = buildIntegral(fullW, fullH, mags, phases);
-  }
-  try {
-    const startVisX = (startX == null ? cx : startX);
-    const startVisY = (startY == null ? cy : startY);
-
-    const startFrame = Math.round(startVisX + (iLow || 0));
-    const endFrame   = Math.round(cx + (iLow || 0));
-    let x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
-    let x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
-
-    const startSpecY = visibleToSpecY(startVisY);
-    const endSpecY   = visibleToSpecY(cy);
-    let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
-    let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
-
-    function dp(xFrame, yDisplay, mag, phase, bo, po){
-      if (currentTool === "blur") {
-        // map displayY to the nearest bin once
-        const binCenter = Math.round(displayYToBin(yDisplay, fullH, currentChannel));
-        const r = blurRadius | 0;
-        const x0 = Math.max(0, xFrame - r);
-        const x1 = Math.min(fullW - 1, xFrame + r);
-        const y0 = Math.max(0, binCenter - r);
-        const y1 = Math.min(fullH - 1, binCenter + r);
-
-        const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
-        const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-        drawPixelFrame(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po);
-      } else {
-        drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po);
-      }
+    const visitedLocal = Array.from({ length: channelCount }, () => new Uint8Array(fullW * fullH));
+    const savedVisited = visited;
+    visited = visitedLocal;
+    let integral = null;
+    if (currentTool === "blur") {
+      // You can instead compute a sub-rectangle bounding box and build integral only for that
+      // to save time/memory. For simplicity we build full-image integral here:
+      integral = buildIntegral(fullW, fullH, mags, phases);
     }
+    try {
+      const startVisX = (startX == null ? cx : startX);
+      const startVisY = (startY == null ? cy : startY);
 
-    if (currentShape === "rectangle") {
+      const startFrame = Math.round(startVisX + (iLow || 0));
+      const endFrame   = Math.round(cx + (iLow || 0));
+      let x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
+      let x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
 
-      const minX = x0Frame;
-      const maxX = x1Frame;
+      const startSpecY = visibleToSpecY(startVisY);
+      const endSpecY   = visibleToSpecY(cy);
+      let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
+      let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
 
-      let binA = displayYToBin(y0Spec, fullH, currentChannel);
-      let binB = displayYToBin(y1Spec, fullH, currentChannel);
-      if (binA > binB) { const t = binA; binA = binB; binB = t; }
+      function dp(xFrame, yDisplay, mag, phase, bo, po, ch){
+        if (currentTool === "blur") {
+          // map displayY to the nearest bin once
+          const binCenter = Math.round(displayYToBin(yDisplay, fullH, ch));
+          const r = blurRadius | 0;
+          const x0 = Math.max(0, xFrame - r);
+          const x1 = Math.min(fullW - 1, xFrame + r);
+          const y0 = Math.max(0, binCenter - r);
+          const y1 = Math.min(fullH - 1, binCenter + r);
 
-      binA = Math.max(0, Math.min(fullH - 1, Math.round(binA)));
-      binB = Math.max(0, Math.min(fullH - 1, Math.round(binB)));
-
-      for (let xx = minX; xx <= maxX; xx++) {
-        for (let bin = binA; bin <= binB; bin++) {
-          const displayY = binToDisplayY(bin, fullH,currentChannel);
-          dp(xx, displayY, brushMag, brushPhase, bo, po);
+          const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
+          const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
+          drawPixelFrame(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po, ch);
+        } else {
+          drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch);
         }
       }
 
-    } else if (currentShape === "line") {
-      let x0=startFrame;x1=endFrame;
-      let yStartSpec = startSpecY;
-      let yEndSpec   = endSpecY;
+      if (currentShape === "rectangle") {
 
-      x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
-      x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
-      let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
-      let y1 = Math.max(0, Math.min(specHeight - 1, Math.round(yEndSpec)));
+        const minX = x0Frame;
+        const maxX = x1Frame;
 
-      const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-      const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-      let err = (dx > dy ? dx : -dy) / 2;
+        let binA = displayYToBin(y0Spec, fullH, ch);
+        let binB = displayYToBin(y1Spec, fullH, ch);
+        if (binA > binB) { const t = binA; binA = binB; binB = t; }
 
-      const half = Math.floor(brushSize / 8);
+        binA = Math.max(0, Math.min(fullH - 1, Math.round(binA)));
+        binB = Math.max(0, Math.min(fullH - 1, Math.round(binB)));
 
-      while (true) {
-          for (let dx = -half; dx <= half; dx++) {
-            const px = x0 + dx;
-            const py = y0;
-            if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-              dp(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
-            }
+        for (let xx = minX; xx <= maxX; xx++) {
+          for (let bin = binA; bin <= binB; bin++) {
+            const displayY = binToDisplayY(bin, fullH,ch);
+            dp(xx, displayY, brushMag, brushPhase, bo, po, ch);
           }
-          if (x0 === x1 && y0 === y1) break;
-          const e2 = err;
-          if (e2 > -dx) { err -= dy; x0 += sx; }
-          if (e2 < dy)  { err += dx; y0 += sy; }
         }
+
+      } else if (currentShape === "line") {
+        let x0=startFrame;x1=endFrame;
+        let yStartSpec = startSpecY;
+        let yEndSpec   = endSpecY;
+
+        x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
+        x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
+        let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
+        let y1 = Math.max(0, Math.min(specHeight - 1, Math.round(yEndSpec)));
+
+        const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        let err = (dx > dy ? dx : -dy) / 2;
+
+        const half = Math.floor(brushSize / 8);
+
+        while (true) {
+            for (let dx = -half; dx <= half; dx++) {
+              const px = x0 + dx;
+              const py = y0;
+              if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
+                dp(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity,ch); 
+              }
+            }
+            if (x0 === x1 && y0 === y1) break;
+            const e2 = err;
+            if (e2 > -dx) { err -= dy; x0 += sx; }
+            if (e2 < dy)  { err += dx; y0 += sy; }
+          }
+      }
+    } finally {
+
+      visited = savedVisited;
     }
-  } finally {
+    const specCanvas = document.getElementById("spec-"+ch);
+    const specCtx = specCanvas.getContext("2d");
 
-    visited = savedVisited;
+    specCtx.putImageData(imageBuffer[ch], 0, 0);
   }
-  const specCanvas = document.getElementById("spec-"+currentChannel);
-  const specCtx = specCanvas.getContext("2d");
-
-  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
   renderView();
 }
 
@@ -513,107 +528,110 @@ function ftvsy(f,ch) {// frequency to visible spectrogram Y
   return visY;
 }
 function paint(cx, cy) {
-  const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
-  const canvas = document.getElementById("canvas-"+currentChannel);
-  const fullW = specWidth;
-  const fullH = specHeight;
-  const po = currentTool === "eraser" ? 1 : phaseOpacity;
-  const bo = currentTool === "eraser" ? 1 : brushOpacity;
-  const radiusY = Math.floor(brushSize/2/canvas.getBoundingClientRect().height*canvas.height);
-  const radiusXFrames = Math.floor(brushSize/2/canvas.getBoundingClientRect().width*canvas.width);
-  const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
-  const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
-  const minY = Math.max(0, Math.floor(cy - radiusY));
-  const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY));
-  const radiusXsq = radiusXFrames * radiusXFrames;
-  const radiusYsq = radiusY * radiusY;
-  if (currentShape === "image" && overlayImage) {
-    const screenSpace = true;
-    const rect = canvas.getBoundingClientRect();
-    const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
-    const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
-    const desiredScreenMax = brushSize * 4;
-    const imgW = overlayImage.width;
-    const imgH = overlayImage.height;
-    const imgAspect = imgW / imgH;
-    let screenW, screenH;
-    if (imgW >= imgH) {
-      screenW = desiredScreenMax;
-      screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
-    } else {
-      screenH = desiredScreenMax;
-      screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
-    }
-    let overlayW, overlayH;
-    if (screenSpace) {
-      overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-      overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
-    } else {
-      overlayH = Math.max(1, Math.round(brushSize));
-      overlayW = Math.max(1, Math.round(overlayH * imgAspect));
-    }
-    const ox = Math.floor(cx - overlayW / 2);
-    const oy = Math.floor(cy - overlayH / 2);
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = overlayW;
-    tempCanvas.height = overlayH;
-    const tctx = tempCanvas.getContext("2d");
-    tctx.imageSmoothingEnabled = false;
-    tctx.drawImage(overlayImage, 0, 0, overlayW, overlayH);
-    const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
-    for (let yy = 0; yy < overlayH; yy++) {
-      for (let xx = 0; xx < overlayW; xx++) {
-        const pix = (yy * overlayW + xx) * 4;
-        const r = imgData.data[pix];
-        const g = imgData.data[pix + 1];
-        const b = imgData.data[pix + 2];
-        const a = imgData.data[pix + 3] / 255;
-        if (a <= 0) continue; 
-        const [mag, phase] = rgbToMagPhase(r, g, b);
-        const cxPix = ox + xx;
-        const cyPix = oy + yy;
-        if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
+  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  for (let ch=$s;ch<$e;ch++){
+    const mags = channels[ch].mags, phases = channels[ch].phases;
+    const canvas = document.getElementById("canvas-"+ch);
+    const fullW = specWidth;
+    const fullH = specHeight;
+    const po = currentTool === "eraser" ? 1 : phaseOpacity;
+    const bo = currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity* channels[ch].brushPressure;
+    const radiusY = Math.floor(brushSize/2/canvas.getBoundingClientRect().height*canvas.height);
+    const radiusXFrames = Math.floor(brushSize/2/canvas.getBoundingClientRect().width*canvas.width);
+    const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
+    const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
+    const minY = Math.max(0, Math.floor(cy - radiusY));
+    const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY));
+    const radiusXsq = radiusXFrames * radiusXFrames;
+    const radiusYsq = radiusY * radiusY;
+    if (currentShape === "image" && overlayImage) {
+      const screenSpace = true;
+      const rect = canvas.getBoundingClientRect();
+      const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
+      const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
+      const desiredScreenMax = brushSize * 4;
+      const imgW = overlayImage.width;
+      const imgH = overlayImage.height;
+      const imgAspect = imgW / imgH;
+      let screenW, screenH;
+      if (imgW >= imgH) {
+        screenW = desiredScreenMax;
+        screenH = Math.max(1, Math.round(desiredScreenMax / imgAspect));
+      } else {
+        screenH = desiredScreenMax;
+        screenW = Math.max(1, Math.round(desiredScreenMax * imgAspect));
+      }
+      let overlayW, overlayH;
+      if (screenSpace) {
+        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+      } else {
+        overlayH = Math.max(1, Math.round(brushSize));
+        overlayW = Math.max(1, Math.round(overlayH * imgAspect));
+      }
+      const ox = Math.floor(cx - overlayW / 2);
+      const oy = Math.floor(cy - overlayH / 2);
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = overlayW;
+      tempCanvas.height = overlayH;
+      const tctx = tempCanvas.getContext("2d");
+      tctx.imageSmoothingEnabled = false;
+      tctx.drawImage(overlayImage, 0, 0, overlayW, overlayH);
+      const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
+      for (let yy = 0; yy < overlayH; yy++) {
+        for (let xx = 0; xx < overlayW; xx++) {
+          const pix = (yy * overlayW + xx) * 4;
+          const r = imgData.data[pix];
+          const g = imgData.data[pix + 1];
+          const b = imgData.data[pix + 2];
+          const a = imgData.data[pix + 3] / 255;
+          if (a <= 0) continue; 
+          const [mag, phase] = rgbToMagPhase(r, g, b);
+          const cxPix = ox + xx;
+          const cyPix = oy + yy;
+          if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
 
-          drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a, phaseOpacity * a);
+            drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a * channels[ch].brushPressure, phaseOpacity * a, ch);
+          }
+        }
+      }
+    } else if (currentTool === "color" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
+      const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+      const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+      for (let yy = minY; yy <= maxY; yy++) {
+        for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+          const dx = xx - cx;
+          const dy = yy - cy;
+          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
+          drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po, ch);
+        }
+      }
+    } else if (currentTool === "blur") {
+      // Build integral for whole image (or a bounding region) once
+      const integral = buildIntegral(fullW, fullH, mags, phases);
+      for (let yy = minY; yy <= maxY; yy++) {
+        for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+          const dx = xx - cx;
+          const dy = yy - cy;
+          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
+
+          // map display Y to bin center (rounded)
+          const binCenter = Math.round(displayYToBin(yy, fullH, ch));
+          const r = blurRadius | 0;
+          const x0 = Math.max(0, xx - r);
+          const x1 = Math.min(fullW - 1, xx + r);
+          const y0 = Math.max(0, binCenter - r);
+          const y1 = Math.min(fullH - 1, binCenter + r);
+
+          const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
+          const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
+          drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po, ch);
         }
       }
     }
-  } else if (currentTool === "color" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
-    const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-    const brushPhase = currentTool === "eraser" ? 0 : penPhase;
-    for (let yy = minY; yy <= maxY; yy++) {
-      for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-        const dx = xx - cx;
-        const dy = yy - cy;
-        if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
-        drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
-      }
-    } 
-  } else if (currentTool === "blur") {
-    // Build integral for whole image (or a bounding region) once
-    const integral = buildIntegral(fullW, fullH, mags, phases);
-    for (let yy = minY; yy <= maxY; yy++) {
-      for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-        const dx = xx - cx;
-        const dy = yy - cy;
-        if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
-
-        // map display Y to bin center (rounded)
-        const binCenter = Math.round(displayYToBin(yy, fullH, currentChannel));
-        const r = blurRadius | 0;
-        const x0 = Math.max(0, xx - r);
-        const x1 = Math.min(fullW - 1, xx + r);
-        const y0 = Math.max(0, binCenter - r);
-        const y1 = Math.min(fullH - 1, binCenter + r);
-
-        const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
-        const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-        drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po);
-      }
-    }
+    const specCanvas = document.getElementById("spec-"+ch);
+    const specCtx = specCanvas.getContext("2d");
+    specCtx.putImageData(imageBuffer[ch], 0, 0);
   }
-  const specCanvas = document.getElementById("spec-"+currentChannel);
-  const specCtx = specCanvas.getContext("2d");
-  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
   renderView();
 }

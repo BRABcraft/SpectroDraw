@@ -322,18 +322,15 @@ function waitForSpecUpdate(timeout = SPEC_UPDATE_TIMEOUT_MS) {
 
 function drawLoop() {
   if (!rendering) return;
-  const specCanvas = document.getElementById("spec-"+currentChannel);
-  const specCtx = specCanvas.getContext("2d");
-
   const framesPerTick = 200;
-
   const h = specHeight;
   const w = specWidth;
-
-  for (let f = 0; f < framesPerTick; f++) {
-      if (!drawFrame(w,h)) break;
+  
+  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  for (let f = 0; f < framesPerTick; f++) if (!drawFrame(w,h)) break;
+  for (let ch=$s;ch<$e;ch++){
+    document.getElementById("spec-"+ch).getContext("2d").putImageData(imageBuffer[ch], 0, 0);
   }
-  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
   drawCursor(true);
 
   if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') resolveSpecUpdate(true);

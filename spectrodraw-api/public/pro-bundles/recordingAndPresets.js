@@ -89,7 +89,7 @@ function logScaleMouseDown(e,touch,logscaleEl) {
   drawLogScale();
 }
 
-function logScaleMouseMove(e,touch) {
+async function logScaleMouseMove(e,touch) {
   const logscaleEl = document.getElementById("logscale-"+currentChannel);
   logscaleEl.style.cursor = "n-resize";
   if (!changingLogScale) return;
@@ -98,6 +98,8 @@ function logScaleMouseMove(e,touch) {
   if (logScaleVal[currentChannel] > 2) logScaleVal[currentChannel] = 2;
   [startX, startY] = getMouseXY(e,touch);
   buildBinDisplayLookup();
+  
+  await waitFor(()=>!rendering);
   renderFullSpectrogramToImage();
   drawLogScale();
   drawYAxis();

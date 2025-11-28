@@ -66,10 +66,13 @@ function canvasMouseDown(e,touch) {
     spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
     return;
   } else {
-    channels[currentChannel].snapshotMags = new Float32Array(mags);
-    channels[currentChannel].snapshotPhases = new Float32Array(phases);
+    let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+    for (let ch=$s;ch<$e;ch++){
+      channels[ch].snapshotMags = new Float32Array(channels[ch].mags);
+      channels[ch].snapshotPhases = new Float32Array(channels[ch].phases);
+    }
 
-    visited = new Uint8Array(mags.length);
+    visited = Array.from({ length: channelCount }, () => new Uint8Array(mags.length));
     stopSource();
     paintedPixels = new Set();
     
@@ -108,7 +111,7 @@ function canvasMouseDown(e,touch) {
       spriteFade: [],
       prevSpriteFade: [],
       name,
-      ch: currentChannel
+      ch: syncChannels?"all":currentChannel
     };
     sprites.push(currentSprite);
 
@@ -139,8 +142,6 @@ function canvasMouseMove(e,touch,el) {
   currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   let mags = channels[currentChannel].mags; //change to channel that mouse is touching
-  const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
-  const overlayCtx = overlayCanvas.getContext("2d");//CHANGE LATER
   if (painting && movingSprite) {previewShape(cx, cy);return;}
   if (zooming) return;
   if (!recording) {
@@ -164,7 +165,12 @@ function canvasMouseMove(e,touch,el) {
     previewShape(cx, cy);
     previewingShape = true;
   } else {
-    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+    for (let ch=$s;ch<$e;ch++){
+      const overlayCanvas = document.getElementById("overlay-"+ch);
+      const overlayCtx = overlayCanvas.getContext("2d");
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
     const realY = visibleToSpecY(cy);
     paint(cx + iLow, realY);
     drawCursor(true);
@@ -308,33 +314,36 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
-  let mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
-  let snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;
-  const epsMag = 0.1;
-  const epsPhase = 0.4;
+  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = channels[ch].mags, phases = channels[ch].phases;
+    let snapshotMags = channels[ch].snapshotMags, snapshotPhases = channels[ch].snapshotPhases;
+    const epsMag = 0.1;
+    const epsPhase = 0.4;
 
-  const changedIdxs = [];
-  const prevMags = [];
-  const prevPhases = [];
+    const changedIdxs = [];
+    const prevMags = [];
+    const prevPhases = [];
 
-  const h = specHeight;
-  const startF = minCol*fftSize/2
-  const endF = maxCol*fftSize/2; 
-  let totalDiff = 0;
-  let countDiff = 0;
-  for (let idx = startF; idx < endF; idx++) {
-    const oldM = snapshotMags[idx] || 0;
-    const newM = mags[idx] || 0;
-    const oldP = snapshotPhases[idx] || 0;
-    const newP = phases[idx] || 0;
-    if (idx%fftSize/2 === 0) {countDiff=0; totalDiff=0;}
-    countDiff++;
-    totalDiff += Math.abs(oldM - newM);  
-    if (Math.abs(oldM - newM) > Math.min(0.4,(totalDiff/countDiff)*0.2)){
-      changedIdxs.push(idx);
-      prevMags.push(oldM);
-      prevPhases.push(snapshotPhases[idx] || 0);
-      addPixelToSprite(currentSprite, Math.floor(idx/(fftSize/2)), idx%(fftSize/2), oldM, oldP, newM, newP, currentChannel);
+    const h = specHeight;
+    const startF = minCol*fftSize/2
+    const endF = maxCol*fftSize/2; 
+    let totalDiff = 0;
+    let countDiff = 0;
+    for (let idx = startF; idx < endF; idx++) {
+      const oldM = snapshotMags[idx] || 0;
+      const newM = mags[idx] || 0;
+      const oldP = snapshotPhases[idx] || 0;
+      const newP = phases[idx] || 0;
+      if (idx%fftSize/2 === 0) {countDiff=0; totalDiff=0;}
+      countDiff++;
+      totalDiff += Math.abs(oldM - newM);  
+      if (Math.abs(oldM - newM) > Math.min(0.4,(totalDiff/countDiff)*0.2)){
+        changedIdxs.push(idx);
+        prevMags.push(oldM);
+        prevPhases.push(snapshotPhases[idx] || 0);
+        addPixelToSprite(currentSprite, Math.floor(idx/(fftSize/2)), idx%(fftSize/2), oldM, oldP, newM, newP, ch);
+      }
     }
   }
 }
@@ -434,8 +443,9 @@ async function playPCM(loop = true, startFrame = null) {
     startSample = Math.max(0, Math.min(totalSamples - 1, pausedAtSample));
   }
 
-  sourceNode && tryStopSource && tryStopSource(); // keep your existing stop behaviour if you have helper; otherwise just stopSource(true)
-  stopSource(true);
+  // stop any previous node(s)
+  try { sourceNode && sourceNode.stop(); } catch (_) {}
+  try { sourceNode && sourceNode.disconnect(); } catch (_) {}
 
   sourceNode = audioCtx.createBufferSource();
 
@@ -448,13 +458,17 @@ async function playPCM(loop = true, startFrame = null) {
   const right = buffer.getChannelData(1);
 
   // Mix channels into left/right
-  for (let ch = 0; ch < channelCount; ch++) {
+  const nCh = channels.length;
+  for (let ch = 0; ch < nCh; ch++) {
     const chObj = channels[ch];
     if (!chObj || !chObj.pcm) continue;
 
     const pcm = chObj.pcm;
     const device = (chObj.audioDevice || "both").toLowerCase(); // left/right/both/none
-    const vol = (typeof chObj.volume === "number") ? chObj.volume : 1;
+    let vol = chObj.enabled?chObj.volume : 0;
+    // clamp to [0,1]
+    if (vol < 0) vol = 0;
+    else if (vol > 1) vol = 1;
 
     if (device === "none") continue;
 
@@ -470,11 +484,10 @@ async function playPCM(loop = true, startFrame = null) {
         right[i] += s;
       }
     }
-    // remainder of pcm (if pcm shorter) => left/right remain unaffected (silence)
   }
 
   // NOTE: this simple additive mix can clip if summed samples exceed [-1,1].
-  // If you want, we can add normalization or soft clipping here.
+  // Consider normalization or soft clipping if needed.
 
   sourceNode.buffer = buffer;
   sourceNode.loop = !!loop;
@@ -507,13 +520,15 @@ async function playPCM(loop = true, startFrame = null) {
     const sLeft = shortBuf.getChannelData(0);
     const sRight = shortBuf.getChannelData(1);
 
-    for (let ch = 0; ch < channels.length; ch++) {
+    for (let ch = 0; ch < nCh; ch++) {
       const chObj = channels[ch];
       if (!chObj || !chObj.pcm) continue;
 
       const pcm = chObj.pcm;
       const device = (chObj.audioDevice || "both").toLowerCase();
-      const vol = (typeof chObj.volume === "number") ? chObj.volume : 1;
+      let vol = (typeof chObj.volume === "number") ? chObj.volume : 1;
+      if (vol < 0) vol = 0;
+      else if (vol > 1) vol = 1;
 
       if (device === "none") continue;
       if (startSample >= pcm.length) continue; // nothing left to copy
@@ -530,7 +545,6 @@ async function playPCM(loop = true, startFrame = null) {
           sRight[i] += s;
         }
       }
-      // if slice.length < remaining, the rest stays silent
     }
 
     sourceNode = audioCtx.createBufferSource();
@@ -549,6 +563,7 @@ async function playPCM(loop = true, startFrame = null) {
   playing = true;
   pausedAtSample = null;
 }
+
 
 
 

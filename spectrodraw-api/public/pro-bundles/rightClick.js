@@ -13,6 +13,8 @@ function applyEQChanges(){
 }
 function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
     const idx = x*specHeight + y
+    
+    let mags = channels[currentChannel].mags,phases = channels[currentChannel].phases;
     mags[idx] = mag;
     phases[idx] = phase;
     const topEdge = binToDisplayY(y - 0.5, specHeight,currentChannel);
@@ -31,10 +33,10 @@ function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
 
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + x) * 4;
-      imageBuffer[ch].data[pix]     = r;
-      imageBuffer[ch].data[pix + 1] = g;
-      imageBuffer[ch].data[pix + 2] = b;
-      imageBuffer[ch].data[pix + 3] = 255;
+      imageBuffer[currentChannel].data[pix]     = r;
+      imageBuffer[currentChannel].data[pix + 1] = g;
+      imageBuffer[currentChannel].data[pix + 2] = b;
+      imageBuffer[currentChannel].data[pix + 3] = 255;
     }
 }
 function zoomTimelineFit(){
@@ -250,6 +252,7 @@ function makeCanvasMenu(cx0, cy0){
     secs = Math.floor(cx / (Number(sampleRate)/Number(hopSizeEl.value)) * 10000) / 10000;
     const hx = Math.floor(cx);
     const hy = Math.floor(hz / (sampleRate/fftSize));
+    let mags = channels[currentChannel].mags,phases = channels[currentChannel].phases;
     i = hx*(specHeight||1) + hy;
     normalizedMag = Math.min(1, mags[i]/256);
     db = (normalizedMag > 0) ? (20 * Math.log10(normalizedMag)) : -200;
@@ -329,7 +332,7 @@ function makeCanvasMenu(cx0, cy0){
     const phaseClamped = Math.max(-Math.PI, Math.min(Math.PI, Number(phaseInput.value)||0));
     const bin = Math.floor(hz/(sampleRate/fftSize));
     setPixelMagPhaseAtCursor(Math.floor(cx), bin, magVal, phaseClamped);
-    specCtx.putImageData(imageBuffer, 0, 0);
+    specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
     pos = Math.floor(cx) * hop;
     autoRecomputePCM(Math.floor(cx), Math.floor(cx));
     drawFrame(specWidth, specHeight);

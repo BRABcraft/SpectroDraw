@@ -676,3 +676,178 @@ svg.tutorial-spotlight.hide {
   grid-template-columns: 1fr; /* force one column */
   gap: 1.25rem;
 }
+#spriteTableWrap {
+    height: 240px; /* fixed height as requested */
+    overflow: auto;
+    border: 1px solid #666;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: #111;
+  }
+
+  #spriteTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  #spriteTable thead th {
+    position: sticky;
+    top: 0;
+    background: #222;
+    padding: 6px 8px;
+    text-align: left;
+    font-size: 13px;
+    border-bottom: 1px solid #333;
+  }
+
+  #spriteTable td {
+    padding: 3px 4px;
+    border-bottom: 1px dashed #111;
+    font-size: 13px;
+  }
+
+  #spriteTable tr.sprite-row:hover { background: #444; cursor: pointer; }
+  #spriteTable tr.sprite-row.selected { background: #0055af;}
+
+  /* Editor area */
+  
+  #moveControls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .moveRow { display:flex; gap:6px; }
+  #spriteInfo { flex:1; font-size:13px; color:#333; }
+  .small { font-size:12px; color:#666; }
+  .muted { color:#777; font-size:12px; }
+
+#moveSpriteBtn {
+  position: relative;
+  overflow: hidden;
+  z-index: 0;  /* establish stacking context */
+}
+
+/* gradient overlay */
+#moveSpriteBtn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #fe9260ff, #ff35aeff, #f91212ff);
+  opacity: 0;
+  transition: opacity 100ms linear;
+
+  z-index: -1;   /* put gradient behind the text */
+}
+#moveSpriteBtn.moving::before {
+  opacity: 1;
+}
+.spriteEditorRow {
+  font-size: 0.8rem;
+  display: flex;
+  height: 1.5rem;
+}
+
+.spriteEditorRow label {
+  width: 70px;
+}
+
+.spriteEditorRow input, .slider-row input[type="text"]{
+  background: #333;
+  border: 1px solid #aaa;
+  border-radius: 5px;
+  height: 1.0rem;
+  width:100%;
+  color: white;
+}
+
+/* 🔻 When the entire #spriteEditor is "disabled" */
+#spriteEditor[disabled], #chdiv[disabled] {
+  pointer-events: none;      /* block input */
+  opacity: 0.5;              /* fade whole block */
+}
+
+/* 🔻 Optional: stronger muted look for form elements */
+#spriteEditor[disabled] input,
+#spriteEditor[disabled] select,
+#spriteEditor[disabled] button {
+  background: #444 !important;
+  color: #aaa !important;
+  cursor: not-allowed;
+}
+.left-panel .slider-row > label {
+  flex: 0 0 140px;
+  width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.section-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin-left: 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: #e6eef8;
+  cursor: pointer;
+  transition: transform .08s ease, background .08s ease, box-shadow .08s ease;
+}
+.section-toggle:active { transform: scale(.98); }
+.section-toggle:hover { background: rgba(255,255,255,0.04); box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.section-toggle svg { width: 14px; height: 14px; display:block; }
+
+/* ensure h3 uses flex so the button sits nicely to the right of the title */
+#spriteEffectSettings h3,
+#spriteFadeDiv h3 {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* title left, button follows */
+  gap: 8px;
+  margin: 0 0 10px 0;
+  padding-right: 6px;
+}
+
+.channelWrapper {
+  width: 315px;
+  padding-left: 4px;
+  border-radius: 8px;
+  border: 1px solid #666;
+  background: #222;
+  box-sizing: border-box;
+}
+
+/***************************/
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: none;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+  transition: background-color 0.2s ease; /* IMPORTANT: must be here */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555; /* must match property above */
+}
+
+::-webkit-scrollbar-corner {
+  background: none;
+}
+
+#d2, #d3, #d6, #d7 {
+  cursor: not-allowed !important;
+  pointer-events:none;
+  opacity: 0.5;
+}

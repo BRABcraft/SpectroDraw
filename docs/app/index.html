@@ -21,191 +21,152 @@
   </script>
 </head>
 <body>
-  
   <script>
-(async function loadProUIInIframeOverlay() {
-  try {
-    function getCurrentUserEmail() {
+    (async function loadProUIInIframeOverlay() {
       try {
-        const raw = localStorage.getItem('spectrodraw_user');
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        return parsed?.email || parsed?.user || parsed?.id || null;
-      } catch (e) { return null; }
-    }
+        function getCurrentUserEmail() {
+          try {
+            const raw = localStorage.getItem('spectrodraw_user');
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.email || parsed?.user || parsed?.id || null;
+          } catch (e) { return null; }
+        }
+        const email = getCurrentUserEmail();
+        if (!email) return;
+        const stored = (() => {
+          try { return localStorage.getItem('spectrodraw_user'); }
+          catch (e) { return null; }
+        })();
 
-    const email = getCurrentUserEmail();
-    if (!email) return; // nothing to do
+        const headers = { 'Accept': 'application/json' };
+        if (stored) headers['X-Spectrodraw-User'] = stored;
 
-    const stored = (() => {
-      try { return localStorage.getItem('spectrodraw_user'); }
-      catch (e) { return null; }
+        let res;
+        try {
+          res = await fetch('https://api.spectrodraw.com/api/products', {
+            method: 'GET',
+            credentials: 'include',
+            headers
+          });
+        } catch (err) {
+          return;
+        }
+        if (!res || !res.ok) return;
+        const j = await res.json().catch(()=>null);
+        if (!j || !Array.isArray(j.products)) return;
+        const found = j.products.some(entry =>
+          entry && typeof entry.email === 'string' &&
+          entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
+        );
+        if (!found) return;
+        const overlay = document.createElement('div');
+        overlay.id = 'spectrodraw-pro-iframe-overlay';
+        overlay.setAttribute('role','dialog');
+        overlay.setAttribute('aria-modal','true');
+        overlay.innerHTML = `
+          <div class="sd-pro__frame-wrap" role="document">
+            <div class="sd-pro__loading" aria-hidden="true">
+              <div class="sd-pro__spinner" aria-hidden="true"></div>
+              <div class="sd-pro__text">Loading SpectroDraw Pro…</div>
+            </div>
+            <iframe class="sd-pro__iframe" title="SpectroDraw Pro"></iframe>
+            <!--<button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>-->
+          </div>
+          <style>
+            #spectrodraw-pro-iframe-overlay{
+              position:fixed;
+              inset:0;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              background: rgba(0,0,0,0.45);
+              z-index:2147483647;
+              -webkit-font-smoothing:antialiased;
+              -moz-osx-font-smoothing:grayscale;
+            }
+            .sd-pro__frame-wrap{
+              width:100%;
+              height:100%;
+              max-width:100%;
+              max-height:100%;
+              position:relative;
+            }
+            .sd-pro__iframe{
+              position:fixed;
+              inset:0;
+              width:100%;
+              height:100%;
+              border:0;
+              background: rgba(0,0,0,0.72);
+            }
+            .sd-pro__loading{
+              position: absolute;
+              left:50%;
+              top:48%;
+              transform:translate(-50%,-50%);
+              text-align:center;
+              z-index:2147483650;
+              pointer-events:none;
+            }
+            .sd-pro__spinner{
+              width:52px;
+              height:52px;
+              border-radius:50%;
+              border:6px solid rgba(255,255,255,0.08);
+              border-top-color: rgba(255,255,255,0.6);
+              animation: sd-spin 0.9s linear infinite;
+              margin:0 auto 12px;
+            }
+            @keyframes sd-spin{ to{ transform: rotate(360deg); } }
+            .sd-pro__text{ font-size:15px; color:#fff; 
+              font-family: 'Inter', 'Segoe UI', sans-serif;}
+          </style>
+        `;
+        try {
+          (document.documentElement || document.body || document).appendChild(overlay);
+        } catch (e) {
+          window.addEventListener('load', ()=> document.body.appendChild(overlay), { once: true });
+        }
+        const iframe = overlay.querySelector('.sd-pro__iframe');
+        const loadingEl = overlay.querySelector('.sd-pro__loading');
+        let token;
+        try {
+          const tkRes = await fetch('https://api.spectrodraw.com/api/pro-token', {
+            method: 'POST',
+            credentials: 'include',
+            headers
+          });
+          if (!tkRes || !tkRes.ok) {
+            try { overlay.remove(); } catch (e) {}
+            return;
+          }
+          const tkj = await tkRes.json().catch(()=>null);
+          token = tkj && tkj.token;
+          if (!token) {
+            try { overlay.remove(); } catch (e) {}
+            return;
+          }
+        } catch (err) {
+          try { overlay.remove(); } catch (e) {}
+          return;
+        }
+        iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv?t=' + encodeURIComponent(token);
+        iframe.addEventListener('load', () => {
+          if (loadingEl) loadingEl.style.display = 'none';
+        });
+        window.addEventListener('message', (ev) => {
+          try {
+            const allowedOrigin = new URL(iframe.src).origin;
+            if (ev.origin !== allowedOrigin) return;
+          } catch (e) { return; }
+          if (!ev.data) return;
+        }, false);
+      } catch (err) {
+        console.error('Error initializing SpectroDraw Pro overlay:', err);
+      }
     })();
-
-    const headers = { 'Accept': 'application/json' };
-    if (stored) headers['X-Spectrodraw-User'] = stored;
-
-    let res;
-    try {
-      res = await fetch('https://api.spectrodraw.com/api/products', {
-        method: 'GET',
-        credentials: 'include',
-        headers
-      });
-    } catch (err) {
-      // network error — don't block app
-      return;
-    }
-    if (!res || !res.ok) return;
-    const j = await res.json().catch(()=>null);
-    if (!j || !Array.isArray(j.products)) return;
-
-    const found = j.products.some(entry =>
-      entry && typeof entry.email === 'string' &&
-      entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
-    );
-    if (!found) return;
-
-    // ---------- create overlay + iframe ----------
-    const overlay = document.createElement('div');
-    overlay.id = 'spectrodraw-pro-iframe-overlay';
-    overlay.setAttribute('role','dialog');
-    overlay.setAttribute('aria-modal','true');
-    overlay.innerHTML = `
-      <div class="sd-pro__frame-wrap" role="document">
-        <div class="sd-pro__loading" aria-hidden="true">
-          <div class="sd-pro__spinner" aria-hidden="true"></div>
-          <div class="sd-pro__text">Loading SpectroDraw Pro…</div>
-        </div>
-        <iframe class="sd-pro__iframe" title="SpectroDraw Pro"></iframe>
-        <!--<button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>-->
-      </div>
-      <style>
-        #spectrodraw-pro-iframe-overlay{
-          position:fixed;
-          inset:0;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          background: rgba(0,0,0,0.45);
-          z-index:2147483647;
-          -webkit-font-smoothing:antialiased;
-          -moz-osx-font-smoothing:grayscale;
-        }
-        .sd-pro__frame-wrap{
-          width:100%;
-          height:100%;
-          max-width:100%;
-          max-height:100%;
-          position:relative;
-        }
-        .sd-pro__iframe{
-          position:fixed;
-          inset:0;
-          width:100%;
-          height:100%;
-          border:0;
-          background: rgba(0,0,0,0.72);
-        }
-        .sd-pro__loading{
-          position: absolute;
-          left:50%;
-          top:48%;
-          transform:translate(-50%,-50%);
-          text-align:center;
-          z-index:2147483650;
-          pointer-events:none;
-        }
-        .sd-pro__spinner{
-          width:52px;
-          height:52px;
-          border-radius:50%;
-          border:6px solid rgba(255,255,255,0.08);
-          border-top-color: rgba(255,255,255,0.6);
-          animation: sd-spin 0.9s linear infinite;
-          margin:0 auto 12px;
-        }
-        @keyframes sd-spin{ to{ transform: rotate(360deg); } }
-        .sd-pro__text{ font-size:15px; color:#fff; 
-          font-family: 'Inter', 'Segoe UI', sans-serif;}
-      </style>
-    `;
-
-    // attach overlay early (if DOM not ready, wait for load)
-    try {
-      (document.documentElement || document.body || document).appendChild(overlay);
-    } catch (e) {
-      window.addEventListener('load', ()=> document.body.appendChild(overlay), { once: true });
-    }
-
-    const iframe = overlay.querySelector('.sd-pro__iframe');
-    const loadingEl = overlay.querySelector('.sd-pro__loading');
-    // const closeBtn = overlay.querySelector('.sd-pro__close');
-
-    // set iframe src to Pro UI served from your KV endpoint
-    let token;
-    try {
-      const tkRes = await fetch('https://api.spectrodraw.com/api/pro-token', {
-        method: 'POST',
-        credentials: 'include',
-        headers
-      });
-      if (!tkRes || !tkRes.ok) {
-        // token fetch failed — remove overlay and bail quietly
-        try { overlay.remove(); } catch (e) {}
-        return;
-      }
-      const tkj = await tkRes.json().catch(()=>null);
-      token = tkj && tkj.token;
-      if (!token) {
-        try { overlay.remove(); } catch (e) {}
-        return;
-      }
-    } catch (err) {
-      // network or auth error — don't block the app
-      try { overlay.remove(); } catch (e) {}
-      return;
-    }
-
-    // set iframe src using the token
-    iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv?t=' + encodeURIComponent(token);
-    // Allow full features if needed; DO NOT set sandbox unless you know the exact capabilities needed.
-    // iframe.sandbox = 'allow-scripts allow-forms'; // optional — most likely NOT desired.
-
-    // on load, hide spinner
-    iframe.addEventListener('load', () => {
-      if (loadingEl) loadingEl.style.display = 'none';
-    });
-
-    // if the iframe navigation fails, keep overlay but show retry by swapping inner content
-    // (iframe error events are unreliable for cross-origin; you may choose to provide a manual retry button)
-    // closeBtn.addEventListener('click', () => {
-    //   try { overlay.remove(); } catch (e) {}
-    // });
-
-    // optional: allow the embedded UI to request close via postMessage
-    window.addEventListener('message', (ev) => {
-      // security: ensure message origin matches your pro UI host
-      try {
-        const allowedOrigin = new URL(iframe.src).origin;
-        if (ev.origin !== allowedOrigin) return;
-      } catch (e) { return; }
-      if (!ev.data) return;
-      // if (ev.data === 'spectrodraw-pro-close') {
-      //   try { overlay.remove(); } catch (e) {}
-      // }
-      // other message handling can go here
-    }, false);
-
-  } catch (err) {
-    // If anything goes wrong, fail silently so the main app stays usable
-    console.error('Error initializing SpectroDraw Pro overlay:', err);
-  }
-})();
-</script>
-
-
-  <!-- New page layout -->
+  </script>
 <div class="app">
   <header class="top-bar">
     <a href="/" id="home" title="Home" style="margin-left:10px;"><img src="../BannerLogo2.png" style="background:transparent; height: 32px;"></a>
@@ -341,65 +302,99 @@
     </button>
   </header>
   <aside class="left-bar">
-  <!-- Settings cogwheel -->
-  <button class="panel-btn" id="settingsBtn" title="General (g)" data-tool="0">
-    <svg xmlns="http://www.w3.org/2000/svg" 
-         width="20" height="20" viewBox="0 0 24 24" 
-         fill="none" stroke="white" stroke-width="2" 
-         stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 
-               1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 
-               1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 
-               1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 
-               1 1-2.83-2.83l.06-.06a1.65 
-               1.65 0 0 0 .33-1.82 1.65 
-               1.65 0 0 0-1.51-1H3a2 2 0 
-               1 1 0-4h.09a1.65 1.65 0 
-               0 0 1.51-1 1.65 1.65 0 
-               0 0-.33-1.82l-.06-.06a2 
-               2 0 1 1 2.83-2.83l.06.06a1.65 
-               1.65 0 0 0 1.82.33H9a1.65 
-               1.65 0 0 0 1-1.51V3a2 2 
-               0 1 1 4 0v.09a1.65 1.65 0 
-               0 0 1 1.51 1.65 1.65 0 
-               0 0 1.82-.33l.06-.06a2 
-               2 0 1 1 2.83 2.83l-.06.06a1.65 
-               1.65 0 0 0-.33 1.82V9c0 
-               .69.28 1.35.77 1.82.49.47 
-               1.15.77 1.82.77h.09a2 2 
-               0 1 1 0 4h-.09c-.69 0-1.35.28-1.82.77z"/>
-    </svg>
-  </button>
+    <button class="panel-btn" id="settingsBtn" title="Project info (g)" data-tool="1">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+          width="20" height="20" viewBox="0 0 24 24" 
+          fill="none" stroke="white" stroke-width="2" 
+          stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 
+                1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 
+                1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 
+                1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 
+                1 1-2.83-2.83l.06-.06a1.65 
+                1.65 0 0 0 .33-1.82 1.65 
+                1.65 0 0 0-1.51-1H3a2 2 0 
+                1 1 0-4h.09a1.65 1.65 0 
+                0 0 1.51-1 1.65 1.65 0 
+                0 0-.33-1.82l-.06-.06a2 
+                2 0 1 1 2.83-2.83l.06.06a1.65 
+                1.65 0 0 0 1.82.33H9a1.65 
+                1.65 0 0 0 1-1.51V3a2 2 
+                0 1 1 4 0v.09a1.65 1.65 0 
+                0 0 1 1.51 1.65 1.65 0 
+                0 0 1.82-.33l.06-.06a2 
+                2 0 1 1 2.83 2.83l-.06.06a1.65 
+                1.65 0 0 0-.33 1.82V9c0 
+                .69.28 1.35.77 1.82.49.47 
+                1.15.77 1.82.77h.09a2 2 
+                0 1 1 0 4h-.09c-.69 0-1.35.28-1.82.77z"/>
+      </svg>
+    </button>
 
-  <!-- Piano keys -->
-  <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="1">
-    <svg xmlns="http://www.w3.org/2000/svg" 
-         width="24" height="24" viewBox="0 0 24 22" 
-         fill="none" stroke="white" stroke-width="2" 
-         stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
-      <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
-      <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
-      <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
-    </svg>
-  </button>
+    <!--Sprite-->
+    <button class="panel-btn" id="spritesBtn" title="Sprites" data-tool="2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12,3 20,7 20,17 12,21 4,17 4,7" />
+        <line x1="12" y1="11" x2="12" y2="21" />
+        <line x1="4" y1="7" x2="12" y2="11" />
+        <line x1="20" y1="7" x2="12" y2="11" />
+      </svg>
+    </button>
 
-  <!-- EQ curve -->
-  <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="2">
-    <svg xmlns="http://www.w3.org/2000/svg" 
-         width="24" height="24" viewBox="0 0 24 24" 
-         fill="none" stroke="white" stroke-width="2" 
-         stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
-      <circle cx="3" cy="17" r="1.5" fill="white"/>
-      <circle cx="11" cy="11" r="1.5" fill="white"/>
-      <circle cx="21" cy="15" r="1.5" fill="white"/>
-    </svg>
-  </button>
-</aside>
+    <!--Uploads-->
+    <button class="panel-btn" id="uploadsBtn" title="Uploads" data-tool="3">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 22 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 6h18v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z" />
+        <path d="M2 6V3h9v2" />
+      </svg>
+    </button>
 
-  <aside class="left-panel">
+    <!-- Midi -->
+    <button class="panel-btn" id="pianoBtn" title="Piano (p)" data-tool="4">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 22" 
+          fill="none" stroke="white" stroke-width="2" 
+          stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+        <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
+        <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
+        <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
+      </svg>
+    </button>
+
+    <!-- EQ curve -->
+    <button class="panel-btn" id="eqBtn" title="Equalizer (q)" data-tool="5">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
+        <circle cx="3" cy="17" r="1.5" fill="white"/>
+        <circle cx="11" cy="11" r="1.5" fill="white"/>
+        <circle cx="21" cy="15" r="1.5" fill="white"/>
+      </svg>
+    </button>
+
+    <!--Channels-->
+    <button class="panel-btn" id="channelsBtn" title="Channels" data-tool="6">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="6"  y1="3" x2="6"  y2="21" />
+        <line x1="12" y1="3" x2="12" y2="21" />
+        <line x1="18" y1="3" x2="18" y2="21" />
+        <rect x="2"  y="10.5" width="8"  height="3" rx="1.5" fill="white" stroke="white" stroke-width="1"/>
+        <rect x="8"  y="5.5"  width="8"  height="3" rx="1.5" fill="white" stroke="white" stroke-width="1"/>
+        <rect x="14" y="14.5" width="8"  height="3" rx="1.5" fill="white" stroke="white" stroke-width="1"/>
+      </svg>
+    </button>
+    
+    <!--Macros-->
+    <button class="panel-btn" id="macrosBtn" title="Macros" data-tool="7">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 8 10 12 6 16" />
+        <line x1="13" y1="16" x2="18" y2="16" />
+      </svg>
+    </button>
+  </aside>
+
+  <aside class="left-panel" id="leftPanelAside" style="position:relative;">
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <div id="d1">
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
@@ -523,6 +518,110 @@
       </div>
     </div>
     <div id="d2" style="display:none;">
+      <h3 style="margin:6px 0 10px 0;">Sprites</h3>
+      <div id="spriteTableWrap">
+        <table id="spriteTable" role="grid" aria-label="Sprites table">
+          <thead>
+            <tr>
+              <th style="width:55%;">Name</th>
+              <th style="width:15%;">Enabled</th>
+              <th style="width:30%;">Tool</th>
+            </tr>
+          </thead>
+          <tbody id="spriteTableBody">
+            <!-- rows inserted dynamically -->
+          </tbody>
+        </table>
+      </div>
+      <div id="spriteEditor" disabled>
+        <div class="spriteEditorRow" style="gap: 12px;align-items: center;height:3rem;">
+          <button id="moveSpriteBtn" class="leftBtn">Move Sprite</button>
+          <button id="deleteSpriteBtn" class="leftBtn" style="color:Red;">Delete Sprite</button>
+        </div>
+        <div class="slider-row"><label for="spriteName">Name:</label><input type="text" id="spriteName" value="No sprite selected"></input></div>
+        <div class="slider-row"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
+        <div class="slider-row"><label for="spriteTool">Tool:</label><select id="spriteTool">
+          <option value="color">Color</option>
+          <option value="blur">Blur</option>
+          <option value="eraser">Eraser</option>
+          <option value="amplifier">Amplify</option>
+          <option value="noiseRemover">Noise Remover</option>
+        </select></div>
+        <div class="slider-row" id="spriteChannelDiv" style="display:none;"><label for="spriteChannel">Channel:</label><select id="spriteChannel">
+          <option value="0">0</option>
+          <option value="all">All</option>
+        </select></div>
+        <div id="spriteEffectSettings">
+          <h3>
+            Effect settings
+            <button type="button"
+                    class="section-toggle"
+                    data-target="spriteEffectSettings"
+                    aria-expanded="false"
+                    aria-label="Toggle Effect settings"
+                    id="effectSettingsToggleBtn"></button>
+          </h3>
+          <div class="slider-row" title="Brightness" id="sbrushColorDiv">
+              <label class="h2">Brush Brightness</label>
+              <input id="sbrushColor" type="range" min="0" max="255" value="255">
+              <input id="sbrushColorInput" type="number" value="255" min="0" max="255">
+          </div>
+          <div class="slider-row" title="Blur Radius" id="sblurRadiusDiv">
+              <label class="h2">Blur Radius</label>
+              <input id="sblurRadius"  type="range" min="0" max="10" value="1.5" step="0.1">
+              <input id="sblurRadiusInput" type="number" value="1.5" min="0" max="10">
+          </div>
+          <div class="slider-row" title="Blur Radius" id="samplifyDiv">
+              <label class="h2">Amplifier</label>
+              <input id="samp"  type="range" min="0" max="2" value="2" step="0.01">
+              <input id="sampInput" type="number" value="2" min="0" max="2">
+          </div>
+          <div class="slider-row" title="Remove noise below this threshold" id="snoiseFloorDiv">
+              <label class="h2">Noise Threshold (dB)</label>
+              <input id="snoiseRemoveFloor"  type="range" min="-60" max="0" value="-10" step="0.1">
+              <input id="snoiseRemoveFloorInput" type="number" value="-10" min="-60" max="0">
+          </div>
+          <div id="sev" class="slider-row" title="Phase texture">
+            <label class="h2" for="sphaseTexture">Phase texture</label>
+            <select id="sphaseTexture">
+              <option value="Harmonics">Harmonics</option>
+              <option value="Static">Static</option>
+              <option value="Flat">Flat</option>
+            </select>
+          </div>
+          <div class="slider-row" title="Phase" id="sphaseDiv">
+              <label class="h2">Phase shift</label>
+              <input id="spenPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+              <input id="spenPhaseInput" type="number" value="0" min="0" max="3.1415">
+          </div>
+          <div class="slider-row" title="Brightness strength" id="sbrushOpacityDiv">
+              <label class="h2">Opacity</label>
+              <input id="sbrushOpacity"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="sbrushOpacityInput" type="number" value="1" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Phase strength" id="sphaseStrengthDiv">
+              <label class="h2">Phase Strength</label>
+              <input id="sphaseOpacity"  type="range" min="0" max="1" value="0" step="0.01">
+              <input id="sphaseOpacityInput" type="number" value="0" min="0" max="1">
+          </div>
+        </div>
+        <div id="spriteFadeDiv">
+          <h3>
+            Fade
+            <button type="button"
+                    class="section-toggle"
+                    data-target="spriteFadeDiv"
+                    aria-expanded="true"
+                    aria-label="Toggle Fade"></button>
+          </h3>
+          <canvas id="spriteFadeCanvas" style="border:1px solid #ccc; display:block; margin-top:10px;width:100%;"></canvas>
+        </div>
+      </div>
+    </div>
+    <div id="d3" style="display:none;">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Uploads</h2>
+    </div>
+    <div id="d4" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Piano</h2>
       <label class="h1">Brush Alignment</label>
       <!--Auto align pitch-->
@@ -550,7 +649,7 @@
       <!--Remove harmonics button-->
       <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics" onClick="removeHarmonics()">Remove Harmonics</button>
       <label class="h1">MIDI Export</label>
-      <input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</button>
+      <input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</input>
       <div class="slider-row" title="Duration cutoff">
         <label class="h2">Duration cutoff (secs)</label>
         <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
@@ -563,7 +662,7 @@
           <input id="noiseFloorCutoff" type="range" min="-50" max="0" step="0.1" value="-30">
           <input id="noiseFloorCutoffInput" type="number" value="-30" min="-50" max="0">
         </div>
-        <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</button>
+        <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</input>
         <div id="matOptions">
           <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
             <label class="h2">BPM</label>
@@ -608,10 +707,25 @@
           </select>
         </div>
       </div>
+      <div id="midiChannelSettings">
+        <label class="h1">Midi audio channels</label>
+        <div style="display:flex; gap:10px; margin-bottom:5px;" title="Channel mode">
+          <label class="h2" for="midiChannelMode">Mode</label>
+          <select id="midiChannelMode">
+            <option value="all">All channels</option>
+            <option value="allMixToMono">All channels mixed to mono</option>
+            <option value="single">Single channel</option>
+          </select>
+        </div>
+        <div class="slider-row" id="midiSingleChannelDiv" style="display:none;">
+          <label class="h2" for="midiSingleChannel">Channel</label>
+          <select id="midiSingleChannel"></select>
+        </div>
+      </div>
       <!--Export button-->
       <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>
     </div>
-    <div id="d3" style="display:none; height: 80%">
+    <div id="d5" style="display:none; height: 80%">
       <h2 style="margin-bottom:10px;margin-top:10px;">Equalizer</h2>
       <h5 style="margin-top:0px; margin-bottom:10px;">Note: Does not update on the spectrogram to save lag</h5>
       <div class="slider-row" title="Global gain">
@@ -634,10 +748,62 @@
       </div>
       <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     </div>
+    <div id="d6" style="display:none;">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Channels</h2>
+      <div class="slider-row" title="Channel Display Height" id="chdiv">
+        <label class="h2">Channel height</label>
+        <input id="channelHeight" type="range" min="0" max="500" step="1" value="500">
+        <input id="channelHeightInput" type="number" value="500" min="0" max="500">
+      </div>
+      <div class="slider-row" title="Sync actions to all channels">
+          <label class="h2">Sync channels</label>
+          <input id="syncChannels" type="checkbox">
+      </div>
+      <div id="channelsMixerDiv" class="channelWrapper">
+        <div style="display:flex;gap:10px;margin-top:5px;">
+          <b>Channel 0</b>
+          <input id="channelEnable-0" type="checkbox" checked aria-label="Enable channel 0">
+          <label class="h2" style="margin-left:60px;" id="speakerLabel0">Speaker</label>
+          <select id="audioDevices-0" class="channel-audio-devices" aria-label="Audio device for channel 0">
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div id="chsliders0">
+          <div class="slider-row" title="Channel Volume">
+            <label class="h2">Volume</label>
+            <input id="channelVolume-0" type="range" min="0" max="1.25" step="0.01" value="1">
+            <input id="channelVolumeInput-0" type="number" value="1" min="0" max="1.25" step="0.01">
+          </div>
+          <div class="slider-row" title="Channel Brush Pressure">
+            <label class="h2">Brush Pressure</label>
+            <input id="channelBrushPressure-0" type="range" min="0" max="1" step="0.01" value="1">
+            <input id="channelBrushPressureInput-0" type="number" value="1" min="0" max="1" step="0.01">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="d7" style="display:none;">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Macros</h2>
+    </div>
   </aside>
+  <div id="proOverlay" class="left-panel" style="
+      display:none !important;
+      background:rgba(0,0,0,0.5);
+      color:white;
+      z-index:10000;
+      flex-direction:column !important;
+      justify-content:center !important;
+      align-items:center !important;
+      text-align:center !important;
+      height:100%;
+  ">
+    <h2>Pro Feature</h2>
+    <p>This feature is available for Pro users only.</p>
+    <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="https://spectrodraw.com/buy-pro/" style="color:black;text-decoration: none;">Get Pro for free, forever with the Early Access Deal!</a></button>
+  </div>
+
 
   <main class="main-area">
-    <!-- paste your canvas wrapper here -->
     <div id="canvasWrapper" style="position:absolute; width:100%;">
       <canvas id="timeline" style="height:40px; background:#222; position: absolute;left:40px;z-index: 9998; top:0px"></canvas>
       <canvas id="canvas" style="cursor:crosshair; position: absolute; left: 40px; top:40px"></canvas>
@@ -652,7 +818,6 @@
 
 <script>
   function syncNumberAndRange(numberInput, rangeInput) {
-
     numberInput.addEventListener('input', () => {
       let val = parseInt(numberInput.value);
       if (val < rangeInput.min) val = rangeInput.min;
@@ -771,9 +936,6 @@ const panelButtons = document.querySelectorAll(".panel-btn");
 const trueScale = document.getElementById("trueScale");
 const overlayFile = document.getElementById("overlayFile");
 const uvcb = document.getElementById("useVolumeControllers");
-const d1 = document.getElementById("d1");
-const d2 = document.getElementById("d2");
-const d3 = document.getElementById("d3");
 const EQcanvas = document.getElementById("eqCanvas");
 const eCtx = EQcanvas.getContext("2d"); 
 const eqPresets = document.getElementById("eqPresets");
@@ -823,7 +985,7 @@ let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
 let penPhase=parseInt(penPhaseEl.value)/10000;
 let currentTool = "color";
 let currentShape = "brush";
-let currentPanel = "0";
+let currentPanel = "1";
 let bpm = 120; let npo = 12;
 let noiseFloor = document.getElementById("noiseFloorCutoff").value; let startOnP = 440;
 let dCutoff = document.getElementById("durationCutoff").value;
@@ -913,20 +1075,11 @@ panelButtons.forEach(btn => {
     currentPanel = btn.dataset.tool;
     panelButtons.forEach(b => b.style.background = "");
     btn.style.background = "#4af";
-    if (currentPanel === "0") {
-      d1.style.display = "block";
-      d2.style.display = "none";
-      d3.style.display = "none";
-    } else if (currentPanel === "1") {
-      d1.style.display = "none";
-      d2.style.display = "block";
-      d3.style.display = "none";
-    } else {
-      d1.style.display = "none";
-      d2.style.display = "none";
-      d3.style.display = "block";
-      drawEQ();
+    for (let i = 1; i < 8; i++){
+      document.getElementById("d"+i).style.display = (parseInt(currentPanel) === i) ? "block" : "none";
     }
+    document.getElementById("proOverlay").style.display = (currentPanel == "2" || currentPanel == "3" || currentPanel == "6" || currentPanel == "7")?"flex":"none";
+    if (currentPanel === "5") drawEQ();
   });
 });
 toolButtons.forEach(btn => {

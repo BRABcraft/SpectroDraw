@@ -87,7 +87,7 @@ function scheduleDraw() {
 }
 
 function drawEQ() {
-  if (!EQcanvas || !eCtx || currentPanel !== "2") return;
+  if (!EQcanvas || !eCtx || currentPanel !== "5") return;
   const w = EQcanvas.width, h = EQcanvas.height;
 
   eCtx.clearRect(0, 0, w, h);

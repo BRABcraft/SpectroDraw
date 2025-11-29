@@ -126,7 +126,7 @@
     footer a:hover{text-decoration:underline}
     .star {font-size:28px;padding:none;margin-top:-5px;border:1px solid transparent;background:transparent;cursor:pointer;color:white;}
     button:not(.star, .nav-btn, .primary, .btn-primary, .google, .link-btn, .modal-close, #claim-confirm){padding:.55rem .9rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;color:white;}
-    button:disabled{background:#555;color:#333;cursor:not-allowed;}
+    button:disabled{background:#555!important;color:#333;cursor:not-allowed;}
     a{color:#cfe3ff;}
     #claim-confirm:disabled{padding:.75rem 1.2rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:linear-gradient(180deg,#444,#333);color:#aaa;font-weight:800;cursor:not-allowed;box-shadow:none;transition:all .18s ease;}
     #claim-confirm:enabled{padding:.75rem 1.2rem;border-radius:12px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#ffffff;font-weight:800;cursor:not-allowed;transition:all .18s ease;}
@@ -699,21 +699,16 @@ SpectroDraw bridges the gap between technical audio editing and creative express
           claimSection.style.display = 'block';
           claimInstruction.innerHTML = `You are logged in as <strong>${email || 'your account'}</strong>. Type <strong>CLAIM</strong> in the box below to activate SpectroDraw Pro for your account.`;
         }
-        // hide inline-share when claim section is visible
-        const inlineShare = document.getElementById('inline-share');
-        if (inlineShare) inlineShare.style.display = 'none';
-        document.getElementById('inline-review').style.display = 'none'; //69420
+        shareSection.style.display = 'none';
+        reviewSection.style.display = 'none';
+        document.getElementById('inline-review').style.display = 'none';
       } else {
         console.log('656');
-        if (claimSection) claimSection.style.display = 'none';
-        // show inline-share again if claim section hidden
-        const inlineShare = document.getElementById('inline-share');
-        if (inlineShare) inlineShare.style.display = 'block';
+        claimSection.style.display = 'none';
+        shareSection.style.display = progress.reviewSubmitted?'block':'none';
+        reviewSection.style.display = progress.reviewSubmitted?'none':'block';
       }
-
-      // If user already claimed, hide claim section regardless
-      //if (progress.claimed && claimSection) claimSection.style.display = 'none';
-    } catch (e) { /* ignore render errors for claim UI */ }
+    } catch (e) {}
 
     saveStateForCurrentUser();
   }
@@ -1985,7 +1980,7 @@ function detectPopupPost(popup, provider, opts = {}) {
     // If review submitted but share not verified -> open the share panel for verification
     if(progress.reviewSubmitted && !progress.shareSent){
       // Show share UI — user can verify or use Next to proceed
-      shareSection.style.display = 'block';
+      shareSection.style.display = 'block';console.log('1988');
       reviewSection.style.display = 'none';
       shareSection.scrollIntoView({ behavior:'smooth', block:'center' });
       return;
@@ -2003,24 +1998,23 @@ function detectPopupPost(popup, provider, opts = {}) {
     if(n === 1){
       reviewSection.style.display = '';
       shareSection.style.display = 'none';
-        console.log('1954');
       claimSection.style.display = 'none';
       reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    if(n === 2){
+    if(n === 2) {
       // If user hasn't submitted review, move to review first
       if(!progress.reviewSubmitted){
+        console.log('2014');
         reviewSection.style.display = '';
         shareSection.style.display = 'none';
         reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
-      shareSection.style.display = 'block';
+      shareSection.style.display = 'block'; console.log('2020');
       reviewSection.style.display = 'none';
-      
-        console.log('1969');
       claimSection.style.display = 'none';
+
       shareSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }

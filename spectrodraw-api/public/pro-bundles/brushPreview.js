@@ -88,9 +88,9 @@ function updateBrushPreview() {
     pctx.stroke();
   } else {
     if (currentShape === "image"){
-      if (overlayImage && overlayImage.complete) {
+      if (images[selectedImage] && images[selectedImage].img.complete) {
         const maxDim = Math.min(preview.width, preview.height) * 0.8 * (brushSize / 20);
-        const aspect = overlayImage.width / overlayImage.height;
+        const aspect = images[selectedImage].img.width / images[selectedImage].img.height;
         let drawW, drawH;
         if (aspect > 1) {
           drawW = maxDim;
@@ -101,7 +101,7 @@ function updateBrushPreview() {
         }
         const dx = centerX - drawW / 2;
         const dy = centerY - drawH / 2;
-        pctx.drawImage(overlayImage, dx, dy, drawW, drawH);
+        pctx.drawImage(images[selectedImage].img, dx, dy, drawW, drawH);
       }
     } else if (currentShape === "rectangle") {
       pctx.fillStyle = color;

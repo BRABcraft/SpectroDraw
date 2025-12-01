@@ -8,27 +8,29 @@ function floatTo16BitPCM(float32Array) {
     return view;
 }
 
-function writeWavHeader(view, sampleRate, numSamples) {
-    const blockAlign = 2; 
+function writeWavHeader(view, sampleRate, numChannels, numFrames) {
+    const bytesPerSample = 2;
+    const blockAlign = numChannels * bytesPerSample;
     const byteRate = sampleRate * blockAlign;
 
     function writeString(view, offset, str) {
         for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
     }
 
+    const dataByteLength = numFrames * blockAlign;
     writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + numSamples * 2, true);
+    view.setUint32(4, 36 + dataByteLength, true); // file size - 8
     writeString(view, 8, 'WAVE');
     writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);       
-    view.setUint16(20, 1, true);        
-    view.setUint16(22, 1, true);        
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true);       
+    view.setUint32(16, 16, true);       // PCM chunk size
+    view.setUint16(20, 1, true);        // audio format = PCM
+    view.setUint16(22, numChannels, true);  // number of channels
+    view.setUint32(24, sampleRate, true);   // sample rate
+    view.setUint32(28, byteRate, true);     // byte rate
+    view.setUint16(32, blockAlign, true);   // block align
+    view.setUint16(34, 16, true);           // bits per sample
     writeString(view, 36, 'data');
-    view.setUint32(40, numSamples * 2, true);
+    view.setUint32(40, dataByteLength, true); // data chunk length
 }
 async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' && curveEQ && curveEQ.bandCount) ? curveEQ.bandCount : 24) {
   let pcm = channels[0].pcm;
@@ -118,66 +120,101 @@ async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' &&
 }
 
 document.getElementById('downloadWav').addEventListener('click', async () => {
-  let pcm = channels[0].pcm;
-  if (!pcm) return alert('No PCM loaded!');
-  try {
-    // try to render with EQ; choose bandCount based on curveEQ or use default 24
-    const bandCount = (typeof curveEQ !== 'undefined' && curveEQ && curveEQ.bandCount) ? curveEQ.bandCount : 24;
-    // you can reduce bandCount here to speed up renders for long files
-    const renderedPCM = await renderEQAppliedPCM(bandCount);
+    // find longest PCM length
+    let maxLen = 0;
+    for (let ch = 0; ch < (typeof channelCount === 'number' ? channelCount : (channels ? channels.length : 0)); ch++) {
+        const pcmCh = channels[ch] && channels[ch].pcm;
+        if (pcmCh && pcmCh.length > maxLen) maxLen = pcmCh.length;
+    }
+    if (maxLen === 0) return alert('No PCM loaded!');
 
-    const numSamples = renderedPCM.length;
-    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    // create left/right mixing buffers
+    const left = new Float32Array(maxLen);
+    const right = new Float32Array(maxLen);
+
+    for (let ch = 0; ch < (typeof channelCount === 'number' ? channelCount : channels.length); ch++) {
+        const c = channels[ch];
+        if (!c || !c.pcm) continue;
+        const device = (c.audioDevice || 'both').toString().toLowerCase();
+        const pcmCh = c.pcm;
+        for (let i = 0; i < pcmCh.length; i++) {
+            const s = pcmCh[i] || 0;
+            if (device === 'left' || device === 'both') left[i] += s;
+            if (device === 'right' || device === 'both') right[i] += s;
+            // if device === 'none' -> skip
+        }
+    }
+
+    // prevent clipping: normalize only if needed
+    let maxAbs = 0;
+    for (let i = 0; i < maxLen; i++) {
+        const a = Math.abs(left[i]) || 0;
+        const b = Math.abs(right[i]) || 0;
+        if (a > maxAbs) maxAbs = a;
+        if (b > maxAbs) maxAbs = b;
+    }
+    if (maxAbs > 1) {
+        const inv = 1 / maxAbs;
+        for (let i = 0; i < maxLen; i++) {
+            left[i] *= inv;
+            right[i] *= inv;
+        }
+    }
+
+    // create stereo interleaved 16-bit WAV
+    const numChannelsOut = 2;
+    const numFrames = maxLen;
+    const dataByteLength = numFrames * numChannelsOut * 2; // 2 bytes per sample
+    const buffer = new ArrayBuffer(44 + dataByteLength);
     const view = new DataView(buffer);
+    writeWavHeader(view, sampleRate, numChannelsOut, numFrames);
 
-    writeWavHeader(view, sampleRate, numSamples);
-
-    const pcm16 = floatTo16BitPCM(renderedPCM);
-    // copy bytes
-    for (let i = 0; i < pcm16.byteLength; i++) {
-      view.setUint8(44 + i, pcm16.getUint8(i));
+    let offset = 44;
+    for (let i = 0; i < numFrames; i++) {
+        // left
+        let l = left[i] || 0;
+        l = Math.max(-1, Math.min(1, l));
+        view.setInt16(offset, l < 0 ? l * 0x8000 : l * 0x7FFF, true);
+        offset += 2;
+        // right
+        let r = right[i] || 0;
+        r = Math.max(-1, Math.min(1, r));
+        view.setInt16(offset, r < 0 ? r * 0x8000 : r * 0x7FFF, true);
+        offset += 2;
     }
 
     const blob = new Blob([view], { type: 'audio/wav' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'output.wav';
-    a.click();
-    // revoke after a short tick to give the browser time to start download (some browsers need it)
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (err) {
-    console.warn("EQ render failed or unsupported — falling back to raw PCM download:", err);
-    // fallback: original raw PCM download
-    const numSamples = pcm.length;
-    const buffer = new ArrayBuffer(44 + numSamples * 2);
-    const view = new DataView(buffer);
-
-    writeWavHeader(view, sampleRate, numSamples);
-
-    const pcm16 = floatTo16BitPCM(pcm);
-    for (let i = 0; i < pcm16.byteLength; i++) {
-      view.setUint8(44 + i, pcm16.getUint8(i));
-    }
-
-    const blob = new Blob([view], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'output.wav';
+    a.download = 'output_'+channelCount+'_channel'+((channelCount>1)?'s':'')+'.wav';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
 });
 document.getElementById('downloadButton').addEventListener('click', function() {
-    let oil = iLow; oih = iHigh; ofl = fLow; ofh = fHigh;
-    iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2; updateCanvasScroll();
-    const canvas = document.getElementById("canvas-0");//CHANGE LATER
-    let canvasUrl = canvas.toDataURL('image/png');
-    const downloadLink = document.createElement('a');
-    downloadLink.href = canvasUrl;
-    downloadLink.download = 'spectrodraw.png';
-    downloadLink.click();
-    downloadLink.remove();
+    const oil = iLow, oih = iHigh, ofl = fLow, ofh = fHigh;
+    iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2;
+    updateCanvasScroll();
+
+    const totalChannels = (typeof channelCount === 'number' ? channelCount : (channels ? channels.length : 1));
+    for (let ch = 0; ch < totalChannels; ch++) {
+        // try common canvas ID patterns, fall back to canvas-0
+        const canvas = document.getElementById(`canvas-${ch}`)
+                     || document.querySelector(`canvas[data-channel="${ch}"]`)
+                     || document.getElementById('canvas-0');
+        if (!canvas) continue;
+        try {
+            const canvasUrl = canvas.toDataURL('image/png');
+            const downloadLink = document.createElement('a');
+            downloadLink.href = canvasUrl;
+            downloadLink.download = `spectrodraw-${ch}.png`;
+            downloadLink.click();
+            downloadLink.remove();
+        } catch (e) {
+            console.warn(`Failed to export canvas for channel ${ch}:`, e);
+        }
+    }
+
     iLow = oil; iHigh = oih; fLow = ofl; fHigh = ofh;
+    updateCanvasScroll();
 });

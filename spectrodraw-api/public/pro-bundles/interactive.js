@@ -142,7 +142,7 @@ function canvasMouseMove(e,touch,el) {
   currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   let mags = channels[currentChannel].mags; //change to channel that mouse is touching
-  if (painting && movingSprite) {previewShape(cx, cy);return;}
+  if (painting && movingSprite || draggingSample!==null) {previewShape(cx, cy);return;}
   if (zooming) return;
   if (!recording) {
     const hz = getSineFreq(visibleToSpecY(cy));
@@ -362,7 +362,7 @@ let pausedAtSample = null;
 let sourceStartTime = 0; 
 let wasPlayingDuringDrag = false;
 
-initEmptyPCM();
+initEmptyPCM(false);
 
 function updateCursorLoop() {
   const specCanvas = document.getElementById("spec-"+currentChannel);

@@ -36,19 +36,9 @@ function syncNumberAndRange(numberInput, rangeInput) {
                    [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true]];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
-sliders[0][1].addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    let val = parseFloat(sliders[0][1].value);
-    const min = parseFloat(sliders[0][0].min);
-    const max = parseFloat(sliders[0][0].max);
-    if (isNaN(val)) val = 0;      
-    if (val < min) val = min;
-    if (val > max) val = max;
-    sliders[0][1].value = val;      
-    sliders[0][0].value = val;
-    initEmptyPCM();
-  }
-});
+sliders[0][0].addEventListener('mouseup', ()=>{initEmptyPCM(false);});
+sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[0][1].value);const min = parseFloat(sliders[0][0].min);const max = parseFloat(sliders[0][0].max);
+    if (isNaN(val)) val = 0;if (val < min) val = min;if (val > max) val = max;sliders[0][1].value = val;sliders[0][0].value = val;initEmptyPCM(false);}});
 sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
 sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
@@ -135,6 +125,7 @@ panelButtons.forEach(btn => {
       i++;
     }
     if (currentPanel == "5") drawEQ();
+    if (currentPanel == "3") renderUploads();
   });
 });
 
@@ -189,16 +180,16 @@ shapeButtons.forEach(btn => {
 });
 shapeButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    currentShape = btn.dataset.shape;
-    shapeButtons.forEach(b => b.style.background = "");
-    btn.style.background = "#4af"; 
-    if(currentShape === "image") overlayFile.click();
-    document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
-    updateBrushPreview();
+    if (btn.dataset.shape!=="image") {
+      currentShape = btn.dataset.shape;
+      shapeButtons.forEach(b => b.style.background = "");
+      btn.style.background = "#4af";
+      document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
+      updateBrushPreview();
+    } else if (images.length === 0){
+      overlayFile.click();
+    }
   });
-});
-fileB.addEventListener("click", () => {
-  file.click();
 });
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
@@ -211,7 +202,7 @@ overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
   const img = new Image();
-  img.onload = () => {overlayImage = img; updateBrushPreview();}
+  img.onload = () => {currentShape="image"; document.getElementById("imageBtn").style.background = "#4af"; selectedImage = images.length; images.push({img, name:f.name, src: URL.createObjectURL(f)}); renderUploads(); updateBrushPreview();}
   img.src = URL.createObjectURL(f);
 });
 let ogHSv = hopSizeEl.value;
@@ -401,8 +392,12 @@ async function saveProject() {
 
     // Quantize & delta-encode per-channel (keep only mags & phases in saved file)
     const encoded = {
-      mags: src.mags ? deltaEncode(src.mags, 8) : null,     // 8 decimals
-      phases: src.phases ? deltaEncode(src.phases, 3) : null // 3 decimals
+      mags: src.mags ? deltaEncode(src.mags, 8) : null,
+      phases: src.phases ? deltaEncode(src.phases, 3) : null,
+      volume: src.volume,
+      enabled: src.enabled,
+      brushPressure: src.brushPressure,
+      audioDevice: src.audioDevice
     };
     outChannels[i] = encoded;
   }
@@ -417,23 +412,60 @@ async function saveProject() {
     logScaleVal,
     trueScaleVal,
     useHz,
-    iLow,
-    iHigh,
-    fLow,
-    fHigh,
+    iLow, iHigh, fLow, fHigh,
+    uploads,             // if uploads contains only metadata / pcm it's fine
+    // images will be replaced with metadata below
+    images: null,
     currentTool,
     currentShape,
-    // save channels array (each channel only contains mags & phases)
     channels: outChannels,
     deltaEncoded: true,
-    sprites
+    sprites: serializeSprites(sprites)
   };
 
-  const json = JSON.stringify(project);
-
   const zip = new JSZip();
+
+  // Add images into the zip and create a metadata list for JSON
+  const imageMeta = [];
+  if (Array.isArray(images) && images.length > 0) {
+    for (let i = 0; i < images.length; i++) {
+      const it = images[i];
+      // prefer original File if you stored it earlier (it.file)
+      let blob = null;
+      if (it && it.file instanceof Blob) {
+        blob = it.file;
+      } else if (it && typeof it.src === "string") {
+        // fetch the objectURL or remote URL to get a blob
+        try {
+          const resp = await fetch(it.src);
+          blob = await resp.blob();
+        } catch (err) {
+          console.warn("Could not fetch image src for saving:", it.src, err);
+        }
+      }
+
+      if (!blob) {
+        // skip this image (or push metadata with no file)
+        imageMeta.push({ name: it && it.name ? it.name : `image_${i}`, file: null });
+        continue;
+      }
+
+      const safeName = `${i}_${sanitizeFilename(it.name || "image")}`;
+      const path = `images/${safeName}`;
+      zip.file(path, blob);
+      imageMeta.push({ name: it && it.name ? it.name : safeName, file: path });
+    }
+  }
+
+  project.images = imageMeta;
+
+  // Store the project.json
+  const json = JSON.stringify(project);
   zip.file("project.json", json);
 
+  // optionally you could add uploads/audio files as well (not shown)
+
+  // generate zip
   const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
 
   const a = document.createElement("a");
@@ -487,6 +519,14 @@ function openProject(file) {
       if (parsed.fHigh !== undefined) fHigh = parsed.fHigh;
       if (parsed.currentTool !== undefined) currentTool = parsed.currentTool;
       if (parsed.currentShape !== undefined) currentShape = parsed.currentShape;
+      shapeButtons.forEach(btn => {
+        if(btn.dataset.shape === currentShape) {
+          btn.style.background = "#4af"; 
+        } else {
+          btn.style.background = "";
+        }
+      });updateBrushPreview();
+      if (parsed.uploads !== undefined) uploads = parsed.uploads;
 
       // helper to decode delta-encoded arrays into Float32Array
       function deltaDecodeToFloat32(arr) {
@@ -507,51 +547,22 @@ function openProject(file) {
 
       if (Array.isArray(parsed.channels)) {
         // New format: channels array present
-        for (let i = 0; i < parsed.channels.length; ++i) {
-          const src = parsed.channels[i] || {};
-          const ch = {
-            mags: null,
-            phases: null,
-            // per request: initialize these as empty lists when opening
+        for (let i = 0; i < parsed.channels.length; i++) {
+          const src = parsed.channels[i];
+          reconstructedChannels[i] = {
+            mags: deltaDecodeToFloat32(src.mags),
+            phases: deltaDecodeToFloat32(src.phases),
             pcm: new Float32Array(parsed.bufferLength * sampleRate),
             snapshotMags: [],
-            snapshotPhases: []
+            snapshotPhases: [],
+            volume: src.volume,
+            enabled: src.enabled,
+            brushPressure: src.brushPressure,
+            samplePos: 0,
+            sampleRate,
+            audioDevice: src.audioDevice
           };
-
-          if (src.mags !== undefined && src.mags !== null) {
-            if (parsed.deltaEncoded) {
-              ch.mags = deltaDecodeToFloat32(src.mags);
-            } else {
-              ch.mags = src.mags ? new Float32Array(src.mags) : null;
-            }
-          }
-          if (src.phases !== undefined && src.phases !== null) {
-            if (parsed.deltaEncoded) {
-              ch.phases = deltaDecodeToFloat32(src.phases);
-            } else {
-              ch.phases = src.phases ? new Float32Array(src.phases) : null;
-            }
-          }
-          reconstructedChannels[i] = ch;
         }
-      } else {
-        // older format: top-level mags/phases saved previously -> convert into channel 0
-        const ch = {
-          mags: null,
-          phases: null,
-          pcm: new Float32Array(parsed.bufferLength * sampleRate),
-          snapshotMags: [],
-          snapshotPhases: []
-        };
-        if (parsed.mags !== undefined && parsed.mags !== null) {
-          if (parsed.deltaEncoded) ch.mags = deltaDecodeToFloat32(parsed.mags);
-          else ch.mags = parsed.mags ? new Float32Array(parsed.mags) : null;
-        }
-        if (parsed.phases !== undefined && parsed.phases !== null) {
-          if (parsed.deltaEncoded) ch.phases = deltaDecodeToFloat32(parsed.phases);
-          else ch.phases = parsed.phases ? new Float32Array(parsed.phases) : null;
-        }
-        reconstructedChannels[0] = ch;
       }
 
       // Ensure reconstructedChannels length matches parsed.channelCount (fill with empty channels if needed)
@@ -565,9 +576,58 @@ function openProject(file) {
 
       // Expose reconstructed channels to app globals
       channels = reconstructedChannels;
-      if (parsed.sprites !== undefined) sprites = parsed.sprites;
-
+      if (parsed.sprites !== undefined) sprites = deserializeSprites(parsed.sprites);
       recomputePCMForCols(0, Math.floor(parsed.bufferLength * sampleRate / parsed.hop));
+      updateChannels();
+
+      images = []; // reset local images array
+
+      if (Array.isArray(parsed.images) && parsed.images.length > 0) {
+        for (let i = 0; i < parsed.images.length; i++) {
+          const meta = parsed.images[i]; // { name, file } from saveProject
+          if (!meta || !meta.file) {
+            // push placeholder
+            images.push({ img: null, name: meta && meta.name ? meta.name : `image_${i}`, src: null });
+            continue;
+          }
+          // try to read the blob from the zip
+          const fileEntry = zip.file(meta.file);
+          if (!fileEntry) {
+            console.warn("Image file not found in ZIP:", meta.file);
+            images.push({ img: null, name: meta.name || `image_${i}`, src: null });
+            continue;
+          }
+          try {
+            const blob = await fileEntry.async("blob");
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            // push temporarily with null img; only push after onload to ensure ready to use
+            await new Promise((res, rej) => {
+              img.onload = () => {
+                images.push({ img, name: meta.name || `image_${i}`, src: url, file: null });
+                res();
+              };
+              img.onerror = (err) => {
+                console.warn("Image failed to load from ZIP entry", meta.file, err);
+                // still push something so UI won't break
+                images.push({ img: null, name: meta.name || `image_${i}`, src: url, file: null });
+                res(); // treat as resolved so openProject continues
+              };
+              img.src = url;
+            });
+          } catch (err) {
+            console.warn("Failed to extract image blob from zip for", meta.file, err);
+            images.push({ img: null, name: meta.name || `image_${i}`, src: null });
+          }
+        }
+      }
+      if (images.length >0) selectedImage = 0;
+
+
+
+
+
+
 
       window.dispatchEvent(new CustomEvent("projectLoaded", { detail: parsed }));
 
@@ -588,41 +648,101 @@ function openProject(file) {
   reader.readAsArrayBuffer(file);
 }
 
-
-
-
-const saveBtn = document.getElementById("saveProject");
-const newProjectBtn = document.getElementById("startNewProjectBtn");
-const openProjectBtn = document.getElementById("saveAndOpenProject");
-const modal = document.getElementById('presetsModal');
-const closeBtn = document.getElementById('closeProjectModalBtn');
-
-saveBtn.addEventListener('click', () => {
+document.getElementById("saveProject").addEventListener('click', () => {
   saveProject();
 });
-// Open modal on button click
-newProjectBtn.addEventListener('click', () => {
-  saveProject();
-  modal.style.display = 'flex';
-});
-openProjectBtn.addEventListener('click', () => {
+document.getElementById("saveAndOpenProject").addEventListener('click', () => {
   document.getElementById("openProject").click();
 });
 document.getElementById("openProject").addEventListener('change',(e)=>{
   openProject(e.target.files[0]);
 });
-
+const modal = document.getElementById('presetsModal');
 // Close modal
-closeBtn.addEventListener('click', () => {
+document.getElementById('closeProjectModalBtn').addEventListener('click', () => {
   modal.style.display = 'none';
 });
 
-// Optionally start new project with selected preset
-newProjectBtn.addEventListener('click', () => {
-  const preset = document.getElementById('presets').value;
-  console.log('Starting new project with preset:', preset);
+document.getElementById("startNewProjectBtn").addEventListener('click', () => {
+  modal.style.display = 'flex';
+});
+
+document.getElementById("saveAndStart").addEventListener('click', async () => {
+  saveProject();
+  const val = document.getElementById('presets').value;
   modal.style.display = 'none';
-  // call your existing logic to actually start a new project here
+
+  if (val === "silence") {
+    initEmptyPCM(true);
+    return;
+  }
+
+  const presetMap = {
+    dog: "presets/dog.wav",
+    flute: "presets/flute.wav",
+    trumpet: "presets/trumpet.wav",
+    bomb: "presets/bomb.wav",
+    male: "presets/male.wav",
+    female: "presets/female.wav",
+    birdChirp: "presets/birdChirp.mp3",
+    lionRoar: "presets/lionRoar.wav",
+    seaLion: "presets/seaLion.mp3",
+    violin: "presets/violin.mp3",
+    timpani: "presets/timpani.wav",
+    piano: "presets/piano.ogg",
+    cymbal: "presets/cymbal.wav",
+    computerBeeps: "presets/computerBeeps.mp3",
+    scream: "presets/scream.mp3",
+    engine: "presets/engine.mp3",
+    fullSpectra: "presets/fullSpectra.wav",
+    bass808: "presets/808bass.wav",
+    hardstyle: "presets/hardstyle.wav",
+    kick: "presets/kick.wav",
+    hihat: "presets/hihat.wav",
+    clap: "presets/clap.wav",
+    cave14: "presets/cave14.mp3",
+    sine: "presets/sine.wav",
+    triangle: "presets/triangle.wav",
+    square: "presets/square.wav",
+    saw: "presets/saw.wav"
+  };
+
+  const url = presetMap[val];
+  if (!url) {
+    console.warn("No URL defined for preset:", val);
+    return;
+  }
+
+  try {
+    status.textContent = `Loading preset "${val}"…`;
+    ensureAudioCtx(); 
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
+    const ab = await resp.arrayBuffer();
+    const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+    channels[0].pcm = new Float32Array(decoded.getChannelData(0));
+    sampleRate = decoded.sampleRate || sampleRate;
+
+    status.textContent = `Loaded preset "${val}", ${channels[0].pcm.length} samples @ ${sampleRate} Hz`;
+    let t = channels[0].pcm.length / sampleRate;
+    hopSizeEl.value = lockHop?Math.pow(2,fftSizeEl.value):(t<0.5?128:(t<5?512:1024));
+    emptyAudioLengthEl.value = Math.ceil(t);
+    document.getElementById("emptyAudioLengthInput").value = Math.ceil(t);
+    minCol = 0; maxCol = Math.floor(channels[0].pcm.length/hopSizeEl.value);
+    iLow = 0;
+    iHigh = framesTotal;
+    channelCount = 1;
+    updateChannels();
+    await waitFor(() => !rendering);
+    renderSpectrogramColumnsToImageBuffer(0,framesTotal,0);
+    uploads=[]; images=[]; sprites=[]; renderUploads(); renderSpritesTable();
+    movingSprite = false; selectedImage = null; selectedSpriteId = null; 
+    document.getElementById("canvas-0").style.cursor = 'crosshair'; 
+  } catch (err) {
+    console.error("Preset load error:", err);
+    status.textContent = "Error loading preset: " + (err.message || err);
+  }
 });
 
 // Close modal if clicking outside modal content

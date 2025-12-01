@@ -234,15 +234,7 @@
 <div class="app">
   <header class="top-bar">
     <a href="https://spectrodraw.com" id="home" title="Home" style="margin-left:10px;"><img data-manifest="BannerLogo2.png" style="background:transparent; height: 32px;"></a>
-    <button id="fileB" title="Upload Audio" style="margin-left: 10px">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="10" y1="16" x2="10" y2="6" />
-        <polyline points="6 10 10 6 14 10" />
-        <line x1="4" y1="16" x2="16" y2="16" />
-      </svg>
-    </button>
     <button id="rec" title="Record (Ctrl + space)"></button>
-    <input id="file" title="Import audio (Ctrl + O)" type="file" accept="audio/*,video/*" style="display:none;"/>
     <button id="playPause" title="Play (space)" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>
     </button>
@@ -513,7 +505,7 @@
       </div>
       <hr>
       <button class="leftBtn" id="saveProject">Save</button>
-      <button class="leftBtn" id="saveAndStartNewProject">Save and start new project</button>
+      <button class="leftBtn" id="startNewProjectBtn">Save and start new project</button>
       <button class="leftBtn" id="saveAndOpenProject">Open project</button>
       <input type="file" id="openProject" accept=".zip*" style="display:none;">
       <div id="presetsModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center;z-index:69420;">
@@ -552,7 +544,7 @@
           </select>
           <div style="margin-top:15px; text-align:right;">
             <button id="closeProjectModalBtn" class="leftBtn" style="width:40%;padding:5px;height:1.5rem;">Cancel</button>
-            <button id="startNewProjectBtn" class="leftBtn" style="width:40%;padding:5px;height:1.5rem;">Save and start</button>
+            <button id="saveAndStart" class="leftBtn" style="width:40%;padding:5px;height:1.5rem;">Save and start</button>
           </div>
         </div>
       </div>
@@ -714,9 +706,68 @@
         </div>
       </div>
     </div>
-    <!--Uploads-->
+    <!--Samples-->
     <div id="d3" style="display:none;">
-      <h2 style="margin-bottom:10px;margin-top:10px;">Uploads</h2>
+      <h2 style="margin-bottom:10px;margin-top:10px;">Samples</h2>
+      <!-- Upload / Drop box -->
+      <div id="samples-upload" style="margin: 6px 0 12px 0;">
+        <label class="upload-box" for="samplesUpload">
+          <div class="upload-inner" style="border: 3px dotted white; cursor:pointer;border-radius:5px;background:#222;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;" id="fileB">
+            <svg viewBox="0 0 24 24" aria-hidden="true" width="48" height="48" style="margin-bottom:10px;">
+              <path d="M12,3 v10 m0,-10 l-4,4 m4,-4 l4,4 M4,20 h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div style="font-size:13px;">Drop files here or click to upload</div>
+          </div>
+        </label>
+        <input id="samplesUpload" type="file" multiple accept="audio/*,image/*" style="display:none;">
+      </div>
+
+      <!-- Collapsible sections use same format as #spriteEffectSettings h3 -->
+      <section class="sample-section">
+        <div class="section-content" id="uploadsSection">
+          <h3>
+            Uploads
+            <button type="button"
+                    class="section-toggle"
+                    data-target="uploadsSection"
+                    aria-expanded="false"
+                    aria-label="Toggle uploads">
+            </button>
+          </h3>
+          <div id="uploadsWrapper"></div>
+        </div>
+      </section>
+
+      <section class="sample-section">
+        <div class="section-content" id="channelsSection">
+          <h3>
+            Channels
+            <button type="button"
+                    class="section-toggle"
+                    data-target="channelsSection"
+                    aria-expanded="true"
+                    aria-label="Toggle channels">
+            </button>
+          </h3>
+          <div id="channelsSampleWrapper"></div>
+        </div>
+      </section>
+
+      <section class="sample-section">
+        <div class="section-content" id="imagesSection">
+          <h3>
+            Images
+            <button type="button"
+                    class="section-toggle"
+                    data-target="imagesSection"
+                    aria-expanded="true"
+                    aria-label="Toggle images">
+            </button>
+          </h3>
+          <div class="image-gallery" id="imageGallery" role="list" aria-label="Images gallery">
+          </div>
+        </div>
+      </section>
     </div>
     <!--Midi-->
     <div id="d4" style="display:none;">
@@ -876,6 +927,7 @@
 <script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="ui.js"></script>
+<script data-manifest="uploads.js"></script>
 <script data-manifest="sprites.js"></script>
 <script data-manifest="axes.js"></script>
 <script data-manifest="midi.js"></script>
@@ -896,6 +948,7 @@
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
 <script src="ui.js"></script>
+<script src="uploads.js"></script>
 <script src="sprites.js"></script>
 <script src="axes.js"></script>
 <script src="midi.js"></script>

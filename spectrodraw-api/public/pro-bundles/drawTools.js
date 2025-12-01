@@ -93,6 +93,29 @@ function drawSpriteOutline(useDelta,cx,cy){
   }
 }
 
+function drawSampleRegion(cx) {
+  const framesVisible = Math.max(1, iHigh - iLow);
+  let $s = syncChannels ? 0 : currentChannel;
+  let $e = syncChannels ? channelCount : currentChannel + 1;
+  for (let ch = $s; ch < $e; ch++) {
+    const overlayCanvas = document.getElementById("overlay-" + ch);
+    if (!overlayCanvas) continue;
+    const ctx = overlayCanvas.getContext("2d");
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    const startFrame = Math.max(0, Math.min(framesTotal - 1, Math.round(cx)));
+    const endFrame = Math.min(framesTotal, cx + Math.floor((draggingSample && draggingSample.pcm ? draggingSample.pcm.length : 0) / (hop || 1)));
+    const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
+    const xPixel = mapX(startFrame);
+    const endPixel = mapX(endFrame);
+    const width = Math.max(1, Math.round(endPixel - xPixel));
+    ctx.save();
+    ctx.fillStyle = "rgba(255,0,0,0.15)";
+    ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+    ctx.restore();
+  }
+}
+
+
 function previewShape(cx, cy) {
   lastPreviewCoords = { cx, cy };
   if (pendingPreview) return;
@@ -106,7 +129,10 @@ function previewShape(cx, cy) {
     const canvas = document.getElementById("canvas-"+currentChannel); //CHANGE LATER
 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
+    if (draggingSample) {
+      drawSampleRegion(cx);
+      return;
+    }
     if (movingSprite) {
       drawSpriteOutline(true,cx,cy);
       return;
@@ -149,9 +175,9 @@ function previewShape(cx, cy) {
     const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
     const desiredScreenMax = brushSize * 4;
 
-    if (currentShape === "image" && overlayImage) {
-      const imgW = overlayImage.width;
-      const imgH = overlayImage.height;
+    if (currentShape === "image" && images[selectedImage].img) {
+      const imgW = images[selectedImage].img.width;
+      const imgH = images[selectedImage].img.height;
       const imgAspect = imgW / imgH;
       let screenW, screenH;
       if (imgW >= imgH) {
@@ -237,7 +263,7 @@ function buildBinDisplayLookup() {
 function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,ch) {
   if (!sprite) return;
   let col;
-  try{col=sprite.pixels[ch].get(x);}catch(e){console.log(sprite,ch);col=null};
+  try{col=sprite.pixels[ch].get(x);}catch(e){col=null};
   if (!col) {
     col = {
       ys: [],
@@ -246,7 +272,7 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,c
       nextMags: [],
       nextPhases: []
     };
-    sprite.pixels[ch].set(x, col);//CHANGE LATER
+    if (sprite.pixels[ch]) sprite.pixels[ch].set(x, col);
   }
   if (col.ys.includes(y)){
     const idx = col.ys.indexOf(y);
@@ -403,7 +429,7 @@ function commitShape(cx, cy) {
     const fullW = specWidth;
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
-    const bo = currentTool === ("eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
+    const bo = (currentTool === "eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
     const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
     const brushPhase = currentTool === "eraser" ? 0 : penPhase;
 
@@ -449,7 +475,6 @@ function commitShape(cx, cy) {
       }
 
       if (currentShape === "rectangle") {
-
         const minX = x0Frame;
         const maxX = x1Frame;
 
@@ -535,7 +560,7 @@ function paint(cx, cy) {
     const fullW = specWidth;
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
-    const bo = currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity* channels[ch].brushPressure;
+    const bo = (currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity)* channels[ch].brushPressure;
     const radiusY = Math.floor(brushSize/2/canvas.getBoundingClientRect().height*canvas.height);
     const radiusXFrames = Math.floor(brushSize/2/canvas.getBoundingClientRect().width*canvas.width);
     const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
@@ -544,14 +569,14 @@ function paint(cx, cy) {
     const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY));
     const radiusXsq = radiusXFrames * radiusXFrames;
     const radiusYsq = radiusY * radiusY;
-    if (currentShape === "image" && overlayImage) {
+    if (currentShape === "image" && images[selectedImage].img) {
       const screenSpace = true;
       const rect = canvas.getBoundingClientRect();
       const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
       const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
       const desiredScreenMax = brushSize * 4;
-      const imgW = overlayImage.width;
-      const imgH = overlayImage.height;
+      const imgW = images[selectedImage].img.width;
+      const imgH = images[selectedImage].img.height;
       const imgAspect = imgW / imgH;
       let screenW, screenH;
       if (imgW >= imgH) {
@@ -576,7 +601,7 @@ function paint(cx, cy) {
       tempCanvas.height = overlayH;
       const tctx = tempCanvas.getContext("2d");
       tctx.imageSmoothingEnabled = false;
-      tctx.drawImage(overlayImage, 0, 0, overlayW, overlayH);
+      tctx.drawImage(images[selectedImage].img, 0, 0, overlayW, overlayH);
       const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
       for (let yy = 0; yy < overlayH; yy++) {
         for (let xx = 0; xx < overlayW; xx++) {

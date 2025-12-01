@@ -175,23 +175,27 @@ function doUndo() {
   }
   if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
   const sprite = sprites[idx];
-  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
-  console.log("Undoing sprite:", sprite);
-  // restore sprite's prev values (iterate left->right, top->bottom)
-  forEachSpritePixelInOrder(sprite, (x, y, prevMag, prevPhase) => {
-    const id = x * specHeight + y;
-    mags[id] = prevMag;
-    phases[id] = prevPhase;
-  });
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = channels[ch].mags, phases = channels[ch].phases;
+    console.log("Undoing sprite:", sprite);
+    // restore sprite's prev values (iterate left->right, top->bottom)
+    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+      const id = x * specHeight + y;
+      mags[id] = prevMag;
+      phases[id] = prevPhase;
+    });
 
-  // mark disabled
-  sprite.enabled = false;
-  renderSpritesTable();
+    // mark disabled
+    sprite.enabled = false;
+    renderSpritesTable();
 
-  // recompute/render only affected columns
-  const minCol = Math.max(0, sprite.minCol);
-  const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-  renderSpectrogramColumnsToImageBuffer(minCol, maxCol,sprite.ch);
+    // recompute/render only affected columns
+    const minCol = Math.max(0, sprite.minCol);
+    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
+    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
+  }
+
   recomputePCMForCols(minCol, maxCol);
   //restartRender(false);
 
@@ -220,23 +224,26 @@ function doRedo() {
   }
   if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
   const sprite = sprites[idx];
-  
-  let mags = channels[sprite.ch].mags, phases = channels[sprite.ch].phases;
 
-  // apply sprite's recorded "next" values
-  forEachSpritePixelInOrder(sprite, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
-    const id = x * specHeight + y;
-    mags[id] = nextMag;
-    phases[id] = nextPhase;
-  });
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = channels[ch].mags, phases = channels[ch].phases;
 
-  sprite.enabled = true;
-  renderSpritesTable();
+    // apply sprite's recorded "next" values
+    forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
+      const id = x * specHeight + y;
+      mags[id] = nextMag;
+      phases[id] = nextPhase;
+    });
 
-  // recompute/render only affected columns
-  const minCol = Math.max(0, sprite.minCol);
-  const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-  renderSpectrogramColumnsToImageBuffer(minCol, maxCol,sprite.ch);
+    sprite.enabled = true;
+    renderSpritesTable();
+
+    // recompute/render only affected columns
+    const minCol = Math.max(0, sprite.minCol);
+    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
+    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
+  }
   recomputePCMForCols(minCol, maxCol);
 
   // remove from redo queue if tracked

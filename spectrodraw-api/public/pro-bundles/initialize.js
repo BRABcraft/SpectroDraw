@@ -1,13 +1,4 @@
-const fileEl=document.getElementById("file");
-// let canvas=document.getElementById("canvas-0");
-// let ctx=canvas.getContext("2d");
-// let overlayCanvas = document.getElementById("overlay-0");
-// let overlayCtx = overlayCanvas.getContext("2d");
-// let yAxis=document.getElementById("freq-0");
-// let yctx=yAxis.getContext("2d");
-// let timeline = document.getElementById('timeline-0');
-// let tctx = timeline.getContext('2d');
-//const logscaleEl = document.getElementById("logscale");
+const fileEl=document.getElementById("fileB");
 const status=document.getElementById("status");
 const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
@@ -117,7 +108,7 @@ let specWidth = 0;
 let specHeight = 0;
 let pcmChunks = null;
 let trueScaleVal=false;
-let overlayImage = null;
+let selectedImage = null;
 let useHz = false;
 let autoPlayOnFinish = true;
 let alignPitch=false;let alignTime=false;midiAlignTime=true;useMidiAI=useAIEl.checked;
@@ -159,7 +150,8 @@ let channelHeight = window.innerHeight - 70;
 let $x = 0, $y = 0;
 let currentChannel = 0;
 let syncChannels = false;
-// let updatingChannel = false;
+let uploads = [], images = [];
+let draggingSample = null;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});
@@ -208,3 +200,81 @@ function addEventListeners(){
 }
 
 async function waitFor(fn, interval = 10) {while (!fn()) await new Promise(r => setTimeout(r, interval));}
+function sanitizeFilename(name) {return (name || "unnamed").replace(/[^a-z0-9\-_\.]/gi, "_");}
+function serializeSprites(sprites) {
+  if (!Array.isArray(sprites)) return null;
+  return sprites.map(sprite => {
+    // shallow-copy primitive/enumerable props
+    const copy = {};
+    for (const k in sprite) {
+      if (k === 'pixels') continue; // handle below
+      // skip functions / DOM nodes if any
+      const v = sprite[k];
+      if (typeof v !== 'function') copy[k] = v;
+    }
+
+    // pixels: array where each element is either null or a Map
+    copy.pixels = (sprite.pixels || []).map(chMap => {
+      if (!chMap || !(chMap instanceof Map)) return null;
+      const pairs = [];
+      for (const [col, cell] of chMap.entries()) {
+        // convert typed arrays to plain arrays
+        const cellCopy = {};
+        for (const ck in cell) {
+          const cv = cell[ck];
+          if (cv instanceof Float32Array || cv instanceof ArrayBuffer || ArrayBuffer.isView(cv)) {
+            cellCopy[ck] = Array.from(cv);
+          } else if (Array.isArray(cv)) {
+            cellCopy[ck] = cv.slice();
+          } else if (cv !== undefined && typeof cv !== 'function') {
+            cellCopy[ck] = cv;
+          }
+        }
+        pairs.push([Number(col), cellCopy]);
+      }
+      return pairs;
+    });
+
+    return copy;
+  });
+}
+
+function deserializeSprites(serialized) {
+  if (!Array.isArray(serialized)) return [];
+  return serialized.map(s => {
+    const sprite = {};
+    // copy primitive props back
+    for (const k in s) {
+      if (k === 'pixels') continue;
+      sprite[k] = s[k];
+    }
+
+    // rebuild pixels: array of Maps
+    sprite.pixels = (s.pixels || []).map(chArr => {
+      if (!Array.isArray(chArr)) return new Map();
+      const m = new Map();
+      for (const [col, cell] of chArr) {
+        const reconstructed = {};
+        for (const ck in cell) {
+          const cv = cell[ck];
+          // treat numerical arrays as Float32Array for mags/phases/prev*
+          if (Array.isArray(cv) && cv.length > 0 && (ck.toLowerCase().includes('mag') || ck.toLowerCase().includes('phase') || ck.toLowerCase().startsWith('prev'))) {
+            reconstructed[ck] = new Float32Array(cv);
+          } else if (Array.isArray(cv)) {
+            reconstructed[ck] = cv.slice();
+          } else {
+            reconstructed[ck] = cv;
+          }
+        }
+        m.set(Number(col), reconstructed);
+      }
+      return m;
+    });
+
+    // ensure default arrays exist as in original
+    if (!Array.isArray(sprite.spriteFade)) sprite.spriteFade = [];
+    if (!Array.isArray(sprite.prevSpriteFade)) sprite.prevSpriteFade = [];
+
+    return sprite;
+  });
+}

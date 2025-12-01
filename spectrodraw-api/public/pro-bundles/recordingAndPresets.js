@@ -1,4 +1,4 @@
-async function initEmptyPCM() {
+async function initEmptyPCM(doReset) {
   if (channels === null) channels = new Array(channelCount);
   const sampleRateLocal = 48000;
   let duration = parseFloat(emptyAudioLengthEl.value);
@@ -6,13 +6,19 @@ async function initEmptyPCM() {
 
   const length = Math.floor(sampleRateLocal * duration);
   const tinyNoiseAmplitude = 0.0001;
-  let p = channels[0] ? channels[0].pcm : [];
-  if (length>p.length) {
+  if (length>(channels[0] ? channels[0].pcm : []).length || doReset) {
     for (let ch =0; ch<channelCount;ch++){
+      let p = channels[ch] ? channels[ch].pcm : [];
       const newPCM = new Float32Array(length);
-      newPCM.set(p);
-      for (let i = p.length; i < length; i++) {
-        newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+      if (!doReset){
+        newPCM.set(p);
+        for (let i = p.length; i < length; i++) {
+          newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+        }
+      } else {
+        for (let i = 0; i < length; i++) {
+          newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+        }
       }
       channels[ch] = {
         pcm: newPCM,
@@ -23,20 +29,19 @@ async function initEmptyPCM() {
         enabled: true,
         volume: 1,
         brushPressure: 1,
-        audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none"))
+        audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none")),
+        samplePos: 0,
+        sampleRate: sampleRateLocal, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0
       };
     }
   }
-  
-  // If pcm is already long enough, leave it as-is
-
   sampleRate = sampleRateLocal;
   iLow = 0; iHigh = framesTotal;
   restartRender(false);
   minCol = 0; 
   maxCol = framesTotal;
-  // await waitFor(() => !rendering);
-  // for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
+  await waitFor(() => !rendering);
+  for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
 }
 
 async function onReset() {
@@ -44,7 +49,7 @@ async function onReset() {
     channels[ch].snapshotMags=channels[ch].mags;
     channels[ch].snapshotPhases=channels[ch].phases;
   }
-  await initEmptyPCM();
+  await initEmptyPCM(true);
   minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
   sprites = []; movingSprite=false;mvsbtn.classList.toggle('moving', movingSprite);renderSpritesTable('reset');
 }
@@ -115,11 +120,11 @@ document.addEventListener("touchmove", e=> {
 document.addEventListener("mouseup", e=>{changingLogScale=false;})
 document.addEventListener("touchend", e=>{changingLogScale=false;})
 
-emptyAudioLengthEl.addEventListener("input", ()=> {
-  initEmptyPCM();
-  iLow = 0;
-  iHigh = framesTotal;
-});
+// emptyAudioLengthEl.addEventListener("input", ()=> {
+//   initEmptyPCM(false);
+//   iLow = 0;
+//   iHigh = framesTotal;
+// });
 let recording = false;
 let mediaStream = null;
 let mediaSource = null;
@@ -349,132 +354,41 @@ function ensureAudioCtx(){
 let startTime=0; 
 let audioProcessed=0; 
 
-fileEl.addEventListener("change", async e => {
+document.getElementById("samplesUpload").addEventListener("input", async e => {
   const f = e.target.files[0];
   if (!f) return;
-
-  const buf = await f.arrayBuffer();
-
-  ensureAudioCtx();
-
-  let ab;
-  try {
-    ab = await audioCtx.decodeAudioData(buf.slice(0));
-    const nChannels = ab.numberOfChannels || 1;
-    channelCount = nChannels; updateChannels();
-    sampleRate = ab.sampleRate || 48000;
-    fHigh = sampleRate / 2;
-    fWidth = fHigh;
-
-    minCol = 0;
-    maxCol = ab.getChannelData(0).length/hop;
-
-    // build channels[] where each channel holds its own pcm/mags/phases/snapshots
-    channels = new Array(nChannels);
-    for (let ch = 0; ch < nChannels; ch++) {
-      channels[ch] = {
-        pcm: new Float32Array(ab.getChannelData(ch)),
-        mags: [],
-        phases: [],
-        snapshotMags: [],
-        snapshotPhases: [],
-        enabled:true,
-        audioDevice: nChannels==1?"both":(ch==0?"left":(ch==1?"right":"none")),
-        volume: 1,
-        brushPressure: 1
-      };
+  if (f.type.startsWith("image/")) {
+    const url = URL.createObjectURL(f);   // create ONE URL
+    const img = new Image();
+    img.onload = () => {
+      images.push({ img, name: f.name, src: url }); // reuse same url
+      renderUploads();
+      selectedImage = 0;
+      updateBrushPreview && updateBrushPreview();
+    };
+    img.onerror = (err) => {
+      console.error("image load failed", err);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  } else {
+    const buf = await f.arrayBuffer();
+    ensureAudioCtx();
+    let ab;
+    try {
+      ab = await audioCtx.decodeAudioData(buf.slice(0));
+      const nChannels = ab.numberOfChannels || 1;
+      for (let ch = 0; ch < nChannels; ch++) {
+        uploads.push({name:(f.name+((nChannels>1)?("_channel"+ch):"")), pcm:ab.getChannelData(ch), samplePos: 0, sampleRate: ab.sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0});
+      }
+      if (currentPanel==="3")renderUploads();
+    } catch (err) {
+      alert("Error decoding audio. Please try a different file.");
+      console.error(err);
     }
-
-    status.textContent = `Loaded ${f.name}, ${channels[0].pcm.length} samples @ ${sampleRate} Hz (${nChannels} channel${nChannels>1 ? "s" : ""})`;
-    status.style.display = "block";
-
-    restartRender(false);
-    await waitFor(() => channels[0].mags.length > 0);
-    const ft = Math.ceil(ab.getChannelData(0).length/hop);
-    for(let ch=0;ch<nChannels;ch++)renderSpectrogramColumnsToImageBuffer(0,ft,ch);
-
-    const t = channels[0].pcm.length / sampleRate;
-    hopSizeEl.value = t < 0.5 ? 128 : (t < 5 ? 512 : 1024);
-
-    iLow = 0;
-    iHigh = framesTotal;
-
-  } catch (err) {
-    alert("Error decoding audio. Please try a different file.");
-    console.error(err);
   }
 });
-preset.addEventListener("change", async (e) => {
-  const val = e.target.value;
 
-  if (val === "silence") {
-    initEmptyPCM();
-    return;
-  }
-
-  const presetMap = {
-    dog: "presets/dog.wav",
-    flute: "presets/flute.wav",
-    trumpet: "presets/trumpet.wav",
-    bomb: "presets/bomb.wav",
-    male: "presets/male.wav",
-    female: "presets/female.wav",
-    birdChirp: "presets/birdChirp.mp3",
-    lionRoar: "presets/lionRoar.wav",
-    seaLion: "presets/seaLion.mp3",
-    violin: "presets/violin.mp3",
-    timpani: "presets/timpani.wav",
-    piano: "presets/piano.ogg",
-    cymbal: "presets/cymbal.wav",
-    computerBeeps: "presets/computerBeeps.mp3",
-    scream: "presets/scream.mp3",
-    engine: "presets/engine.mp3",
-    fullSpectra: "presets/fullSpectra.wav",
-    bass808: "presets/808bass.wav",
-    hardstyle: "presets/hardstyle.wav",
-    kick: "presets/kick.wav",
-    hihat: "presets/hihat.wav",
-    clap: "presets/clap.wav",
-    cave14: "presets/cave14.mp3",
-    sine: "presets/sine.wav",
-    triangle: "presets/triangle.wav",
-    square: "presets/square.wav",
-    saw: "presets/saw.wav"
-  };
-
-  const url = presetMap[val];
-  if (!url) {
-    console.warn("No URL defined for preset:", val);
-    return;
-  }
-
-  try {
-    status.textContent = `Loading preset "${val}"…`;
-    ensureAudioCtx(); 
-
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
-
-    const ab = await resp.arrayBuffer();
-
-    const decoded = await audioCtx.decodeAudioData(ab.slice(0));
-
-    pcm = new Float32Array(decoded.getChannelData(0));
-    sampleRate = decoded.sampleRate || sampleRate;
-
-    status.textContent = `Loaded preset "${val}", ${pcm.length} samples @ ${sampleRate} Hz`;
-    let t = pcm.length / sampleRate;
-    hopSizeEl.value = lockHop?Math.pow(2,fftSizeEl.value):(t<0.5?128:(t<5?512:1024));
-    minCol = 0; maxCol = Math.floor(pcm.length/hopSizeEl.value);
-    restartRender(true);
-    iLow = 0;
-    iHigh = framesTotal;
-
-  } catch (err) {
-    console.error("Preset load error:", err);
-    status.textContent = "Error loading preset: " + (err.message || err);
-  }
-});
 async function updateChannels(){
   while (channelCount > channels.length) {
     let length = Math.floor(sampleRate * emptyAudioLengthEl.value);
@@ -494,7 +408,9 @@ async function updateChannels(){
       enabled: true,           // default props we will sync with UI
       volume: 1,
       brushPressure: 1,
-      audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none"))
+      audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none")),
+      samplePos: 0,
+      sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0
     });
     logScaleVal.push(1.12);
   }
@@ -617,7 +533,7 @@ async function updateChannels(){
   updateChannelHeightInputs();
   minCol = 0; maxCol = framesTotal;
   restartRender(false);
-  await waitFor(() => !channels[0].mags.every(item => item == 0));
+  await waitFor(() => !rendering);
   for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
   //renderFullSpectrogramToImage();
   updatingChannel = false;

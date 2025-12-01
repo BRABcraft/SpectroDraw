@@ -109,8 +109,9 @@ function drawSampleRegion(cx) {
     const endPixel = mapX(endFrame);
     const width = Math.max(1, Math.round(endPixel - xPixel));
     ctx.save();
-    ctx.fillStyle = "rgba(255,0,0,0.15)";
-    ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+    ctx.fillStyle = dragInsert?"#0f0":"rgba(255,0,0,0.15)";
+    if (dragInsert) ctx.fillRect(Math.round(xPixel), 0, 5, overlayCanvas.height);
+    else            ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
     ctx.restore();
   }
 }

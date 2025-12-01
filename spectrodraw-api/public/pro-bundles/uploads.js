@@ -181,10 +181,16 @@ function renderUploads() {
         <label for="timeSlider_${s}" id="timeLabel_${s}" style="font-size:14px;">${curMs}/${totalMs}</label>
         <button class="sampleButton" id="samplePlayback_${s}">${playHtml}</button>
         <input type="range" min="0" max="${pcm ? pcm.length : 0}" value="${pos}" class="mini-slider" id="timeSlider_${s}">
-        <button class="sampleButton" id="fileInsert_${s}" title="Drag sample into spectrogram">
+        <button class="sampleButton" id="sampleReplace_${s}" title="Drag to overwrite sample onto spectrogram">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" fill="white" stroke="black" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3,3 16,14 11,14 13,20 9,21 7,15 3,17 3,3"></polyline>
             <path fill="white" stroke="black" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="m15,15 l6,0 l4,4 l-4,0 l0,-4 l-6,0 l0,12.5 l10,0 l0,-8.5l-4,-4z"/>
+          </svg>
+        </button>
+        <button class="sampleButton" id="sampleInsert_${s}" title="Drag to insert sample into spectrogram">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" fill="white" stroke="black" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3,3 16,14 11,14 13,20 9,21 7,15 3,17 3,3"></polyline>
+            <path fill="none" stroke="#0f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m15,22.5 l15,0z m7.5,-7.5 l0,15z"/>
           </svg>
         </button>
       </div>
@@ -224,7 +230,8 @@ function renderUploads() {
     const u = uploads[i];
     const playbackBtn = document.getElementById("samplePlayback_u" + i);
     const timeSlider = document.getElementById("timeSlider_u" + i);
-    const fileInsert = document.getElementById("fileInsert_u" + i);
+    const sampleReplace = document.getElementById("sampleReplace_u" + i);
+    const sampleInsert = document.getElementById("sampleInsert_u" + i);
     const timeLabel = document.getElementById("timeLabel_u" + i);
 
     u._playbackBtn = playbackBtn;
@@ -272,7 +279,8 @@ function renderUploads() {
         }
       });
     }
-    fileInsert.addEventListener("pointerdown", (ev) => startDrag(u, ev, u.name));
+    sampleReplace.addEventListener("pointerdown", (ev) => startDrag(u, ev, u.name,false));
+    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(u, ev, u.name,true));
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
@@ -295,7 +303,8 @@ function renderUploads() {
     const ch = channels[i];
     const playbackBtn = document.getElementById("samplePlayback_c" + i);
     const timeSlider = document.getElementById("timeSlider_c" + i);
-    const fileInsert = document.getElementById("fileInsert_c" + i);
+    const sampleReplace = document.getElementById("sampleReplace_c" + i);
+    const sampleInsert = document.getElementById("sampleInsert_c" + i);
     const timeLabel = document.getElementById("timeLabel_c" + i);
 
     ch._playbackBtn = playbackBtn;
@@ -334,7 +343,8 @@ function renderUploads() {
         if (ch._wasPlayingDuringDrag) { ch._wasPlayingDuringDrag = false; startItem(channels, i); }
       });
     }
-    fileInsert.addEventListener("pointerdown", (ev) => {startDrag(ch, ev, "Channel " + i)});
+    sampleReplace.addEventListener("pointerdown", (ev) => {startDrag(ch, ev, "Channel " + i,false)});
+    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(ch, ev, "Channel " + i,true));
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
@@ -393,9 +403,8 @@ function renderUploads() {
   }
 }
 
-document.addEventListener("pointerup", () => {commitSample(draggingSample,$x);draggingSample = null;});
-async function commitSample(sample, x) {
-  if (draggingSample === null || !sample || !sample.pcm || x<-30) return;
+async function commitSample(sample, x, insert = false) {
+  if (draggingSample === null || !sample || !sample.pcm || x < -30) return;
   let $s = syncChannels ? 0 : currentChannel;
   let $e = syncChannels ? channelCount : currentChannel + 1;
 
@@ -403,33 +412,72 @@ async function commitSample(sample, x) {
     const start = Math.max(0, x * hop);
     const end = start + sample.pcm.length;
 
-    // If channel has no pcm yet, or sample is equal/longer than the existing buffer,
-    // replace the channel buffer entirely with a copy of sample.pcm
-    if (!channels[ch].pcm || sample.pcm.length > channels[ch].pcm.length) {
-      // make a copy to avoid sharing the same underlying buffer
+    // If channel has no pcm yet -> just copy the sample (same for insert or replace)
+    if (!channels[ch].pcm || channels[ch].pcm.length === 0) {
       channels[ch].pcm = sample.pcm.slice(0);
-      emptyAudioLengthEl.value = sample.pcm.length/sampleRate; document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;drawTimeline();
+      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      drawTimeline();
       continue;
     }
 
-    // Ensure channels[ch].pcm exists (handled above) and expand if necessary
+    // --- INSERT mode: insert sample.pcm at `start`, shifting existing data to the right ---
+    if (insert) {
+      const existing = channels[ch].pcm;
+      // new length = max(existing.length, start) + sample.length
+      const newLen = Math.max(existing.length, start) + sample.pcm.length;
+      const newPCM = new Float32Array(newLen);
+
+      // copy leading part of existing buffer (up to start or full length if start > existing.length)
+      newPCM.set(existing.subarray(0, Math.min(existing.length, start)), 0);
+
+      // place sample
+      newPCM.set(sample.pcm, start);
+
+      // copy remaining tail of existing buffer after start (if any), shifted by sample length
+      if (start < existing.length) {
+        newPCM.set(existing.subarray(start), start + sample.pcm.length);
+      }
+
+      channels[ch].pcm = newPCM;
+      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      drawTimeline();
+      continue;
+    }
+
+    // --- REPLACE mode (original logic) ---
+    // If sample is longer than existing, replace entire buffer
+    if (sample.pcm.length > channels[ch].pcm.length) {
+      channels[ch].pcm = sample.pcm.slice(0);
+      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      drawTimeline();
+      continue;
+    }
+
+    // If placing the sample extends past the end, expand to 'end' and write sample there
     if (channels[ch].pcm.length < end) {
       const newPCM = new Float32Array(end);
-      newPCM.set(channels[ch].pcm);
+      newPCM.set(channels[ch].pcm, 0);
       newPCM.set(sample.pcm, start);
       channels[ch].pcm = newPCM;
-      emptyAudioLengthEl.value = end/sampleRate; document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;drawTimeline();
+      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      drawTimeline();
       continue;
     }
 
-    // Replace the segment with sample.pcm
+    // Normal in-place replace
     channels[ch].pcm.set(sample.pcm, start);
   }
 
   restartRender(false);
   await waitFor(() => !rendering);
   for (let ch = 0; ch < channelCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
+  draggingSample = null;
 }
+
 
 
 (function() {
@@ -578,9 +626,10 @@ function removeDragBox() {
   __dragBox.style.transform = "translate3d(-9999px,-9999px,0)";
 }
 
-// call this to begin drag (attach to fileInsert pointerdown)
-function startDrag(item, ev, name) {
+// call this to begin drag (attach to sampleReplace pointerdown)
+function startDrag(item, ev, name, insert) {
   if (!item) return;
+  dragInsert = insert;
 
   // set global draggingSample (your existing code expects this)
   draggingSample = item;
@@ -600,8 +649,7 @@ function startDrag(item, ev, name) {
 
   // pointermove updates target
   document.addEventListener("pointermove", __onPointerMove);
-  // pointerup finalizes drag: commit and stop
-  document.addEventListener("pointerup", __onPointerUp);
+  document.addEventListener("pointerup", ()=>{__onPointerUp(dragInsert);});
 
   // start animation
   if (__dragRAF) cancelAnimationFrame(__dragRAF);
@@ -616,16 +664,8 @@ function __onPointerMove(e) {
 }
 
 // pointerup handler: commit sample and stop drag
-function __onPointerUp(e) {
-  // commitSample is already used in your code; call it with current global $x
-  try {
-    // try to commit where you expect it; if $x not defined, commitSample should handle it
-    commitSample(draggingSample, $x);
-  } catch (err) {
-    try { commitSample(draggingSample, 0); } catch (e2) { /* ignore */ }
-  }
-  // clear draggingSample and stop animation / listeners
-  draggingSample = null;
+function __onPointerUp(insert) {
+  commitSample(draggingSample, $x, insert);
   stopDrag();
 }
 
@@ -633,7 +673,7 @@ function __onPointerUp(e) {
 function stopDrag() {
   // remove listeners (idempotent)
   document.removeEventListener("pointermove", __onPointerMove);
-  document.removeEventListener("pointerup", __onPointerUp);
+  document.removeEventListener("pointerup", ()=>{__onPointerUp(dragInsert);});
 
   if (__dragRAF) {
     cancelAnimationFrame(__dragRAF);

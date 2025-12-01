@@ -151,7 +151,7 @@ let $x = 0, $y = 0;
 let currentChannel = 0;
 let syncChannels = false;
 let uploads = [], images = [];
-let draggingSample = null;
+let draggingSample = null, dragInsert = false;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});

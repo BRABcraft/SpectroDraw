@@ -88,6 +88,11 @@ const sChannelEl = document.getElementById('spriteChannel');
 
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
+const defaultFadePoints = [
+  { x: 0.0, y: 1.0, mx: 120, my: 0, tLen: 120 },
+  { x: 0.5, y: 1.0, mx: 120, my: 0, tLen: 120 },
+  { x: 1.0, y: 1.0, mx: 120, my: 0, tLen: 120 }
+];
 
 let pcm=null, sampleRate=48000, pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
@@ -150,8 +155,8 @@ let channelHeight = window.innerHeight - 70;
 let $x = 0, $y = 0;
 let currentChannel = 0;
 let syncChannels = false;
-let uploads = [], images = [];
-let draggingSample = null, dragInsert = false;
+let uploads = [], images = []; startCh = 0;
+let draggingSample = [], dragInsert = false;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});

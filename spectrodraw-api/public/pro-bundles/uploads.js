@@ -279,8 +279,9 @@ function renderUploads() {
         }
       });
     }
-    sampleReplace.addEventListener("pointerdown", (ev) => startDrag(u, ev, u.name,false));
-    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(u, ev, u.name,true));
+    let us = [], name=[]; for (let c =0;c<channelCount;c++) if (uploads[c].uuid === u.uuid){us.push(uploads[c]); name.push(uploads[c].name);}
+    sampleReplace.addEventListener("pointerdown", (ev) => startDrag(syncChannels?us:[u], ev, name,false));
+    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncChannels?us:[u], ev, name,true));
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
@@ -343,8 +344,9 @@ function renderUploads() {
         if (ch._wasPlayingDuringDrag) { ch._wasPlayingDuringDrag = false; startItem(channels, i); }
       });
     }
-    sampleReplace.addEventListener("pointerdown", (ev) => {startDrag(ch, ev, "Channel " + i,false)});
-    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(ch, ev, "Channel " + i,true));
+    let chs = [], name=[]; for (let c =0;c<channelCount;c++) if (channels[c].uuid === ch.uuid){chs.push(channels[c]); name.push("Channel "+c);}
+    sampleReplace.addEventListener("pointerdown", (ev) => {startDrag(syncChannels?chs:[ch], ev, name,false)});
+    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncChannels?chs:[ch], ev, name,true));
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
@@ -403,81 +405,136 @@ function renderUploads() {
   }
 }
 
+function shiftSpritesForInsert(ch, start, insertLen) {
+  if (!Array.isArray(sprites) || insertLen <= 0) return;
+  for (let s = 0; s < sprites.length; s++) {
+    const sprite = sprites[s];
+    if (!sprite || !sprite.pixels) continue;
+    const map = sprite.pixels[ch];
+    if (!map || !(map instanceof Map)) continue;
+    const keysToShift = Array.from(map.keys()).filter(k => k >= start).sort((a,b) => b - a);
+    if (keysToShift.length === 0) continue;
+    for (const oldX of keysToShift) {
+      const value = map.get(oldX);
+      map.delete(oldX);
+      map.set(oldX + insertLen, value);
+    }
+    let minC = Infinity, maxC = -Infinity;
+    for (const k of map.keys()) {
+      if (k < minC) minC = k;
+      if (k > maxC) maxC = k;
+    }
+    sprite.minCol = (minC === Infinity) ? Infinity : minC;
+    sprite.maxCol = (maxC === -Infinity) ? -Infinity : maxC;
+  }
+}
+
 async function commitSample(sample, x, insert = false) {
-  if (draggingSample === null || !sample || !sample.pcm || x < -30) return;
+  if (draggingSample.length === 0 || !sample || !sample[0].pcm || x < -30) {draggingSample = []; return;}
   let $s = syncChannels ? 0 : currentChannel;
   let $e = syncChannels ? channelCount : currentChannel + 1;
-
+  let idx = 0;
   for (let ch = $s; ch < $e; ch++) {
     const start = Math.max(0, x * hop);
-    const end = start + sample.pcm.length;
-
-    // If channel has no pcm yet -> just copy the sample (same for insert or replace)
+    const end = start + sample[idx].pcm.length;
+    console.log('hi');
     if (!channels[ch].pcm || channels[ch].pcm.length === 0) {
-      channels[ch].pcm = sample.pcm.slice(0);
+      channels[ch].pcm = sample[idx].pcm.slice(0);
       emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
-      continue;
-    }
-
-    // --- INSERT mode: insert sample.pcm at `start`, shifting existing data to the right ---
-    if (insert) {
+    } else if (insert) {
       const existing = channels[ch].pcm;
-      // new length = max(existing.length, start) + sample.length
-      const newLen = Math.max(existing.length, start) + sample.pcm.length;
+      const newLen = Math.max(existing.length, start) + sample[idx].pcm.length;
       const newPCM = new Float32Array(newLen);
-
-      // copy leading part of existing buffer (up to start or full length if start > existing.length)
       newPCM.set(existing.subarray(0, Math.min(existing.length, start)), 0);
-
-      // place sample
-      newPCM.set(sample.pcm, start);
-
-      // copy remaining tail of existing buffer after start (if any), shifted by sample length
-      if (start < existing.length) {
-        newPCM.set(existing.subarray(start), start + sample.pcm.length);
-      }
-
+      newPCM.set(sample[idx].pcm, start);
+      if (start < existing.length) newPCM.set(existing.subarray(start), start + sample[idx].pcm.length);
       channels[ch].pcm = newPCM;
       emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
-      continue;
-    }
-
-    // --- REPLACE mode (original logic) ---
-    // If sample is longer than existing, replace entire buffer
-    if (sample.pcm.length > channels[ch].pcm.length) {
-      channels[ch].pcm = sample.pcm.slice(0);
+      shiftSpritesForInsert(ch, x, Math.floor(sample[idx].pcm.length/hop));
+    } else if (sample[idx].pcm.length > channels[ch].pcm.length) {
+      channels[ch].pcm = sample[idx].pcm.slice(0);
       emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
-      continue;
-    }
-
-    // If placing the sample extends past the end, expand to 'end' and write sample there
-    if (channels[ch].pcm.length < end) {
+    } else if (channels[ch].pcm.length < end) {
       const newPCM = new Float32Array(end);
       newPCM.set(channels[ch].pcm, 0);
-      newPCM.set(sample.pcm, start);
+      newPCM.set(sample[idx].pcm, start);
       channels[ch].pcm = newPCM;
       emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
-      continue;
+    } else {
+      channels[ch].pcm.set(sample[idx].pcm, start);
     }
-
-    // Normal in-place replace
-    channels[ch].pcm.set(sample.pcm, start);
+    if (syncChannels) idx++;
   }
 
   restartRender(false);
   await waitFor(() => !rendering);
   for (let ch = 0; ch < channelCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
-  draggingSample = null;
+  draggingSample = [];
+  idx = 0;
+  for (let ch = $s; ch < $e; ch++) {
+    console.log("Creating sprite for channel", ch);
+    newUploadSprite({
+      ch,
+      minCol:Math.floor(x),
+      maxCol:Math.floor(x+sample[0].pcm.length/hop),
+      name:sample[idx].name,
+      pcm:sample[idx].pcm
+    });
+    if (syncChannels) idx++;
+  }
 }
 
+function newUploadSprite(data) {
+  let pixelmap=[];
+  const width = (data.maxCol-data.minCol);
+  const size = width * specHeight;
+  let pcm = data.pcm, mags = new Float32Array(size), phases = new Float32Array(size);
+  for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
+  x=0;
+  for (let pos = 0; pos < pcm.length; pos += hop) {
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+    for (let i = 0; i < fftSize; i++) { re[i] = (pcm[i+pos] || 0); im[i] = 0; }
+    fft_inplace(re, im);
+    for (let bin = 0; bin < fftSize; bin++) {
+      const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
+      const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
+      const idx = x * fftSize + bin; 
+      mags[idx] = mag;
+      phases[idx] = phase;
+    }
+    x++;
+  }
+  sprites.push({
+    id: nextSpriteId++,
+    effect: {tool: "sample", penPhase:0, amp:1},
+    pixels: pixelmap,
+    minCol: data.minCol,
+    maxCol: data.maxCol,
+    ch: data.ch,
+    enabled: true,
+    createdAt: performance.now(),
+    fadePoints: defaultFadePoints,
+    spriteFade: [],
+    prevSpriteFade: [],
+    name: data.name
+  });
+  const prevMags = new Float32Array(size), prevPhases = new Float32Array(size);
+  for (let i = 0; i < size; i++) {prevMags[i] = Math.random() * 0.00001;prevPhases[i] = Math.random() * 2*Math.PI;}
+  for (let i=0;i<mags.length;i++){
+    let x = Math.floor(i / fftSize) + data.minCol, y = i % fftSize;
+    addPixelToSprite(sprites[sprites.length-1], x, y, prevMags[i], prevPhases[i], mags[i], phases[i], data.ch);
+  }
+  renderSpritesTable();
+}
 
 
 (function() {
@@ -578,10 +635,6 @@ async function commitSample(sample, x, insert = false) {
 })();
 
 
-
-
-
-// ---------- Drag-preview (floating box) with smooth physics ----------
 let __dragBox = null;
 let __dragState = null;
 let __dragRAF = null;
@@ -616,7 +669,7 @@ function spawnDragBox(name) {
     });
     document.body.appendChild(__dragBox);
   }
-  __dragBox.textContent = name || "Item";
+  __dragBox.innerHTML = name.join("<br>");
   __dragBox.style.display = "block";
 }
 
@@ -625,19 +678,25 @@ function removeDragBox() {
   __dragBox.style.display = "none";
   __dragBox.style.transform = "translate3d(-9999px,-9999px,0)";
 }
+// keep these at top-level so references are stable
+function __onPointerMove(e) {
+  if (!__dragState) return;
+  __dragState.target.x = e.clientX + DRAG_BOX_OFFSET.x;
+  __dragState.target.y = e.clientY + DRAG_BOX_OFFSET.y;
+}
 
-// call this to begin drag (attach to sampleReplace pointerdown)
-function startDrag(item, ev, name, insert) {
-  if (!item) return;
-  dragInsert = insert;
+function __onPointerUp(e) {
+  // use the global dragInsert / draggingSample / $x state
+  try { commitSample(draggingSample, Math.floor($x), !!dragInsert); } catch (err) { console.warn("commitSample failed", err); }
+  stopDrag();
+}
 
-  // set global draggingSample (your existing code expects this)
-  draggingSample = item;
-
-  // spawn box with item name
+function startDrag(items, ev, name, insert) {
+  if (!items) return;
+  dragInsert = !!insert;
+  draggingSample = items;
   spawnDragBox(name);
 
-  // initialize physics state
   const startX = (ev && typeof ev.clientX === "number") ? ev.clientX : window.innerWidth / 2;
   const startY = (ev && typeof ev.clientY === "number") ? ev.clientY : window.innerHeight / 2;
   __dragState = {
@@ -647,42 +706,30 @@ function startDrag(item, ev, name, insert) {
     lastTs: performance.now()
   };
 
-  // pointermove updates target
-  document.addEventListener("pointermove", __onPointerMove);
-  document.addEventListener("pointerup", ()=>{__onPointerUp(dragInsert);});
+  // add listeners using named function refs (so they can be removed)
+  document.addEventListener("pointermove", __onPointerMove, { passive: true });
+  document.addEventListener("pointerup", __onPointerUp);
 
-  // start animation
   if (__dragRAF) cancelAnimationFrame(__dragRAF);
   __dragRAF = requestAnimationFrame(__animateDrag);
 }
 
-// pointermove handler updates the target position for the spring
-function __onPointerMove(e) {
-  if (!__dragState) return;
-  __dragState.target.x = e.clientX + DRAG_BOX_OFFSET.x;
-  __dragState.target.y = e.clientY + DRAG_BOX_OFFSET.y;
-}
-
-// pointerup handler: commit sample and stop drag
-function __onPointerUp(insert) {
-  commitSample(draggingSample, $x, insert);
-  stopDrag();
-}
-
-// stops drag animation and removes listeners
 function stopDrag() {
-  // remove listeners (idempotent)
-  document.removeEventListener("pointermove", __onPointerMove);
-  document.removeEventListener("pointerup", ()=>{__onPointerUp(dragInsert);});
+  // remove the handlers using the same references
+  document.removeEventListener("pointermove", __onPointerMove, { passive: true });
+  document.removeEventListener("pointerup", __onPointerUp);
 
   if (__dragRAF) {
     cancelAnimationFrame(__dragRAF);
     __dragRAF = null;
   }
-
   __dragState = null;
   removeDragBox();
+
+  // DON'T try to remove per-button handlers by recreating anonymous functions here.
+  // The renderUploads() call (which sets innerHTML) already removed old elements / handlers.
 }
+
 
 // physics animator (spring + damping)
 function __animateDrag(ts) {

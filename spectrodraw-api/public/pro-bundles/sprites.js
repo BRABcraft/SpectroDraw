@@ -143,11 +143,12 @@ function renderSpritesTable() {
 
 // Update editor info for selected sprite
 function updateEditorSelection(spriteId) {
+  document.getElementById("stlb").innerText="Tool:"
   if (spriteId === null || selectedSpriteId === null) {
     selectedSpriteId = null;
     spriteEditorDiv.setAttribute('disabled', 'disabled');
     nameEl.value = 'No sprite selected';
-    toolEl.value = '';
+    toolEl.value = '';toolEl.style.display="";
     enabledEl.checked = false;
     sChannelEl.value = '';
   } else {
@@ -155,7 +156,7 @@ function updateEditorSelection(spriteId) {
     spriteEditorDiv.removeAttribute('disabled');
     nameEl.value = s.name;
     enabledEl.checked = s.enabled;
-    toolEl.value = s.effect.tool;
+    if (s.effect.tool==="sample"){toolEl.style.display="none";document.getElementById("stlb").innerText="Tool: sample"}else{toolEl.style.display="";toolEl.value = s.effect.tool;}
     sChannelEl.value = s.ch;
     renderToolEditorSettings(s);
     renderSpriteFade();
@@ -244,6 +245,7 @@ function renderToolEditorSettings(sprite) {
   document.getElementById("sev").style.display='flex';
   document.getElementById("sphaseDiv").style.display='flex';
   document.getElementById("sphaseStrengthDiv").style.display='flex';
+  document.getElementById("sbrushOpacityDiv").style.display='flex';
   if (toolEl.value === 'amplifier') {
     document.getElementById('samplifyDiv').style.display = 'flex';
   } else if (toolEl.value === 'blur') {
@@ -253,6 +255,11 @@ function renderToolEditorSettings(sprite) {
     document.getElementById("sev").style.display='none';
     document.getElementById("sphaseDiv").style.display='none';
     document.getElementById("sphaseStrengthDiv").style.display='none';
+  } else if (sprite.effect.tool==="sample"){
+    document.getElementById('samplifyDiv').style.display = 'flex';
+    document.getElementById("sev").style.display='none';
+    document.getElementById("sphaseStrengthDiv").style.display='none';
+    document.getElementById("sbrushOpacityDiv").style.display='none';
   } else {
     document.getElementById("sbrushColorDiv").style.display='flex';
   }
@@ -355,14 +362,15 @@ async function updateSpriteEffects(spriteId, newEffect) {
     renderToolEditorSettings(sprite);
 
     // compute local sig sprite once
-    const sigSprite = formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight }));
+    const z = (sprite.effect.tool==="sample");
+    const sigSprite = z?(sprite):(formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight })));
     if (!sigSprite) return;
 
     // write new mags/phases for significant pixels
     const integral = buildIntegral(specWidth, specHeight, mags, phases);
-    forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase) => {
+    forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, newMag, newPhase) => {
       const id = x * specHeight + y;
-      const newPixel = applyEffectToPixel(prevMag, prevPhase, x, y, newEffect, integral);
+      const newPixel = applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
       mags[id] = newPixel.mag;
       phases[id] = newPixel.phase;
     });
@@ -879,6 +887,24 @@ function getSignificantPixels(sprite, options = {}) {
  * Mostly unchanged logic after we obtain the significant pixels/component.
  */
 function generateSpriteOutlinePath(sprite, options = {}) {
+  if (sprite.effect.tool === "sample"){
+    const mn = sprite.minCol, mx = sprite.maxCol;
+    const ys = [...sprite.pixels[sprite.ch==="all"?0:sprite.ch].entries()].sort((a, b) => a[0] - b[0])[0][1].ys;
+    const ny = ys[0];
+    const my = ys.at(-1);
+    return {
+      points: [
+        { x: mn, y: ny},
+        { x: mx, y: ny},
+        { x: mx, y: my },
+        { x: mn, y: my }
+      ],
+      connections: [[0,1],[1,2],[2,3],[3,0]],
+      areaPixels: Math.max(0, (mx - mn + 1))*specHeight,
+      bounds:{ minX: mn, maxX: mx, minY: 0, maxY: specHeight - 1 },
+      ch: sprite.ch
+    };
+  }
   const height = options.height;
   if (typeof height !== 'number') throw new Error('generateSpriteOutlinePath: options.height (specHeight) is required');
 
@@ -1391,7 +1417,7 @@ function processSpriteFade() {
   let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?channelCount:s.ch+1;
   for (let ch=$s;ch<$e;ch++){
     const mags = channels[ch].mags;
-    const sigSprite = formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
+    const sigSprite = (s.effect.tool==="sample")?s:formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
     if (!sigSprite) return;
     const cols = [...sigSprite.pixels[ch].keys()].sort((a,b)=>a-b);
     if (cols.length === 0) return;

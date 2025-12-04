@@ -103,7 +103,7 @@ function drawSampleRegion(cx) {
     const ctx = overlayCanvas.getContext("2d");
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     const startFrame = Math.max(0, Math.min(framesTotal - 1, Math.round(cx)));
-    const endFrame = Math.min(framesTotal, cx + Math.floor((draggingSample && draggingSample.pcm ? draggingSample.pcm.length : 0) / (hop || 1)));
+    const endFrame = Math.min(framesTotal, cx + Math.floor((draggingSample[0] && draggingSample[0].pcm ? draggingSample[0].pcm.length : 0) / (hop || 1)));
     const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
     const xPixel = mapX(startFrame);
     const endPixel = mapX(endFrame);
@@ -130,7 +130,7 @@ function previewShape(cx, cy) {
     const canvas = document.getElementById("canvas-"+currentChannel); //CHANGE LATER
 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    if (draggingSample) {
+    if (draggingSample.length > 0) {
       drawSampleRegion(cx);
       return;
     }
@@ -403,7 +403,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const po =  (tool === "eraser" ? 0 : (newEffect.phaseOpacity   !== undefined) ? newEffect.phaseOpacity   :  0);
   const _amp = newEffect.amp || amp;
   const dbt = Math.pow(10, newEffect.noiseRemoveFloor / 20)*128;
-  const newMag =  (tool === "amplifier")    ? (oldMag * _amp)
+  const newMag =  (tool === "amplifier" || tool === "sample")    ? (oldMag * _amp)
                 : (tool === "noiseRemover") ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
                 :                             (oldMag * (1 - bo) + mag * bo);
   const type = newEffect.phaseTexture;
@@ -415,7 +415,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   } else if (type === 'Flat') {
     $phase = phase;
   }
-  const newPhase = oldPhase * (1-po) + po * ($phase + phase*2);
+  const newPhase = (tool === "sample")?(oldPhase+phase):(oldPhase * (1-po) + po * ($phase + phase*2));
   const clampedMag = Math.min(newMag, 255);
   return { mag: clampedMag, phase: newPhase};
 }

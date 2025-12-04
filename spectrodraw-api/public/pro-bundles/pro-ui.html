@@ -464,10 +464,6 @@
     <div id="d0">
       <h2 style="margin-bottom:10px;margin-top:10px;">Project info</h2>
       <div class="slider-row"><label for="projectName">Name:</label><input type="text" id="projectName" value="Untitled"></input></div>
-      <div class="slider-row"><label for="channels">Channels:</label>
-        <input type="range" id="channels" min="1" max="16" value="1">
-        <input id="channelsInput" type="number" value="1" min="1" max="16">
-      </input></div>
       <div id="fftParameters">
         <label class="h1">FFT Parameters
           <a id="fftLearnMore" class="learn-more" href="/faq/fft/#notes" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
@@ -628,7 +624,7 @@
         </div>
         <div class="slider-row"><label for="spriteName">Name:</label><input type="text" id="spriteName" value="No sprite selected"></input></div>
         <div class="slider-row"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
-        <div class="slider-row"><label for="spriteTool">Tool:</label><select id="spriteTool">
+        <div class="slider-row"><label for="spriteTool" id="stlb">Tool:</label><select id="spriteTool">
           <option value="color">Color</option>
           <option value="blur">Blur</option>
           <option value="eraser">Eraser</option>
@@ -901,6 +897,10 @@
     <!--Channels-->
     <div id="d6" style="display:none;">
       <h2 style="margin-bottom:10px;margin-top:10px;">Channels</h2>
+      <div class="slider-row"><label for="channels">Channels:</label>
+        <input type="range" id="channels" min="1" max="16" value="1">
+        <input id="channelsInput" type="number" value="1" min="1" max="16">
+      </input></div>
       <div class="slider-row" title="Channel Display Height" id="chdiv">
         <label class="h2">Channel height</label>
         <input id="channelHeight" type="range" min="0" max="500" step="1" value="500">
@@ -924,7 +924,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
 
-<script data-manifest="fft.js"></script>
+<!-- <script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="ui.js"></script>
 <script data-manifest="uploads.js"></script>
@@ -940,11 +940,11 @@
 <script data-manifest="brushPreview.js"></script>
 <script data-manifest="rightClick.js"></script>
 <script data-manifest="initialRenders.js"></script>
-<script data-manifest="eq.js"></script>
+<script data-manifest="eq.js"></script> -->
 
 <!--Comment out on deploy-->
 
-<!-- <link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="style.css">
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
 <script src="ui.js"></script>
@@ -961,4 +961,4 @@
 <script src="brushPreview.js"></script>
 <script src="rightClick.js"></script>
 <script src="eq.js"></script>
-<script src="initialRenders.js"></script> -->
+<script src="initialRenders.js"></script>

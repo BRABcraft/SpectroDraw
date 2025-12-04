@@ -31,7 +31,7 @@ async function initEmptyPCM(doReset) {
         brushPressure: 1,
         audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none")),
         samplePos: 0,
-        sampleRate: sampleRateLocal, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0
+        sampleRate: sampleRateLocal, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid:crypto.randomUUID()
       };
     }
   }
@@ -350,12 +350,15 @@ function ensureAudioCtx(){
   sampleRate = audioCtx.sampleRate || sampleRate;
 }
 
+let startTime=0;
+let audioProcessed=0;
 
-let startTime=0; 
-let audioProcessed=0; 
+document.getElementById("samplesUpload").addEventListener("input", async e => {doUpload(e.target);});
+fileEl.addEventListener("dragover", e => {e.preventDefault();});
+fileEl.addEventListener("drop", e => {e.preventDefault();doUpload(e.dataTransfer);});
 
-document.getElementById("samplesUpload").addEventListener("input", async e => {
-  const f = e.target.files[0];
+async function doUpload(e) {
+  const f = e.files[0];
   if (!f) return;
   if (f.type.startsWith("image/")) {
     const url = URL.createObjectURL(f);   // create ONE URL
@@ -378,8 +381,9 @@ document.getElementById("samplesUpload").addEventListener("input", async e => {
     try {
       ab = await audioCtx.decodeAudioData(buf.slice(0));
       const nChannels = ab.numberOfChannels || 1;
+      const uuid = crypto.randomUUID();
       for (let ch = 0; ch < nChannels; ch++) {
-        uploads.push({name:(f.name+((nChannels>1)?("_channel"+ch):"")), pcm:ab.getChannelData(ch), samplePos: 0, sampleRate: ab.sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0});
+        uploads.push({name:(f.name+((nChannels>1)?("_channel"+ch):"")), pcm:ab.getChannelData(ch), samplePos: 0, sampleRate: ab.sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid});
       }
       if (currentPanel==="3")renderUploads();
     } catch (err) {
@@ -387,7 +391,7 @@ document.getElementById("samplesUpload").addEventListener("input", async e => {
       console.error(err);
     }
   }
-});
+}
 
 async function updateChannels(){
   while (channelCount > channels.length) {
@@ -410,7 +414,8 @@ async function updateChannels(){
       brushPressure: 1,
       audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none")),
       samplePos: 0,
-      sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0
+      sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,
+      uuid:crypto.randomUUID()
     });
     logScaleVal.push(1.12);
   }

@@ -103,16 +103,13 @@ function canvasMouseDown(e,touch) {
       minCol: Infinity,
       maxCol: -Infinity,
       createdAt: performance.now(),
-      fadePoints: [
-        { x: 0.0, y: 1.0, mx: 120, my: 0, tLen: 120 },
-        { x: 0.5, y: 1.0, mx: 120, my: 0, tLen: 120 },
-        { x: 1.0, y: 1.0, mx: 120, my: 0, tLen: 120 }
-      ],
+      fadePoints: defaultFadePoints,
       spriteFade: [],
       prevSpriteFade: [],
       name,
       ch: syncChannels?"all":currentChannel
     };
+    startCh = currentChannel;
     sprites.push(currentSprite);
 
     if (!(currentShape === "rectangle" || currentShape === "line")) {
@@ -142,7 +139,7 @@ function canvasMouseMove(e,touch,el) {
   currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   let mags = channels[currentChannel].mags; //change to channel that mouse is touching
-  if (painting && movingSprite || draggingSample!==null) {previewShape(cx, cy);return;}
+  if (painting && movingSprite || draggingSample.length>0) {previewShape(cx, cy);return;}
   if (zooming) return;
   if (!recording) {
     const hz = getSineFreq(visibleToSpecY(cy));
@@ -165,6 +162,7 @@ function canvasMouseMove(e,touch,el) {
     previewShape(cx, cy);
     previewingShape = true;
   } else {
+    if (currentChannel !== startCh) return;
     let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
     for (let ch=$s;ch<$e;ch++){
       const overlayCanvas = document.getElementById("overlay-"+ch);

@@ -521,6 +521,8 @@ async function moveSprite(spriteId, dx, dy) {
         const $s = sampleRate/2, $l = logScaleVal[ch];
         const ny  = Math.floor(invlsc(lsc( oldY   *f,$s,$l) + dy * f,$s,$l) / f);
         const ny1 = Math.floor(invlsc(lsc((oldY+1)*f,$s,$l) + dy * f,$s,$l) / f);
+        if (i===0) sprite.minY = ny;
+        if (i===col.ys.length-1) sprite.maxY = ny;
 
         if (nx < 0 || nx >= specWidth || ny < 0 || ny1 >= specHeight) {
           continue; // out of bounds
@@ -889,16 +891,19 @@ function getSignificantPixels(sprite, options = {}) {
 function generateSpriteOutlinePath(sprite, options = {}) {
   if (sprite.effect.tool === "sample"){
     const mn = sprite.minCol, mx = sprite.maxCol;
-    const ys = [...sprite.pixels[sprite.ch==="all"?0:sprite.ch].entries()].sort((a, b) => a[0] - b[0])[0][1].ys;
-    const ny = ys[0];
-    const my = ys.at(-1);
+    const ny = sprite.minY || 0;
+    const my = sprite.maxY || specHeight;
+    const points = [
+      { x: mn, y: ny},
+      { x: mx, y: ny},
+      { x: mx, y: my },
+      { x: mn, y: my }
+    ];
+    const shift = fLow/(sampleRate/2)*specHeight;
+    let ch= sprite.ch=="all"?0:sprite.ch;
+    const finalPointsArr = points.map(p => ({ x: p.x, y: specHeight-((lsc(p.y,specHeight,logScaleVal[ch])-shift)*((sampleRate/2)/fWidth))}));
     return {
-      points: [
-        { x: mn, y: ny},
-        { x: mx, y: ny},
-        { x: mx, y: my },
-        { x: mn, y: my }
-      ],
+      points: finalPointsArr,
       connections: [[0,1],[1,2],[2,3],[3,0]],
       areaPixels: Math.max(0, (mx - mn + 1))*specHeight,
       bounds:{ minX: mn, maxX: mx, minY: 0, maxY: specHeight - 1 },
@@ -1417,7 +1422,8 @@ function processSpriteFade() {
   let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?channelCount:s.ch+1;
   for (let ch=$s;ch<$e;ch++){
     const mags = channels[ch].mags;
-    const sigSprite = (s.effect.tool==="sample")?s:formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
+    const z=(s.effect.tool==="sample");
+    const sigSprite = z?s:formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
     if (!sigSprite) return;
     const cols = [...sigSprite.pixels[ch].keys()].sort((a,b)=>a-b);
     if (cols.length === 0) return;
@@ -1428,7 +1434,7 @@ function processSpriteFade() {
       const idx = Math.round(t * last);
       const factor = s.spriteFade[idx] || 0;
       const id = x * specHeight + y;
-      mags[id] = nextMag * factor;
+      if (z) mags[id]*=factor; else mags[id] = nextMag * factor;
     });
     recomputePCMForCols(s.minCol, s.maxCol);
   }

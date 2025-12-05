@@ -345,7 +345,7 @@ window.addEventListener('message', async (ev) => {
     document.getElementById('signin-link').style.display = 'none';
     const accountWrap = document.getElementById('account-wrap');
     accountWrap.style.display = 'block';
-    document.getElementById('account-email').textContent = user.email;
+    document.getElementById('account-email').textContent = user.email.replace(/@.*/, "");
   } catch (err) {
     console.error('auth session error', err);
   }

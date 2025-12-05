@@ -495,7 +495,7 @@ async function commitSample(sample, x, insert = false) {
 function newUploadSprite(data) {
   let pixelmap=[];
   const width = (data.maxCol-data.minCol);
-  const size = width * specHeight;
+  const size = width * fftSize;
   let pcm = data.pcm, mags = new Float32Array(size), phases = new Float32Array(size);
   for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
   x=0;

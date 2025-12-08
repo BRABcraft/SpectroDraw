@@ -33,14 +33,17 @@ function syncNumberAndRange(numberInput, rangeInput) {
                    [document.getElementById('amp'), document.getElementById('ampInput')],
                    [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
                    [document.getElementById('channels'), document.getElementById('channelsInput'),true],
-                   [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true]];
+                   [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],
+                   [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
+                   [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][0].addEventListener('mouseup', ()=>{initEmptyPCM(false);});
 sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[0][1].value);const min = parseFloat(sliders[0][0].min);const max = parseFloat(sliders[0][0].max);
     if (isNaN(val)) val = 0;if (val < min) val = min;if (val > max) val = max;sliders[0][1].value = val;sliders[0][0].value = val;initEmptyPCM(false);}});
-sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][0].value); updateBrushPreview();});
-sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
+function rs_(i){const v = sliders[1][i].value; const f = v/brushSize; sliders[21][0].value=sliders[21][1].value=Math.round(brushWidth *= f); sliders[22][0].value=sliders[22][1].value=Math.round(brushHeight *= f); brushSize=v; updateBrushPreview();}
+sliders[1][0].addEventListener("input", ()=>{rs_(0);});
+sliders[1][1].addEventListener("input", ()=>{rs_(1);});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
 sliders[2][1].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][1].value); updateBrushPreview();});
 sliders[3][0].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][0].value); updateBrushPreview();});
@@ -90,6 +93,11 @@ sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
 sliders[20][0].addEventListener('input', () => {channelHeight = parseFloat(sliders[20][0].value); sliders[20][1].value = channelHeight;updateChannelHeight();});
 sliders[20][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[20][1].value);const min = parseFloat(sliders[20][0].min);const max = parseFloat(sliders[20][0].max);
     if (isNaN(val)) val = channelHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;channelHeight = val;updateChannelHeight();}});
+function rs(){sliders[1][0].value = sliders[1][1].value = brushSize = Math.max(brushWidth, brushHeight);}
+sliders[21][0].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[21][0].value); rs(); updateBrushPreview();});
+sliders[21][1].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[21][1].value); rs(); updateBrushPreview();});
+sliders[22][0].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][0].value); rs(); updateBrushPreview();});
+sliders[22][1].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][1].value); rs(); updateBrushPreview();});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -134,11 +142,8 @@ toolButtons.forEach(btn => {
     btn.style.background = "#4af"; 
   }
 });
-toolButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    currentTool = btn.dataset.tool;
-    toolButtons.forEach(b => b.style.background = "");
-    btn.style.background = "#4af"; 
+function updateBrushSettingsDisplay(){
+  if (showEffectSettings) {
     if (currentTool === "blur") {
       document.getElementById("brushColorDiv").style.display="none";
       document.getElementById("blurRadiusDiv").style.display="flex";
@@ -169,7 +174,15 @@ toolButtons.forEach(btn => {
       document.getElementById("phaseDiv").style.display="flex";
       document.getElementById("phaseStrengthDiv").style.display="flex";
     }
-    document.getElementById("brushSizeDiv").style.display=(currentTool === 'rectangle')?"none":"flex";
+  }
+  document.getElementById("brushSizeDiv").style.display=(currentTool === 'rectangle' || !showToolSettings)?"none":"flex";
+}
+toolButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentTool = btn.dataset.tool;
+    toolButtons.forEach(b => b.style.background = "");
+    btn.style.background = "#4af"; 
+    updateBrushSettingsDisplay();
     updateBrushPreview();
   });
 });
@@ -202,7 +215,7 @@ overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
   const img = new Image();
-  img.onload = () => {currentShape="image"; document.getElementById("imageBtn").style.background = "#4af"; selectedImage = images.length; images.push({img, name:f.name, src: URL.createObjectURL(f)}); renderUploads(); updateBrushPreview();}
+  img.onload = () => {currentShape="image"; document.getElementById("imageBtn").style.background = "#4af"; selectedImage = images.length; images.push({img, name:f.name, src: URL.createObjectURL(f)}); renderUploads(); updateBrushWH();updateBrushPreview();}
   img.src = URL.createObjectURL(f);
 });
 let ogHSv = hopSizeEl.value;

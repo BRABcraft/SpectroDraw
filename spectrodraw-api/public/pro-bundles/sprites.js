@@ -1114,6 +1114,8 @@ function toggleSection(btn) {
   if (!section) return;
 
   const expanded = btn.getAttribute('aria-expanded') === 'true';
+  if (targetId === "toolSettings") showToolSettings = !expanded;
+  if (targetId === "effectSettings") showEffectSettings = !expanded;
   if (expanded) {
     // collapse: hide everything except the H3
     Array.from(section.children).forEach(child => {
@@ -1131,6 +1133,7 @@ function toggleSection(btn) {
     btn.setAttribute('aria-expanded', 'true');
     btn.innerHTML = svgMinus;
     renderToolEditorSettings(getSpriteById(selectedSpriteId));
+    updateBrushSettingsDisplay();
   }
 }
 
@@ -1144,12 +1147,15 @@ function initSectionToggles() {
     if (!section) return;
 
     // FORCE START COLLAPSED
-    btn.setAttribute('aria-expanded', 'false');
     btn.innerHTML = svgPlus;
-    Array.from(section.children).forEach(child => {
-      if (child.tagName === 'H3') return;
-      child.style.display = 'none';
-    });
+    if (btn.getAttribute('aria-expanded')==='false') {
+      Array.from(section.children).forEach(child => {
+        if (child.tagName === 'H3') return;
+        child.style.display = 'none';
+      });
+    } else {
+      btn.innerHTML = svgMinus;
+    }
 
     // Add click listener
     btn.addEventListener('click', (e) => {

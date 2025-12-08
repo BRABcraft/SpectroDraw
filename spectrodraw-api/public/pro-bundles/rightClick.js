@@ -443,7 +443,7 @@ function makeYAxisMenu(){
     { type:'input', label:'Set min', value: invlsc(fLow) },
     { type:'input', label:'Set max', value: invlsc(fHigh) },
     { type:'separator' },
-    { type:'input', label:'Logscale', value: Number(logscaleEl.value) }
+    { type:'input', label:'Logscale', value: Number(logScaleVal[currentChannel]) }
   ];
 
   const menu = buildMenu(items);
@@ -470,8 +470,8 @@ function makeYAxisMenu(){
   }
 
   // replace min/max rows
-  if(minItem) minItem.innerHTML = makeSliderRow('Set min', invlsc(fLow), 0, fHigh, 1);
-  if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', invlsc(fHigh), fLow, sampleRate/2, 1); // assume 20kHz upper limit
+  if(minItem) minItem.innerHTML = makeSliderRow('Set min', invlsc(fLow, sampleRate/2, logScaleVal[currentChannel]), 0, fHigh, 1);
+  if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', invlsc(fHigh, sampleRate/2, logScaleVal[currentChannel]), fLow, sampleRate/2, 1); // assume 20kHz upper limit
 
   // replace log scale row
   if(logItem) logItem.innerHTML = makeSliderRow('Log scale', Number(logScaleVal[currentChannel]), 1, 2, 0.01);
@@ -483,7 +483,7 @@ function makeYAxisMenu(){
     const input = itemEl.querySelector('.ctx-input');
     const apply = (v)=>{
       let val = Math.max(minVal, Math.min(maxVal, Number(v)));
-      setValue(lsc(val));
+      setValue(lsc(val, sampleRate/2, logScaleVal[currentChannel]));
       slider.value = input.value = val;
       drawYAxis();
     };

@@ -125,7 +125,7 @@ let startX = null, startY = null;
 let cx_ = null, cy_ = null;
 let zooming = false;
 
-let brushSize=parseInt(brushSizeEl.value);
+let brushSize=parseInt(brushSizeEl.value), brushWidth = brushSize, brushHeight = brushSize;
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
 let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
 let brushColor=parseInt(brushColorEl.value);
@@ -157,6 +157,8 @@ let currentChannel = 0;
 let syncChannels = false;
 let uploads = [], images = []; startCh = 0;
 let draggingSample = [], dragInsert = false;
+let showToolSettings = true;
+let showEffectSettings = true;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});

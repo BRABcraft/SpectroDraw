@@ -1,3 +1,23 @@
+function updateBrushWH() {
+  const bw = document.getElementById("brushWidth");
+  const bh = document.getElementById("brushHeight");
+  const bs = document.getElementById("brushSize");
+  const bw1 = document.getElementById("brushWidthInput");
+  const bh1 = document.getElementById("brushHeightInput");
+  const bs1 = document.getElementById("brushSizeInput");
+  if (currentShape === 'image') {
+    const iw = images[selectedImage].img.width;
+    const ih = images[selectedImage].img.height;
+    bw.max = bw1.max = iw*4;
+    bh.max = bh1.max = ih*4;
+    bs.max = bs1.max = Math.max(iw, ih)*4;
+    bw.value = bw1.value = brushWidth = iw;
+    bh.value = bh1.value = brushHeight = ih;
+    bs.value = bs1.value = brushSize = Math.max(iw, ih);
+  } else {
+    bw.max = bh.max = bs.max = bw1.max = bh1.max = bs1.max = 200;
+  }
+}
 function updateBrushPreview() {
   const preview = document.getElementById("strokePreview");
   const pctx = preview.getContext("2d");
@@ -89,15 +109,16 @@ function updateBrushPreview() {
   } else {
     if (currentShape === "image"){
       if (images[selectedImage] && images[selectedImage].img.complete) {
-        const maxDim = Math.min(preview.width, preview.height) * 0.8 * (brushSize / 20);
+        const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
+        const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
+        const availW = preview.width  * 0.8 * (bw / 20);
+        const availH = preview.height * 0.8 * (bh / 20);
         const aspect = images[selectedImage].img.width / images[selectedImage].img.height;
-        let drawW, drawH;
-        if (aspect > 1) {
-          drawW = maxDim;
-          drawH = maxDim / aspect;
-        } else {
-          drawH = maxDim;
-          drawW = maxDim * aspect;
+        let drawW = Math.max(1, availW);
+        let drawH = Math.max(1, drawW / aspect);
+        if (drawH > availH) {
+          drawH = availH;
+          drawW = Math.max(1, drawH * aspect);
         }
         const dx = centerX - drawW / 2;
         const dy = centerY - drawH / 2;

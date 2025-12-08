@@ -547,14 +547,74 @@
     </div>
     <!--Brush editor-->
     <div id="d1" style="display:none;">
-      <div id="brushSettings">
-        <label class="h1">Brush settings</label>
-        <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
-        <div class="slider-row" title="Brush size/image size" id="brushSizeDiv">
-          <label class="h2">Brush Size</label>
-          <input id="brushSize" type="range" min="1" max="200" value="40">
+      <label class="h1">Brush settings</label>
+      <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+      <!--Tool select: Common: {Note brush (harmonics), Stamp, Cloner, Line}, Special: {Pressure brush, Rectangle, Image overlay} -->
+      <!--Effect select: Fill, Noise remover (AI), amplifier, Eraser, Blur-->
+      <!--Tool settings: Size/width/height/opacity/harmonics-->
+      <div id="toolSettings">
+        <h3>
+          Tool settings
+          <button type="button"
+                  class="section-toggle"
+                  data-target="toolSettings"
+                  aria-expanded="true"
+                  aria-label="Toggle Effect settings"
+                  id="btoolSettingsToggleBtn"></button>
+        </h3>
+        <div class="slider-row" title="Size" id="brushSizeDiv">
+          <label class="h2">Size</label>
+          <input id="brushSize" type="range" min="1" max="200" value="10">
           <input id="brushSizeInput" type="number" value="10" min="1" max="200">
         </div>
+        <div class="slider-row" title="Width" id="brushWidthDiv">
+          <label class="h2">Width</label>
+          <input id="brushWidth" type="range" min="1" max="200" value="10">
+          <input id="brushWidthInput" type="number" value="10" min="1" max="200">
+        </div>
+        <div class="slider-row" title="Height" id="brushHeightDiv">
+          <label class="h2">Height</label>
+          <input id="brushHeight" type="range" min="1" max="200" value="10">
+          <input id="brushHeightInput" type="number" value="10" min="1" max="200">
+        </div>
+        <div class="slider-row" title="Opacity">
+          <label class="h2">Opacity</label>
+          <input id="brushOpacity"  type="range" min="0" max="100" value="100">
+          <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
+        </div>
+        <div id="brushHarmonisEditorDiv" style="margin-left:10px;">
+          <h3 style="font-size:15px;margin:0;">Harmonics
+            <button type="button"
+                    class="section-toggle"
+                    data-target="brushHarmonisEditorDiv"
+                    aria-expanded="false"
+                    aria-label="Toggle Harmonics editor settings"
+                    id="brushHarmonisEditorDivToggleBtn"></button>
+          </h3>
+          <div class="slider-row" title="Opacity">
+            <label class="h2">Preset</label>
+            <select id="harmonicsPresetSelect">
+              <option value="sine" selected>Sine wave</option>
+              <option value="triangle">Triangle wave</option>
+              <option value="square">Square wave</option>
+              <option value="saw">Saw wave</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
+        </div>
+      </div>
+      <!--Effect settings: Depends on effect. -->
+      <div id="effectSettings">
+        <h3>
+          Effect settings
+          <button type="button"
+                  class="section-toggle"
+                  data-target="effectSettings"
+                  aria-expanded="true"
+                  aria-label="Toggle Effect settings"
+                  id="beffectSettingsToggleBtn"></button>
+        </h3>
         <div class="slider-row" title="Brightness" id="brushColorDiv">
             <label class="h2">Brush Brightness</label>
             <input id="brushColor" type="range" min="0" max="255" value="255">
@@ -588,17 +648,12 @@
             <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
             <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
         </div>
-        <div class="slider-row" title="Brightness strength">
-            <label class="h2">Opacity</label>
-            <input id="brushOpacity"  type="range" min="0" max="100" value="100">
-            <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
-        </div>
         <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
             <label class="h2">Phase Strength</label>
             <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
             <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
         </div>
-      </div> 
+      </div>
     </div>
     <!--Sprites-->
     <div id="d2" style="display:none;">

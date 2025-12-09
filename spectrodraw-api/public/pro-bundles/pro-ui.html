@@ -234,13 +234,21 @@
 <div class="app">
   <header class="top-bar">
     <a href="https://spectrodraw.com" id="home" title="Home" style="margin-left:10px;"><img data-manifest="BannerLogo2.png" style="background:transparent; height: 32px;"></a>
-    <button id="rec" title="Record (Ctrl + space)"></button>
     <button id="playPause" title="Play (space)" style="margin-left: 20px">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>
     </button>
     <button id="stop" title="Stop">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="0 0 20 20">
         <rect x="0" y="0" width="18" height="18" rx="2" ry="2"/>
+      </svg>
+    </button>
+    <button id="downloadWav" title="Download audio (ctrl + s)">
+      <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+        <path d="M5 14v4h2v-4H6z" />
+        <path d="M17 14v4h2v-4h-2z" />
+        <path d="M12 12v10" />
+        <path d="M9 19l3 3 3 -3" />
       </svg>
     </button>
     <button class="shape-btn" data-shape="brush" id="brushBtn" style="margin-left: 20px" title="Brush (b)">
@@ -275,7 +283,7 @@
       </svg>
     </button>
     <input type="file" id="overlayFile" accept="image/*" style="display:none;">
-    <button class="tool-btn" data-tool="color" id="colorBtn" title="Color (c)" style="margin-left:10px;">
+    <button class="tool-btn" data-tool="fill" id="colorBtn" title="Color (c)" style="margin-left:10px;">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
         <circle cx="12" cy="12" r="9"/>
       </svg>
@@ -298,43 +306,9 @@
       </svg>
     </button>
     <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
-      <img data-manifest="assets/toothbrush.svg"></button>
-    <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
-        <g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 9V3h6" />
-          <path d="M21 15v6h-6" />
-        </g>
-      </svg>
+      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18.19239" height="19.22007" viewBox="0,0,18.19239,19.22007"><g transform="translate(-0.9038,-0.38997)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.6988,2.4324l2.86589,-2.04243l7.13401,10.01027l-2.86589,2.04243z" stroke-width="NaN"/><path d="M0.9038,4.89839l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M2.27524,6.82275l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M3.72671,8.90531l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M5.09814,10.82967l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M6.45025,12.72692l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M11.38987,11.97357l2.26406,-1.61352l5.44227,7.63646l-2.26406,1.61352z" stroke-width="NaN"/></g></g></svg>
     </button>
-    <button id="yAxisMode" title="Toggle Y axis label mode (y)">
-      <svg xmlns="http://www.w3.org/2000/svg" 
-         width="28" height="28" viewBox="0 0 20 20" 
-         fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <text x="0" y="18" font-size="8" fill="black" stroke-width="0.5">1.0k</text>
-        <text x="10" y="6" font-size="8" fill="black" stroke-width="0.5">a5</text>
-        <line x1="4" y1="4" x2="18" y2="14" />
-      </svg>
-    </button>
-     <button id="downloadWav" style="margin-left:20px" title="Download audio (ctrl + s)">
-      <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
-        <path d="M5 14v4h2v-4H6z" />
-        <path d="M17 14v4h2v-4h-2z" />
-        <path d="M12 12v10" />
-        <path d="M9 19l3 3 3 -3" />
-      </svg>
-    </button>
-    <button id="downloadButton" title="Download spectrogram (ctrl + shift + s)">
-      <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="14" rx="2" ry="2" />
-        <circle cx="17" cy="7" r="2" />
-        <polyline points="3 17 10 10 14 14 21 7" />
-        <path d="M12 12v10" />
-        <path d="M9 19l3 3 3 -3" />
-      </svg>
-    </button>
-    <button id="resetButton" onClick="onReset();" title="Reset audio">
+    <button id="resetButton" onClick="onReset();" title="Reset audio" style="margin-left:10px;">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="5" y="7" width="14" height="14" rx="2" ry="2" />
         <line x1="8" x2="8" y1="11" y2 = "17" stroke-width="1"/>
@@ -359,7 +333,7 @@
   </header>
   <aside class="left-bar">
     <!-- Project info -->
-    <button class="panel-btn" id="settingsBtn" title="Project info (g)" data-tool="0">
+    <button class="panel-btn" id="settingsBtn" title="Project (g)" data-tool="0">
       <svg xmlns="http://www.w3.org/2000/svg" 
           width="20" height="20" viewBox="0 0 24 24" 
           fill="none" stroke="white" stroke-width="2" 
@@ -462,7 +436,7 @@
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <!--Project settings-->
     <div id="d0">
-      <h2 style="margin-bottom:10px;margin-top:10px;">Project info</h2>
+      <h2 style="margin-bottom:10px;margin-top:10px;">Project</h2>
       <div class="slider-row"><label for="projectName">Name:</label><input type="text" id="projectName" value="Untitled"></input></div>
       <div id="fftParameters">
         <label class="h1">FFT Parameters
@@ -544,13 +518,46 @@
           </div>
         </div>
       </div>
+
+
+
+      <hr>
+      <button id="trueScale" title="Use true aspect ratio" class="leftBtn">Use true scale</button>
+      <button id="downloadButton" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
+      <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>
+
+
+
     </div>
     <!--Brush editor-->
     <div id="d1" style="display:none;">
       <label class="h1">Brush settings</label>
       <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
       <!--Tool select: Common: {Note brush (harmonics), Stamp, Cloner, Line}, Special: {Pressure brush, Rectangle, Image overlay} -->
+      <div class="slider-row" title="Size" id="brushToolSelectDiv">
+        <label class="h2">Tool</label>
+        <select id="brushToolSelect">
+          <option value="note" selected>Note Brush</option>
+          <option value="stamp">Stamp</option>
+          <option value="cloner">Cloner</option>
+          <option value="line">Line</option>
+          <option value="brush">Pressure Brush</option>
+          <option value="rectangle">Rectangle</option>
+          <option value="image">Image Overlay</option>
+        </select>
+      </div>
       <!--Effect select: Fill, Noise remover (AI), amplifier, Eraser, Blur-->
+      <div class="slider-row" title="Size" id="brushEffectSelectDiv">
+        <label class="h2">Effect</label>
+        <select id="brushEffectSelect">
+          <option value="fill" selected>Fill</option>
+          <option value="noiseRemover">AI Noise Remover</option>
+          <option value="autotune">Autotune</option>
+          <option value="amplifier">Amplifier</option>
+          <option value="eraser">Eraser</option>
+          <option value="blur">Blur</option>
+        </select>
+      </div>
       <!--Tool settings: Size/width/height/opacity/harmonics-->
       <div id="toolSettings">
         <h3>
@@ -562,17 +569,17 @@
                   aria-label="Toggle Effect settings"
                   id="btoolSettingsToggleBtn"></button>
         </h3>
-        <div class="slider-row" title="Size" id="brushSizeDiv">
+        <div class="slider-row" title="Size" id="brushSizeDiv" style="display:none;">
           <label class="h2">Size</label>
           <input id="brushSize" type="range" min="1" max="200" value="10">
           <input id="brushSizeInput" type="number" value="10" min="1" max="200">
         </div>
-        <div class="slider-row" title="Width" id="brushWidthDiv">
+        <div class="slider-row" title="Width" id="brushWidthDiv" style="display:none;">
           <label class="h2">Width</label>
           <input id="brushWidth" type="range" min="1" max="200" value="10">
           <input id="brushWidthInput" type="number" value="10" min="1" max="200">
         </div>
-        <div class="slider-row" title="Height" id="brushHeightDiv">
+        <div class="slider-row" title="Height" id="brushHeightDiv" style="display:none;">
           <label class="h2">Height</label>
           <input id="brushHeight" type="range" min="1" max="200" value="10">
           <input id="brushHeightInput" type="number" value="10" min="1" max="200">
@@ -680,11 +687,12 @@
         <div class="slider-row"><label for="spriteName">Name:</label><input type="text" id="spriteName" value="No sprite selected"></input></div>
         <div class="slider-row"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
         <div class="slider-row"><label for="spriteTool" id="stlb">Tool:</label><select id="spriteTool">
-          <option value="color">Color</option>
-          <option value="blur">Blur</option>
+          <option value="fill">Fill</option>
+          <option value="noiseRemover">AI Noise Remover</option>
+          <option value="autotune">Autotune</option>
+          <option value="amplifier">Amplifier</option>
           <option value="eraser">Eraser</option>
-          <option value="amplifier">Amplify</option>
-          <option value="noiseRemover">Noise Remover</option>
+          <option value="blur">Blur</option>
         </select></div>
         <div class="slider-row" id="spriteChannelDiv" style="display:none;"><label for="spriteChannel">Channel:</label><select id="spriteChannel">
           <option value="0">0</option>
@@ -759,7 +767,10 @@
     </div>
     <!--Samples-->
     <div id="d3" style="display:none;">
-      <h2 style="margin-bottom:10px;margin-top:10px;">Samples</h2>
+      <div style="display:flex;">
+        <h2 style="margin-bottom:10px;margin-top:10px;">Samples</h2>
+        <button id="rec" title="Record (Ctrl + space)" style="margin-left:170px;margin-top:10px;"></button>
+      </div>
       <!-- Upload / Drop box -->
       <div id="samples-upload" style="margin: 6px 0 12px 0;">
         <label class="upload-box" for="samplesUpload">
@@ -979,9 +990,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
 
-<!-- <script data-manifest="fft.js"></script>
+<script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="ui.js"></script>
+<script data-manifest="harmonics.js"></script>
 <script data-manifest="uploads.js"></script>
 <script data-manifest="sprites.js"></script>
 <script data-manifest="axes.js"></script>
@@ -995,14 +1007,15 @@
 <script data-manifest="brushPreview.js"></script>
 <script data-manifest="rightClick.js"></script>
 <script data-manifest="initialRenders.js"></script>
-<script data-manifest="eq.js"></script> -->
+<script data-manifest="eq.js"></script>
 
 <!--Comment out on deploy-->
 
-<link rel="stylesheet" type="text/css" href="style.css">
+<!-- <link rel="stylesheet" type="text/css" href="style.css">
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
 <script src="ui.js"></script>
+<script src="harmonics.js"></script>
 <script src="uploads.js"></script>
 <script src="sprites.js"></script>
 <script src="axes.js"></script>
@@ -1016,4 +1029,4 @@
 <script src="brushPreview.js"></script>
 <script src="rightClick.js"></script>
 <script src="eq.js"></script>
-<script src="initialRenders.js"></script>
+<script src="initialRenders.js"></script> -->

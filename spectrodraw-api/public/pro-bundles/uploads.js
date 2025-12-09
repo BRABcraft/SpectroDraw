@@ -603,11 +603,12 @@ function newUploadSprite(data) {
     document.addEventListener("keydown", onDocKeyDown, true);
   }
   const deleteBtn = document.getElementById("contextDeleteBtn");
-    deleteBtn.addEventListener("click", (e) => {
+  deleteBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     if (!currentTarget) return hideMenu();
     const { arr, idx } = currentTarget;
     if (Array.isArray(arr) && typeof idx === "number" && idx >= 0 && idx < arr.length) {
+      stopItem(uploads, idx, false);
       arr.splice(idx, 1);
       if (arr === images) {
         if (images.length === 0) {

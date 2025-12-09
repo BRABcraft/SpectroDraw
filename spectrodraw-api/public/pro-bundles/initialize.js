@@ -133,8 +133,8 @@ let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value);
 let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
 let penPhase=parseInt(penPhaseEl.value)/10000;
-let currentTool = "color";
-let currentShape = "brush";
+let currentTool = "fill";
+let currentShape = "note";
 let currentPanel = "0";
 let bpm = 120; let npo = 12;
 let noiseFloor = document.getElementById("noiseFloorCutoff").value; let startOnP = 440;
@@ -159,6 +159,7 @@ let uploads = [], images = []; startCh = 0;
 let draggingSample = [], dragInsert = false;
 let showToolSettings = true;
 let showEffectSettings = true;
+let harmonics = Array(100).fill(0); harmonics[0]=1;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});

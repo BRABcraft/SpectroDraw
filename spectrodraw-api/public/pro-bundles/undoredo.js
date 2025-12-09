@@ -200,7 +200,7 @@ function doUndo() {
   //restartRender(false);
 
   // update UI scroll / view
-  iLow = 0; iHigh = specWidth; updateCanvasScroll();
+  if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
 
   // track disabled sprites (optional)
   spriteRedoQueue.push(sprite);

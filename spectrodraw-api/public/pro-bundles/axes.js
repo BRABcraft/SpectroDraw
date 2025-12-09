@@ -557,7 +557,7 @@ function makeWheelZoomHandler(elem, opts){
       // positive deltaX => move window right (iLow increases)
       const rect = rectTimeline || rectElem;
       if (!rect) return;
-      const incFrames = (e.deltaX / rect.width) * framesTotal * PAN_SENSITIVITY;
+      const incFrames = (e.deltaX / rect.width) * 500 * PAN_SENSITIVITY;
 
       iLow = Math.round(_clamp(iLow + incFrames, 0, Math.max(1, framesTotal - iWidth)));
       iHigh = iLow + iWidth;

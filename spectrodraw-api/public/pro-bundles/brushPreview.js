@@ -1,3 +1,4 @@
+let prevBrushDims = [10,10,10];
 function updateBrushWH() {
   const bw = document.getElementById("brushWidth");
   const bh = document.getElementById("brushHeight");
@@ -11,11 +12,15 @@ function updateBrushWH() {
     bw.max = bw1.max = iw*4;
     bh.max = bh1.max = ih*4;
     bs.max = bs1.max = Math.max(iw, ih)*4;
+    prevBrushDims = [brushSize, brushWidth, brushHeight];
     bw.value = bw1.value = brushWidth = iw;
     bh.value = bh1.value = brushHeight = ih;
     bs.value = bs1.value = brushSize = Math.max(iw, ih);
   } else {
     bw.max = bh.max = bs.max = bw1.max = bh1.max = bs1.max = 200;
+    bs.value = bs1.value = brushSize = prevBrushDims[0];
+    bw.value = bw1.value = brushWidth = prevBrushDims[1];
+    bh.value = bh1.value = brushHeight = prevBrushDims[2];
   }
 }
 function updateBrushPreview() {

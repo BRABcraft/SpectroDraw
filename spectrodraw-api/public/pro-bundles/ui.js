@@ -175,34 +175,59 @@ function updateBrushSettingsDisplay(){
       document.getElementById("phaseStrengthDiv").style.display="flex";
     }
   }
-  document.getElementById("brushSizeDiv").style.display=(currentTool === 'rectangle' || !showToolSettings)?"none":"flex";
+  const bw = document.getElementById("brushWidthDiv");
+  const bh = document.getElementById("brushHeightDiv");
+  const bs = document.getElementById("brushSizeDiv");
+
+  let disp = showToolSettings?"flex":"none";
+  if (currentShape === 'line' || currentShape === 'rectangle' || currentShape === 'note') disp = "none";
+  bs.style.display = currentShape === 'line'?"flex":disp;
+  bw.style.display = disp;
+  bh.style.display = disp;
+  const showHarmonics = currentShape === "note" || currentShape === "line";
+  document.getElementById("brushHarmonisEditorDiv").style.display = showHarmonics?"block":"none";
+  if (showHarmonics) renderHarmonicsCanvas();
+}
+function onToolChange(tool){
+  currentTool = tool;
+  toolButtons.forEach(b => b.style.background =(b.dataset.tool===tool)?"#4af":"");
+  document.getElementById("brushEffectSelect").value=tool;
+  updateBrushSettingsDisplay();
+  updateBrushPreview();
 }
 toolButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    currentTool = btn.dataset.tool;
-    toolButtons.forEach(b => b.style.background = "");
-    btn.style.background = "#4af"; 
-    updateBrushSettingsDisplay();
-    updateBrushPreview();
+    onToolChange(btn.dataset.tool);
   });
+});
+document.getElementById("brushEffectSelect").addEventListener("input",()=>{
+  onToolChange(document.getElementById("brushEffectSelect").value);
 });
 shapeButtons.forEach(btn => {
   if(btn.dataset.shape === currentShape) {
     btn.style.background = "#4af"; 
   }
 });
+function onShapeChange(shape){
+  if (shape!=="image" || images.length>0) {
+    document.getElementById("brushToolSelect").value=currentShape = shape;
+    shapeButtons.forEach(b => b.style.background = (b.dataset.shape===shape)?"#4af":"");
+    document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
+    updateBrushWH();
+    updateBrushPreview();
+  } else if (images.length === 0){
+    overlayFile.click();
+  }
+  updateBrushWH();
+  updateBrushSettingsDisplay();
+}
 shapeButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    if (btn.dataset.shape!=="image") {
-      currentShape = btn.dataset.shape;
-      shapeButtons.forEach(b => b.style.background = "");
-      btn.style.background = "#4af";
-      document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
-      updateBrushPreview();
-    } else if (images.length === 0){
-      overlayFile.click();
-    }
+    onShapeChange(btn.dataset.shape);
   });
+});
+document.getElementById("brushToolSelect").addEventListener("input",()=>{
+  onShapeChange(document.getElementById("brushToolSelect").value);
 });
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
@@ -215,7 +240,7 @@ overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
   const img = new Image();
-  img.onload = () => {currentShape="image"; document.getElementById("imageBtn").style.background = "#4af"; selectedImage = images.length; images.push({img, name:f.name, src: URL.createObjectURL(f)}); renderUploads(); updateBrushWH();updateBrushPreview();}
+  img.onload = () => {document.getElementById("brushToolSelect").value=currentShape="image"; shapeButtons.forEach(b => b.style.background = "");document.getElementById("imageBtn").style.background = "#4af"; selectedImage = images.length; images.push({img, name:f.name, src: URL.createObjectURL(f)}); renderUploads(); updateBrushWH();updateBrushPreview();}
   img.src = URL.createObjectURL(f);
 });
 let ogHSv = hopSizeEl.value;

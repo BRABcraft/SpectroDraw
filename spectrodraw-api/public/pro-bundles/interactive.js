@@ -151,14 +151,14 @@ function canvasMouseMove(e,touch,el) {
     let db = (20 * Math.log10(normalizedMag)).toFixed(1);
     info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
   }
-  if (!painting && (currentShape === "brush" || currentShape === "image") && !movingSprite) {
+  if (!painting && (currentShape === "brush" ||currentShape === "note" || currentShape === "image") && !movingSprite) {
     previewShape(cx, cy);
     previewingShape = true;
     return;
   }
   if(!painting && currentTool != "image") return;
 
-  if (currentShape !== "brush") {
+  if (currentShape !== "brush"&&currentShape !== "note") {
     previewShape(cx, cy);
     previewingShape = true;
   } else {
@@ -207,7 +207,7 @@ function canvasMouseUp(e,touch) {
     commitShape(cx, cy); 
     overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
   }
-  if (alignTime && currentTool === "color") {
+  if (alignTime && currentTool === "fill") {
     const startFrame = Math.round(cx + iLow);
     const snapSize = 30/bpm/subBeat;
     const brushS = brushSize*fWidth/sampleRate*fftSize/512;

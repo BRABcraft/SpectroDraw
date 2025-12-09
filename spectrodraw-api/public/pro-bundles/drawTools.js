@@ -302,72 +302,57 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const height = fullH;
   const idxBase = xI * fullH;
   const imgData = imageBuffer[ch].data;
-  const dbt = Math.pow(10, noiseRemoveFloor / 20)*128;
+  const dbt = Math.pow(10, noiseRemoveFloor / 20) * 128;
 
   const magsArr = channels[ch].mags;
   const phasesArr = channels[ch].phases;
 
-  // optional pitch-align (keep this branch but hoist helpers)
+  // optional pitch-align
   let displayYFloat = yDisplay;
   const f = getSineFreq(yDisplay);
   if (alignPitch) {
     let nearestPitch = Math.round(npo * Math.log2(f / startOnP));
     nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
-    displayYFloat = ftvsy(nearestPitch,ch);
+    displayYFloat = ftvsy(nearestPitch, ch);
   }
 
-  // get float bin boundaries using lookup tables
-  const topBinF = displayYToBin(displayYFloat - 0.5, fullH, ch);
-  const botBinF = displayYToBin(displayYFloat + 0.5, fullH, ch);
-
-  let binStart = Math.floor(Math.min(topBinF, botBinF));
-  let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
-  if (!Number.isFinite(binStart)) binStart = 0;
-  if (!Number.isFinite(binEnd))   binEnd   = 0;
-  if (binStart < 0) binStart = 0;
-  if (binEnd > fullH - 1) binEnd = fullH - 1;
-
-  for (let bin = binStart; bin <= binEnd; bin++) {
+  // helper: process a single bin (reused by both flows)
+  function processBin(bin, boScaled) {
+    if (!Number.isFinite(bin)) return;
+    bin = Math.max(0, Math.min(fullH - 1, Math.round(bin)));
     const idx = idxBase + bin;
-    // bounds check not needed if idxBase/bin clamped, but keep safe:
-    if (idx < 0 || idx >= magsArr.length) continue;
-    if (visited && visited[ch][idx] === 1) continue;
+    if (idx < 0 || idx >= magsArr.length) return;
+    if (visited && visited[ch][idx] === 1) return;
     if (visited) visited[ch][idx] = 1;
-    
-    let pd = (bin%2<1)?1:1-po;
 
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     const newMag = (currentTool === "amplifier")
                 ? (oldMag * amp)
                 : (currentTool === "noiseRemover")
-                ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
-                :(oldMag * (1 - bo) + mag * bo);
+                ? (oldMag > dbt ? oldMag : (oldMag * (1 - boScaled)))
+                : (oldMag * (1 - boScaled) + mag * boScaled);
     const type = phaseTextureEl.value;
     let $phase;
     if (type === 'Harmonics') {
       $phase = (bin / specHeight * fftSize / 2);
     } else if (type === 'Static') {
-      $phase = Math.random()*Math.PI;
-    } else if (type === 'Flat') {
+      $phase = Math.random() * Math.PI;
+    } else { // Flat or others
       $phase = phase;
     }
-    const newPhase = oldPhase * (1-po) + po * ($phase + phase*2);
+    const newPhase = oldPhase * (1 - po) + po * ($phase + phase * 2);
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
     phasesArr[idx] = newPhase;
-    channels[ch].mags=magsArr;
+    channels[ch].mags = magsArr;
 
-    // use lookup tables to avoid recomputing bin->display bounds
+    // draw pixel(s) for this bin (use bin's display bounds to pick rows)
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
     const yEnd   = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
-
-    // RGB conversion - this may still be expensive; could cache per (idx) or per mag/phase pair
     const [r, g, b] = magPhaseToRGB(clampedMag, newPhase);
-
-    // write rows
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * width + xI) * 4;
       imgData[pix]     = r;
@@ -376,7 +361,38 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch) {
       imgData[pix + 3] = 255;
     }
   }
+
+  // NOTE shape: draw one bin per harmonic (frequency * (i+1)), with bo scaled by harmonics[i]
+  if (currentShape === "note" || currentShape === "line") {
+    const harmArr = harmonics;
+    let i = 0, binF = 0;
+    while (binF<specHeight && i<400) {
+      const harmVal = Math.max(0, Math.min(1, ((i>=harmArr.length)?(harmArr[harmArr.length-1]):(harmArr[i]))));
+      const freqI = f * (i + 1);
+      const displayY_i = ftvsy(freqI, ch);
+      binF = displayYToBin(displayY_i, fullH, ch);
+      processBin(binF, bo * harmVal);
+      i++;
+    }
+    return;
+  }
+
+  // default shape: original behavior (range of bins around displayYFloat)
+  const topBinF = displayYToBin(displayYFloat - 0.5, fullH, ch);
+  const botBinF = displayYToBin(displayYFloat + 0.5, fullH, ch);
+
+  let binStart = Math.floor(Math.min(topBinF, botBinF));
+  let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
+  if (!Number.isFinite(binStart)) binStart = 0;
+  if (!Number.isFinite(binEnd))   binEnd   = 0;
+  binStart = Math.max(0, binStart);
+  binEnd   = Math.min(fullH - 1, binEnd);
+
+  for (let bin = binStart; bin <= binEnd; bin++) {
+    processBin(bin, bo);
+  }
 }
+
 
 function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const tool = newEffect.tool || currentTool;
@@ -608,10 +624,11 @@ function paint(cx, cy) {
     const bo = (currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity)* channels[ch].brushPressure;
     const radiusY = Math.floor(brushHeight/2/canvas.getBoundingClientRect().height*canvas.height);
     const radiusXFrames = Math.floor(brushWidth/2/canvas.getBoundingClientRect().width*canvas.width);
-    const minXFrame = Math.max(0, Math.floor(cx - radiusXFrames));
-    const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + radiusXFrames));
-    const minY = Math.max(0, Math.floor(cy - radiusY));
-    const maxY = Math.min(fullH - 1, Math.ceil(cy + radiusY));
+    const dx = (currentShape==="note"?0:radiusXFrames), dy = (currentShape==="note"?0:radiusY);
+    const minXFrame = Math.max(0, Math.floor(cx - dx));
+    const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + dx));
+    const minY = Math.max(0, Math.floor(cy - (currentShape==="note"?0:dy)));
+    const maxY = Math.min(fullH - 1, Math.ceil(cy + dy));
     const radiusXsq = radiusXFrames * radiusXFrames;
     const radiusYsq = radiusY * radiusY;
     if (currentShape === "image" && images[selectedImage].img) {
@@ -621,38 +638,23 @@ function paint(cx, cy) {
       const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
 
       // fallback to brushSize if new vars aren't present
-      const bw = brushWidth;
-      const bh = brushHeight;
+      const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
+      const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
 
-      const screenW = bw;
-      const screenH = bh;
-
-      const imgW = images[selectedImage].img.width;
-      const imgH = images[selectedImage].img.height;
-      const imgAspect = imgW / imgH;
-      let screenDrawW = screenW;
-      let screenDrawH = screenH;
-
-      // preserve aspect of image while fitting into the requested screenW/screenH
-      // maintain whichever dimension is more constrained by the image aspect
-      if (imgAspect >= 1) {
-        // wide image: constrain width to screenW and compute height
-        screenDrawW = screenW;
-        screenDrawH = Math.max(1, Math.round(screenW / imgAspect));
-      } else {
-        // tall image: constrain height to screenH and compute width
-        screenDrawH = screenH;
-        screenDrawW = Math.max(1, Math.round(screenH * imgAspect));
-      }
+      // Treat bw/bh as screen-space desired size and stretch the image to exactly that size.
+      const screenW = Math.max(1, bw);
+      const screenH = Math.max(1, bh);
 
       let overlayW, overlayH;
       if (screenSpace) {
-        overlayW = Math.max(1, Math.round(screenDrawW / pixelsPerFrame));
-        overlayH = Math.max(1, Math.round(screenDrawH / pixelsPerBin));
+        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
       } else {
+        // non-screen space: treat bw/bh as canvas units directly
+        overlayW = Math.max(1, Math.round(bw));
         overlayH = Math.max(1, Math.round(bh));
-        overlayW = Math.max(1, Math.round(overlayH * imgAspect));
       }
+
       const ox = Math.floor(cx - overlayW / 2);
       const oy = Math.floor(cy - overlayH / 2);
       const tempCanvas = document.createElement("canvas");
@@ -660,6 +662,7 @@ function paint(cx, cy) {
       tempCanvas.height = overlayH;
       const tctx = tempCanvas.getContext("2d");
       tctx.imageSmoothingEnabled = false;
+      // drawImage will stretch to exactly overlayW x overlayH
       tctx.drawImage(images[selectedImage].img, 0, 0, overlayW, overlayH);
       const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
       for (let yy = 0; yy < overlayH; yy++) {
@@ -669,7 +672,7 @@ function paint(cx, cy) {
           const g = imgData.data[pix + 1];
           const b = imgData.data[pix + 2];
           const a = imgData.data[pix + 3] / 255;
-          if (a <= 0) continue; 
+          if (a <= 0) continue;
           const [mag, phase] = rgbToMagPhase(r, g, b);
           const cxPix = ox + xx;
           const cyPix = oy + yy;
@@ -678,7 +681,8 @@ function paint(cx, cy) {
           }
         }
       }
-    } else if (currentTool === "color" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
+    }
+ else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : penPhase;
       for (let yy = minY; yy <= maxY; yy++) {

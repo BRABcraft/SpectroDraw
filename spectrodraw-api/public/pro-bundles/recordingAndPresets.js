@@ -108,6 +108,7 @@ async function logScaleMouseMove(e,touch) {
   renderFullSpectrogramToImage();
   drawLogScale();
   drawYAxis();
+  renderHarmonicsCanvas();
 }
 
 document.addEventListener("mousemove", e=> {
@@ -332,6 +333,8 @@ function stopRecording() {
     }
     channels[ch].pcm = Float32Array.from([...channels[ch].pcm, ...addon]);
   }
+  renderUploads();
+  
   //restartRender(false);
 }
 

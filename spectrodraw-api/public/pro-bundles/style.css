@@ -85,9 +85,7 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 /* ----------------- BUTTONS ----------------- */
-.tool-btn, .leftBtn, .shape-btn,
-#downloadWav, #downloadButton, #resetButton, #playPause, #stop,
-#trueScale, #rec, #yAxisMode, #undoBtn, #redoBtn, #home {
+.tool-btn, .leftBtn, .shape-btn, #downloadWav, #resetButton, #playPause, #stop, #rec, #undoBtn, #redoBtn, #home {
   display: inline-flex;
   align-items: center;
   justify-content: center;

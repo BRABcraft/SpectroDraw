@@ -728,3 +728,50 @@ select {
 .more-btn{
   height:10px;border-radius:5px;border:none;background-color:#333;color:white;box-shadow:0 0 10px #000;align-items: center;justify-content: center;display:flex;cursor:pointer;
 }
+#stampsWrapper {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px;
+  background: #222;
+  min-height: 150px;
+  min-width: 250px;
+  border: 1px #555 solid;
+  border-radius: 5px;
+}
+.stamp-tile {
+  position: relative;
+  width: 80%;
+  aspect-ratio: 1 / 1;    /* keeps square tiles */
+  overflow: hidden;
+  border-radius: 6px;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: box-shadow .12s, transform .08s;
+  padding:4px;
+  border: 2px #555 solid;
+}
+.stamp-tile:focus,
+.stamp-tile:hover {
+  box-shadow: 0 0 12px rgba(255,255,255,0.4);
+  outline: none;
+}
+.stamp-tile img,
+.stamp-tile canvas {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  object-fit: contain;
+}
+.stamp-label {
+  font-size: 12px;
+  text-align: center;
+  padding: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}

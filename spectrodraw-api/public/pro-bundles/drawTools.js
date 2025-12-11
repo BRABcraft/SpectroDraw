@@ -1,3 +1,54 @@
+// Helper: draw an HTMLImageElement into spectrogram pixels for channel `ch`.
+// - img: HTMLImageElement (must be loaded)
+// - dstOx, dstOy: destination top-left in spectrogram (canvas) units
+// - dstW, dstH: destination width/height in spectrogram (canvas) units
+// boMult / poMult: optional multipliers to further scale bo/po (default 1)
+function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMult = 1) {
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  const fullW = specWidth;
+  const fullH = specHeight;
+
+  // Clip destination to spectrogram bounds
+  const ox = Math.floor(dstOx);
+  const oy = Math.floor(dstOy);
+  const drawW = Math.max(0, Math.min(fullW - ox, Math.max(0, Math.round(dstW))));
+  const drawH = Math.max(0, Math.min(fullH - oy, Math.max(0, Math.round(dstH))));
+  if (drawW <= 0 || drawH <= 0) return;
+
+  // Create temp canvas sized to the portion we are going to write (canvas units == spectrogram cells)
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = drawW;
+  tempCanvas.height = drawH;
+  const tctx = tempCanvas.getContext("2d");
+  tctx.imageSmoothingEnabled = false;
+
+  // Draw the whole source image scaled into drawW x drawH.
+  // This mirrors the commitShape approach: scale the full stamp/image into the target rectangle.
+  tctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, drawW, drawH);
+  const imgData = tctx.getImageData(0, 0, drawW, drawH);
+
+  // Loop pixels and push into spectrogram via drawPixelFrame, applying brushOpacity & phaseOpacity
+  const chPressure = (channels[ch] && channels[ch].brushPressure) ? channels[ch].brushPressure : 1;
+  for (let yy = 0; yy < drawH; yy++) {
+    for (let xx = 0; xx < drawW; xx++) {
+      const pix = (yy * drawW + xx) * 4;
+      const r = imgData.data[pix];
+      const g = imgData.data[pix + 1];
+      const b = imgData.data[pix + 2];
+      const a = imgData.data[pix + 3] / 255;
+      if (a <= 0) continue;
+      const [mag, phase] = (currentTool==="eraser")?[0,0]:rgbToMagPhase(r, g, b);
+      const cxPix = ox + xx;
+      const cyPix = oy + yy;
+      if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
+        const bo = brushOpacity * a * chPressure * boMult;
+        const po = phaseOpacity * a * poMult;
+        drawPixelFrame(cxPix, cyPix, mag, phase, bo, po, ch);
+      }
+    }
+  }
+}
+
 function syncOverlaySize(canvas,overlay) {
   overlay.width  = canvas.width;
   overlay.height = canvas.height;
@@ -139,6 +190,8 @@ function previewShape(cx, cy) {
       return;
     }
 
+    const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
+
     const x = (currentCursorX - iLow) * canvas.width / (iHigh - iLow);
     // vertical guide
     ctx.save();
@@ -180,13 +233,62 @@ function previewShape(cx, cy) {
     const bw = brushWidth;
     const bh = brushHeight;
 
-    // IMAGE preview: zoom X by brushWidth and Y by brushHeight (screen-space pixels)
-    if (currentShape === "image" && images[selectedImage].img) {
-      const screenW = Math.max(1, bw);
-      const screenH = Math.max(1, bh);
-      const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-      const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
-      ctx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+    // IMAGE preview:
+    if (currentShape === "image" && images[selectedImage] && images[selectedImage].img) {
+      // If dragToDraw and we have a start point, show the drag-rect and draw the image in the rect
+      if (dragToDraw && hasStart) {
+        const x0 = Math.min(startX, cx);
+        const y0 = Math.min(startY, cy);
+        const w  = Math.max(1, Math.abs(cx - startX));
+        const h  = Math.max(1, Math.abs(cy - startY));
+        ctx.strokeRect(x0 + 0.5, y0 + 0.5, w, h);
+        if (images[selectedImage].img.complete && images[selectedImage].img.naturalWidth !== 0) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(images[selectedImage].img, x0, y0, w, h);
+        } else {
+          ctx.fillStyle = "rgba(255,200,0,0.04)";
+          ctx.fillRect(x0, y0, w, h);
+        }
+      } else {
+        // existing centered-by-cursor preview (unchanged behavior)
+        const screenW = Math.max(1, bw);
+        const screenH = Math.max(1, bh);
+        const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+        const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+        ctx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+      }
+      ctx.restore();
+      return;
+    }
+
+    // STAMP preview:
+    if (currentShape === "stamp" && currentStamp !== null) {
+      // If dragToDraw and we have a start point, preview using startX/startY -> cx/cy (draw stamp in preview)
+      if (dragToDraw && hasStart) {
+        if (!currentStamp.img) {
+          currentStamp.img = new Image();
+          currentStamp.img.src = currentStamp.dataUrl;
+        }
+        const x0 = Math.min(startX, cx);
+        const y0 = Math.min(startY, cy);
+        const w  = Math.max(1, Math.abs(cx - startX));
+        const h  = Math.max(1, Math.abs(cy - startY));
+        ctx.strokeRect(x0 + 0.5, y0 + 0.5, w, h);
+        if (currentStamp.img.complete && currentStamp.img.naturalWidth !== 0) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(currentStamp.img, x0, y0, w, h);
+        } else {
+          ctx.fillStyle = "rgba(255,200,0,0.04)";
+          ctx.fillRect(x0, y0, w, h);
+        }
+      } else {
+        // NOT dragToDraw: behave like image preview (centered outline), but *do not* draw stamp image in preview
+        const screenW = Math.max(1, bw);
+        const screenH = Math.max(1, bh);
+        const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+        const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+        ctx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+      }
       ctx.restore();
       return;
     }
@@ -205,6 +307,7 @@ function previewShape(cx, cy) {
     // drawCursor(false);
   });
 }
+
 
 
 function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
@@ -368,10 +471,11 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch) {
     let i = 0, binF = 0;
     while (binF<specHeight && i<400) {
       const harmVal = Math.max(0, Math.min(1, ((i>=harmArr.length)?(harmArr[harmArr.length-1]):(harmArr[i]))));
-      const freqI = f * (i + 1);
+      const freqI = getSineFreq(displayYFloat) * (i + 1);
       const displayY_i = ftvsy(freqI, ch);
       binF = displayYToBin(displayY_i, fullH, ch);
-      processBin(binF, bo * harmVal);
+      const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
+      processBin(binF, bo * harmVal * velFactor);
       i++;
     }
     return;
@@ -389,7 +493,8 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch) {
   binEnd   = Math.min(fullH - 1, binEnd);
 
   for (let bin = binStart; bin <= binEnd; bin++) {
-    processBin(bin, bo);
+    const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
+    processBin(bin, bo*velFactor);
   }
 }
 
@@ -454,6 +559,8 @@ function commitShape(cx, cy) {
       integral = buildIntegral(fullW, fullH, mags, phases);
     }
     try {
+      const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
+
       const startVisX = (startX == null ? cx : startX);
       const startVisY = (startY == null ? cy : startY);
 
@@ -522,66 +629,86 @@ function commitShape(cx, cy) {
         const half = Math.floor(brushSize / 8);
 
         while (true) {
-            for (let dx = -half; dx <= half; dx++) {
-              const px = x0 + dx;
-              const py = y0;
-              if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-                dp(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity,ch);
-              }
+          for (let dx = -half; dx <= half; dx++) {
+            const px = x0 + dx;
+            const py = y0;
+            if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
+              dp(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity,ch);
             }
-            if (x0 === x1 && y0 === y1) break;
-            const e2 = err;
-            if (e2 > -dx) { err -= dy; x0 += sx; }
-            if (e2 < dy)  { err += dx; y0 += sy; }
           }
+          if (x0 === x1 && y0 === y1) break;
+          const e2 = err;
+          if (e2 > -dx) { err -= dy; x0 += sx; }
+          if (e2 < dy)  { err += dx; y0 += sy; }
+        }
       }
-
-      // ---------- IMAGE commit: use brushWidth / brushHeight ----------
-      else if (currentShape === "image") {
+      if (currentShape === "image") {
         if (!images[selectedImage] || !images[selectedImage].img) {
           // nothing to commit
         } else {
+          const canvas = document.getElementById("canvas-"+ch);
           const screenRect = canvas.getBoundingClientRect();
           const pixelsPerFrame = screenRect.width  / Math.max(1, canvas.width);
           const pixelsPerBin   = screenRect.height / Math.max(1, canvas.height);
 
-          const bw = brushWidth;
-          const bh = brushHeight;
+          if (dragToDraw && startX !== null && startY !== null) {
+            // Use drag rect: startVisX/Y -> cx,cy (canvas units)
+            const left   = Math.floor(Math.min(startVisX, cx));
+            const top    = Math.floor(Math.min(startVisY, cy));
+            const overlayW = Math.max(1, Math.round(Math.abs(cx - startVisX)));
+            const overlayH = Math.max(1, Math.round(Math.abs(cy - startVisY)));
+            applyImageToChannel(ch, images[selectedImage].img, left, top, overlayW, overlayH);
+          } else {
+            // Centered by cursor using brushWidth / brushHeight (screen-space -> canvas units)
+            const bw = brushWidth;
+            const bh = brushHeight;
+            const screenW = Math.max(1, bw);
+            const screenH = Math.max(1, bh);
+            const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+            const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+            const ox = Math.floor(cx - overlayW / 2);
+            const oy = Math.floor(cy - overlayH / 2);
+            applyImageToChannel(ch, images[selectedImage].img, ox, oy, overlayW, overlayH);
+          }
+        }
+      }
+      if (currentShape === "stamp") {
+        if (!currentStamp || !currentStamp.dataUrl) {
+          // nothing to commit
+        } else {
+          if (!currentStamp.img) {
+            currentStamp.img = new Image();
+            currentStamp.img.src = currentStamp.dataUrl;
+          }
+          if (!currentStamp.img.complete || currentStamp.img.naturalWidth === 0) {
+            console.warn("Stamp image not yet loaded — commit skipped. Preload currentStamp.img before committing.");
+          } else {
+            if (dragToDraw && startX !== null && startY !== null) {
+              const left   = Math.floor(Math.min(startVisX, cx));
+              const top    = Math.floor(Math.min(startVisY, cy));
+              const overlayW = Math.max(1, Math.round(Math.abs(cx - startVisX)));
+              const overlayH = Math.max(1, Math.round(Math.abs(cy - startVisY)));
+              applyImageToChannel(ch, currentStamp.img, left, top, overlayW, overlayH);
+            } else {
+              // center by cursor using brushWidth/brushHeight
+              const canvas = document.getElementById("canvas-"+ch);
+              const screenRect = canvas.getBoundingClientRect();
+              const pixelsPerFrame = screenRect.width  / Math.max(1, canvas.width);
+              const pixelsPerBin   = screenRect.height / Math.max(1, canvas.height);
 
-          const screenW = Math.max(1, bw);
-          const screenH = Math.max(1, bh);
-
-          const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-          const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
-
-          const ox = Math.floor(cx - overlayW / 2);
-          const oy = Math.floor(cy - overlayH / 2);
-          const tempCanvas = document.createElement("canvas");
-          tempCanvas.width = overlayW;
-          tempCanvas.height = overlayH;
-          const tctx = tempCanvas.getContext("2d");
-          tctx.imageSmoothingEnabled = false;
-          tctx.drawImage(images[selectedImage].img, 0, 0, overlayW, overlayH);
-          const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
-          for (let yy = 0; yy < overlayH; yy++) {
-            for (let xx = 0; xx < overlayW; xx++) {
-              const pix = (yy * overlayW + xx) * 4;
-              const r = imgData.data[pix];
-              const g = imgData.data[pix + 1];
-              const b = imgData.data[pix + 2];
-              const a = imgData.data[pix + 3] / 255;
-              if (a <= 0) continue;
-              const [mag, phase] = rgbToMagPhase(r, g, b);
-              const cxPix = ox + xx;
-              const cyPix = oy + yy;
-              if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
-                drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a * channels[ch].brushPressure, phaseOpacity * a, ch);
-              }
+              const bw = brushWidth;
+              const bh = brushHeight;
+              const screenW = Math.max(1, bw);
+              const screenH = Math.max(1, bh);
+              const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+              const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+              const ox = Math.floor(cx - overlayW / 2);
+              const oy = Math.floor(cy - overlayH / 2);
+              applyImageToChannel(ch, currentStamp.img, ox, oy, overlayW, overlayH);
             }
           }
         }
       }
-
     } finally {
       visited = savedVisited;
     }
@@ -592,6 +719,7 @@ function commitShape(cx, cy) {
   }
   renderView();
 }
+
 
 
 function ftvsy(f,ch) {// frequency to visible spectrogram Y
@@ -612,7 +740,7 @@ function ftvsy(f,ch) {// frequency to visible spectrogram Y
 
   return visY;
 }
-// ---------- paint: IMAGE branch (updated) ----------
+let vr = 1;
 function paint(cx, cy) {
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let ch=$s;ch<$e;ch++){
@@ -622,79 +750,124 @@ function paint(cx, cy) {
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
     const bo = (currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity)* channels[ch].brushPressure;
-    const radiusY = Math.floor(brushHeight/2/canvas.getBoundingClientRect().height*canvas.height);
-    const radiusXFrames = Math.floor(brushWidth/2/canvas.getBoundingClientRect().width*canvas.width);
+    vr = ((currentShape==="brush")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
+    const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
+    const radiusXFrames = Math.floor((brushWidth/2/canvas.getBoundingClientRect().width*canvas.width)*vr);
     const dx = (currentShape==="note"?0:radiusXFrames), dy = (currentShape==="note"?0:radiusY);
-    const minXFrame = Math.max(0, Math.floor(cx - dx));
-    const maxXFrame = Math.min(fullW - 1, Math.ceil(cx + dx));
-    const minY = Math.max(0, Math.floor(cy - (currentShape==="note"?0:dy)));
-    const maxY = Math.min(fullH - 1, Math.ceil(cy + dy));
+    const minXFrame = Math.max(0, Math.floor(Math.min(cx,prevMouseX) - dx));
+    const maxXFrame = Math.min(fullW - 1, Math.ceil(Math.max(cx,prevMouseX) + dx));
+    const prevRealY = visibleToSpecY(prevMouseY);
+    const minY = Math.max(0, Math.floor(Math.min(cy,prevRealY) - (currentShape==="note"?0:dy)));
+    const maxY = Math.min(fullH - 1, Math.ceil((Math.max(cy,prevRealY)) + (currentShape==="note"?0:dy)));
     const radiusXsq = radiusXFrames * radiusXFrames;
     const radiusYsq = radiusY * radiusY;
-    if (currentShape === "image" && images[selectedImage].img) {
-      const screenSpace = true;
+        // inside paint(), replace the image block with:
+    if (currentShape === "image" && images[selectedImage] && images[selectedImage].img) {
+      const canvas = document.getElementById("canvas-"+ch);
       const rect = canvas.getBoundingClientRect();
       const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
       const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
 
-      // fallback to brushSize if new vars aren't present
-      const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
-      const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
+      const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
+      const hasStart = startX !== null && startY !== null;
 
-      // Treat bw/bh as screen-space desired size and stretch the image to exactly that size.
-      const screenW = Math.max(1, bw);
-      const screenH = Math.max(1, bh);
-
-      let overlayW, overlayH;
-      if (screenSpace) {
-        overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
-        overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+      if (dragToDraw && hasStart) {
+        const left = Math.floor(Math.min(startX, cx));
+        const top  = Math.floor(Math.min(startY, cy));
+        const overlayW = Math.max(1, Math.round(Math.abs(cx - startX)));
+        const overlayH = Math.max(1, Math.round(Math.abs(cy - startY)));
+        applyImageToChannel(ch, images[selectedImage].img, left, top, overlayW, overlayH);
       } else {
-        // non-screen space: treat bw/bh as canvas units directly
-        overlayW = Math.max(1, Math.round(bw));
-        overlayH = Math.max(1, Math.round(bh));
+        // centered by cursor (screen-space -> canvas units)
+        const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
+        const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
+        const screenW = Math.max(1, bw);
+        const screenH = Math.max(1, bh);
+        const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+        const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+        const ox = Math.floor(cx - overlayW / 2);
+        const oy = Math.floor(cy - overlayH / 2);
+        applyImageToChannel(ch, images[selectedImage].img, ox, oy, overlayW, overlayH);
       }
+    }
 
-      const ox = Math.floor(cx - overlayW / 2);
-      const oy = Math.floor(cy - overlayH / 2);
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = overlayW;
-      tempCanvas.height = overlayH;
-      const tctx = tempCanvas.getContext("2d");
-      tctx.imageSmoothingEnabled = false;
-      // drawImage will stretch to exactly overlayW x overlayH
-      tctx.drawImage(images[selectedImage].img, 0, 0, overlayW, overlayH);
-      const imgData = tctx.getImageData(0, 0, overlayW, overlayH);
-      for (let yy = 0; yy < overlayH; yy++) {
-        for (let xx = 0; xx < overlayW; xx++) {
-          const pix = (yy * overlayW + xx) * 4;
-          const r = imgData.data[pix];
-          const g = imgData.data[pix + 1];
-          const b = imgData.data[pix + 2];
-          const a = imgData.data[pix + 3] / 255;
-          if (a <= 0) continue;
-          const [mag, phase] = rgbToMagPhase(r, g, b);
-          const cxPix = ox + xx;
-          const cyPix = oy + yy;
-          if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
-            drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a * channels[ch].brushPressure, phaseOpacity * a, ch);
-          }
+        // inside paint(), stamp handling:
+    else if (currentShape === "stamp" && currentStamp && currentStamp.dataUrl) {
+      if (!currentStamp.img) {
+        currentStamp.img = new Image();
+        currentStamp.img.src = currentStamp.dataUrl;
+      }
+      if (!currentStamp.img.complete || currentStamp.img.naturalWidth === 0) {
+        // image not ready — skip painting for now
+      } else {
+        const canvas = document.getElementById("canvas-"+ch);
+        const rect = canvas.getBoundingClientRect();
+        const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
+        const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
+
+        const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
+        const hasStart = startX !== null && startY !== null;
+
+        if (dragToDraw && hasStart) {
+          const left = Math.floor(Math.min(startX, cx));
+          const top  = Math.floor(Math.min(startY, cy));
+          const overlayW = Math.max(1, Math.round(Math.abs(cx - startX)));
+          const overlayH = Math.max(1, Math.round(Math.abs(cy - startY)));
+          applyImageToChannel(ch, currentStamp.img, left, top, overlayW, overlayH);
+        } else {
+          // centered by cursor using brushWidth/brushHeight
+          const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
+          const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
+          const screenW = Math.max(1, bw);
+          const screenH = Math.max(1, bh);
+          const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+          const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+          const ox = Math.floor(cx - overlayW / 2);
+          const oy = Math.floor(cy - overlayH / 2);
+          applyImageToChannel(ch, currentStamp.img, ox, oy, overlayW, overlayH);
         }
       }
     }
- else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
+
+
+    else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+      // endpoints of the segment (make sure these are in the same coordinate space)
+      const p0x = prevMouseX + iLow;
+      const p0y = visibleToSpecY(prevMouseY);
+      const p1x = cx;   // current brush center x
+      const p1y = cy;   // current brush center y
+
+      const vx = p1x - p0x;
+      const vy = p1y - p0y;
+      const lenSq = vx * vx + vy * vy;
+      const EPS = 1e-9;
+
       for (let yy = minY; yy <= maxY; yy++) {
         for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-          const dx = xx - cx;
-          const dy = yy - cy;
-          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
+
+          // find t for projection of pixel onto the line segment p0->p1 (clamped 0..1)
+          let t = 0;
+          if (lenSq > EPS) {
+            t = ((xx - p0x) * vx + (yy - p0y) * vy) / lenSq;
+            if (t < 0) t = 0;
+            else if (t > 1) t = 1;
+          }
+          // nearest point on the segment to this pixel
+          const nearestX = p0x + t * vx;
+          const nearestY = p0y + t * vy;
+
+          // elliptical distance test centered on the nearest point
+          const dx = xx - nearestX;
+          const dy = yy - nearestY;
+          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
+
           drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po, ch);
         }
       }
+
     } else if (currentTool === "blur") {
-      // ... (unchanged blur code) ...
       const integral = buildIntegral(fullW, fullH, mags, phases);
       for (let yy = minY; yy <= maxY; yy++) {
         for (let xx = minXFrame; xx <= maxXFrame; xx++) {

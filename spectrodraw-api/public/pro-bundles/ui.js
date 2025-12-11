@@ -93,7 +93,7 @@ sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
 sliders[20][0].addEventListener('input', () => {channelHeight = parseFloat(sliders[20][0].value); sliders[20][1].value = channelHeight;updateChannelHeight();});
 sliders[20][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[20][1].value);const min = parseFloat(sliders[20][0].min);const max = parseFloat(sliders[20][0].max);
     if (isNaN(val)) val = channelHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;channelHeight = val;updateChannelHeight();}});
-function rs(){sliders[1][0].value = sliders[1][1].value = brushSize = Math.max(brushWidth, brushHeight);}
+function rs(){sliders[1][0].value = sliders[1][1].value = brushSize = Math.max(brushWidth, brushHeight);updateBrushPreview();}
 sliders[21][0].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[21][0].value); rs(); updateBrushPreview();});
 sliders[21][1].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[21][1].value); rs(); updateBrushPreview();});
 sliders[22][0].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][0].value); rs(); updateBrushPreview();});
@@ -119,7 +119,7 @@ panelButtons.forEach(btn => {
 panelButtons.forEach(btn => {
   btn.addEventListener("click", () => {
     currentPanel = btn.dataset.tool;
-
+    if (movingSprite)document.getElementById('moveSpriteBtn').click();
     // Reset all button backgrounds
     panelButtons.forEach(b => b.style.background = "");
     btn.style.background = "#4af";
@@ -179,15 +179,23 @@ function updateBrushSettingsDisplay(){
   const bh = document.getElementById("brushHeightDiv");
   const bs = document.getElementById("brushSizeDiv");
 
+  const dragToDraw = document.getElementById("dragToDraw").checked;
   let disp = showToolSettings?"flex":"none";
   if (currentShape === 'line' || currentShape === 'rectangle' || currentShape === 'note') disp = "none";
-  bs.style.display = currentShape === 'line'?"flex":disp;
+  if (currentShape === 'image') disp="flex";
+  if (dragToDraw) disp="none";
+  bs.style.display = (currentShape === 'line' || currentShape === 'image' && !dragToDraw)?"flex":disp;
   bw.style.display = disp;
   bh.style.display = disp;
   const showHarmonics = currentShape === "note" || currentShape === "line";
+  document.getElementById("harmonicsPresetSelectDiv").style.display = showHarmonics?"block":"none";
   document.getElementById("brushHarmonisEditorDiv").style.display = showHarmonics?"block":"none";
   if (showHarmonics) renderHarmonicsCanvas();
+  document.getElementById("stampsDiv").style.display = currentShape==='stamp'?"block":"none";
+  if (currentShape==='stamp') {renderStamps();}
+  document.getElementById("dragToDrawDiv").style.display = (currentShape === 'stamp' || currentShape === 'image')?"flex":"none";
 }
+document.getElementById("dragToDraw").addEventListener("input",()=>{updateBrushSettingsDisplay();});
 function onToolChange(tool){
   currentTool = tool;
   toolButtons.forEach(b => b.style.background =(b.dataset.tool===tool)?"#4af":"");
@@ -218,7 +226,6 @@ function onShapeChange(shape){
   } else if (images.length === 0){
     overlayFile.click();
   }
-  updateBrushWH();
   updateBrushSettingsDisplay();
 }
 shapeButtons.forEach(btn => {
@@ -240,7 +247,17 @@ overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
   const img = new Image();
-  img.onload = () => {document.getElementById("brushToolSelect").value=currentShape="image"; shapeButtons.forEach(b => b.style.background = "");document.getElementById("imageBtn").style.background = "#4af"; selectedImage = images.length; images.push({img, name:f.name, src: URL.createObjectURL(f)}); renderUploads(); updateBrushWH();updateBrushPreview();}
+  img.onload = () => {
+    document.getElementById("brushToolSelect").value=currentShape="image";
+    updateBrushSettingsDisplay();
+    shapeButtons.forEach(b => b.style.background = "");
+    document.getElementById("imageBtn").style.background = "#4af";
+    selectedImage = images.length;
+    images.push({img, name:f.name, src: URL.createObjectURL(f)});
+    renderUploads();
+    updateBrushWH();
+    updateBrushPreview();
+  }
   img.src = URL.createObjectURL(f);
 });
 let ogHSv = hopSizeEl.value;
@@ -794,3 +811,49 @@ midiChannelMode.addEventListener("change",(e)=>{
 document.getElementById("syncChannels").addEventListener("change", (e)=>{
   syncChannels = document.getElementById("syncChannels").checked;
 });
+
+
+
+
+
+
+
+function renderStamps() {
+  const wrap = document.getElementById("stampsWrapper");
+  wrap.innerHTML = "";
+
+  stamps.forEach((stamp) => {
+    const tile = document.createElement("div");
+    tile.title = stamp.name;
+    tile.className="stamp-tile";
+
+    if (stamp.dataUrl) {
+      const img = document.createElement("img");
+      img.src = stamp.dataUrl;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = "cover";
+      tile.appendChild(img);
+    }
+    tile.addEventListener('click', (ev) => {
+      if (currentStamp !== stamp) {
+        currentStamp = stamp;
+        document.querySelectorAll(".stamp-tile").forEach((s)=>{s.style.border="1px solid #555"});
+        tile.style.border = "2px solid #4af";
+      } else {
+        currentStamp = null;
+        tile.style.border = "2px solid #555";
+      }
+    });
+
+    // also re-emit on key activation for accessibility (Enter/Space)
+    tile.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        tile.click();
+      }
+    });
+
+    wrap.appendChild(tile);
+  });
+}

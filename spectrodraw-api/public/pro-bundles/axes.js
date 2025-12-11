@@ -482,7 +482,7 @@ function zoomYAxisAt(clientY, elem, scaleFactor){
   const rect = canvas.getBoundingClientRect();
   const cy = (clientY - rect.top) * canvas.height/rect.height;
   // console.log(getSineFreq(visibleToSpecY(0)))
-  const centerFrame = (lsc(getSineFreq(visibleToSpecY(cy))),logScaleVal[currentChannel])/yf;
+  const centerFrame = (lsc(getSineFreq(visibleToSpecY(cy)),sampleRate/2,logScaleVal[currentChannel]))/yf;
   const centerFrac = centerFrame/specHeight;
   const newHeight = _clamp((fWidth)/yf / scaleFactor, 1, specHeight);
   let newLow = centerFrame - centerFrac * newHeight;

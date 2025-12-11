@@ -87,7 +87,7 @@ function _handleHarmonicsPointer(e) {
     const d = Math.abs(xi - x);
     if (d < bestDist) { bestDist = d; bestI = i; }
   }
-  info.innerHTML = `Harmonic: ${bestI}x<br>Multiplier: ${harmonics[bestI].toFixed(2)}<br>`
+  info.innerHTML = `Harmonic: ${bestI+1}x<br>Multiplier: ${harmonics[bestI].toFixed(2)}<br>`
 
   // convert y -> harmonic value (clamped 0..1). y=0 -> top -> val=1; y=h-1 -> bottom -> val=0
   const newVal = Math.max(0, Math.min(1, 1 - (y / (h - 1))));
@@ -140,6 +140,8 @@ harmonicsPreset.addEventListener("input", ()=>{
   } else if (e === "saw") {
     harmonics = new Array(100);
     for (let i = 0; i < 100; i++) harmonics[i] = 1 / (i + 1); // all harmonics, 1/n
+  } else if (e === "custom") {
+    toggleSection(document.getElementById("brushHarmonisEditorDivToggleBtn"));
   }
   renderHarmonicsCanvas();
 });

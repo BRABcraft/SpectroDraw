@@ -569,6 +569,10 @@
                   aria-label="Toggle Effect settings"
                   id="btoolSettingsToggleBtn"></button>
         </h3>
+        <div class="slider-row" id="dragToDrawDiv" style="display:none;">
+          <label class="h2">Drag to draw</label>
+          <input type="checkbox" id="dragToDraw"></input>
+        </div>
         <div class="slider-row" title="Size" id="brushSizeDiv" style="display:none;">
           <label class="h2">Size</label>
           <input id="brushSize" type="range" min="1" max="200" value="10">
@@ -589,8 +593,18 @@
           <input id="brushOpacity"  type="range" min="0" max="100" value="100">
           <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
         </div>
+        <div class="slider-row" title="Harmonics Preset" id="harmonicsPresetSelectDiv">
+          <label class="h2">Harmonics preset</label>
+          <select id="harmonicsPresetSelect">
+            <option value="sine" selected>Sine wave</option>
+            <option value="triangle">Triangle wave</option>
+            <option value="square">Square wave</option>
+            <option value="saw">Saw wave</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
         <div id="brushHarmonisEditorDiv" style="margin-left:10px;">
-          <h3 style="font-size:15px;margin:0;">Harmonics
+          <h3 style="font-size:15px;margin:0;">Advanced Harmonics
             <button type="button"
                     class="section-toggle"
                     data-target="brushHarmonisEditorDiv"
@@ -598,17 +612,18 @@
                     aria-label="Toggle Harmonics editor settings"
                     id="brushHarmonisEditorDivToggleBtn"></button>
           </h3>
-          <div class="slider-row" title="Opacity">
-            <label class="h2">Preset</label>
-            <select id="harmonicsPresetSelect">
-              <option value="sine" selected>Sine wave</option>
-              <option value="triangle">Triangle wave</option>
-              <option value="square">Square wave</option>
-              <option value="saw">Saw wave</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
           <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
+        </div>
+        <div id="stampsDiv" style="display:none;">
+          <h3>Stamps
+            <button type="button"
+                    class="section-toggle"
+                    data-target="stampsDiv"
+                    aria-expanded="true"
+                    aria-label="Toggle Stamps"
+                    id="stampsDivToggleBtn"></button>
+          </h3>
+          <div id="stampsWrapper"></div>
         </div>
       </div>
       <!--Effect settings: Depends on effect. -->

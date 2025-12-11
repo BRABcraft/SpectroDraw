@@ -51,12 +51,14 @@ function handleMoveSprite(cx,cy) {
 }
 let sx2 = 0, sy2 = 0;
 
+let prevMouseX =null, prevMouseY = null;
 /* ===== Modified canvasMouseDown ===== */
 function canvasMouseDown(e,touch) {
   if (!touch) zooming=false;
   if (!touch && e.button !== 0) return;
   if (pendingHistory) return;
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  prevMouseX = cx; prevMouseY = cy; vr = 1;
   const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
   const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
   const overlayCtx = overlayCanvas.getContext("2d");//CHANGE LATER
@@ -112,7 +114,7 @@ function canvasMouseDown(e,touch) {
     startCh = currentChannel;
     sprites.push(currentSprite);
 
-    if (!(currentShape === "rectangle" || currentShape === "line")) {
+    if (!(currentShape === "rectangle" || (document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image")) || currentShape === "line")) {
         paint(cx + iLow, realY);
     }
     currentFrame = Math.floor(cx);
@@ -135,6 +137,7 @@ function canvasMouseDown(e,touch) {
 }
 
 let previewingShape = false;
+let mouseVelocity = 0;
 function canvasMouseMove(e,touch,el) {
   currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
@@ -151,13 +154,14 @@ function canvasMouseMove(e,touch,el) {
     let db = (20 * Math.log10(normalizedMag)).toFixed(1);
     info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
   }
-  if (!painting && (currentShape === "brush" ||currentShape === "note" || currentShape === "image") && !movingSprite) {
+  if (!painting && (currentShape === "brush" ||currentShape === "note" || (!document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image"))) && !movingSprite) {
     previewShape(cx, cy);
     previewingShape = true;
     return;
   }
   if(!painting && currentTool != "image") return;
-
+  
+  mouseVelocity = Math.sqrt(Math.pow(cx-prevMouseX,2)+Math.pow(cy-prevMouseY,2));
   if (currentShape !== "brush"&&currentShape !== "note") {
     previewShape(cx, cy);
     previewingShape = true;
@@ -173,6 +177,8 @@ function canvasMouseMove(e,touch,el) {
     paint(cx + iLow, realY);
     drawCursor(true);
   }
+  
+  prevMouseX = cx, prevMouseY = cy;
 
   currentFrame = Math.floor(cx+iLow);
   if (mouseDown) {
@@ -203,7 +209,7 @@ function canvasMouseUp(e,touch) {
   if (movingSprite) handleMoveSprite(cx,cy);
   const overlayCanvas = document.getElementById("overlay-"+currentChannel);
   const overlayCtx = overlayCanvas.getContext("2d");
-  if (currentShape === "rectangle" || currentShape === "line") {
+  if (currentShape === "rectangle" || (document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image")) || currentShape === "line") {
     commitShape(cx, cy); 
     overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
   }

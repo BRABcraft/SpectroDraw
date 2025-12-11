@@ -16,7 +16,12 @@ function updateBrushWH() {
     bw.value = bw1.value = brushWidth = iw;
     bh.value = bh1.value = brushHeight = ih;
     bs.value = bs1.value = brushSize = Math.max(iw, ih);
-  } else {
+  } else if (currentShape === 'stamp') {
+    prevBrushDims = [brushSize, brushWidth, brushHeight];
+    bw.value = bw1.value = brushWidth = 10;
+    bh.value = bh1.value = brushHeight = 100;
+    bs.value = bs1.value = brushSize = 100;
+  } else {console.log(prevBrushDims);
     bw.max = bh.max = bs.max = bw1.max = bh1.max = bs1.max = 200;
     bs.value = bs1.value = brushSize = prevBrushDims[0];
     bw.value = bw1.value = brushWidth = prevBrushDims[1];
@@ -76,7 +81,7 @@ function updateBrushPreview() {
     pctx.strokeStyle = "#fff";
     pctx.lineWidth = 1;
     pctx.beginPath();
-    if (currentShape === "rectangle" || currentShape === "image") {
+    if (currentShape === "rectangle" || currentShape === "image" || currentShape === "stamp") {
       pctx.strokeRect(centerX - 30, centerY - 30, 60, 60);
     } else {
       pctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
@@ -89,11 +94,11 @@ function updateBrushPreview() {
     pctx.fillStyle = gradient;
     pctx.lineWidth = 2;
     pctx.beginPath();
-    if (currentShape === "rectangle" || currentShape === "image") {
+    if (currentShape === "rectangle" || currentShape === "image" || currentShape === "stamp") {
       pctx.save(); // Save current context state
       pctx.fillStyle = "white";       // Rectangle color
       pctx.shadowColor = "white";     // Feather color
-      pctx.shadowBlur = blurRadius*5;           // How soft the edges are
+      pctx.shadowBlur = blurRadius*5; // How soft the edges are
       pctx.shadowOffsetX = 0;
       pctx.shadowOffsetY = 0;
       pctx.fillRect(centerX - 30, centerY - 30, 60, 60);
@@ -112,22 +117,32 @@ function updateBrushPreview() {
     pctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
     pctx.stroke();
   } else {
-    if (currentShape === "image"){
-      if (images[selectedImage] && images[selectedImage].img.complete) {
-        const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
-        const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
-        const availW = preview.width  * 0.8 * (bw / 20);
-        const availH = preview.height * 0.8 * (bh / 20);
-        const aspect = images[selectedImage].img.width / images[selectedImage].img.height;
-        let drawW = Math.max(1, availW);
-        let drawH = Math.max(1, drawW / aspect);
-        if (drawH > availH) {
-          drawH = availH;
-          drawW = Math.max(1, drawH * aspect);
-        }
-        const dx = centerX - drawW / 2;
-        const dy = centerY - drawH / 2;
-        pctx.drawImage(images[selectedImage].img, dx, dy, drawW, drawH);
+    // default painting preview cases
+    if (currentShape === "image") {
+      // Draw image stretched to brushWidth x brushHeight (no aspect preservation)
+      if (images[selectedImage] && images[selectedImage].img && images[selectedImage].img.complete) {
+        const dx = centerX - brushWidth / 2;
+        const dy = centerY - brushHeight / 2;
+        pctx.imageSmoothingEnabled = false;
+        pctx.drawImage(images[selectedImage].img, dx, dy, brushWidth, brushHeight);
+      }
+    } else if (currentShape === "stamp") {
+      // Draw stamp stretched to brushWidth x brushHeight (no aspect preservation)
+      if (currentStamp) {
+        const img = new Image();
+        const dx = centerX - brushWidth / 2;
+        const dy = centerY - brushHeight / 2;
+        pctx.imageSmoothingEnabled = false;
+
+        img.onload = () => {
+          // clear + redraw if needed — updateBrushPreview already cleared at top
+          pctx.drawImage(img, dx, dy, brushWidth, brushHeight);
+        };
+        img.src = currentStamp.dataUrl;
+      } else {
+        pctx.font = "12px Arial";
+        pctx.fillStyle = "#fff";
+        pctx.fillText("No stamp loaded", centerX-45,centerY+5);
       }
     } else if (currentShape === "rectangle") {
       pctx.fillStyle = color;
@@ -140,6 +155,7 @@ function updateBrushPreview() {
       pctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       pctx.fill();
     }
+
     if (currentTool === "noiseRemover") {
       pctx.strokeStyle = "#fff";
       pctx.lineWidth = 2;

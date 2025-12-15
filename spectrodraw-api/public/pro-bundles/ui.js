@@ -35,7 +35,8 @@ function syncNumberAndRange(numberInput, rangeInput) {
                    [document.getElementById('channels'), document.getElementById('channelsInput'),true],
                    [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],
                    [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
-                   [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],];
+                   [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],
+                   [document.getElementById('autoTuneStrength'), document.getElementById('autoTuneStrengthInput')],];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][0].addEventListener('mouseup', ()=>{initEmptyPCM(false);});
@@ -98,6 +99,8 @@ sliders[21][0].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[2
 sliders[21][1].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[21][1].value); rs(); updateBrushPreview();});
 sliders[22][0].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][0].value); rs(); updateBrushPreview();});
 sliders[22][1].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][1].value); rs(); updateBrushPreview();});
+sliders[23][0].addEventListener("input", ()=>{autoTuneStrength=(sliders[23][0].value); updateBrushPreview();});
+sliders[23][1].addEventListener("input", ()=>{autoTuneStrength=(sliders[23][1].value); updateBrushPreview();});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -144,47 +147,28 @@ toolButtons.forEach(btn => {
 });
 function updateBrushSettingsDisplay(){
   if (showEffectSettings) {
-    if (currentTool === "blur") {
-      document.getElementById("brushColorDiv").style.display="none";
-      document.getElementById("blurRadiusDiv").style.display="flex";
-      document.getElementById("amplifyDiv").style.display="none";
-      document.getElementById("noiseFloorDiv").style.display="none";
-    } else if (currentTool === "amplifier") {
-      document.getElementById("brushColorDiv").style.display="none";
-      document.getElementById("blurRadiusDiv").style.display="none";
-      document.getElementById("amplifyDiv").style.display="flex";
-      document.getElementById("noiseFloorDiv").style.display="none";
-    } else if (currentTool === "noiseRemover") {
-      document.getElementById("brushColorDiv").style.display="none";
-      document.getElementById("blurRadiusDiv").style.display="none";
-      document.getElementById("amplifyDiv").style.display="none";
-      document.getElementById("noiseFloorDiv").style.display="flex";
-    } else {
-      document.getElementById("brushColorDiv").style.display="flex";
-      document.getElementById("blurRadiusDiv").style.display="none";
-      document.getElementById("amplifyDiv").style.display="none";
-      document.getElementById("noiseFloorDiv").style.display="none";
-    }
-    if (currentTool === 'noiseRemover') {
-      document.getElementById("ev").style.display="none";
-      document.getElementById("phaseDiv").style.display="none";
-      document.getElementById("phaseStrengthDiv").style.display="none";
-    } else {
-      document.getElementById("ev").style.display="flex";
-      document.getElementById("phaseDiv").style.display="flex";
-      document.getElementById("phaseStrengthDiv").style.display="flex";
-    }
+    function c(b){return currentTool===b;}
+    document.getElementById("amplifyDiv")   .style.display=(c("amplifier"))?"flex":"none";
+    document.getElementById("noiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
+    document.getElementById("blurRadiusDiv").style.display=(c("blur"))?"flex":"none";
+    document.getElementById("autoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
+    document.getElementById("brushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune"))?"none":"flex";
+    document.getElementById("ev").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+    document.getElementById("phaseDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+    document.getElementById("phaseStrengthDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
   }
   const bw = document.getElementById("brushWidthDiv");
   const bh = document.getElementById("brushHeightDiv");
   const bs = document.getElementById("brushSizeDiv");
 
+  function d(b){return currentShape===b;}
   const dragToDraw = document.getElementById("dragToDraw").checked;
+  bs.style.display = (showToolSettings && (((d('line') || d('image') && !dragToDraw)) || (!(d('line') || d('image')) && !(d('rectangle') || d('note')))))?"flex":"none";
+
   let disp = showToolSettings?"flex":"none";
   if (currentShape === 'line' || currentShape === 'rectangle' || currentShape === 'note') disp = "none";
   if (currentShape === 'image') disp="flex";
   if (dragToDraw) disp="none";
-  bs.style.display = (currentShape === 'line' || currentShape === 'image' && !dragToDraw)?"flex":disp;
   bw.style.display = disp;
   bh.style.display = disp;
   const showHarmonics = currentShape === "note" || currentShape === "line";
@@ -834,6 +818,10 @@ function renderStamps() {
       img.style.height = "100%";
       img.style.objectFit = "cover";
       tile.appendChild(img);
+    }
+    if (currentStamp === stamp) {
+      document.querySelectorAll(".stamp-tile").forEach((s)=>{s.style.border="1px solid #555"});
+      tile.style.border = "2px solid #4af";
     }
     tile.addEventListener('click', (ev) => {
       if (currentStamp !== stamp) {

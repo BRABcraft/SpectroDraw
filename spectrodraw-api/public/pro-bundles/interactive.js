@@ -14,7 +14,7 @@ let sineOsc = null;
 let sineGain = null;
 function getSineFreq(cy) {
     const h = specHeight;
-    const s = parseFloat(logScaleVal[currentChannel]); 
+    const s = (currentTool === "autotune")?2:parseFloat(logScaleVal[currentChannel]); 
     let bin;
     if (s <= 1.0000001) {
         bin = h - 1 - cy;

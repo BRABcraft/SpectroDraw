@@ -27,7 +27,7 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
   tctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, drawW, drawH);
   const imgData = tctx.getImageData(0, 0, drawW, drawH);
 
-  // Loop pixels and push into spectrogram via drawPixelFrame, applying brushOpacity & phaseOpacity
+  // Loop pixels and push into spectrogram via drawPixel, applying brushOpacity & phaseOpacity
   const chPressure = (channels[ch] && channels[ch].brushPressure) ? channels[ch].brushPressure : 1;
   for (let yy = 0; yy < drawH; yy++) {
     for (let xx = 0; xx < drawW; xx++) {
@@ -43,7 +43,7 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
       if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
         const bo = brushOpacity * a * chPressure * boMult;
         const po = phaseOpacity * a * poMult;
-        drawPixelFrame(cxPix, cyPix, mag, phase, bo, po, ch);
+        drawPixel(cxPix, cyPix, mag, phase, bo, po, ch);
       }
     }
   }
@@ -336,7 +336,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
         const px = x0;
         const py = y0 + dy;
         if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-          drawPixelFrame(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity, ch); 
+          drawPixel(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity, ch); 
         }
       }
       if (x0 === x1 && y0 === y1) break;
@@ -394,7 +394,7 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,c
   if (x > sprite.maxCol) sprite.maxCol = x;
 }
 
-function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch) {
+function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
 
@@ -471,6 +471,7 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch) {
     let i = 0, binF = 0;
     while (binF<specHeight && i<400) {
       const harmVal = Math.max(0, Math.min(1, ((i>=harmArr.length)?(harmArr[harmArr.length-1]):(harmArr[i]))));
+      if (harmVal < 0.001) {i++; continue;}
       const freqI = getSineFreq(displayYFloat) * (i + 1);
       const displayY_i = ftvsy(freqI, ch);
       binF = displayYToBin(displayY_i, fullH, ch);
@@ -586,9 +587,9 @@ function commitShape(cx, cy) {
 
           const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
           const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-          drawPixelFrame(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po, ch);
+          drawPixel(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po, ch);
         } else {
-          drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po, ch);
+          drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch);
         }
       }
 
@@ -722,9 +723,9 @@ function commitShape(cx, cy) {
 
 
 
-function ftvsy(f,ch) {// frequency to visible spectrogram Y
+function ftvsy(f,ch,l) {// frequency to visible spectrogram Y
   const h = specHeight;
-  const s = parseFloat(logScaleVal[ch]);
+  const s = (ch!==null)?parseFloat(logScaleVal[ch]):l;
   let bin = f / (sampleRate / fftSize);
   let cy;
   if (s <= 1.0000001) {
@@ -790,8 +791,6 @@ function paint(cx, cy) {
         applyImageToChannel(ch, images[selectedImage].img, ox, oy, overlayW, overlayH);
       }
     }
-
-        // inside paint(), stamp handling:
     else if (currentShape === "stamp" && currentStamp && currentStamp.dataUrl) {
       if (!currentStamp.img) {
         currentStamp.img = new Image();
@@ -827,10 +826,7 @@ function paint(cx, cy) {
           applyImageToChannel(ch, currentStamp.img, ox, oy, overlayW, overlayH);
         }
       }
-    }
-
-
-    else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
+    } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : penPhase;
       // endpoints of the segment (make sure these are in the same coordinate space)
@@ -863,10 +859,9 @@ function paint(cx, cy) {
           const dy = yy - nearestY;
           if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
 
-          drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po, ch);
+          drawPixel(xx, yy, brushMag, brushPhase, bo, po, ch);
         }
       }
-
     } else if (currentTool === "blur") {
       const integral = buildIntegral(fullW, fullH, mags, phases);
       for (let yy = minY; yy <= maxY; yy++) {
@@ -884,11 +879,168 @@ function paint(cx, cy) {
 
           const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
           const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-          drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po, ch);
+          drawPixel(xx, yy, sumMag / count, sumPhase / count, bo, po, ch);
+        }
+      }
+    } else if (currentTool === "autotune") {
+      // AUTOTUNE (fixed):
+      // - compute semitones from bin index (no log-scale bias)
+      // - respect persistent visited[ch][idx] (do not overwrite visited here)
+      // - idempotent: move average to nearest integer semitone
+
+      const strength = autoTuneStrength;
+
+      // Note: to keep autotune idempotent we apply the full rounding shift
+      // (strength is ignored here).
+      if (strength <= 0) continue;
+
+      const pixBuf = imageBuffer[ch].data;
+      const fullH = specHeight;
+      const fullW = specWidth;
+      const binFreqStep = sampleRate / fftSize; // freq per bin
+
+      // compute bin-range roughly covered by the brush
+      const binB = Math.max(
+        0,
+        Math.ceil(displayYToBin(minY, fullH, ch))
+      );
+      const binA = Math.min(
+        fullH - 1,
+        Math.floor(displayYToBin(maxY, fullH, ch))
+      );
+
+      for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+
+        // STEP 1: compute magnitude-weighted average semitone
+        let sumW = 0;
+        let sumWSemitone = 0;
+        let pixelWeights = new Array(specHeight);
+        let b = binA; let pb = -1;
+        const semitoneStep = 0.1;
+        const mul = Math.pow(2, semitoneStep / npo);
+        while (b < binB){
+          pb = b;
+          b = (b + 0.5) * mul - 0.5;
+          for (let i = Math.round(pb); i < Math.round(b); i++) pixelWeights[i] = 1/(b-pb);
+        }
+        for (let bin = binA; bin <= binB; bin++) {
+          const centerY = (binToTopDisplay[ch][bin] + binToBottomDisplay[ch][bin]) * 0.5;
+          if (centerY < minY - 1 || centerY > maxY + 1) continue;
+          const dxF = xx - cx;
+          const dyF = centerY - cy;
+          if ((dxF * dxF) / radiusXsq + (dyF * dyF) / radiusYsq > 1) continue;
+          const idx = xx * fullH + bin;
+          if (visited[ch][idx] === 1) continue;
+          const mag = mags[idx] * pixelWeights[bin];
+          const freq = (bin + 0.5) * binFreqStep;
+          const semitone = npo * Math.log2(freq / startOnP);
+          sumW += mag;
+          sumWSemitone += mag * semitone;
+        }
+
+        if (sumW <= 0) continue;
+
+        const avgSemitone = sumWSemitone / sumW;
+        const targetSemitone = Math.round(avgSemitone);
+        const semitoneDiff = (targetSemitone - avgSemitone)*strength;
+
+        if (Math.abs(semitoneDiff) < 1e-9) continue;
+
+        // accumulate shifted energy (per-destination-bin) for this frame
+        const tMag = new Float64Array(fullH);
+
+        let minBinTouched = fullH - 1;
+        let maxBinTouched = 0;
+        let anyWritten = false;
+        for (let srcBin = binA; srcBin <= binB; srcBin++) {
+          const centerY =(binToTopDisplay[ch][srcBin] + binToBottomDisplay[ch][srcBin]) * 0.5;
+          const dxF = xx - cx;
+          const dyF = centerY - cy;
+          if ((dxF * dxF) / radiusXsq + (dyF * dyF) / radiusYsq > 1) continue;
+          const srcIdx = xx * fullH + srcBin;
+          if (visited[ch][srcIdx] === 1) continue;
+          const mag = mags[srcIdx] || 0;
+          if (mag <= 1e-6) continue;
+          const freqSrc = (srcBin + 0.5) * sampleRate/fftSize;
+          if (!isFinite(freqSrc) || freqSrc <= 0) continue;
+          const semitoneSrc = npo * Math.log2(freqSrc / startOnP);
+          const semitoneTarget = semitoneSrc + semitoneDiff;
+          const freqTarget =startOnP * Math.pow(2, semitoneTarget / npo);
+          const displayYTarget = ftvsy(freqTarget, ch);
+          const dstBinFloat =displayYToBin(displayYTarget, fullH, ch);
+          const dstBin = Math.max(0,Math.min(fullH - 1, Math.round(dstBinFloat)));
+          tMag[dstBin] += mag;
+          anyWritten = true;
+          minBinTouched = Math.min(minBinTouched, dstBin);
+          maxBinTouched = Math.max(maxBinTouched, dstBin);
+        }
+
+        if (!anyWritten) continue;
+
+        // STEP 3: clear source bins
+        for (let srcBin = binA; srcBin <= binB; srcBin++) {
+          const centerY = (binToTopDisplay[ch][srcBin] + binToBottomDisplay[ch][srcBin]) * 0.5;
+
+          const dxF = xx - cx;
+          const dyF = centerY - cy;
+          if ((dxF * dxF) / radiusXsq + (dyF * dyF) / radiusYsq > 1) continue;
+
+          const srcIdx = xx * fullH + srcBin;
+          if (visited[ch][srcIdx] === 1) continue;
+
+          if ((mags[srcIdx] || 0) > 0) {
+            mags[srcIdx] = 0;
+            visited[ch][srcIdx] = 1;
+
+            const yTopF = binToTopDisplay[ch][srcBin];
+            const yBotF = binToBottomDisplay[ch][srcBin];
+            const yStart = Math.max(0,Math.floor(Math.min(yTopF, yBotF)));
+            const yEnd = Math.min(fullH - 1,Math.ceil(Math.max(yTopF, yBotF)));
+
+            for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+              const pix = (yPixel * fullW + xx) * 4;
+              pixBuf[pix] = 0;
+              pixBuf[pix + 1] = 0;
+              pixBuf[pix + 2] = 0;
+              pixBuf[pix + 3] = 255;
+            }
+          }
+        }
+
+        // STEP 4: write destination bins
+        const fromBin = Math.max(0, minBinTouched - 1);
+        const toBin = Math.min(fullH - 1, maxBinTouched + 1);
+
+        for (let b = fromBin; b <= toBin; b++) {
+          const dstIdx = xx * fullH + b;
+          const newMag = Math.min(255, tMag[b] || 0);
+
+          if (newMag > 0) {
+            mags[dstIdx] = newMag;
+            visited[ch][dstIdx] = 1;
+          } else {
+            mags[dstIdx] = mags[dstIdx] || 0;
+          }
+
+          const yTopF = binToTopDisplay[ch][b];
+          const yBotF = binToBottomDisplay[ch][b];
+          const yStart = Math.max(0,Math.floor(Math.min(yTopF, yBotF)));
+          const yEnd = Math.min(fullH - 1,Math.ceil(Math.max(yTopF, yBotF)));
+
+          const [r, g, bl] = magPhaseToRGB(mags[dstIdx],phases[dstIdx]);
+
+          for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+            const pix = (yPixel * fullW + xx) * 4;
+            pixBuf[pix] = r;
+            pixBuf[pix + 1] = g;
+            pixBuf[pix + 2] = bl;
+            pixBuf[pix + 3] = 255;
+          }
         }
       }
     }
-    const specCanvas = document.getElementById("spec-"+ch);
+
+    const specCanvas = document.getElementById("spec-" + ch);
     const specCtx = specCanvas.getContext("2d");
     specCtx.putImageData(imageBuffer[ch], 0, 0);
   }

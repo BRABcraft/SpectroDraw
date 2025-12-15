@@ -21,7 +21,7 @@ function updateBrushWH() {
     bw.value = bw1.value = brushWidth = 10;
     bh.value = bh1.value = brushHeight = 100;
     bs.value = bs1.value = brushSize = 100;
-  } else {console.log(prevBrushDims);
+  } else {
     bw.max = bh.max = bs.max = bw1.max = bh1.max = bs1.max = 200;
     bs.value = bs1.value = brushSize = prevBrushDims[0];
     bw.value = bw1.value = brushWidth = prevBrushDims[1];

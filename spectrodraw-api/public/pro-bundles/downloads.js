@@ -196,7 +196,7 @@ document.getElementById('downloadButton').addEventListener('click', function() {
     iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2;
     updateCanvasScroll();
 
-    const totalChannels = (typeof channelCount === 'number' ? channelCount : (channels ? channels.length : 1));
+    const totalChannels = channelCount;
     for (let ch = 0; ch < totalChannels; ch++) {
         // try common canvas ID patterns, fall back to canvas-0
         const canvas = document.getElementById(`canvas-${ch}`)

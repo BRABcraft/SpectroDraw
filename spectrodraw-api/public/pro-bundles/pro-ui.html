@@ -305,6 +305,12 @@
         <path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/>
       </svg>
     </button>
+    <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork">
+        <path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        <line x1="10" y1="14" x2="10" y2="17.5" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
     <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
       <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18.19239" height="19.22007" viewBox="0,0,18.19239,19.22007"><g transform="translate(-0.9038,-0.38997)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.6988,2.4324l2.86589,-2.04243l7.13401,10.01027l-2.86589,2.04243z" stroke-width="NaN"/><path d="M0.9038,4.89839l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M2.27524,6.82275l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M3.72671,8.90531l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M5.09814,10.82967l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M6.45025,12.72692l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M11.38987,11.97357l2.26406,-1.61352l5.44227,7.63646l-2.26406,1.61352z" stroke-width="NaN"/></g></g></svg>
     </button>
@@ -657,6 +663,11 @@
             <input id="noiseRemoveFloor"  type="range" min="-60" max="0" value="-10" step="0.1">
             <input id="noiseRemoveFloorInput" type="number" value="-10" min="-60" max="0">
         </div>
+        <div class="slider-row" title="Autotune strength" style="display:none;" id="autoTuneStrengthDiv">
+            <label class="h2">Autotune strength</label>
+            <input id="autoTuneStrength"  type="range" min="0" max="1" value="1" step="0.01">
+            <input id="autoTuneStrengthInput" type="number" value="1" min="0" max="1">
+        </div>
         <div id="ev" class="slider-row" title="Phase texture">
           <label class="h2" for="phaseTexture">Phase texture</label>
           <select id="phaseTexture">
@@ -1005,7 +1016,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
 
-<script data-manifest="fft.js"></script>
+<!-- <script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="ui.js"></script>
 <script data-manifest="harmonics.js"></script>
@@ -1022,11 +1033,11 @@
 <script data-manifest="brushPreview.js"></script>
 <script data-manifest="rightClick.js"></script>
 <script data-manifest="initialRenders.js"></script>
-<script data-manifest="eq.js"></script>
+<script data-manifest="eq.js"></script> -->
 
 <!--Comment out on deploy-->
 
-<!-- <link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="style.css">
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
 <script src="ui.js"></script>
@@ -1044,4 +1055,4 @@
 <script src="brushPreview.js"></script>
 <script src="rightClick.js"></script>
 <script src="eq.js"></script>
-<script src="initialRenders.js"></script> -->
+<script src="initialRenders.js"></script>

@@ -575,7 +575,7 @@ function commitShape(cx, cy) {
       let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
       let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
 
-      function dp(xFrame, yDisplay, mag, phase, bo, po, ch){
+      function dp(xFrame, yDisplay, mag, phase, bo, po, ch,opts={}){
         if (currentTool === "blur") {
           // map displayY to the nearest bin once
           const binCenter = Math.round(displayYToBin(yDisplay, fullH, ch));
@@ -604,13 +604,18 @@ function commitShape(cx, cy) {
 
         binA = Math.max(0, Math.min(fullH - 1, Math.round(binA)));
         binB = Math.max(0, Math.min(fullH - 1, Math.round(binB)));
-
+        let pixels = [];
         for (let xx = minX; xx <= maxX; xx++) {
           for (let bin = binA; bin <= binB; bin++) {
-            const displayY = binToDisplayY(bin, fullH,ch);
-            dp(xx, displayY, brushMag, brushPhase, bo, po, ch);
+            if (currentTool !== "autotune") {
+              const displayY = binToDisplayY(bin, fullH,ch);
+              dp(xx, displayY, brushMag, brushPhase, bo, po, ch,{minBin:binA,maxBin:binB});
+            } else {
+              pixels.push([xx,bin]);
+            }
           }
         }
+        if (currentTool === "autotune") applyAutotuneToPixels(ch,pixels);
 
       } else if (currentShape === "line") {
         // ... (unchanged line code; uses brushSize as before) ...
@@ -628,13 +633,17 @@ function commitShape(cx, cy) {
         let err = (dx > dy ? dx : -dy) / 2;
 
         const half = Math.floor(brushSize / 8);
-
+        let pixels = [];
         while (true) {
           for (let dx = -half; dx <= half; dx++) {
             const px = x0 + dx;
             const py = y0;
             if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-              dp(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity,ch);
+              if (currentTool !== "autotune") {
+                dp(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity,ch);
+              } else {
+                pixels.push([px,py]);
+              }
             }
           }
           if (x0 === x1 && y0 === y1) break;
@@ -642,6 +651,8 @@ function commitShape(cx, cy) {
           if (e2 > -dx) { err -= dy; x0 += sx; }
           if (e2 < dy)  { err += dx; y0 += sy; }
         }
+        console.log(pixels);
+        if (currentTool === "autotune") applyAutotuneToPixels(ch,pixels,opts={expand:5});
       }
       if (currentShape === "image") {
         if (!images[selectedImage] || !images[selectedImage].img) {
@@ -797,7 +808,6 @@ function paint(cx, cy) {
         currentStamp.img.src = currentStamp.dataUrl;
       }
       if (!currentStamp.img.complete || currentStamp.img.naturalWidth === 0) {
-        // image not ready — skip painting for now
       } else {
         const canvas = document.getElementById("canvas-"+ch);
         const rect = canvas.getBoundingClientRect();
@@ -883,166 +893,226 @@ function paint(cx, cy) {
         }
       }
     } else if (currentTool === "autotune") {
-      // AUTOTUNE (fixed):
-      // - compute semitones from bin index (no log-scale bias)
-      // - respect persistent visited[ch][idx] (do not overwrite visited here)
-      // - idempotent: move average to nearest integer semitone
-
-      const strength = autoTuneStrength;
-
-      // Note: to keep autotune idempotent we apply the full rounding shift
-      // (strength is ignored here).
-      if (strength <= 0) continue;
-
-      const pixBuf = imageBuffer[ch].data;
       const fullH = specHeight;
-      const fullW = specWidth;
-      const binFreqStep = sampleRate / fftSize; // freq per bin
-
-      // compute bin-range roughly covered by the brush
-      const binB = Math.max(
-        0,
-        Math.ceil(displayYToBin(minY, fullH, ch))
-      );
-      const binA = Math.min(
-        fullH - 1,
-        Math.floor(displayYToBin(maxY, fullH, ch))
-      );
-
+      const binB = Math.max(0,Math.ceil(displayYToBin(minY, fullH, ch))); 
+      const binA = Math.min(fullH - 1,Math.floor(displayYToBin(maxY, fullH, ch)));
+      const pixels = [];
       for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-
-        // STEP 1: compute magnitude-weighted average semitone
-        let sumW = 0;
-        let sumWSemitone = 0;
-        let pixelWeights = new Array(specHeight);
-        let b = binA; let pb = -1;
-        const semitoneStep = 0.1;
-        const mul = Math.pow(2, semitoneStep / npo);
-        while (b < binB){
-          pb = b;
-          b = (b + 0.5) * mul - 0.5;
-          for (let i = Math.round(pb); i < Math.round(b); i++) pixelWeights[i] = 1/(b-pb);
-        }
         for (let bin = binA; bin <= binB; bin++) {
           const centerY = (binToTopDisplay[ch][bin] + binToBottomDisplay[ch][bin]) * 0.5;
-          if (centerY < minY - 1 || centerY > maxY + 1) continue;
           const dxF = xx - cx;
           const dyF = centerY - cy;
-          if ((dxF * dxF) / radiusXsq + (dyF * dyF) / radiusYsq > 1) continue;
-          const idx = xx * fullH + bin;
+          if ((dxF*dxF)/radiusXsq + (dyF*dyF)/radiusYsq > 1) continue;
+          const idx = xx * specHeight + bin;
           if (visited[ch][idx] === 1) continue;
-          const mag = mags[idx] * pixelWeights[bin];
-          const freq = (bin + 0.5) * binFreqStep;
-          const semitone = npo * Math.log2(freq / startOnP);
-          sumW += mag;
-          sumWSemitone += mag * semitone;
-        }
-
-        if (sumW <= 0) continue;
-
-        const avgSemitone = sumWSemitone / sumW;
-        const targetSemitone = Math.round(avgSemitone);
-        const semitoneDiff = (targetSemitone - avgSemitone)*strength;
-
-        if (Math.abs(semitoneDiff) < 1e-9) continue;
-
-        // accumulate shifted energy (per-destination-bin) for this frame
-        const tMag = new Float64Array(fullH);
-
-        let minBinTouched = fullH - 1;
-        let maxBinTouched = 0;
-        let anyWritten = false;
-        for (let srcBin = binA; srcBin <= binB; srcBin++) {
-          const centerY =(binToTopDisplay[ch][srcBin] + binToBottomDisplay[ch][srcBin]) * 0.5;
-          const dxF = xx - cx;
-          const dyF = centerY - cy;
-          if ((dxF * dxF) / radiusXsq + (dyF * dyF) / radiusYsq > 1) continue;
-          const srcIdx = xx * fullH + srcBin;
-          if (visited[ch][srcIdx] === 1) continue;
-          const mag = mags[srcIdx] || 0;
-          if (mag <= 1e-6) continue;
-          const freqSrc = (srcBin + 0.5) * sampleRate/fftSize;
-          if (!isFinite(freqSrc) || freqSrc <= 0) continue;
-          const semitoneSrc = npo * Math.log2(freqSrc / startOnP);
-          const semitoneTarget = semitoneSrc + semitoneDiff;
-          const freqTarget =startOnP * Math.pow(2, semitoneTarget / npo);
-          const displayYTarget = ftvsy(freqTarget, ch);
-          const dstBinFloat =displayYToBin(displayYTarget, fullH, ch);
-          const dstBin = Math.max(0,Math.min(fullH - 1, Math.round(dstBinFloat)));
-          tMag[dstBin] += mag;
-          anyWritten = true;
-          minBinTouched = Math.min(minBinTouched, dstBin);
-          maxBinTouched = Math.max(maxBinTouched, dstBin);
-        }
-
-        if (!anyWritten) continue;
-
-        // STEP 3: clear source bins
-        for (let srcBin = binA; srcBin <= binB; srcBin++) {
-          const centerY = (binToTopDisplay[ch][srcBin] + binToBottomDisplay[ch][srcBin]) * 0.5;
-
-          const dxF = xx - cx;
-          const dyF = centerY - cy;
-          if ((dxF * dxF) / radiusXsq + (dyF * dyF) / radiusYsq > 1) continue;
-
-          const srcIdx = xx * fullH + srcBin;
-          if (visited[ch][srcIdx] === 1) continue;
-
-          if ((mags[srcIdx] || 0) > 0) {
-            mags[srcIdx] = 0;
-            visited[ch][srcIdx] = 1;
-
-            const yTopF = binToTopDisplay[ch][srcBin];
-            const yBotF = binToBottomDisplay[ch][srcBin];
-            const yStart = Math.max(0,Math.floor(Math.min(yTopF, yBotF)));
-            const yEnd = Math.min(fullH - 1,Math.ceil(Math.max(yTopF, yBotF)));
-
-            for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
-              const pix = (yPixel * fullW + xx) * 4;
-              pixBuf[pix] = 0;
-              pixBuf[pix + 1] = 0;
-              pixBuf[pix + 2] = 0;
-              pixBuf[pix + 3] = 255;
-            }
-          }
-        }
-
-        // STEP 4: write destination bins
-        const fromBin = Math.max(0, minBinTouched - 1);
-        const toBin = Math.min(fullH - 1, maxBinTouched + 1);
-
-        for (let b = fromBin; b <= toBin; b++) {
-          const dstIdx = xx * fullH + b;
-          const newMag = Math.min(255, tMag[b] || 0);
-
-          if (newMag > 0) {
-            mags[dstIdx] = newMag;
-            visited[ch][dstIdx] = 1;
-          } else {
-            mags[dstIdx] = mags[dstIdx] || 0;
-          }
-
-          const yTopF = binToTopDisplay[ch][b];
-          const yBotF = binToBottomDisplay[ch][b];
-          const yStart = Math.max(0,Math.floor(Math.min(yTopF, yBotF)));
-          const yEnd = Math.min(fullH - 1,Math.ceil(Math.max(yTopF, yBotF)));
-
-          const [r, g, bl] = magPhaseToRGB(mags[dstIdx],phases[dstIdx]);
-
-          for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
-            const pix = (yPixel * fullW + xx) * 4;
-            pixBuf[pix] = r;
-            pixBuf[pix + 1] = g;
-            pixBuf[pix + 2] = bl;
-            pixBuf[pix + 3] = 255;
-          }
+          pixels.push([xx, bin]);
         }
       }
+      applyAutotuneToPixels(ch, pixels,{});
     }
+
 
     const specCanvas = document.getElementById("spec-" + ch);
     const specCtx = specCanvas.getContext("2d");
     specCtx.putImageData(imageBuffer[ch], 0, 0);
   }
   renderView();
+}
+/**
+ * Apply autotune using a precomputed flat pixel list [[xx,bin],...]
+ *
+ * @param {number} ch - channel index
+ * @param {Array.<Array.<number>>} pixels - flat list of [xx, bin] pairs to process
+ * @param {Object} [opts] - optional overrides (strength, fullH, fullW, sampleRate, fftSize, npo, startOnP, etc.)
+ * @returns {Object} summary {processedColumns, processedPixels}
+ *
+ * NOTE: If an option is not set here, the function falls back to variables from outer scope
+ * (autoTuneStrength, specHeight, specWidth, sampleRate, fftSize, npo, startOnP, mags, phases,
+ * visited, imageBuffer, binToTopDisplay, binToBottomDisplay, magPhaseToRGB, ftvsy, displayYToBin).
+ */
+function applyAutotuneToPixels(ch, pixels, opts = {}) {
+  if (!Array.isArray(pixels) || pixels.length === 0) return;
+
+  // options with fallbacks to outer-scope variables if not provided:
+  const strength = opts.strength ?? autoTuneStrength;
+  if (strength <= 0) return;
+  const fullH = opts.fullH ?? specHeight;
+  const fullW = opts.fullW ?? specWidth;
+  const sampleRateLocal = opts.sampleRate ?? sampleRate;
+  const fftSizeLocal = opts.fftSize ?? fftSize;
+  const npoLocal = opts.npo ?? npo;
+  const startOnPLocal = opts.startOnP ?? startOnP;
+  const binFreqStep = sampleRateLocal / fftSizeLocal;
+
+  const pixBuf = imageBuffer[ch].data; // assumes imageBuffer is available in scope
+  const magsArr = channels[ch].mags;     // assumes mags is available
+  const phasesArr = channels[ch].phases; // assumes phases is available
+  const visitedArr = visited;
+
+  // Determine min/max bins present in the pixels list (for pixelWeights computation)
+  minBin = fullH; maxBin = 0;
+  for (let i = 0; i < pixels.length; i++) {
+    const b = pixels[i][1];
+    if (b < minBin) minBin = b;
+    if (b > maxBin) maxBin = b;
+  }
+  if (opts.expand) {minBin -= opts.expand; maxBin += opts.expand;}
+  minBin = Math.max(0, Math.floor(minBin));
+  maxBin = Math.min(fullH - 1, Math.ceil(maxBin));
+  if (minBin > maxBin) return;
+  // Precompute pixelWeights for the range [minBin, maxBin]
+  const pixelWeights = new Array(fullH).fill(0);
+  {
+    const semitoneStep = 0.1;
+    const mul = Math.pow(2, semitoneStep / npoLocal);
+    let b = minBin;
+    let pb = -1;
+    // use the same growth logic as before
+    while (b < maxBin) {
+      pb = b;
+      b = (b + 0.5) * mul - 0.5;
+      const start = Math.max(0, Math.round(pb));
+      const end = Math.min(fullH, Math.round(b));
+      const denom = (b - pb) || 1;
+      for (let i = start; i < end; i++) pixelWeights[i] = 1 / denom;
+      if (end >= maxBin) break;
+    }
+    // fallback: if a bin didn't get a weight, give it 1
+    for (let i = minBin; i <= maxBin; i++) if (pixelWeights[i] === 0) pixelWeights[i] = 1;
+  }
+
+  // Group pixels by xx for per-column processing
+  const pxByX = new Map();
+  for (let i = 0; i < pixels.length; i++) {
+    const [xx, bin] = pixels[i];
+    // skip out-of-range bins/columns
+    if (bin < 0 || bin >= fullH) continue;
+    if (!pxByX.has(xx)) pxByX.set(xx, []);
+    pxByX.get(xx).push(bin);
+  }
+
+  if (pxByX.size === 0) return;
+  console.log(pxByX);
+
+  // iterate columns in ascending order for determinism
+  const xKeys = Array.from(pxByX.keys()).sort((a, b) => a - b);
+
+  let processedColumns = 0;
+  let processedPixelsCount = 0;
+
+  for (const xx of xKeys) {
+    const binsForX = pxByX.get(xx);
+    if (!binsForX || binsForX.length === 0) continue;
+
+    // STEP 1: compute magnitude-weighted average semitone for this column
+    let sumW = 0;
+    let sumWSemitone = 0;
+    for (let j = 0; j < binsForX.length; j++) {
+      const bin = binsForX[j];
+      const idx = xx * fullH + bin;
+      if (visitedArr[ch][idx] === 1) continue; // keep safety re-check
+      const mag = (magsArr[idx] || 0) * (pixelWeights[bin] || 1);
+      if (mag <= 0) continue;
+      const freq = (bin + 0.5) * binFreqStep;
+      if (!isFinite(freq) || freq <= 0) continue;
+      const semitone = npoLocal * Math.log2(freq / startOnPLocal);
+      sumW += mag;
+      sumWSemitone += mag * semitone;
+    }
+
+    if (sumW <= 0) continue;
+    const avgSemitone = sumWSemitone / sumW;
+    const targetSemitone = Math.round(avgSemitone);
+    const semitoneDiff = (targetSemitone - avgSemitone) * strength;
+    if (Math.abs(semitoneDiff) < 1e-9) continue;
+
+    // STEP 2: accumulate shifted energy into tMag
+    const tMag = new Float64Array(fullH);
+    let minBinTouched = fullH - 1;
+    let maxBinTouched = 0;
+    let anyWritten = false;
+
+    for (let j = 0; j < binsForX.length; j++) {
+      const srcBin = binsForX[j];
+      const srcIdx = xx * fullH + srcBin;
+      if (visitedArr[ch][srcIdx] === 1) continue;
+      const mag = magsArr[srcIdx] || 0;
+      if (mag <= 1e-6) continue;
+
+      const freqSrc = (srcBin + 0.5) * sampleRateLocal / fftSizeLocal;
+      if (!isFinite(freqSrc) || freqSrc <= 0) continue;
+      const semitoneSrc = npoLocal * Math.log2(freqSrc / startOnPLocal);
+      const semitoneTarget = semitoneSrc + semitoneDiff;
+      const freqTarget = startOnPLocal * Math.pow(2, semitoneTarget / npoLocal);
+      const displayYTarget = ftvsy(freqTarget, ch);
+      const dstBinFloat = displayYToBin(displayYTarget, fullH, ch);
+      const dstBin = Math.max(0, Math.min(fullH - 1, Math.round(dstBinFloat)));
+
+      tMag[dstBin] += mag;
+      anyWritten = true;
+      minBinTouched = Math.min(minBinTouched, dstBin);
+      maxBinTouched = Math.max(maxBinTouched, dstBin);
+    }
+
+    if (!anyWritten) continue;
+
+    // STEP 3: clear source bins (and mark visited + clear pixels on screen)
+    for (let j = 0; j < binsForX.length; j++) {
+      const srcBin = binsForX[j];
+      const srcIdx = xx * fullH + srcBin;
+      if (visitedArr[ch][srcIdx] === 1) continue;
+      if ((magsArr[srcIdx] || 0) > 0) {
+        magsArr[srcIdx] = 0;
+        visitedArr[ch][srcIdx] = 1;
+        processedPixelsCount++;
+
+        const yTopF = binToTopDisplay[ch][srcBin];
+        const yBotF = binToBottomDisplay[ch][srcBin];
+        const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
+        const yEnd = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
+
+        for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+          const pix = (yPixel * fullW + xx) * 4;
+          pixBuf[pix] = 0;
+          pixBuf[pix + 1] = 0;
+          pixBuf[pix + 2] = 0;
+          pixBuf[pix + 3] = 255;
+        }
+      }
+    }
+
+    // STEP 4: write destination bins (clamp mags, mark visited, paint pixels)
+    const fromBin = Math.max(0, minBinTouched - 1);
+    const toBin = Math.min(fullH - 1, maxBinTouched + 1);
+
+    for (let b = fromBin; b <= toBin; b++) {
+      const dstIdx = xx * fullH + b;
+      const newMag = Math.min(255, tMag[b] || 0);
+
+      if (newMag > 0) {
+        magsArr[dstIdx] = newMag;
+        visitedArr[ch][dstIdx] = 1;
+        processedPixelsCount++;
+      } else {
+        magsArr[dstIdx] = magsArr[dstIdx] || 0;
+      }
+
+      const yTopF = binToTopDisplay[ch][b];
+      const yBotF = binToBottomDisplay[ch][b];
+      const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
+      const yEnd = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
+
+      const [r, g, bl] = magPhaseToRGB(magsArr[dstIdx], phasesArr[dstIdx]);
+
+      for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+        const pix = (yPixel * fullW + xx) * 4;
+        pixBuf[pix] = r;
+        pixBuf[pix + 1] = g;
+        pixBuf[pix + 2] = bl;
+        pixBuf[pix + 3] = 255;
+      }
+    }
+
+    processedColumns++;
+  } // end for each column
 }

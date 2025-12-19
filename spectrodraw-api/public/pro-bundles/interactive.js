@@ -99,7 +99,7 @@ function canvasMouseDown(e,touch) {
     // --- CREATE NEW SPRITE FOR THIS STROKE ---
     currentSprite = {
       id: nextSpriteId++,
-      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseOpacity, penPhase, amp, noiseRemoveFloor, blurRadius,phaseTexture:phaseTextureEl.value},
+      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseOpacity, penPhase, amp, noiseRemoveFloor, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength},
       enabled: true,
       pixels: pixelmap,
       minCol: Infinity,
@@ -226,27 +226,25 @@ function canvasMouseUp(e,touch) {
     startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
     line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
   }
+  simpleRestartRender();
+}
 
+//Restarts render without resetting all canvases
+function simpleRestartRender(min=-1,max=-1){
   startX=startY=null;
-
   startTime = performance.now();
   audioProcessed = 0;
-
   if (!movingSprite) {
-
-    autoRecomputePCM(-1,-1);
-
+    autoRecomputePCM(min,max);
     pendingHistory = true;
     pendingPlayAfterRender = true; 
   }
-
   let startFrame = calcMinMaxCol().minCol;
   if (startFrame == Infinity) startFrame = 0;
   pos = startFrame * hop;
   x = startFrame;
   rendering = true;
   requestAnimationFrame(() => drawLoop());
-
   startTime = performance.now();
   audioProcessed = 0;
 }

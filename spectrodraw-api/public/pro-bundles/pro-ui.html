@@ -668,6 +668,16 @@
             <input id="autoTuneStrength"  type="range" min="0" max="1" value="1" step="0.01">
             <input id="autoTuneStrengthInput" type="number" value="1" min="0" max="1">
         </div>
+        <div class="slider-row" title="Base Pitch" id="astartOnPitchDiv" style="display:none;">
+          <label class="h2">Base Hz</label>
+          <input id="astartOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
+          <input id="astartOnPitchInput" type="number" value="440">
+        </div>
+        <div class="slider-row" title="Notes Per Octave" id="anpoDiv" style="display:none;">
+          <label class="h2">Notes per octave</label>
+          <input id="anpo" type="range" min="1" max="48" step="1" value="12">
+          <input id="anpoInput" type="number" value="12" min="1" max="384">
+        </div>
         <div id="ev" class="slider-row" title="Phase texture">
           <label class="h2" for="phaseTexture">Phase texture</label>
           <select id="phaseTexture">
@@ -754,6 +764,21 @@
               <input id="snoiseRemoveFloor"  type="range" min="-60" max="0" value="-10" step="0.1">
               <input id="snoiseRemoveFloorInput" type="number" value="-10" min="-60" max="0">
           </div>
+        <div class="slider-row" title="Autotune strength" style="display:none;" id="sautoTuneStrengthDiv">
+            <label class="h2">Autotune strength</label>
+            <input id="sautoTuneStrength"  type="range" min="0" max="1" value="1" step="0.01">
+            <input id="sautoTuneStrengthInput" type="number" value="1" min="0" max="1">
+        </div>
+        <div class="slider-row" title="Base Pitch" id="sstartOnPitchDiv" style="display:none;">
+          <label class="h2">Base Hz</label>
+          <input id="sstartOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
+          <input id="sstartOnPitchInput" type="number" value="440">
+        </div>
+        <div class="slider-row" title="Notes Per Octave" id="snpoDiv" style="display:none;">
+          <label class="h2">Notes per octave</label>
+          <input id="snpo" type="range" min="1" max="48" step="1" value="12">
+          <input id="snpoInput" type="number" value="12" min="1" max="384">
+        </div>
           <div id="sev" class="slider-row" title="Phase texture">
             <label class="h2" for="sphaseTexture">Phase texture</label>
             <select id="sphaseTexture">

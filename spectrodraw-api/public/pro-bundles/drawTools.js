@@ -651,7 +651,6 @@ function commitShape(cx, cy) {
           if (e2 > -dx) { err -= dy; x0 += sx; }
           if (e2 < dy)  { err += dx; y0 += sy; }
         }
-        console.log(pixels);
         if (currentTool === "autotune") applyAutotuneToPixels(ch,pixels,opts={expand:5});
       }
       if (currentShape === "image") {
@@ -940,8 +939,8 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
   const fullW = opts.fullW ?? specWidth;
   const sampleRateLocal = opts.sampleRate ?? sampleRate;
   const fftSizeLocal = opts.fftSize ?? fftSize;
-  const npoLocal = opts.npo ?? npo;
-  const startOnPLocal = opts.startOnP ?? startOnP;
+  const npoLocal = opts.npo ?? anpo;
+  const startOnPLocal = opts.startOnP ?? aStartOnP;
   const binFreqStep = sampleRateLocal / fftSizeLocal;
 
   const pixBuf = imageBuffer[ch].data; // assumes imageBuffer is available in scope
@@ -992,7 +991,6 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
   }
 
   if (pxByX.size === 0) return;
-  console.log(pxByX);
 
   // iterate columns in ascending order for determinism
   const xKeys = Array.from(pxByX.keys()).sort((a, b) => a - b);
@@ -1010,7 +1008,7 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
     for (let j = 0; j < binsForX.length; j++) {
       const bin = binsForX[j];
       const idx = xx * fullH + bin;
-      if (visitedArr[ch][idx] === 1) continue; // keep safety re-check
+      if (visitedArr&&visitedArr[ch][idx] === 1) continue; // keep safety re-check
       const mag = (magsArr[idx] || 0) * (pixelWeights[bin] || 1);
       if (mag <= 0) continue;
       const freq = (bin + 0.5) * binFreqStep;
@@ -1025,7 +1023,6 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
     const targetSemitone = Math.round(avgSemitone);
     const semitoneDiff = (targetSemitone - avgSemitone) * strength;
     if (Math.abs(semitoneDiff) < 1e-9) continue;
-
     // STEP 2: accumulate shifted energy into tMag
     const tMag = new Float64Array(fullH);
     let minBinTouched = fullH - 1;
@@ -1035,7 +1032,7 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
     for (let j = 0; j < binsForX.length; j++) {
       const srcBin = binsForX[j];
       const srcIdx = xx * fullH + srcBin;
-      if (visitedArr[ch][srcIdx] === 1) continue;
+      if (visitedArr&&visitedArr[ch][srcIdx] === 1) continue;
       const mag = magsArr[srcIdx] || 0;
       if (mag <= 1e-6) continue;
 
@@ -1060,10 +1057,10 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
     for (let j = 0; j < binsForX.length; j++) {
       const srcBin = binsForX[j];
       const srcIdx = xx * fullH + srcBin;
-      if (visitedArr[ch][srcIdx] === 1) continue;
+      if (visitedArr&&visitedArr[ch][srcIdx] === 1) continue;
       if ((magsArr[srcIdx] || 0) > 0) {
         magsArr[srcIdx] = 0;
-        visitedArr[ch][srcIdx] = 1;
+        if (visitedArr) visitedArr[ch][srcIdx] = 1;
         processedPixelsCount++;
 
         const yTopF = binToTopDisplay[ch][srcBin];
@@ -1091,7 +1088,7 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
 
       if (newMag > 0) {
         magsArr[dstIdx] = newMag;
-        visitedArr[ch][dstIdx] = 1;
+        if (visitedArr) visitedArr[ch][dstIdx] = 1;
         processedPixelsCount++;
       } else {
         magsArr[dstIdx] = magsArr[dstIdx] || 0;

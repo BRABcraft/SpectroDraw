@@ -181,7 +181,10 @@ const sliderDefs = [
   ['sphaseOpacity',    'sphaseOpacityInput',     'phaseOpacity'],
   ['sblurRadius',      'sblurRadiusInput',       'blurRadius'      ],
   ['samp',             'sampInput',              'amp'             ],
-  ['snoiseRemoveFloor','snoiseRemoveFloorInput', 'noiseRemoveFloor']
+  ['snoiseRemoveFloor','snoiseRemoveFloorInput', 'noiseRemoveFloor'],
+  ['sautoTuneStrength','sautoTuneStrengthInput', 'autoTuneStrength'],
+  ['snpo',             'snpoInput',              'anpo'],
+  ['sstartOnPitch',    'sstartOnPitchInput',     'aStartOnP'],
 ];
 
 const $ = id => document.getElementById(id);
@@ -203,8 +206,9 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     const s = getSpriteById(selectedSpriteId);
     if (!s) return;
     if (!s.effect) s.effect = {};
-    s.effect[effectsKey] = val;
     updateSpriteEffects(selectedSpriteId, s.effect);
+    s.effect[effectsKey] = val;
+    renderToolEditorSettings(s);
   };
 
   const handleValueChange = val => {
@@ -236,37 +240,23 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
   });
 });
 
-function renderToolEditorSettings(sprite) {
+function renderToolEditorSettings(sprite,newEffect) {
   if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
-  document.getElementById('samplifyDiv').style.display = 'none';
-  document.getElementById('sblurRadiusDiv').style.display = 'none';
-  document.getElementById('snoiseFloorDiv').style.display = 'none';
-  document.getElementById("sbrushColorDiv").style.display='none';
-  document.getElementById("sev").style.display='flex';
-  document.getElementById("sphaseDiv").style.display='flex';
-  document.getElementById("sphaseStrengthDiv").style.display='flex';
-  document.getElementById("sbrushOpacityDiv").style.display='flex';
-  if (toolEl.value === 'amplifier') {
-    document.getElementById('samplifyDiv').style.display = 'flex';
-  } else if (toolEl.value === 'blur') {
-    document.getElementById('sblurRadiusDiv').style.display = 'flex';
-  } else if (toolEl.value === 'noiseRemover') {
-    document.getElementById('snoiseFloorDiv').style.display = 'flex';
-    document.getElementById("sev").style.display='none';
-    document.getElementById("sphaseDiv").style.display='none';
-    document.getElementById("sphaseStrengthDiv").style.display='none';
-  } else if (sprite.effect.tool==="sample"){
-    document.getElementById('samplifyDiv').style.display = 'flex';
-    document.getElementById("sev").style.display='none';
-    document.getElementById("sphaseStrengthDiv").style.display='none';
-    document.getElementById("sbrushOpacityDiv").style.display='none';
-  } else {
-    document.getElementById("sbrushColorDiv").style.display='flex';
-  }
+  function c(b){return sprite.effect.tool===b;}
+  document.getElementById("samplifyDiv")   .style.display=(c("amplifier"))?"flex":"none";
+  document.getElementById("snoiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
+  document.getElementById("sblurRadiusDiv").style.display=(c("blur"))?"flex":"none";
+  document.getElementById("sautoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
+  document.getElementById("snpoDiv").style.display=(c("autotune"))?"flex":"none";
+  document.getElementById("sstartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
+  document.getElementById("sbrushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune"))?"none":"flex";
+  document.getElementById("sev").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+  document.getElementById("sphaseDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+  document.getElementById("sphaseStrengthDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
   if (!sprite) return;
 
   // Ensure effects object exists to read from
-  const effects = sprite.effect || {};
+  const effects = newEffect?newEffect:sprite.effect;
 
   // Load slider values from sprite.effect for each defined slider
   sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
@@ -354,37 +344,44 @@ async function updateSpriteEffects(spriteId, newEffect) {
   let recomputeMin = Infinity, recomputeMax = -Infinity;
 
   let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  visited = Array.from({ length: channelCount }, () => new Uint8Array(channels[0].mags.length));
   for (let ch=$s;ch<$e;ch++){
     const mags = channels[ch].mags, phases = channels[ch].phases;
     // keep a copy of the old effect to detect instant zeroing
     const oldEffect = Object.assign({}, sprite.effect || {});
 
-    renderToolEditorSettings(sprite);
-
     // compute local sig sprite once
-    const z = (sprite.effect.tool==="sample");
+    const z = (sprite.effect.tool==="sample"||sprite.effect.tool==="autotune");
     const sigSprite = z?(sprite):(formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight })));
     if (!sigSprite) return;
 
     // write new mags/phases for significant pixels
-    const integral = buildIntegral(specWidth, specHeight, mags, phases);
-    forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, newMag, newPhase) => {
-      const id = x * specHeight + y;
-      const newPixel = applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
-      mags[id] = newPixel.mag;
-      phases[id] = newPixel.phase;
-    });
+    if (currentTool === "autotune") {
+      let pixels = Array.from({ length: specHeight }, () => []);
+      const cols = Array.from(sigSprite.pixels[ch].keys()).sort((a,b)=>a-b);
+      const rowH = Math.max(brushHeight,Math.abs(newEffect.aStartOnP-oldEffect.aStartOnP));
+      for (const x of cols) {
+        const col = sigSprite.pixels[ch].get(x);
+        const bins = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
+        for (const bin of bins) {
+          const i = bin.i;
+          const id = x * specHeight + col.ys[i];
+          mags[id] = col.prevMags[i];
+          pixels[Math.floor(col.ys[i]/rowH)].push([x,col.ys[i]]);
+        }
+      }
+      for (const pixel of pixels) if (pixel.length>0) applyAutotuneToPixels(ch, pixel,{npo:newEffect.anpo,startOnP:newEffect.aStartOnP,strength:newEffect.autoTuneStrength});
+    } else {
+      const integral = buildIntegral(specWidth, specHeight, mags, phases);
+      forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, newMag, newPhase) => {
+        const id = x * specHeight + y;
+        const newPixel = applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
+        mags[id] = newPixel.mag;
+        phases[id] = newPixel.phase;
+      });
+    }//todo: changing autotune settings doesnt reset previous autotunes. probably because prevMags is the same as current mags.
 
-    // ---- IMPORTANT: expand recomputation range to account for FFT overlap ----
-    // Determine hop size (try common names, fall back to fftSize to mean "no expansion")
-    const hopSamples = (typeof hop === 'number' && hop > 0) ? hop :
-                      (typeof fftHop === 'number' && fftHop > 0) ? fftHop :
-                      fftSize;
-
-    // how many analysis frames (columns) an FFT can affect laterally:
-    // ceil(fftSize / hop) is number of overlapped frames per FFT window.
-    // padCols here is conservative: expand by that many columns on each side.
-    const padCols = Math.max(0, Math.ceil(fftSize / hopSamples));
+    const padCols = Math.max(0, Math.ceil(fftSize / hop));
 
     // compute sigSprite bounds
     const sigCols = Array.from(sigSprite.pixels[ch].keys()).sort((a,b)=>a-b);
@@ -398,13 +395,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
     // Additional safeguard: if the user instantly set brushColor to zero, aggressively clear
     // a small neighborhood so partial overlap contributions get zeroed immediately.
     // (Only do this when brushColor exists in effects and it changed to 0.)
-    if (typeof newEffect === 'object' &&
-        typeof newEffect.brushColor !== 'undefined' &&
-        newEffect.brushColor === 0 &&
-        typeof oldEffect.brushColor !== 'undefined' &&
-        oldEffect.brushColor !== 0) {
-
-      // zero mags/phases in expanded recompute window to remove residuals
+    if (newEffect.brushColor === 0 && oldEffect.brushColor !== 0) {
       for (let c = min; c <= max; c++) {
         const colBase = c * specHeight;
         for (let r = 0; r < specHeight; r++) {
@@ -417,10 +408,9 @@ async function updateSpriteEffects(spriteId, newEffect) {
     if (min<recomputeMin)recomputeMin=min;if (max>recomputeMax)recomputeMax=max;
   }
   // Recompute PCM for the expanded area and restart render / audio
-  recomputePCMForCols(recomputeMin, recomputeMax);
-  restartRender(false);
-  await waitFor(()=>!rendering);
-  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,ch);
+  simpleRestartRender(recomputeMin,recomputeMax);
+  // await waitFor(()=>!rendering); CHANGE THIS 413
+  // for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,ch);
 
   // keep previous behaviour for audio restart
   if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
@@ -432,6 +422,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
     }
   }
 }
+
 
 
 nameEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.name = nameEl.value;renderSpritesTable();});
@@ -1428,7 +1419,7 @@ function processSpriteFade() {
   let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?channelCount:s.ch+1;
   for (let ch=$s;ch<$e;ch++){
     const mags = channels[ch].mags;
-    const z=(s.effect.tool==="sample");
+    const z=(s.effect.tool==="sample"||s.effect.tool==="autotune");
     const sigSprite = z?s:formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
     if (!sigSprite) return;
     const cols = [...sigSprite.pixels[ch].keys()].sort((a,b)=>a-b);

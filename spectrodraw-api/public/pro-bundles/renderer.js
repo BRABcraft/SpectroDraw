@@ -126,7 +126,6 @@ function restartRender(autoPlay){
   x = startFrame;
   rendering = true;
 
-
   startTime = performance.now();
   audioProcessed = 0;
 
@@ -214,14 +213,17 @@ function drawFrame(w,h) {
     const im = new Float32Array(fftSize);
     for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
     fft_inplace(re, im);
-
+    
+    let max=0;
     for (let bin = 0; bin < h; bin++) {
       const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
       const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
       const idx = x * h + bin; 
       mags[idx] = mag;
       phases[idx] = phase;
+      if (mag>max) max=mag;
     }
+    //console.log(max);
     const skipY = (recording?8:1)*channelCount;
     for (let yy = 0; yy < h; yy+=skipY) {
       const mappedBin = displayYToBin(yy, h, ch);
@@ -245,20 +247,11 @@ function drawFrame(w,h) {
   if (x >= (maxCol==0?w:maxCol)) {
     if (recording) return false;
     const c = channels[ch];
-    let mags = c.mags, phases = c.phases, snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
+    let snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
     rendering = false;
     if (pendingHistory) {
       pendingHistory = false; 
       newHistory(); 
-      if (!pendingRecomputeDone) {
-        recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
-        pendingRecomputeDone = true;
-        pendingRecomputeMinCol = minCol;
-        pendingRecomputeMaxCol = maxCol;
-      } else {
-        pendingRecomputeDone = false;
-        pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
-      }
       snapshotMags = null;
       snapshotPhases = null;
     }
@@ -322,15 +315,14 @@ function waitForSpecUpdate(timeout = SPEC_UPDATE_TIMEOUT_MS) {
 
 function drawLoop() {
   if (!rendering) return;
-  const framesPerTick = 200;
+  const framesPerTick = 500;
   const h = specHeight;
   const w = specWidth;
   
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let f = 0; f < framesPerTick; f++) if (!drawFrame(w,h)) break;
-  for (let ch=$s;ch<$e;ch++){
-    document.getElementById("spec-"+ch).getContext("2d").putImageData(imageBuffer[ch], 0, 0);
-  }
+  for (let ch=$s;ch<$e;ch++) document.getElementById("spec-"+ch).getContext("2d").putImageData(imageBuffer[ch], 0, 0);
+  
   drawCursor(true);
 
   if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') resolveSpecUpdate(true);

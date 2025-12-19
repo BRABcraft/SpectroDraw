@@ -36,7 +36,9 @@ function syncNumberAndRange(numberInput, rangeInput) {
                    [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],
                    [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
                    [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],
-                   [document.getElementById('autoTuneStrength'), document.getElementById('autoTuneStrengthInput')],];
+                   [document.getElementById('autoTuneStrength'), document.getElementById('autoTuneStrengthInput')],
+                   [document.getElementById('anpo'), document.getElementById('anpoInput')],
+                   [document.getElementById('astartOnPitch'), document.getElementById('astartOnPitchInput')],];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][0].addEventListener('mouseup', ()=>{initEmptyPCM(false);});
@@ -101,6 +103,10 @@ sliders[22][0].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[2
 sliders[22][1].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][1].value); rs(); updateBrushPreview();});
 sliders[23][0].addEventListener("input", ()=>{autoTuneStrength=(sliders[23][0].value); updateBrushPreview();});
 sliders[23][1].addEventListener("input", ()=>{autoTuneStrength=(sliders[23][1].value); updateBrushPreview();});
+sliders[24][0].addEventListener("input", ()=>{anpo=(sliders[24][0].value); updateBrushPreview();});
+sliders[24][1].addEventListener("input", ()=>{anpo=(sliders[24][1].value); updateBrushPreview();});
+sliders[25][0].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][0].value); updateBrushPreview();});
+sliders[25][1].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][1].value); updateBrushPreview();});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -152,6 +158,8 @@ function updateBrushSettingsDisplay(){
     document.getElementById("noiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
     document.getElementById("blurRadiusDiv").style.display=(c("blur"))?"flex":"none";
     document.getElementById("autoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
+    document.getElementById("anpoDiv").style.display=(c("autotune"))?"flex":"none";
+    document.getElementById("astartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("brushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune"))?"none":"flex";
     document.getElementById("ev").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
     document.getElementById("phaseDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";

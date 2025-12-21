@@ -7,6 +7,7 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
   if (!img || !img.complete || img.naturalWidth === 0) return;
   const fullW = specWidth;
   const fullH = specHeight;
+  let integral = (currentTool === "blur")?buildIntegral(fullW, fullH, channels[ch].mags, channels[ch].phases):null;
 
   // Clip destination to spectrogram bounds
   const ox = Math.floor(dstOx);
@@ -37,9 +38,33 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
       const b = imgData.data[pix + 2];
       const a = imgData.data[pix + 3] / 255;
       if (a <= 0) continue;
-      const [mag, phase] = (currentTool==="eraser")?[0,0]:rgbToMagPhase(r, g, b);
+
       const cxPix = ox + xx;
       const cyPix = oy + yy;
+      let mag, phase;
+      if (currentTool === "eraser") {
+        mag = 0;
+        phase = 0;
+      } else if (currentTool === "blur") {
+        // Blur uses existing spectrogram, NOT image color
+        const binCenter = Math.round(displayYToBin(cyPix, fullH, ch));
+        const rB = blurRadius | 0;
+
+        const x0 = Math.max(0, cxPix - rB);
+        const x1 = Math.min(fullW - 1, cxPix + rB);
+        const y0 = Math.max(0, binCenter - rB);
+        const y1 = Math.min(fullH - 1, binCenter + rB);
+
+        const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
+        const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
+
+        mag   = sumMag   / count;
+        phase = sumPhase / count;
+      } else {
+        // Normal image → mag/phase
+        [mag, phase] = rgbToMagPhase(r, g, b);
+      }
+
       if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
         const bo = brushOpacity * a * chPressure * boMult;
         const po = phaseOpacity * a * poMult;
@@ -430,13 +455,23 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
 
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
+    function mod(n, m) {
+      return ((n % m) + m) % m;
+    }
+    const clonerPos = (currentTool === "cloner")?
+    (Math.floor(mod(clonerX + (xFrame-startX)/clonerScale ,framesTotal)+iLow)*specHeight+
+     Math.floor(mod(binShift, specHeight ))
+    ):null;
     const newMag = (currentTool === "amplifier")
                 ? (oldMag * amp)
                 : (currentTool === "noiseRemover")
                 ? (oldMag > dbt ? oldMag : (oldMag * (1 - boScaled)))
+                : (currentTool === "cloner")
+                ? channels[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
     const type = phaseTextureEl.value;
     let $phase;
+    if (currentTool === "cloner") phase = channels[clonerCh].phases[clonerPos];
     if (type === 'Harmonics') {
       $phase = (bin / specHeight * fftSize / 2);
     } else if (type === 'Static') {
@@ -464,7 +499,8 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
       imgData[pix + 3] = 255;
     }
   }
-
+  
+  const binShift = (currentTool==="cloner")?displayYToBin(clonerY+(yDisplay-visibleToSpecY(startY))/clonerScale,specHeight,ch):null;
   // NOTE shape: draw one bin per harmonic (frequency * (i+1)), with bo scaled by harmonics[i]
   if (currentShape === "note" || currentShape === "line") {
     const harmArr = harmonics;
@@ -761,15 +797,16 @@ function paint(cx, cy) {
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseOpacity;
     const bo = (currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity)* channels[ch].brushPressure;
-    vr = ((currentShape==="brush")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
+    vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
     const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
     const radiusXFrames = Math.floor((brushWidth/2/canvas.getBoundingClientRect().width*canvas.width)*vr);
-    const dx = (currentShape==="note"?0:radiusXFrames), dy = (currentShape==="note"?0:radiusY);
+    const z = (currentShape==="note")
+    const dx = (z?0:radiusXFrames), dy = (z?0:radiusY);
     const minXFrame = Math.max(0, Math.floor(Math.min(cx,prevMouseX) - dx));
     const maxXFrame = Math.min(fullW - 1, Math.ceil(Math.max(cx,prevMouseX) + dx));
     const prevRealY = visibleToSpecY(prevMouseY);
-    const minY = Math.max(0, Math.floor(Math.min(cy,prevRealY) - (currentShape==="note"?0:dy)));
-    const maxY = Math.min(fullH - 1, Math.ceil((Math.max(cy,prevRealY)) + (currentShape==="note"?0:dy)));
+    const minY = Math.max(0, Math.floor(Math.min(cy,prevRealY) - dy));
+    const maxY = Math.min(fullH - 1, Math.ceil((Math.max(cy,prevRealY)) + dy));
     const radiusXsq = radiusXFrames * radiusXFrames;
     const radiusYsq = radiusY * radiusY;
         // inside paint(), replace the image block with:
@@ -908,6 +945,31 @@ function paint(cx, cy) {
         }
       }
       applyAutotuneToPixels(ch, pixels,{});
+    } else if (currentTool === "cloner") {
+      const p0x = prevMouseX + iLow;
+      const p0y = visibleToSpecY(prevMouseY);
+      const p1x = cx;
+      const p1y = cy;
+      const vx = p1x - p0x;
+      const vy = p1y - p0y;
+      const lenSq = vx * vx + vy * vy;
+      const EPS = 1e-9;
+      for (let yy = minY; yy <= maxY; yy++) {
+        for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+          let t = 0;
+          if (lenSq > EPS) {
+            t = ((xx - p0x) * vx + (yy - p0y) * vy) / lenSq;
+            if (t < 0) t = 0;
+            else if (t > 1) t = 1;
+          }
+          const nearestX = p0x + t * vx;
+          const nearestY = p0y + t * vy;
+          const dx = xx - nearestX;
+          const dy = yy - nearestY;
+          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
+          drawPixel(xx, yy, 1, penPhase, bo, po, ch);
+        }
+      }
     }
 
 

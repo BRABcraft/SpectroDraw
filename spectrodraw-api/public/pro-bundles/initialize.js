@@ -130,7 +130,7 @@ let brushOpacity=parseInt(brushOpacityEl.value)/100;
 let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
 let brushColor=parseInt(brushColorEl.value);
 let blurRadius=parseInt(blurRadiusEl.value);
-let amp=parseInt(ampEl.value);
+let amp=parseInt(ampEl.value),cAmp=1;
 let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
 let penPhase=parseInt(penPhaseEl.value)/10000;
 let currentTool = "fill";
@@ -178,6 +178,7 @@ let stamps = [
 ];
 let currentStamp = stamps[0];
 let autoTuneStrength = 1;
+let clonerX = null, clonerY = null, clonerCh = 0, changingClonerPos = true, rcY = 0, rsY = 0, clonerScale = 1;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});
@@ -207,7 +208,7 @@ let handlers = {
   "logscale-": (el) => {
     el.addEventListener("mousedown", e=> {logScaleMouseDown(e,false,el);});
     el.addEventListener("touchstart", e=> {logScaleMouseDown(e,true,el);});
-    el.addEventListener("mousemove", e=> {el.title = "Log scale: " + el.value;currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);});
+    el.addEventListener("mousemove", e=> {currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);el.title = "Log scale: " + logScaleVal[currentChannel];});
     el.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
   }
 }

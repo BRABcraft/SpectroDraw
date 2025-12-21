@@ -63,6 +63,7 @@ function canvasMouseDown(e,touch) {
   const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
   const overlayCtx = overlayCanvas.getContext("2d");//CHANGE LATER
   startX = cx; startY = cy;
+  if (currentTool==="cloner"&&changingClonerPos) {clonerX = cx; clonerY = cy;clonerCh=currentChannel;updateBrushPreview();}
   painting = true;
   if (movingSprite) {
     spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
@@ -114,8 +115,16 @@ function canvasMouseDown(e,touch) {
     startCh = currentChannel;
     sprites.push(currentSprite);
 
-    if (!(currentShape === "rectangle" || (document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image")) || currentShape === "line")) {
-        paint(cx + iLow, realY);
+    const isRectangle = currentShape === "rectangle";
+    const isLine = currentShape === "line";
+    const isDragToDrawEnabled = document.getElementById("dragToDraw").checked;
+    const isStampOrImage = currentShape === "stamp" || currentShape === "image";
+    const isDragStampOrImage = isDragToDrawEnabled && isStampOrImage;
+    const shouldDisable = isRectangle || isLine || isDragStampOrImage || (currentTool==="cloner"&&changingClonerPos);
+
+    if (!shouldDisable) {
+      setClonerYShift();
+      paint(cx + iLow, realY);
     }
     currentFrame = Math.floor(cx);
     if (document.getElementById("previewWhileDrawing").checked) {
@@ -133,6 +142,12 @@ function canvasMouseDown(e,touch) {
           sineOsc.start();
       }
     }
+  }
+}
+function setClonerYShift(){
+  if (currentTool==="cloner") {
+    rcY = displayYToBin(visibleToSpecY(clonerY),specHeight,currentChannel);
+    rsY = displayYToBin(visibleToSpecY(startY),specHeight,currentChannel);
   }
 }
 
@@ -159,6 +174,18 @@ function canvasMouseMove(e,touch,el) {
     previewingShape = true;
     return;
   }
+  if (currentTool==="cloner") {
+    if (changingClonerPos&&painting) {
+      previewShape(cx, cy);
+      previewingShape = true;
+      clonerX = cx; clonerY = cy;
+      clonerCh=currentChannel;
+      updateBrushPreview();
+      return;
+    } else {
+      updateBrushPreview();
+    }
+  }
   if(!painting && currentTool != "image") return;
   
   mouseVelocity = Math.sqrt(Math.pow(cx-prevMouseX,2)+Math.pow(cy-prevMouseY,2));
@@ -174,6 +201,7 @@ function canvasMouseMove(e,touch,el) {
       overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     }
     const realY = visibleToSpecY(cy);
+    setClonerYShift();
     paint(cx + iLow, realY);
     drawCursor(true);
   }
@@ -196,6 +224,7 @@ function canvasMouseUp(e,touch) {
   minCol = Infinity; maxCol = -Infinity;
   visited = null;
   painting = false;
+  if(currentTool==="cloner"){changingClonerPos=false;updateBrushPreview();const ccp = document.getElementById("changeClonerPosBtn"); ccp.innerText ="Change Reference Point";ccp.classList.toggle('moving', false);}
   paintedPixels = null;
   mouseDown = false;
   stopSource();

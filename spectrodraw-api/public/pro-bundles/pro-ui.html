@@ -545,7 +545,6 @@
         <select id="brushToolSelect">
           <option value="note" selected>Note Brush</option>
           <option value="stamp">Stamp</option>
-          <option value="cloner">Cloner</option>
           <option value="line">Line</option>
           <option value="brush">Pressure Brush</option>
           <option value="rectangle">Rectangle</option>
@@ -558,6 +557,7 @@
         <select id="brushEffectSelect">
           <option value="fill" selected>Fill</option>
           <option value="noiseRemover">AI Noise Remover</option>
+          <option value="cloner">Cloner</option>
           <option value="autotune">Autotune</option>
           <option value="amplifier">Amplifier</option>
           <option value="eraser">Eraser</option>
@@ -578,6 +578,14 @@
         <div class="slider-row" id="dragToDrawDiv" style="display:none;">
           <label class="h2">Drag to draw</label>
           <input type="checkbox" id="dragToDraw"></input>
+        </div>
+        <div class="slider-row" id="changeClonerPosDiv" style="display:none;">
+          <button id="changeClonerPosBtn" class="leftBtn moving">Changing Reference Point...</button>
+        </div>
+        <div class="slider-row" title="Cloner scale" id="clonerScaleDiv" style="display:none;">
+          <label class="h2">Cloner scale</label>
+          <input id="clonerScale" type="range" min="0.01" max="10" value="1" step="0.01">
+          <input id="clonerScaleInput" type="number" value="1" min="0.01" max="10">
         </div>
         <div class="slider-row" title="Size" id="brushSizeDiv" style="display:none;">
           <label class="h2">Size</label>

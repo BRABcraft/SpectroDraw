@@ -379,7 +379,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
         mags[id] = newPixel.mag;
         phases[id] = newPixel.phase;
       });
-    }//todo: changing autotune settings doesnt reset previous autotunes. probably because prevMags is the same as current mags.
+    }
 
     const padCols = Math.max(0, Math.ceil(fftSize / hop));
 

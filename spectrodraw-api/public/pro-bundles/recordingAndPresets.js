@@ -109,6 +109,7 @@ async function logScaleMouseMove(e,touch) {
   drawLogScale();
   drawYAxis();
   renderHarmonicsCanvas();
+  if (currentTool==="cloner")updateBrushPreview();
 }
 
 document.addEventListener("mousemove", e=> {
@@ -544,6 +545,7 @@ async function updateChannels(){
   await waitFor(() => !rendering);
   for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
   //renderFullSpectrogramToImage();
+  if (currentTool==="cloner")updateBrushPreview();
   updatingChannel = false;
 }
 

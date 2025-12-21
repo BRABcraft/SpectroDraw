@@ -535,14 +535,14 @@ select {
   .small { font-size:12px; color:#666; }
   .muted { color:#777; font-size:12px; }
 
-#moveSpriteBtn {
+#moveSpriteBtn, #changeClonerPosBtn {
   position: relative;
   overflow: hidden;
   z-index: 0;  /* establish stacking context */
 }
 
 /* gradient overlay */
-#moveSpriteBtn::before {
+#moveSpriteBtn::before, #changeClonerPosBtn::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -552,7 +552,7 @@ select {
 
   z-index: -1;   /* put gradient behind the text */
 }
-#moveSpriteBtn.moving::before {
+#moveSpriteBtn.moving::before, #changeClonerPosBtn.moving::before {
   opacity: 1;
 }
 .spriteEditorRow {

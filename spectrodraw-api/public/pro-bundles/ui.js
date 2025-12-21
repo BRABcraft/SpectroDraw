@@ -1,44 +1,47 @@
 function syncNumberAndRange(numberInput, rangeInput) {
 
-    numberInput.addEventListener('input', () => {
-      let val = parseInt(numberInput.value);
-      if (val < rangeInput.min) val = rangeInput.min;
-      if (val > rangeInput.max) val = rangeInput.max;
-      rangeInput.value = val;
-      numberInput.value = val; 
-    });
+  numberInput.addEventListener('input', () => {
+    let val = parseInt(numberInput.value);
+    if (val < rangeInput.min) val = rangeInput.min;
+    if (val > rangeInput.max) val = rangeInput.max;
+    rangeInput.value = val;
+    numberInput.value = val; 
+  });
 
-    rangeInput.addEventListener('input', () => {
-      numberInput.value = rangeInput.value;
-    });
-  }
+  rangeInput.addEventListener('input', () => {
+    numberInput.value = rangeInput.value;
+  });
+}
 
-  const sliders = [[document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
-                   [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
-                   [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
-                   [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
-                   [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
-                   [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')],
-                   [document.getElementById('npo'), document.getElementById('npoInput')],
-                   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
-                   [document.getElementById('bpm'), document.getElementById('bpmInput')],
-                   [document.getElementById('startOnPitch'), document.getElementById('startOnPitchInput'), true],
-                   [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
-                   [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
-                   [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
-                   [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
-                   [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
-                   [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
-                   [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
-                   [document.getElementById('amp'), document.getElementById('ampInput')],
-                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
-                   [document.getElementById('channels'), document.getElementById('channelsInput'),true],
-                   [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],
-                   [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
-                   [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],
-                   [document.getElementById('autoTuneStrength'), document.getElementById('autoTuneStrengthInput')],
-                   [document.getElementById('anpo'), document.getElementById('anpoInput')],
-                   [document.getElementById('astartOnPitch'), document.getElementById('astartOnPitchInput')],];
+const sliders = [
+  [document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
+  [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
+  [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
+  [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
+  [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
+  [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')],
+  [document.getElementById('npo'), document.getElementById('npoInput')],
+  [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
+  [document.getElementById('bpm'), document.getElementById('bpmInput')],
+  [document.getElementById('startOnPitch'), document.getElementById('startOnPitchInput'), true],
+  [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
+  [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
+  [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
+  [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
+  [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
+  [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
+  [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
+  [document.getElementById('amp'), document.getElementById('ampInput')],
+  [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
+  [document.getElementById('channels'), document.getElementById('channelsInput'),true],
+  [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],
+  [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
+  [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],
+  [document.getElementById('autoTuneStrength'), document.getElementById('autoTuneStrengthInput')],
+  [document.getElementById('anpo'), document.getElementById('anpoInput')],
+  [document.getElementById('astartOnPitch'), document.getElementById('astartOnPitchInput')],
+  [document.getElementById('clonerScale'), document.getElementById('clonerScaleInput')],
+];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][0].addEventListener('mouseup', ()=>{initEmptyPCM(false);});
@@ -85,8 +88,8 @@ sliders[15][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
     if (isNaN(val)) val = tQTempo;if (val < min) val = min;if (val > max) val = max;sliders[15][1].value = val;sliders[15][0].value = val;tQTempo = val;}});
 sliders[16][0].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][0].value); updateBrushPreview();});
 sliders[16][1].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][1].value); updateBrushPreview();});
-sliders[17][0].addEventListener("input", ()=>{amp  =  (sliders[17][0].value); updateBrushPreview();});
-sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); updateBrushPreview();});
+sliders[17][0].addEventListener("input", ()=>{val=(sliders[17][0].value); currentTool==="cloner" ? (cAmp = val) : (amp = val); updateBrushPreview();});
+sliders[17][1].addEventListener("input", ()=>{val=(sliders[17][1].value); currentTool==="cloner" ? (cAmp = val) : (amp = val); updateBrushPreview();});
 sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
 sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
     if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
@@ -107,6 +110,8 @@ sliders[24][0].addEventListener("input", ()=>{anpo=(sliders[24][0].value); updat
 sliders[24][1].addEventListener("input", ()=>{anpo=(sliders[24][1].value); updateBrushPreview();});
 sliders[25][0].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][0].value); updateBrushPreview();});
 sliders[25][1].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][1].value); updateBrushPreview();});
+sliders[26][0].addEventListener("input", ()=>{clonerScale=(sliders[26][0].value); updateBrushPreview();});
+sliders[26][1].addEventListener("input", ()=>{clonerScale=(sliders[26][1].value); updateBrushPreview();});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -151,41 +156,64 @@ toolButtons.forEach(btn => {
     btn.style.background = "#4af"; 
   }
 });
+document.getElementById("changeClonerPosBtn").addEventListener("click",()=>{
+  changingClonerPos = (!changingClonerPos || clonerX===null || clonerY===null);
+  document.getElementById("changeClonerPosBtn").innerText = changingClonerPos?"Changing Reference Point...":"Change Reference Point";
+  document.getElementById("changeClonerPosBtn").classList.toggle('moving', changingClonerPos);
+  updateBrushPreview();
+});
 function updateBrushSettingsDisplay(){
+  function c(b){return currentTool===b;}
+  function d(b){return currentShape===b;}
+  if (c("cloner")&&(d("image")||d("stamp"))) currentTool = "fill";
   if (showEffectSettings) {
-    function c(b){return currentTool===b;}
-    document.getElementById("amplifyDiv")   .style.display=(c("amplifier"))?"flex":"none";
+    document.getElementById("amplifyDiv")   .style.display=(c("amplifier")||c("cloner"))?"flex":"none";
     document.getElementById("noiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
     document.getElementById("blurRadiusDiv").style.display=(c("blur"))?"flex":"none";
     document.getElementById("autoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("anpoDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("astartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
-    document.getElementById("brushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune"))?"none":"flex";
-    document.getElementById("ev").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+    document.getElementById("brushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner"))?"none":"flex";
+    document.getElementById("ev").style.display=c("noiseRemover"||c("autotune")||c("cloner"))?"none":"flex";
     document.getElementById("phaseDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
     document.getElementById("phaseStrengthDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+    document.getElementById("changeClonerPosDiv").style.display=c("cloner")?"flex":"none";
+    document.getElementById("clonerScaleDiv").style.display=c("cloner")?"flex":"none";
+    sliders[17][0].value=sliders[17][1].value=c("cloner")?cAmp:amp;
   }
   const bw = document.getElementById("brushWidthDiv");
   const bh = document.getElementById("brushHeightDiv");
   const bs = document.getElementById("brushSizeDiv");
 
-  function d(b){return currentShape===b;}
   const dragToDraw = document.getElementById("dragToDraw").checked;
   bs.style.display = (showToolSettings && (((d('line') || d('image') && !dragToDraw)) || (!(d('line') || d('image')) && !(d('rectangle') || d('note')))))?"flex":"none";
 
   let disp = showToolSettings?"flex":"none";
-  if (currentShape === 'line' || currentShape === 'rectangle' || currentShape === 'note') disp = "none";
-  if (currentShape === 'image') disp="flex";
+  if (d("line") || d("rectangle") || d("note")) disp = "none";
+  if (d("image")) disp="flex";
   if (dragToDraw) disp="none";
   bw.style.display = disp;
   bh.style.display = disp;
-  const showHarmonics = currentShape === "note" || currentShape === "line";
+  const showHarmonics = d("note") || d("line");
   document.getElementById("harmonicsPresetSelectDiv").style.display = showHarmonics?"block":"none";
   document.getElementById("brushHarmonisEditorDiv").style.display = showHarmonics?"block":"none";
   if (showHarmonics) renderHarmonicsCanvas();
-  document.getElementById("stampsDiv").style.display = currentShape==='stamp'?"block":"none";
+  document.getElementById("stampsDiv").style.display = d("stamp")?"block":"none";
   if (currentShape==='stamp') {renderStamps();}
-  document.getElementById("dragToDrawDiv").style.display = (currentShape === 'stamp' || currentShape === 'image')?"flex":"none";
+  document.getElementById("dragToDrawDiv").style.display = (d("stamp") || d("image"))?"flex":"none";
+
+  
+  document.getElementById("brushEffectSelect").innerHTML = `
+          <option value="fill">Fill</option> 
+          ${d("image")?"":'<option value="noiseRemover">AI Noise Remover</option>'}
+          ${(d("image")||d("stamp"))?"":'<option value="cloner">Cloner</option>'}
+          ${(d("image")||d("note"))?"":'<option value="autotune">Autotune</option>'}
+          ${d("image")?"":'<option value="amplifier">Amplifier</option>'}
+          <option value="eraser">Eraser</option>
+          <option value="blur">Blur</option>
+  `;
+  document.getElementById("brushEffectSelect").value = currentTool;
+
 }
 document.getElementById("dragToDraw").addEventListener("input",()=>{updateBrushSettingsDisplay();});
 function onToolChange(tool){

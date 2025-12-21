@@ -111,6 +111,7 @@ if (canvas) {
   canvas.addEventListener("pointermove", (e) => {
     _handleHarmonicsPointer(e);
     e.preventDefault();
+    updateBrushPreview();
   });
 
   // pointerup -> stop editing and release capture
@@ -144,4 +145,5 @@ harmonicsPreset.addEventListener("input", ()=>{
     toggleSection(document.getElementById("brushHarmonisEditorDivToggleBtn"));
   }
   renderHarmonicsCanvas();
+  updateBrushPreview();
 });

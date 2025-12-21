@@ -142,12 +142,12 @@ function updateBrushPreview() {
       pctx.fillStyle = "#fff";
       pctx.fillText("No stamp loaded", centerX-45,centerY+5);
     }
-  } else if (currentShape === "rectangle") {
+  } else if (currentShape === "rectangle" && currentTool !== "cloner") {
     pctx.fillStyle = color;
     pctx.beginPath();
     pctx.rect(centerX - 30, centerY - 30, 60, 60);
     pctx.fill();
-  } else if (currentShape === "note") {
+  } else if (currentShape === "note" && !(currentTool==="cloner"&&changingClonerPos)) {
     // Parameters
     const count = 100;
     const baseH = 5;
@@ -209,7 +209,7 @@ function updateBrushPreview() {
 
     pctx.restore();
   } else if (currentTool === "cloner") {
-    if (clonerX === null || clonerY === null) {
+    if (changingClonerPos) {
       pctx.font = "12px Arial";
       pctx.fillStyle = "#fff";
       pctx.textAlign = "center";
@@ -231,8 +231,8 @@ function updateBrushPreview() {
       const pixelsPerBin   = srcRect.height / Math.max(1, srcCanvas.height); // screen px per canvas-y unit
 
       // 'screen' brush dimensions (what brushWidth/Height represent on the UI)
-      const screenW = Math.max(1, brushWidth);
-      const screenH = Math.max(1, brushHeight);
+      const screenW = (currentShape==="rectangle")?(100):Math.max(1, brushWidth);
+      const screenH = (currentShape==="rectangle")?(100):Math.max(1, brushHeight);
 
       // Convert screen-space brush dims to source-canvas units to determine sample rectangle (UV-style)
       const scale = clonerScale;
@@ -240,8 +240,8 @@ function updateBrushPreview() {
       const srcH = Math.max(1, Math.round((screenH / pixelsPerBin) / scale));   // in source canvas Y units
 
       // source top-left (centered at clonerX/clonerY in source canvas coordinates)
-      const sx = Math.round((clonerX + (painting ? (($x - startX)/clonerScale) : 0)) - srcW / 2);
-      const sy = Math.round((clonerY + (painting ? (($y - startY)/clonerScale) : 0)) - srcH / 2);
+      const sx = (currentShape==="rectangle")?clonerX:Math.round((clonerX + (painting ? (($x - startX)/clonerScale) : 0)) - srcW / 2);
+      const sy = (currentShape==="rectangle")?clonerY:Math.round((clonerY + (painting ? (($y - startY)/clonerScale) : 0)) - srcH / 2);
 
       // normalize with wrap (mod)
       const mod = (n, m) => ((n % m) + m) % m;

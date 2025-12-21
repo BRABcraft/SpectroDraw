@@ -251,7 +251,21 @@
         <path d="M9 19l3 3 3 -3" />
       </svg>
     </button>
-    <button class="shape-btn" data-shape="brush" id="brushBtn" style="margin-left: 20px" title="Brush (b)">
+    <button class="shape-btn" data-shape="note" id="noteBtn" style="margin-left: 20px" title="Note brush">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20px" height="20px"><path fill="#333" d="M28.6,178.2c0,0-13.7,53.7-18.6,74.8l26.3-36c-2.4-5.3-0.9-13.4,3.2-17.9c5.6-6.1,15.6-6.1,21.7-0.5c6.2,5.6,6.5,15.1,1,21.2c-4.3,4.6-12.1,6.5-17.7,4.4l-32.9,30.9l69.3-26.8l27.8-41.7l-36.4-34.1L28.6,178.2z M223.3,1.4c-10.5,7.2-142,140.9-142,140.9l37,35.4c0,0,111.5-132,127.7-158.8C243.6-3.8,223.3,1.4,223.3,1.4z"/></svg>
+    </button>
+    <button class="shape-btn" data-shape="stamp" id="noteBtn" title="Stamp">
+      <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="1.25 1.25 17.5 17.5" > <g fill="#333" stroke="#333" stroke-width="2" stroke-linejoin="round" > <rect x="2.5" y="10" width="15" height="5" rx="2" ry="2" /> <line x1="10" y1="9" x2="10" y2="6" /> <rect x="8" y="4" width="4" height="3" rx="2" ry="2" /> </g> </svg>
+    </button>
+    <button class="shape-btn" data-shape="line" id="lineBtn" title="Line (l)">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="20" height="20" viewBox="0 0 20 20" 
+           fill="none"
+           stroke = "black" stroke-width = "3">
+        <path d="M20 0 L 0 20"/>
+      </svg>
+    </button>
+    <button class="shape-btn" data-shape="brush" id="brushBtn" title="Brush (b)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" 
            viewBox="5 4 18 18" 
@@ -267,14 +281,6 @@
         <path d="M0 0 H 20 V 20 H 0 V -20"/>
       </svg>
     </button>
-    <button class="shape-btn" data-shape="line" id="lineBtn" title="Line (l)">
-      <svg xmlns="http://www.w3.org/2000/svg" 
-           width="20" height="20" viewBox="0 0 20 20" 
-           fill="none"
-           stroke = "black" stroke-width = "3">
-        <path d="M20 0 L 0 20"/>
-      </svg>
-    </button>
     <button class="shape-btn" data-shape="image" id="imageBtn" title="Image Overlay (i)">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
@@ -283,20 +289,22 @@
       </svg>
     </button>
     <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+
     <button class="tool-btn" data-tool="fill" id="colorBtn" title="Color (c)" style="margin-left:10px;">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
         <circle cx="12" cy="12" r="9"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
-        <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
-      </svg>
+    <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
+      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"width="18.19" height="19.22" viewBox="0,0,18.19,19.22"><g transform="translate(-0.90,-0.39)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.70,2.43l2.87,-2.04l7.13,10.01l-2.87,2.04z" stroke-width="NaN"/><path d="M0.90,4.90l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M2.28,6.82l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M3.73,8.91l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M5.10,10.83l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M6.45,12.73l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M11.39,11.97l2.26,-1.61l5.44,7.64l-2.26,1.61z" stroke-width="NaN"/></g></g></svg>
     </button>
-    <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
-      <svg width="20" height="20" viewBox="-1 -1 16 16">
-        <path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/>
-        <path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/>
+    <button class="tool-btn" data-tool="cloner" id="clonerBtn" title="Cloner">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 23 23" > <g fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round" > <rect x="1.5" y="8.16" width="13.33" height="13.33" rx="2" ry="2" /> <rect x="8.16" y="1.5" width="13.33" height="13.33" rx="2" ry="2" /> </g> </svg>
+    </button>
+    <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork">
+        <path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        <line x1="10" y1="14" x2="10" y2="17.5" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
     <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)">
@@ -305,14 +313,16 @@
         <path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork">
-        <path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-        <line x1="10" y1="14" x2="10" y2="17.5" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
+      <svg width="20" height="20" viewBox="-1 -1 16 16">
+        <path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/>
+        <path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/>
       </svg>
     </button>
-    <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
-      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18.19239" height="19.22007" viewBox="0,0,18.19239,19.22007"><g transform="translate(-0.9038,-0.38997)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.6988,2.4324l2.86589,-2.04243l7.13401,10.01027l-2.86589,2.04243z" stroke-width="NaN"/><path d="M0.9038,4.89839l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M2.27524,6.82275l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M3.72671,8.90531l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M5.09814,10.82967l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M6.45025,12.72692l3.08439,-2.19815l0.74688,1.048l-3.08439,2.19815z" stroke-width="0"/><path d="M11.38987,11.97357l2.26406,-1.61352l5.44227,7.63646l-2.26406,1.61352z" stroke-width="NaN"/></g></g></svg>
+    <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
+        <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
+      </svg>
     </button>
     <button id="resetButton" onClick="onReset();" title="Reset audio" style="margin-left:10px;">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -666,7 +676,7 @@
             <input id="amp"  type="range" min="0" max="2" value="2" step="0.01">
             <input id="ampInput" type="number" value="2" min="0" max="2">
         </div>
-        <div class="slider-row" title="Remove noise below this threshold" style="display:none;" id="noiseFloorDiv">
+        <div class="slider-row" title="Noise Threshold (dB)" style="display:none;" id="noiseFloorDiv">
             <label class="h2">Noise Threshold (dB)</label>
             <input id="noiseRemoveFloor"  type="range" min="-60" max="0" value="-10" step="0.1">
             <input id="noiseRemoveFloorInput" type="number" value="-10" min="-60" max="0">

@@ -166,6 +166,8 @@ function updateBrushSettingsDisplay(){
   function c(b){return currentTool===b;}
   function d(b){return currentShape===b;}
   if (c("cloner")&&(d("image")||d("stamp"))) currentTool = "fill";
+  if (c("autotune")&&(d("image")||d("note"))) currentTool = "fill";
+  if (c("noiseRemover")&&d("image")) currentTool = "fill";
   if (showEffectSettings) {
     document.getElementById("amplifyDiv")   .style.display=(c("amplifier")||c("cloner"))?"flex":"none";
     document.getElementById("noiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
@@ -208,7 +210,7 @@ function updateBrushSettingsDisplay(){
           ${d("image")?"":'<option value="noiseRemover">AI Noise Remover</option>'}
           ${(d("image")||d("stamp"))?"":'<option value="cloner">Cloner</option>'}
           ${(d("image")||d("note"))?"":'<option value="autotune">Autotune</option>'}
-          ${d("image")?"":'<option value="amplifier">Amplifier</option>'}
+          <option value="amplifier">Amplifier</option>
           <option value="eraser">Eraser</option>
           <option value="blur">Blur</option>
   `;
@@ -218,6 +220,7 @@ function updateBrushSettingsDisplay(){
 document.getElementById("dragToDraw").addEventListener("input",()=>{updateBrushSettingsDisplay();});
 function onToolChange(tool){
   currentTool = tool;
+  if (tool==="cloner"&&changingClonerPos) document.getElementById("toolEditBtn").click();
   toolButtons.forEach(b => b.style.background =(b.dataset.tool===tool)?"#4af":"");
   document.getElementById("brushEffectSelect").value=tool;
   updateBrushSettingsDisplay();

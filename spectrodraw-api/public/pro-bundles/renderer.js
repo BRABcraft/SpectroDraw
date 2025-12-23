@@ -42,12 +42,17 @@ function restartRender(autoPlay){
     const canvas = document.createElement("canvas");
     canvas.id = `canvas-${ch}`;
     canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
+    // prefer pixelated rendering at DOM-level (extra protection)
+    canvas.style.imageRendering = "pixelated";
+    canvas.style.webkitImageRendering = "pixelated";
     wrapper.appendChild(canvas);
 
     // overlay
     const overlayCanvas = document.createElement("canvas");
     overlayCanvas.id = `overlay-${ch}`;
     overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
+    // overlay should also be pixelated
+    overlayCanvas.style.imageRendering = "pixelated";
     wrapper.appendChild(overlayCanvas);
 
     // freq bar
@@ -62,13 +67,21 @@ function restartRender(autoPlay){
     logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
     wrapper.appendChild(logscaleEl);
 
-    // specCanvas bar
-    const specCanvas = document.createElement("canvas"); specCanvas.style="display:none;"
-    specCanvas.id = `spec-${ch}`;wrapper.appendChild(specCanvas);
+    // specCanvas bar (hidden source canvas)
+    const specCanvas = document.createElement("canvas");
+    specCanvas.style.display = "none";
+    specCanvas.id = `spec-${ch}`;
+    wrapper.appendChild(specCanvas);
     const specCtx = specCanvas.getContext("2d");
 
+    // ----- IMPORTANT: keep backing store = data resolution (spec resolution) -----
+    // This lets you use ImageData(specWidth,specHeight) without having to rewrite imageBuffer logic.
     canvas.width = framesTotal;
     canvas.height = freqBins; 
+
+    // Choose CSS display size (how large the canvas appears on screen).
+    // If trueScaleVal we scale down for display; otherwise we use full-width layout.
+    let displayW, displayH;
     if (trueScaleVal) {
       const maxHeight = (window.innerHeight - 110);
       const containerWidth = canvas.parentElement.clientWidth;
@@ -76,33 +89,47 @@ function restartRender(autoPlay){
       const scaleY = maxHeight / freqBins;
       const scale = Math.min(scaleX, scaleY, 1);
 
-      canvas.style.width = (canvas.width * scale) + "px";
-      canvas.style.height = (canvas.height * scale) + "px";
+      displayW = Math.max(1, Math.floor(canvas.width * scale));  // CSS px
+      displayH = Math.max(1, Math.floor(canvas.height * scale)); // CSS px
+
+      canvas.style.width = (displayW) + "px";
+      canvas.style.height = (displayH) + "px";
     } else {
-      canvas.style.width = "calc(100% - 40px)";
-      canvas.style.height = (channelHeight-40)+"px";
+      // full width layout - make the canvas fill available width except left gutter (40px)
+      // we compute CSS width from parent element
+      const parentClientW = Math.max(1, canvas.parentElement.clientWidth - 40);
+      displayW = parentClientW;
+      displayH = Math.max(1, channelHeight - 40);
+
+      canvas.style.width = displayW + "px";
+      canvas.style.height = displayH + "px";
     }
 
+    // Make overlay sizing consistent with canvas (CSS-size)
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
-    yAxis.height = 1024;
-    yAxis.style.height = canvas.style.height;
-    yAxis.width = 40;
+
+    // Sync yAxis CSS height too
+    yAxis.height = 1024; yAxis.width = 40;
     yAxis.style.height = canvas.style.height;
 
+    // Keep specWidth/specHeight matching backing store (data resolution)
     specWidth = canvas.width;
     specHeight = canvas.height;
 
     syncOverlaySize(canvas,overlayCanvas);
 
+    // timeline uses same CSS width as canvas
     timeline.width = window.innerWidth*1.2;
     timeline.style.width = canvas.style.width;
     timeline.height = 40;
 
+    // create imageBuffer at backing store resolution (unchanged)
     imageBuffer[ch] = new ImageData(canvas.width, canvas.height);
     specWidth = canvas.width;
     specHeight = canvas.height;
 
+    // specCanvas is the hidden pixel-perfect source: make sure its backing store matches spec size
     specCanvas.width = specWidth;
     specCanvas.height = specHeight;
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
@@ -113,7 +140,27 @@ function restartRender(autoPlay){
     let mags = channels[ch].mags;
     let phases = channels[ch].phases;
     for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
+
+    // IMPORTANT: after (re)setting canvas.width/height the context is reset, so re-obtain it
     const ctx = canvas.getContext("2d");
+    // If you have a resize helper that might alter the canvas, call it, then re-disable smoothing again.
+    if (typeof resizeCanvasToDisplaySize === "function") {
+      try { resizeCanvasToDisplaySize(canvas, ctx); } catch (e) { /* ignore if not compatible */ }
+    }
+
+    // Ensure no smoothing on THIS destination context (must be set after any width/height reset)
+    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingQuality = "low";
+
+    // Also set the overlay canvas backing store to match the backing store size so drawing coords map 1:1.
+    overlayCanvas.width = canvas.width;
+    overlayCanvas.height = canvas.height;
+    // Make sure overlay ctx is also unsmoothed
+    const overlayCtx = overlayCanvas.getContext("2d");
+    overlayCtx.imageSmoothingEnabled = false;
+    overlayCtx.imageSmoothingQuality = "low";
+
+    // Fill background (operate on backing store)
     ctx.fillStyle = "black";
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
@@ -138,6 +185,7 @@ function restartRender(autoPlay){
     if (typeof drawLogScale === 'function') drawLogScale();
   }
 }
+
 
 function magPhaseToRGB(mag, phase){
   const hp = ((phase / (2*Math.PI) + 1) % 1)*6; 
@@ -385,11 +433,24 @@ function updateCanvasScroll() {
     if (!imageBuffer[currentChannel] || !specCanvas) return;
     const canvas = document.getElementById("canvas-"+ch);
     const ctx = canvas.getContext("2d");
+    // always ensure nearest-neighbour for drawImage operations
+    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingQuality = "low";
     const overlayCanvas = document.getElementById("overlay-"+ch);
     const overlayCtx = overlayCanvas.getContext("2d");
 
+    // Keep backing store matched to the view area (important for putImageData/drawImage source coordinates)
     canvas.width = viewWidth;
     canvas.height = viewHeight;
+
+    // Keep overlay backing store matching
+    overlayCanvas.width = canvas.width;
+    overlayCanvas.height = canvas.height;
+
+    // Keep CSS sizes in sync: preserve how it looked before (so DOM-scaling doesn't happen unexpectedly)
+    // If you want CSS to remain the same visual size, leave canvas.style.width/height untouched.
+    // Here we preserve existing style (do not change CSS size).
+    // (If you intentionally want CSS size to reflect new backing store, set canvas.style.width here)
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
@@ -400,12 +461,13 @@ function updateCanvasScroll() {
         canvas.width, canvas.height            
     );
 
-    overlayCanvas.width = canvas.width;
-    overlayCanvas.height = canvas.height;
+    overlayCanvas.style.width = canvas.style.width;
+    overlayCanvas.style.height = canvas.style.height;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
   }
   drawCursor(true);
 }
+
 
 function renderView() {
   const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
@@ -418,7 +480,12 @@ function renderView() {
     if (!specCanvas || !imageBuffer[currentChannel]) continue;
     const canvas = document.getElementById("canvas-"+ch);
     const ctx = canvas.getContext("2d");
+    // nearest-neighbor for drawImage
+    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingQuality = "low";
     const overlayCanvas = document.getElementById("overlay-"+ch);
+
+    // Set backing store to the view (so drawImage src/dest map correctly)
     canvas.width = viewWidth;
     canvas.height = viewHeight;
 
@@ -431,12 +498,14 @@ function renderView() {
       canvas.width, canvas.height            
     );
 
+    // Keep overlay in sync (backing store and CSS)
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
   }
 }
+
 
 let painting=false;
 let paintedPixels=null;

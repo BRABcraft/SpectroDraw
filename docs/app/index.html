@@ -498,8 +498,8 @@
         </div>
         <div class="slider-row" title="Phase" id="phaseDiv">
             <label class="h2">Phase shift</label>
-            <input id="penPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
-            <input id="penPhaseInput" type="number" value="0" min="0" max="3.1415">
+            <input id="phaseShift"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+            <input id="phaseShiftInput" type="number" value="0" min="0" max="3.1415">
         </div>
         <div class="slider-row" title="Brightness strength">
             <label class="h2">Opacity</label>
@@ -508,8 +508,8 @@
         </div>
         <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
             <label class="h2">Phase Strength</label>
-            <input id="phaseOpacity"  type="range" min="0" max="100" value="0">
-            <input id="phaseOpacityInput" type="number" value="0" min="0" max="100">
+            <input id="phaseStrength"  type="range" min="0" max="100" value="0">
+            <input id="phaseStrengthInput" type="number" value="0" min="0" max="100">
         </div>
       </div> 
       <div class="slider-row" title="Preview sound while drawing">
@@ -591,8 +591,8 @@
           </div>
           <div class="slider-row" title="Phase" id="sphaseDiv">
               <label class="h2">Phase shift</label>
-              <input id="spenPhase"  type="range" min="0" max="3.1415" value="0" step="0.0001">
-              <input id="spenPhaseInput" type="number" value="0" min="0" max="3.1415">
+              <input id="sphaseShift"  type="range" min="0" max="3.1415" value="0" step="0.0001">
+              <input id="sphaseShiftInput" type="number" value="0" min="0" max="3.1415">
           </div>
           <div class="slider-row" title="Brightness strength" id="sbrushOpacityDiv">
               <label class="h2">Opacity</label>
@@ -601,8 +601,8 @@
           </div>
           <div class="slider-row" title="Phase strength" id="sphaseStrengthDiv">
               <label class="h2">Phase Strength</label>
-              <input id="sphaseOpacity"  type="range" min="0" max="1" value="0" step="0.01">
-              <input id="sphaseOpacityInput" type="number" value="0" min="0" max="1">
+              <input id="sphaseStrength"  type="range" min="0" max="1" value="0" step="0.01">
+              <input id="sphaseStrengthInput" type="number" value="0" min="0" max="1">
           </div>
         </div>
         <div id="spriteFadeDiv">
@@ -893,9 +893,9 @@
   const sliders = [[document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
                    [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
                    [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
-                   [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
+                   [document.getElementById('phaseShift'), document.getElementById('phaseShiftInput')],
                    [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
-                   [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')],
+                   [document.getElementById('phaseStrength'), document.getElementById('phaseStrengthInput')],
                    [document.getElementById('npo'), document.getElementById('npoInput')],
                    [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
                    [document.getElementById('bpm'), document.getElementById('bpmInput')],
@@ -924,12 +924,12 @@ const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
 const brushSizeEl=document.getElementById("brushSize");
 const brushOpacityEl=document.getElementById("brushOpacity");
-const phaseOpacityEl=document.getElementById("phaseOpacity");
+const phaseStrengthEl=document.getElementById("phaseStrength");
 const brushColorEl=document.getElementById("brushColor");
 const blurRadiusEl=document.getElementById("blurRadius");
 const ampEl=document.getElementById("amp");
 const noiseRemoveFloorEl=document.getElementById("noiseRemoveFloor");
-const penPhaseEl=document.getElementById("penPhase");
+const phaseShiftEl=document.getElementById("phaseShift");
 const logscaleEl = document.getElementById("logscale");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
 const phaseTextureEl = document.getElementById("phaseTexture");
@@ -1036,12 +1036,12 @@ let zooming = false;
 
 let brushSize=parseInt(brushSizeEl.value);
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
-let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
+let phaseStrength=parseInt(phaseStrengthEl.value)/100;
 let brushColor=parseInt(brushColorEl.value);
 let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value);
 let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
-let penPhase=parseInt(penPhaseEl.value)/10000;
+let phaseShift=parseInt(phaseShiftEl.value)/10000;
 let currentTool = "color";
 let currentShape = "brush";
 let currentPanel = "1";
@@ -1070,12 +1070,12 @@ sliders[1][0].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][
 sliders[1][1].addEventListener("input", ()=>{brushSize   =parseInt  (sliders[1][1].value); updateBrushPreview();});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
 sliders[2][1].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][1].value); updateBrushPreview();});
-sliders[3][0].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][0].value); updateBrushPreview();});
-sliders[3][1].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][1].value); updateBrushPreview();});
+sliders[3][0].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][0].value); updateBrushPreview();});
+sliders[3][1].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][1].value); updateBrushPreview();});
 sliders[4][0].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][0].value)/100; updateBrushPreview();});
 sliders[4][1].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][1].value)/100; updateBrushPreview();});
-sliders[5][0].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
-sliders[5][1].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
+sliders[5][0].addEventListener("input", ()=>{phaseStrength=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
+sliders[5][1].addEventListener("input", ()=>{phaseStrength=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
 sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
 sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) npo=parseInt  (sliders[6][1].value);});
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});

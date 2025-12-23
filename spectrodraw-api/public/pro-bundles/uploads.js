@@ -515,7 +515,7 @@ function newUploadSprite(data) {
   }
   sprites.push({
     id: nextSpriteId++,
-    effect: {tool: "sample", penPhase:0, amp:1},
+    effect: {tool: "sample", phaseShift:0, amp:1},
     pixels: pixelmap,
     minCol: data.minCol,
     maxCol: data.maxCol,

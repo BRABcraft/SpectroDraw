@@ -17,9 +17,9 @@ const sliders = [
   [document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
   [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
   [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
-  [document.getElementById('penPhase'), document.getElementById('penPhaseInput')],
+  [document.getElementById('phaseShift'), document.getElementById('phaseShiftInput')],
   [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
-  [document.getElementById('phaseOpacity'), document.getElementById('phaseOpacityInput')],
+  [document.getElementById('phaseStrength'), document.getElementById('phaseStrengthInput')],
   [document.getElementById('npo'), document.getElementById('npoInput')],
   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
   [document.getElementById('bpm'), document.getElementById('bpmInput')],
@@ -41,6 +41,7 @@ const sliders = [
   [document.getElementById('anpo'), document.getElementById('anpoInput')],
   [document.getElementById('astartOnPitch'), document.getElementById('astartOnPitchInput')],
   [document.getElementById('clonerScale'), document.getElementById('clonerScaleInput')],
+  [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
 ];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
@@ -52,12 +53,12 @@ sliders[1][0].addEventListener("input", ()=>{rs_(0);});
 sliders[1][1].addEventListener("input", ()=>{rs_(1);});
 sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
 sliders[2][1].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][1].value); updateBrushPreview();});
-sliders[3][0].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][0].value); updateBrushPreview();});
-sliders[3][1].addEventListener("input", ()=>{penPhase    =parseFloat(sliders[3][1].value); updateBrushPreview();});
+sliders[3][0].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][0].value); updateBrushPreview();});
+sliders[3][1].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][1].value); updateBrushPreview();});
 sliders[4][0].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][0].value)/100; updateBrushPreview();});
 sliders[4][1].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][1].value)/100; updateBrushPreview();});
-sliders[5][0].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
-sliders[5][1].addEventListener("input", ()=>{phaseOpacity=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
+sliders[5][0].addEventListener("input", ()=>{phaseStrength=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
+sliders[5][1].addEventListener("input", ()=>{phaseStrength=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
 sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
 sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) npo=parseInt  (sliders[6][1].value);});
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
@@ -112,6 +113,23 @@ sliders[25][0].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][0].valu
 sliders[25][1].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][1].value); updateBrushPreview();});
 sliders[26][0].addEventListener("input", ()=>{clonerScale=(sliders[26][0].value); updateBrushPreview();});
 sliders[26][1].addEventListener("input", ()=>{clonerScale=(sliders[26][1].value); updateBrushPreview();});
+function onPhaseSettingsChange(idx) {
+  const v = sliders[27][idx].valueAsNumber;
+
+  switch (phaseTextureEl.value) {
+    case "ImpulseAlign":      t0 = v; break;
+    case "LinearDelay":       tau = v; break;
+    case "RandomSmall":       sigma = v; break;
+    case "HarmonicStack":     harmonicCenter = v; break;
+    case "CopyFromRef":       refPhaseFrame = v; break;
+    case "PhasePropagate":    userDelta = v; break;
+    case "Chirp":             chirpRate = v; break;
+  }
+
+  updateBrushPreview();
+}
+sliders[27][0].addEventListener("input", ()=>{onPhaseSettingsChange(0);});
+sliders[27][1].addEventListener("input", ()=>{onPhaseSettingsChange(1);});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -176,9 +194,10 @@ function updateBrushSettingsDisplay(){
     document.getElementById("anpoDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("astartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("brushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner"))?"none":"flex";
-    document.getElementById("ev").style.display=c("noiseRemover"||c("autotune")||c("cloner"))?"none":"flex";
-    document.getElementById("phaseDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
-    document.getElementById("phaseStrengthDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+    document.getElementById("ev").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
+    updatePhaseTextureSettings();
+    document.getElementById("phaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
+    document.getElementById("phaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune"))?"none":"flex";
     document.getElementById("changeClonerPosDiv").style.display=c("cloner")?"flex":"none";
     document.getElementById("clonerScaleDiv").style.display=c("cloner")?"flex":"none";
     sliders[17][0].value=sliders[17][1].value=c("cloner")?cAmp:amp;
@@ -218,10 +237,25 @@ function updateBrushSettingsDisplay(){
 
 }
 document.getElementById("dragToDraw").addEventListener("input",()=>{updateBrushSettingsDisplay();});
+//if image: Hide cloner, autotune, and noiseremover
+//if stamp: hide cloner
+//if note: hide autotune
+//document.getElementById("clonerBtn").style.background = (d("image")||d("stamp"))?"#333":""
 function onToolChange(tool){
+  function c(b){return tool===b;}
+  function d(b){return currentShape===b;}
+  if (c("cloner")&&(d("image")||d("stamp"))) tool = "fill";
+  else if (c("autotune")&&(d("image")||d("note"))) tool = "fill";
+  else if (c("noiseRemover")&&d("image")) tool = "fill";
+  else document.getElementById("toolEditBtn").click();
   currentTool = tool;
-  if (tool==="cloner"&&changingClonerPos) document.getElementById("toolEditBtn").click();
-  toolButtons.forEach(b => b.style.background =(b.dataset.tool===tool)?"#4af":"");
+  toolButtons.forEach(b => {
+    const t = b.dataset.tool;
+    const shouldHide = 
+      (t==="cloner"      &&(d("image")||d("stamp")))
+    ||(t==="autotune"    &&(d("image")||d("note" )))
+    ||(t==="noiseRemover"&& d("image"))
+    b.style.background =(t===tool)?"#4af":(shouldHide)?"#999":""});
   document.getElementById("brushEffectSelect").value=tool;
   updateBrushSettingsDisplay();
   updateBrushPreview();
@@ -241,6 +275,7 @@ shapeButtons.forEach(btn => {
 });
 function onShapeChange(shape){
   if (shape!=="image" || images.length>0) {
+    document.getElementById("toolEditBtn").click();
     document.getElementById("brushToolSelect").value=currentShape = shape;
     shapeButtons.forEach(b => b.style.background = (b.dataset.shape===shape)?"#4af":"");
     document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
@@ -249,6 +284,13 @@ function onShapeChange(shape){
   } else if (images.length === 0){
     overlayFile.click();
   }
+  
+  function c(b){return currentTool===b;}
+  function d(b){return shape===b;}
+  if (c("cloner")&&(d("image")||d("stamp"))) onToolChange('fill');
+  else if (c("autotune")&&(d("image")||d("note"))) onToolChange('fill');
+  else if (c("noiseRemover")&&d("image")) onToolChange('fill');
+  else onToolChange(currentTool);
   updateBrushSettingsDisplay();
 }
 shapeButtons.forEach(btn => {
@@ -271,7 +313,7 @@ overlayFile.addEventListener("change", e => {
   if (!f) return;
   const img = new Image();
   img.onload = () => {
-    document.getElementById("brushToolSelect").value=currentShape="image";
+    document.getElementById("brushToolSelect").value=currentShape="image";onToolChange(currentTool);
     updateBrushSettingsDisplay();
     shapeButtons.forEach(b => b.style.background = "");
     document.getElementById("imageBtn").style.background = "#4af";
@@ -393,25 +435,37 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener('keydown', (event) => {
   keyBind(event);
 });
-let pressedN=false;
-document.addEventListener('keydown', (e)=>{
-  if (e.key==='n') {
-    pressedN=true;
+let pressedN=false;document.addEventListener('keydown', (e) => {
+  if (e.key === 'n') {
+    pressedN = true;
+
     if (!sineOsc) {
       const realY = visibleToSpecY($y);
+
       sineOsc = audioCtx.createOscillator();
-      sineOsc.type = "sine";
       sineGain = audioCtx.createGain();
       sineGain.gain.value = 0.2;
+
+      // ===== USE HARMONICS LIST =====
+      const harmonicCount = 101; // index 0 unused
+      const real = new Float32Array(harmonicCount);
+      const imag = new Float32Array(harmonicCount);
+      for (let i = 0; i < 100; i++) imag[i + 1] = harmonics[i];
+      const wave = audioCtx.createPeriodicWave(real, imag, {disableNormalization: false});
+      sineOsc.setPeriodicWave(wave);
+      // ============================
+
       sineOsc.connect(sineGain).connect(audioCtx.destination);
-      setSineFreq(realY); 
+      setSineFreq(realY);
       sineOsc.start();
     }
   }
 });
-document.addEventListener('keyup', (e)=>{
-  if (e.key==='n'){
-    pressedN=false;
+
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'n') {
+    pressedN = false;
+
     if (sineOsc) {
       sineOsc.stop();
       sineOsc.disconnect();
@@ -420,6 +474,7 @@ document.addEventListener('keyup', (e)=>{
     }
   }
 });
+
 
 window.addEventListener('beforeunload', function (e) {
     const confirmationMessage = "Changes may not be saved.";
@@ -871,6 +926,7 @@ function renderStamps() {
         currentStamp = null;
         tile.style.border = "2px solid #555";
       }
+      updateBrushPreview();
     });
 
     // also re-emit on key activation for accessibility (Enter/Space)
@@ -884,3 +940,28 @@ function renderStamps() {
     wrap.appendChild(tile);
   });
 }
+updatePhaseTextureSettings();
+function updatePhaseTextureSettings(){
+  const t = document.getElementById("phaseSettings");
+  const u = document.getElementById("phaseSettingsInput");
+  const div = document.getElementById("phaseSettingsDiv");
+  div.style.display = "none";
+  function c(v) {return phaseTextureEl.value === v}
+  function d(variable,min,max,step,label) {
+    t.min = min; t.max = max; t.step = step; t.value = variable;
+    u.min = min; u.max = max; u.value = variable;
+    document.getElementById("phaseSettingsLabel").innerText = label;
+    div.style.display = "flex";
+  }
+       if (c("ImpulseAlign")) d(t0,0,channels[0].pcm.length/sampleRate,0.001,"t0");
+  else if (c("LinearDelay")) d(tau,0,10,0.01,"tau");
+  else if (c("RandomSmall")) d(sigma,0,1,0.01,"sigma");
+  else if (c("HarmonicStack")) d(harmonicCenter,0,128,0.01,"Harmonic Center");
+  else if (c("PhasePropagate")) d(userDelta,0,1,0.01,"Delta");
+  else if (c("CopyFromRef")) d(refPhaseFrame,0,framesTotal,1,"Reference Frame");
+  else if (c("Chirp")) d(chirpRate,0,0.1,0.0001,"Chirp Rate");
+}
+phaseTextureEl.addEventListener("input",()=>{
+  updatePhaseTextureSettings();
+  updateBrushPreview();
+});

@@ -160,7 +160,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
       const px = x0;
       const py = y0 + dy;
       if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-        drawPixelFrame(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
+        drawPixelFrame(px, py, brushMag, phaseShift, brushOpacity, phaseStrength); 
       }
     }
     if (x0 === x1 && y0 === y1) break;
@@ -273,10 +273,10 @@ function commitShape(cx, cy) {
 
   const fullW = specWidth;
   const fullH = specHeight;
-  const po = currentTool === "eraser" ? 1 : phaseOpacity;
+  const po = currentTool === "eraser" ? 1 : phaseStrength;
   const bo = currentTool === "eraser" ? 1 : brushOpacity;
   const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-  const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+  const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
 
   const visitedLocal = new Uint8Array(fullW * fullH);
   const savedVisited = visited;
@@ -359,7 +359,7 @@ function commitShape(cx, cy) {
             const px = x0 + dx;
             const py = y0;
             if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-              dp(px, py, brushMag, penPhase, brushOpacity, phaseOpacity); 
+              dp(px, py, brushMag, phaseShift, brushOpacity, phaseStrength); 
             }
           }
           if (x0 === x1 && y0 === y1) break;
@@ -400,7 +400,7 @@ function paint(cx, cy) {
 
     const fullW = specWidth;
     const fullH = specHeight;
-    const po = currentTool === "eraser" ? 1 : phaseOpacity;
+    const po = currentTool === "eraser" ? 1 : phaseStrength;
     const bo = currentTool === "eraser" ? 1 : brushOpacity;
     const radiusY = Math.floor(brushSize/2/canvas.getBoundingClientRect().height*canvas.height);
     const radiusXFrames = Math.floor(brushSize/2/canvas.getBoundingClientRect().width*canvas.width);
@@ -457,13 +457,13 @@ function paint(cx, cy) {
           const cyPix = oy + yy;
           if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
 
-            drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a, phaseOpacity * a);
+            drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a, phaseStrength * a);
           }
         }
       }
     } else if (currentTool === "color" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
         const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-        const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+        const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
         for (let yy = minY; yy <= maxY; yy++) {
           for (let xx = minXFrame; xx <= maxXFrame; xx++) {
               const dx = xx - cx;

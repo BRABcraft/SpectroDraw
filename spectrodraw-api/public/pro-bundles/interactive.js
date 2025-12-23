@@ -27,9 +27,6 @@ function getSineFreq(cy) {
     bin = Math.max(0, Math.min(h - 1, bin));
     return bin * sampleRate / fftSize;
 }
-function setSineFreq(cy) {
-    sineOsc.frequency.setTargetAtTime(getSineFreq(cy), audioCtx.currentTime, 0.01);
-}
 function visibleToSpecY(visY) {
     const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
     const fullY = Math.round(visY + fStart);
@@ -100,7 +97,7 @@ function canvasMouseDown(e,touch) {
     // --- CREATE NEW SPRITE FOR THIS STROKE ---
     currentSprite = {
       id: nextSpriteId++,
-      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseOpacity, penPhase, amp, noiseRemoveFloor, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength},
+      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseRemoveFloor, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength},
       enabled: true,
       pixels: pixelmap,
       minCol: Infinity,
@@ -133,16 +130,35 @@ function canvasMouseDown(e,touch) {
       playFrame(currentFrame);
 
       if (!sineOsc) {
+          // Use harmonics array (100 values 0..1) to build a PeriodicWave.
+          // If `harmonics` is missing or too short, fall back to a simple sine (fundamental only).
+          const real = new Float32Array(101); // index 0 = DC (leave 0)
+          const imag = new Float32Array(101); // index 1..100 -> harmonics 1..100
+
+          if (typeof harmonics !== 'undefined' && harmonics && harmonics.length >= 100) {
+            for (let i = 0; i < 100; i++) imag[i + 1] = harmonics[i];
+          } else {
+            // fallback: only the fundamental
+            imag[1] = 1.0;
+          }
+
+          const wave = audioCtx.createPeriodicWave(real, imag, { disableNormalization: false });
+
           sineOsc = audioCtx.createOscillator();
-          sineOsc.type = "sine";
+          sineOsc.setPeriodicWave(wave);
+          // create gain node after periodic wave so we can do clean fades later if needed
           sineGain = audioCtx.createGain();
           sineGain.gain.value = 0.2;
+
           sineOsc.connect(sineGain).connect(audioCtx.destination);
-          setSineFreq(realY); 
+          setSineFreq(realY);
           sineOsc.start();
       }
     }
   }
+}
+function setSineFreq(cy) {
+  sineOsc.frequency.setTargetAtTime(getSineFreq(cy), audioCtx.currentTime, 0.01);
 }
 function setClonerYShift(){
   if (currentTool==="cloner") {

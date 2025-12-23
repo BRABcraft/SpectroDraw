@@ -120,69 +120,91 @@ async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' &&
 }
 
 document.getElementById('downloadWav').addEventListener('click', async () => {
-    // find longest PCM length
-    let maxLen = 0;
-    for (let ch = 0; ch < (typeof channelCount === 'number' ? channelCount : (channels ? channels.length : 0)); ch++) {
-        const pcmCh = channels[ch] && channels[ch].pcm;
-        if (pcmCh && pcmCh.length > maxLen) maxLen = pcmCh.length;
+  let view;
+    if (channelCount>1) {
+      // find longest PCM length
+      let maxLen = 0;
+      for (let ch = 0; ch < channelCount; ch++) if (channels[ch].pcm.length > maxLen) maxLen = channels[ch].pcm.length;
+      maxLen = Math.min(maxLen, Math.floor(emptyAudioLengthEl*sampleRate));
+
+      // create left/right mixing buffers
+      const left = new Float32Array(maxLen);
+      const right = new Float32Array(maxLen);
+
+      for (let ch = 0; ch < channelCount; ch++) {
+          const c = channels[ch];
+          if (!c || !c.pcm) continue;
+          const device = (c.audioDevice || 'both').toString().toLowerCase();
+          const pcmCh = c.pcm;
+          for (let i = 0; i < pcmCh.length; i++) {
+              const s = pcmCh[i] || 0;
+              if (device === 'left' || device === 'both') left[i] += s;
+              if (device === 'right' || device === 'both') right[i] += s;
+              // if device === 'none' -> skip
+          }
+      }
+
+      // prevent clipping: normalize only if needed
+      let maxAbs = 0;
+      for (let i = 0; i < maxLen; i++) {
+          const a = Math.abs(left[i]) || 0;
+          const b = Math.abs(right[i]) || 0;
+          if (a > maxAbs) maxAbs = a;
+          if (b > maxAbs) maxAbs = b;
+      }
+      if (maxAbs > 1) {
+          const inv = 1 / maxAbs;
+          for (let i = 0; i < maxLen; i++) {
+              left[i] *= inv;
+              right[i] *= inv;
+          }
+      }
+
+      // create stereo interleaved 16-bit WAV
+      const numChannelsOut = 2;
+      const numFrames = maxLen;
+      const dataByteLength = numFrames * numChannelsOut * 2; // 2 bytes per sample
+      const buffer = new ArrayBuffer(44 + dataByteLength);
+      view = new DataView(buffer);
+      writeWavHeader(view, sampleRate, numChannelsOut, numFrames);
+
+      let offset = 44;
+      for (let i = 0; i < numFrames; i++) {
+          // left
+          let l = left[i] || 0;
+          l = Math.max(-1, Math.min(1, l));
+          view.setInt16(offset, l < 0 ? l * 0x8000 : l * 0x7FFF, true);
+          offset += 2;
+          // right
+          let r = right[i] || 0;
+          r = Math.max(-1, Math.min(1, r));
+          view.setInt16(offset, r < 0 ? r * 0x8000 : r * 0x7FFF, true);
+          offset += 2;
+      }
+    } else {
+      const renderedPCM = await renderEQAppliedPCM(24);
+      // target length in samples
+      const targetSamples = Math.floor(emptyAudioLengthEl.value* sampleRate);
+      // clamp PCM to target length
+      const numSamples = Math.min(renderedPCM.length, targetSamples);
+      const pcmClamped = renderedPCM.subarray(0, numSamples);
+
+      // allocate WAV buffer (mono, 16-bit)
+      const buffer = new ArrayBuffer(44 + numSamples * 2);
+      view = new DataView(buffer);
+
+      // WAV header: sampleRate, channels=1, frames=numSamples
+      writeWavHeader(view, sampleRate, 1, numSamples);
+
+      // convert ONLY the clamped PCM
+      const pcm16 = floatTo16BitPCM(pcmClamped);
+
+      // copy PCM bytes
+      for (let i = 0; i < pcm16.byteLength; i++) {
+        view.setUint8(44 + i, pcm16.getUint8(i));
+      }
+
     }
-    if (maxLen === 0) return alert('No PCM loaded!');
-
-    // create left/right mixing buffers
-    const left = new Float32Array(maxLen);
-    const right = new Float32Array(maxLen);
-
-    for (let ch = 0; ch < (typeof channelCount === 'number' ? channelCount : channels.length); ch++) {
-        const c = channels[ch];
-        if (!c || !c.pcm) continue;
-        const device = (c.audioDevice || 'both').toString().toLowerCase();
-        const pcmCh = c.pcm;
-        for (let i = 0; i < pcmCh.length; i++) {
-            const s = pcmCh[i] || 0;
-            if (device === 'left' || device === 'both') left[i] += s;
-            if (device === 'right' || device === 'both') right[i] += s;
-            // if device === 'none' -> skip
-        }
-    }
-
-    // prevent clipping: normalize only if needed
-    let maxAbs = 0;
-    for (let i = 0; i < maxLen; i++) {
-        const a = Math.abs(left[i]) || 0;
-        const b = Math.abs(right[i]) || 0;
-        if (a > maxAbs) maxAbs = a;
-        if (b > maxAbs) maxAbs = b;
-    }
-    if (maxAbs > 1) {
-        const inv = 1 / maxAbs;
-        for (let i = 0; i < maxLen; i++) {
-            left[i] *= inv;
-            right[i] *= inv;
-        }
-    }
-
-    // create stereo interleaved 16-bit WAV
-    const numChannelsOut = 2;
-    const numFrames = maxLen;
-    const dataByteLength = numFrames * numChannelsOut * 2; // 2 bytes per sample
-    const buffer = new ArrayBuffer(44 + dataByteLength);
-    const view = new DataView(buffer);
-    writeWavHeader(view, sampleRate, numChannelsOut, numFrames);
-
-    let offset = 44;
-    for (let i = 0; i < numFrames; i++) {
-        // left
-        let l = left[i] || 0;
-        l = Math.max(-1, Math.min(1, l));
-        view.setInt16(offset, l < 0 ? l * 0x8000 : l * 0x7FFF, true);
-        offset += 2;
-        // right
-        let r = right[i] || 0;
-        r = Math.max(-1, Math.min(1, r));
-        view.setInt16(offset, r < 0 ? r * 0x8000 : r * 0x7FFF, true);
-        offset += 2;
-    }
-
     const blob = new Blob([view], { type: 'audio/wav' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -198,10 +220,7 @@ document.getElementById('downloadButton').addEventListener('click', function() {
 
     const totalChannels = channelCount;
     for (let ch = 0; ch < totalChannels; ch++) {
-        // try common canvas ID patterns, fall back to canvas-0
-        const canvas = document.getElementById(`canvas-${ch}`)
-                     || document.querySelector(`canvas[data-channel="${ch}"]`)
-                     || document.getElementById('canvas-0');
+        const canvas = document.getElementById(`canvas-${ch}`);
         if (!canvas) continue;
         try {
             const canvasUrl = canvas.toDataURL('image/png');

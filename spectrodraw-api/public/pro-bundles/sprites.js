@@ -176,9 +176,9 @@ document.getElementById('sphaseTexture').addEventListener('change', () => {
 const sliderDefs = [
   // [rangeId, textId, effectsKey, optionalCallback]
   ['sbrushColor',      'sbrushColorInput',       'brushColor'],
-  ['spenPhase',        'spenPhaseInput',         'penPhase'],
+  ['sphaseShift',        'sphaseShiftInput',         'phaseShift'],
   ['sbrushOpacity',    'sbrushOpacityInput',     'brushOpacity'],
-  ['sphaseOpacity',    'sphaseOpacityInput',     'phaseOpacity'],
+  ['sphaseStrength',    'sphaseStrengthInput',     'phaseStrength'],
   ['sblurRadius',      'sblurRadiusInput',       'blurRadius'      ],
   ['samp',             'sampInput',              'amp'             ],
   ['snoiseRemoveFloor','snoiseRemoveFloorInput', 'noiseRemoveFloor'],

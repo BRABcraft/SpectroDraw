@@ -4,12 +4,12 @@ const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
 const brushSizeEl=document.getElementById("brushSize");
 const brushOpacityEl=document.getElementById("brushOpacity");
-const phaseOpacityEl=document.getElementById("phaseOpacity");
+const phaseStrengthEl=document.getElementById("phaseStrength");
 const brushColorEl=document.getElementById("brushColor");
 const blurRadiusEl=document.getElementById("blurRadius");
 const ampEl=document.getElementById("amp");
 const noiseRemoveFloorEl=document.getElementById("noiseRemoveFloor");
-const penPhaseEl=document.getElementById("penPhase");
+const phaseShiftEl=document.getElementById("phaseShift");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
 const phaseTextureEl = document.getElementById("phaseTexture");
 const recordBtn = document.getElementById("rec");
@@ -106,9 +106,7 @@ let fHigh = null;
 // let specCanvas = document.createElement("canvas");
 // let specCtx = specCanvas.getContext("2d");
 let logScaleVal = [1.12];
-
-let mags = null;     
-let phases = null;   
+  
 let specWidth = 0;
 let specHeight = 0;
 let pcmChunks = null;
@@ -127,14 +125,14 @@ let zooming = false;
 
 let brushSize=parseInt(brushSizeEl.value), brushWidth = brushSize, brushHeight = brushSize;
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
-let phaseOpacity=parseInt(phaseOpacityEl.value)/100;
+let phaseStrength=parseInt(phaseStrengthEl.value)/100;
 let brushColor=parseInt(brushColorEl.value);
 let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value),cAmp=1;
 let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
-let penPhase=parseInt(penPhaseEl.value)/10000;
+let phaseShift=parseInt(phaseShiftEl.value)/10000;
 let currentTool = "fill";
-let currentShape = "note";
+let currentShape = "brush";
 let currentPanel = "0";
 let bpm = 120, npo = 12, anpo = 12, aStartOnP = 440, startOnP = 440;
 let noiseFloor = document.getElementById("noiseFloorCutoff").value;
@@ -179,6 +177,7 @@ let stamps = [
 let currentStamp = stamps[0];
 let autoTuneStrength = 1;
 let clonerX = null, clonerY = null, clonerCh = 0, changingClonerPos = true, rcY = 0, rsY = 0, clonerScale = 1;
+let t0 = 0, tau = 1.0, sigma = 0.3, harmonicCenter = 8, userDelta = 0, refPhaseFrame = 0, chirpRate=0.0005;
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});
@@ -304,4 +303,20 @@ function deserializeSprites(serialized) {
 
     return sprite;
   });
+}
+function resizeCanvasToDisplaySize(canvas, ctx) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+
+  const displayWidth  = Math.round(rect.width  * dpr);
+  const displayHeight = Math.round(rect.height * dpr);
+
+  if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+    canvas.width  = displayWidth;
+    canvas.height = displayHeight;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingQuality = "low";
 }

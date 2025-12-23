@@ -1,8 +1,263 @@
-// Helper: draw an HTMLImageElement into spectrogram pixels for channel `ch`.
-// - img: HTMLImageElement (must be loaded)
-// - dstOx, dstOy: destination top-left in spectrogram (canvas) units
-// - dstW, dstH: destination width/height in spectrogram (canvas) units
-// boMult / poMult: optional multipliers to further scale bo/po (default 1)
+// ---------- Phase texture helpers (paste right after buildBinDisplayLookup) ----------
+const __hopTemplateCache = new Map(); // key = srcBins + '|' + fftSize -> { interpI0, interpW1, checker, tilt, edgeTerm, srcBins, fftSize }
+const __hopFrameCache = new Map();    // key = srcBins + '|' + frameIndex + '|' + fftSize -> { unwrapped }
+const __hopTemplateMax = 64;
+const __hopFrameMax = 256; // you can lower this if memory is tight
+
+function __makeTemplateKey(srcBins, fftSize) {
+  return srcBins + '|' + fftSize;
+}
+function __makeFrameKey(srcBins, frameIndex, fftSize) {
+  return srcBins + '|' + frameIndex + '|' + fftSize;
+}
+function __evictOldest(map, maxEntries) {
+  if (map.size > maxEntries) {
+    const k = map.keys().next().value;
+    map.delete(k);
+  }
+}
+
+// Build template for mapping high-res bin -> coarse grid indices and weights
+function __buildHopTemplate(srcBins, fftSize, specH) {
+  const key = __makeTemplateKey(srcBins, fftSize);
+  // quick: if exists return
+  if (__hopTemplateCache.has(key)) return __hopTemplateCache.get(key);
+
+  // interpolation arrays map k in [0..specH-1] -> position in [0..srcBins)
+  const interpI0 = new Uint32Array(specH);   // floor(pos) clamped to [0..srcBins-2]
+  const interpW1 = new Float32Array(specH);  // t in [0..1]
+  const invFFT = 1 / Math.max(1, fftSize);
+  const scale = srcBins * invFFT; // pos = k * scale
+
+  // precompute per-coarse j constant arrays
+  const checker = new Float64Array(srcBins);
+  const tilt = new Float64Array(srcBins);
+  const edgeTerm = new Float64Array(srcBins);
+  const invSrcMinus1 = 1 / Math.max(1, srcBins - 1);
+  const edgeBoost = Math.PI * 0.9;
+  for (let j = 0; j < srcBins; ++j) {
+    checker[j] = (j & 1) === 0 ? 0 : Math.PI * 0.5;
+    tilt[j] = (j * invSrcMinus1) * 0.25;
+    edgeTerm[j] = (j === 0 || j === srcBins - 1) ? edgeBoost : 0;
+  }
+
+  // fill interp maps
+  for (let k = 0; k < specH; ++k) {
+    const pos = k * scale;
+    let i0 = Math.floor(pos);
+    let t = pos - i0;
+    if (i0 < 0) { i0 = 0; t = 0; }
+    if (i0 >= srcBins - 1) { // clamp to last interval
+      i0 = Math.max(0, srcBins - 2);
+      t = 1.0;
+    }
+    interpI0[k] = i0;
+    interpW1[k] = t;
+  }
+
+  const tpl = { interpI0, interpW1, checker, tilt, edgeTerm, srcBins, fftSize };
+  // LRU-ish insert
+  if (__hopTemplateCache.size >= __hopTemplateMax) __evictOldest(__hopTemplateCache, __hopTemplateMax - 1);
+  __hopTemplateCache.set(key, tpl);
+  return tpl;
+}
+
+// Unwrap 1D array -> Float64Array (same as before but smaller)
+function __unwrapPhaseVectorFast(arr) {
+  const n = arr.length;
+  const out = new Float64Array(n);
+  if (n === 0) return out;
+  out[0] = arr[0];
+  for (let i = 1; i < n; ++i) {
+    let delta = arr[i] - arr[i - 1];
+    if (delta <= -Math.PI) delta += 2 * Math.PI * Math.ceil((Math.PI - delta) / (2 * Math.PI));
+    else if (delta > Math.PI) delta -= 2 * Math.PI * Math.ceil((delta - Math.PI) / (2 * Math.PI));
+    out[i] = out[i - 1] + delta;
+  }
+  return out;
+}
+function wrapPhase(phi) {
+  // wrap to (-PI, PI]
+  phi = ((phi + Math.PI) % (2 * Math.PI)) - Math.PI;
+  if (phi <= -Math.PI) phi += 2 * Math.PI;
+  return phi;
+}
+function binFreq(k, fftSizeLocal, sampleRateLocal) {
+  return (k * sampleRateLocal) / fftSizeLocal;
+}
+
+/*
+ computePhaseTexture(type, bin, frameIndex, opts)
+ - type: string (value from phaseTexture select)
+ - bin: integer bin index (0..specHeight-1)
+ - frameIndex: integer frame/column index (xI)
+ - opts: {
+     t0,                 // seconds for ImpulseAlign
+     tau,                // seconds for LinearDelay
+     sigma,              // radians for RandomSmall
+     harmonicCenter,     // integer for HarmonicStack
+     refPhaseFrame       // Float32Array or Array for CopyFromRef
+   }
+*/
+function computePhaseTexture(type, bin, frameIndex) {
+  // Local fast references to globals (avoid repeated global lookups)
+  const FFT = fftSize;
+  const fs = sampleRate;
+  const hopLocal = hop;
+  const ch = currentChannel;
+  const twoPi = 2 * Math.PI;
+  const k = bin | 0; // assume integer
+  const fk = (k * fs) / FFT; // inline binFreq to reduce call overhead
+  const basePhase = 0;
+
+  let phi = 0;
+
+  switch (type) {
+    case 'Harmonics':
+      phi = (k / specHeight * FFT / 2);
+      break;
+
+    case 'Static':
+      phi = (Math.random() * 2 - 1) * Math.PI;
+      break;
+
+    case 'Flat':
+      phi = basePhase;
+      break;
+
+    case 'ImpulseAlign':
+      phi = -twoPi * fk * t0 + basePhase;
+      break;
+
+    case 'FrameAlignedImpulse': {
+      const frameTime = (frameIndex * hopLocal) / fs;
+      const t0f = frameTime + (hopLocal / (2 * fs));
+      phi = -twoPi * fk * t0f + basePhase;
+    } break;
+
+    case 'ExpectedAdvance':
+      phi = basePhase + twoPi * fk * (frameIndex * hopLocal) / fs;
+      break;
+
+    case 'PhasePropagate': {
+      const prevIdx = (frameIndex - 1) * specHeight + k;
+      let prevPhase = null;
+      if (frameIndex > 0 && channels[ch] && channels[ch].phases && channels[ch].phases[prevIdx] !== undefined) {
+        prevPhase = channels[ch].phases[prevIdx];
+      }
+      if (prevPhase !== null && isFinite(prevPhase)) {
+        const expected = prevPhase + twoPi * fk * (hopLocal / fs);
+        phi = expected + userDelta;
+      } else {
+        phi = twoPi * fk * (frameIndex * hopLocal) / fs;
+      }
+    } break;
+
+    case 'RandomSmall':
+      phi = basePhase + (Math.random() * 2 - 1) * sigma;
+      break;
+
+    case 'HarmonicStack': {
+      const center = Math.max(1, harmonicCenter);
+      phi = -twoPi * fk * t0 + ((k % center) * 0.12);
+    } break;
+
+    case 'LinearDelay':
+      phi = -twoPi * fk * tau + basePhase;
+      break;
+
+    case 'Chirp':
+      phi = basePhase - twoPi * fk * ((frameIndex * hopLocal) / fs) - Math.pow(k, 1.05) * chirpRate;
+      break;
+
+    case 'CopyFromRef': {
+      const refIx = (refPhaseFrame * specHeight + k) | 0;
+      phi = (channels[ch] && channels[ch].phases) ? channels[ch].phases[refIx] || 0 : 0;
+    } break;
+
+    case 'HopArtifact': {
+      // Parameters (cheap local copies)
+      const srcBins = Math.max(1, hopLocal | 0);
+      const FFT = fftSize;
+      const fs = sampleRate;
+      const frameTime = (frameIndex * hopLocal) / fs;
+
+      // get / build template (includes interp maps and static per-coarse terms)
+      const tpl = __buildHopTemplate(srcBins, FFT, specHeight);
+
+      // frame cache key
+      const fkey = __makeFrameKey(srcBins, frameIndex, FFT);
+      let entry = __hopFrameCache.get(fkey);
+
+      if (!entry) {
+        // build coarse vector using cheap recurrence for fm (sin(a + j*b))
+        const coarse = new Float64Array(srcBins);
+
+        // baseline: baselineStep * j
+        // baselineStep = -2pi * fs * frameTime / srcBins
+        const baselineStep = - (2 * Math.PI) * fs * frameTime / srcBins;
+
+        // frame modulation: fm_j = Math.sin(frameIndex*0.6 + j*0.25) * frameMod
+        // compute sinStart/cosStart once
+        const a = frameIndex * 0.6;            // starting angle
+        const b = 0.25;                        // increment per coarse bin
+        const cb = Math.cos(b), sb = Math.sin(b);
+        let sinCurr = Math.sin(a);
+        let cosCurr = Math.cos(a);
+        const frameMod = 0.8;
+
+        // build coarse vector with only simple ops
+        const checker = tpl.checker;
+        const tilt = tpl.tilt;
+        const edgeTerm = tpl.edgeTerm;
+
+        for (let j = 0; j < srcBins; ++j) {
+          // baseline = j * baselineStep
+          const base = j * baselineStep;
+          const fm = sinCurr * frameMod;
+          coarse[j] = base + checker[j] + tilt[j] + fm + edgeTerm[j];
+
+          // recurrence step for next j
+          const nextSin = sinCurr * cb + cosCurr * sb;
+          const nextCos = cosCurr * cb - sinCurr * sb;
+          sinCurr = nextSin;
+          cosCurr = nextCos;
+        }
+
+        // unwrap and cache
+        const unwrapped = __unwrapPhaseVectorFast(coarse);
+        entry = { unwrapped };
+        if (__hopFrameCache.size >= __hopFrameMax) __evictOldest(__hopFrameCache, __hopFrameMax - 1);
+        __hopFrameCache.set(fkey, entry);
+      }
+
+      // Per-bin sampling: use template interp indices/weights (fast)
+      const i0 = tpl.interpI0[k];
+      const w1 = tpl.interpW1[k];
+      // sample safely (i0 in [0..srcBins-2]); but guard edge if srcBins==1
+      let sampled;
+      if (tpl.srcBins === 1) sampled = entry.unwrapped[0] || 0;
+      else {
+        const u = entry.unwrapped;
+        sampled = u[i0] * (1 - w1) + u[i0 + 1] * w1;
+      }
+
+      phi = sampled;
+    } break;
+
+    default:
+      phi = basePhase;
+      break;
+  }
+
+  return wrapPhase(phi);
+}
+
+// ---------- end helpers ----------
+
+
+
+
 function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMult = 1) {
   if (!img || !img.complete || img.naturalWidth === 0) return;
   const fullW = specWidth;
@@ -28,7 +283,7 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
   tctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, drawW, drawH);
   const imgData = tctx.getImageData(0, 0, drawW, drawH);
 
-  // Loop pixels and push into spectrogram via drawPixel, applying brushOpacity & phaseOpacity
+  // Loop pixels and push into spectrogram via drawPixel, applying brushOpacity & phaseStrength
   const chPressure = (channels[ch] && channels[ch].brushPressure) ? channels[ch].brushPressure : 1;
   for (let yy = 0; yy < drawH; yy++) {
     for (let xx = 0; xx < drawW; xx++) {
@@ -67,7 +322,7 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
 
       if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
         const bo = brushOpacity * a * chPressure * boMult;
-        const po = phaseOpacity * a * poMult;
+        const po = phaseStrength * a * poMult;
         drawPixel(cxPix, cyPix, mag, phase, bo, po, ch);
       }
     }
@@ -361,7 +616,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
         const px = x0;
         const py = y0 + dy;
         if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-          drawPixel(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity, ch); 
+          drawPixel(px, py, brushMag, phaseShift, brushOpacity* channels[ch].brushPressure, phaseStrength, ch); 
         }
       }
       if (x0 === x1 && y0 === y1) break;
@@ -470,16 +725,32 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
                 ? channels[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
     const type = phaseTextureEl.value;
-    let $phase;
-    if (currentTool === "cloner") phase = channels[clonerCh].phases[clonerPos];
-    if (type === 'Harmonics') {
-      $phase = (bin / specHeight * fftSize / 2);
-    } else if (type === 'Static') {
-      $phase = Math.random() * Math.PI;
-    } else { // Flat or others
-      $phase = phase;
+    let $phase; let newPhase;
+    if (currentTool === "cloner") {
+      $phase = channels[clonerCh].phases[clonerPos];
+    } else {
+      // Use the centralized computePhaseTexture helper so all textures behave consistently.
+      // type is read earlier as: const type = phaseTextureEl.value;
+      const opts = {
+        ch: ch,
+        specHeight: fullH,
+        fftSize: (typeof fftSize !== "undefined") ? fftSize : undefined,
+        sampleRate: (typeof sampleRate !== "undefined") ? sampleRate : undefined,
+        hop: (typeof hop !== "undefined") ? hop : 1,
+        // optional user tweak points (exposed later via UI)
+        t0: (typeof userPhaseT0 !== "undefined") ? userPhaseT0 : 0.0,
+        tau: (typeof userPhaseTau !== "undefined") ? userPhaseTau : 0.0,
+        sigma: (typeof userPhaseSigma !== "undefined") ? userPhaseSigma : 0.3,
+        harmonicCenter: (typeof userHarmonicCenter !== "undefined") ? userHarmonicCenter : 8,
+        refPhaseFrame: (typeof userRefPhaseFrame !== "undefined") ? userRefPhaseFrame : null,
+        userDelta: (typeof userPhaseDelta !== "undefined") ? userPhaseDelta : 0
+      };
+      $phase = computePhaseTexture(type, bin, xI, opts);
+      // Blend into existing phase using po (phaseStrength)
+      // Keep the old behavior of mixing + the previous 'phase' offset used in your code
     }
-    const newPhase = oldPhase * (1 - po) + po * ($phase + phase * 2);
+    newPhase = oldPhase * (1 - po) + po * ($phase + phase * 2);
+
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
     phasesArr[idx] = newPhase;
@@ -552,10 +823,10 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
     mag = sumMag / count; phase = sumPhase / count;
   } else {
     mag = (tool === "eraser" ? 0 : (newEffect.brushColor  !== undefined) ? newEffect.brushColor  :128);
-    phase=(tool === "eraser" ? 0 : (newEffect.penPhase!== undefined) ? newEffect.penPhase:  0);
+    phase=(tool === "eraser" ? 0 : (newEffect.phaseShift!== undefined) ? newEffect.phaseShift:  0);
   }
   const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* channels[ch].brushPressure;
-  const po =  (tool === "eraser" ? 0 : (newEffect.phaseOpacity   !== undefined) ? newEffect.phaseOpacity   :  0);
+  const po =  (tool === "eraser" ? 0 : (newEffect.phaseStrength   !== undefined) ? newEffect.phaseStrength   :  0);
   const _amp = newEffect.amp || amp;
   const dbt = Math.pow(10, newEffect.noiseRemoveFloor / 20)*128;
   const newMag =  (tool === "amplifier" || tool === "sample")    ? (oldMag * _amp)
@@ -583,10 +854,10 @@ function commitShape(cx, cy) {
 
     const fullW = specWidth;
     const fullH = specHeight;
-    const po = currentTool === "eraser" ? 1 : phaseOpacity;
+    const po = currentTool === "eraser" ? 1 : phaseStrength;
     const bo = (currentTool === "eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
     const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-    const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+    const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
 
     const visitedLocal = Array.from({ length: channelCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
@@ -676,7 +947,7 @@ function commitShape(cx, cy) {
             const py = y0;
             if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
               if (currentTool !== "autotune") {
-                dp(px, py, brushMag, penPhase, brushOpacity* channels[ch].brushPressure, phaseOpacity,ch);
+                dp(px, py, brushMag, phaseShift, brushOpacity* channels[ch].brushPressure, phaseStrength,ch);
               } else {
                 pixels.push([px,py]);
               }
@@ -795,7 +1066,7 @@ function paint(cx, cy) {
     const canvas = document.getElementById("canvas-"+ch);
     const fullW = specWidth;
     const fullH = specHeight;
-    const po = currentTool === "eraser" ? 1 : phaseOpacity;
+    const po = currentTool === "eraser" ? 1 : phaseStrength;
     const bo = (currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity)* channels[ch].brushPressure;
     vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
     const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
@@ -874,7 +1145,7 @@ function paint(cx, cy) {
       }
     } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
-      const brushPhase = currentTool === "eraser" ? 0 : penPhase;
+      const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
       // endpoints of the segment (make sure these are in the same coordinate space)
       const p0x = prevMouseX + iLow;
       const p0y = visibleToSpecY(prevMouseY);
@@ -967,7 +1238,7 @@ function paint(cx, cy) {
           const dx = xx - nearestX;
           const dy = yy - nearestY;
           if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
-          drawPixel(xx, yy, 1, penPhase, bo, po, ch);
+          drawPixel(xx, yy, 1, phaseShift, bo, po, ch);
         }
       }
     }

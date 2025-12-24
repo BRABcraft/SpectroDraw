@@ -178,6 +178,21 @@ let currentStamp = stamps[0];
 let autoTuneStrength = 1;
 let clonerX = null, clonerY = null, clonerCh = 0, changingClonerPos = true, rcY = 0, rsY = 0, clonerScale = 1;
 let t0 = 0, tau = 1.0, sigma = 0.3, harmonicCenter = 8, userDelta = 0, refPhaseFrame = 0, chirpRate=0.0005;
+
+let denoiseModelSession = null;
+async function loadDenoiseModel(url) {
+  try {
+    // ensure ort global is available (onnxruntime-web)
+    denoiseModelSession = await ort.InferenceSession.create(url);
+    window.denoiseModelSession = denoiseModelSession;
+    console.log('Denoiser model loaded');
+  } catch (e) {
+    console.warn('Failed to load denoiser model', e);
+    denoiseModelSession = null;
+  }
+}
+loadDenoiseModel('/path/to/your.onnx'); //CHANGE LATER
+
 let handlers = {
   "canvas-": (el) => {
     el.addEventListener("mousedown", e=>{canvasMouseDown(e,false);});

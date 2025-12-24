@@ -1,3 +1,183 @@
+const __hopTemplateCache = new Map(); 
+const __hopFrameCache = new Map();    
+const __hopTemplateMax = 64;
+const __hopFrameMax = 256; 
+function __makeTemplateKey(srcBins, fftSize) {
+  return srcBins + '|' + fftSize;
+}
+function __makeFrameKey(srcBins, frameIndex, fftSize) {
+  return srcBins + '|' + frameIndex + '|' + fftSize;
+}
+function __evictOldest(map, maxEntries) {
+  if (map.size > maxEntries) {
+    const k = map.keys().next().value;
+    map.delete(k);
+  }
+}
+function __buildHopTemplate(srcBins, fftSize, specH) {
+  const key = __makeTemplateKey(srcBins, fftSize);
+  if (__hopTemplateCache.has(key)) return __hopTemplateCache.get(key);
+  const interpI0 = new Uint32Array(specH);   
+  const interpW1 = new Float32Array(specH);  
+  const invFFT = 1 / Math.max(1, fftSize);
+  const scale = srcBins * invFFT; 
+  const checker = new Float64Array(srcBins);
+  const tilt = new Float64Array(srcBins);
+  const edgeTerm = new Float64Array(srcBins);
+  const invSrcMinus1 = 1 / Math.max(1, srcBins - 1);
+  const edgeBoost = Math.PI * 0.9;
+  for (let j = 0; j < srcBins; ++j) {
+    checker[j] = (j & 1) === 0 ? 0 : Math.PI * 0.5;
+    tilt[j] = (j * invSrcMinus1) * 0.25;
+    edgeTerm[j] = (j === 0 || j === srcBins - 1) ? edgeBoost : 0;
+  }
+  for (let k = 0; k < specH; ++k) {
+    const pos = k * scale;
+    let i0 = Math.floor(pos);
+    let t = pos - i0;
+    if (i0 < 0) { i0 = 0; t = 0; }
+    if (i0 >= srcBins - 1) { 
+      i0 = Math.max(0, srcBins - 2);
+      t = 1.0;
+    }
+    interpI0[k] = i0;
+    interpW1[k] = t;
+  }
+  const tpl = { interpI0, interpW1, checker, tilt, edgeTerm, srcBins, fftSize };
+  if (__hopTemplateCache.size >= __hopTemplateMax) __evictOldest(__hopTemplateCache, __hopTemplateMax - 1);
+  __hopTemplateCache.set(key, tpl);
+  return tpl;
+}
+function __unwrapPhaseVectorFast(arr) {
+  const n = arr.length;
+  const out = new Float64Array(n);
+  if (n === 0) return out;
+  out[0] = arr[0];
+  for (let i = 1; i < n; ++i) {
+    let delta = arr[i] - arr[i - 1];
+    if (delta <= -Math.PI) delta += 2 * Math.PI * Math.ceil((Math.PI - delta) / (2 * Math.PI));
+    else if (delta > Math.PI) delta -= 2 * Math.PI * Math.ceil((delta - Math.PI) / (2 * Math.PI));
+    out[i] = out[i - 1] + delta;
+  }
+  return out;
+}
+function wrapPhase(phi) {
+  phi = ((phi + Math.PI) % (2 * Math.PI)) - Math.PI;
+  if (phi <= -Math.PI) phi += 2 * Math.PI;
+  return phi;
+}
+function binFreq(k, fftSizeLocal, sampleRateLocal) {
+  return (k * sampleRateLocal) / fftSizeLocal;
+}
+function computePhaseTexture(type, bin, frameIndex, basePhase) {
+  const FFT = fftSize;
+  const fs = sampleRate;
+  const hopLocal = hop;
+  const twoPi = 2 * Math.PI;
+  const k = bin | 0; 
+  const fk = (k * fs) / FFT; 
+  let phi = 0;
+  switch (type) {
+    case 'Harmonics':
+      phi = (k / specHeight * FFT / 2);
+      break;
+    case 'Static':
+      phi = (Math.random() * 2 - 1) * Math.PI;
+      break;
+    case 'Flat':
+      phi = basePhase;
+      break;
+    case 'ImpulseAlign':
+      phi = -twoPi * fk * t0 + basePhase;
+      break;
+    case 'FrameAlignedImpulse': {
+      const frameTime = (frameIndex * hopLocal) / fs;
+      const t0f = frameTime + (hopLocal / (2 * fs));
+      phi = -twoPi * fk * t0f + basePhase;
+    } break;
+    case 'ExpectedAdvance':
+      phi = basePhase + twoPi * fk * (frameIndex * hopLocal) / fs;
+      break;
+    case 'PhasePropagate': {
+      const prevIdx = (frameIndex - 1) * specHeight + k;
+      let prevPhase = null;
+      if (frameIndex > 0 && phases[prevIdx] !== undefined) {
+        prevPhase = phases[prevIdx];
+      }
+      if (prevPhase !== null && isFinite(prevPhase)) {
+        const expected = prevPhase + twoPi * fk * (hopLocal / fs);
+        phi = expected + userDelta;
+      } else {
+        phi = twoPi * fk * (frameIndex * hopLocal) / fs;
+      }
+    } break;
+    case 'RandomSmall':
+      phi = basePhase + (Math.random() * 2 - 1) * sigma;
+      break;
+    case 'HarmonicStack': {
+      const center = Math.max(1, harmonicCenter);
+      phi = -twoPi * fk * t0 + ((k % center) * 0.12);
+    } break;
+    case 'LinearDelay':
+      phi = -twoPi * fk * tau + basePhase;
+      break;
+    case 'Chirp':
+      phi = basePhase - twoPi * fk * ((frameIndex * hopLocal) / fs) - Math.pow(k, 1.05) * chirpRate;
+      break;
+    case 'CopyFromRef': {
+      const refIx = (refPhaseFrame * specHeight + k) | 0;
+      phi = phases[refIx];
+    } break;
+    case 'HopArtifact': {
+      const srcBins = Math.max(1, hopLocal | 0);
+      const FFT = fftSize;
+      const fs = sampleRate;
+      const frameTime = (frameIndex * hopLocal) / fs;
+      const tpl = __buildHopTemplate(srcBins, FFT, specHeight);
+      const fkey = __makeFrameKey(srcBins, frameIndex, FFT);
+      let entry = __hopFrameCache.get(fkey);
+      if (!entry) {
+        const coarse = new Float64Array(srcBins);
+        const baselineStep = - (2 * Math.PI) * fs * frameTime / srcBins;
+        const a = frameIndex * 0.6;            
+        const b = 0.25;                        
+        const cb = Math.cos(b), sb = Math.sin(b);
+        let sinCurr = Math.sin(a);
+        let cosCurr = Math.cos(a);
+        const frameMod = 0.8;
+        const checker = tpl.checker;
+        const tilt = tpl.tilt;
+        const edgeTerm = tpl.edgeTerm;
+        for (let j = 0; j < srcBins; ++j) {
+          const base = j * baselineStep;
+          const fm = sinCurr * frameMod;
+          coarse[j] = base + checker[j] + tilt[j] + fm + edgeTerm[j];
+          const nextSin = sinCurr * cb + cosCurr * sb;
+          const nextCos = cosCurr * cb - sinCurr * sb;
+          sinCurr = nextSin;
+          cosCurr = nextCos;
+        }
+        const unwrapped = __unwrapPhaseVectorFast(coarse);
+        entry = { unwrapped };
+        if (__hopFrameCache.size >= __hopFrameMax) __evictOldest(__hopFrameCache, __hopFrameMax - 1);
+        __hopFrameCache.set(fkey, entry);
+      }
+      const i0 = tpl.interpI0[k];
+      const w1 = tpl.interpW1[k];
+      let sampled;
+      if (tpl.srcBins === 1) sampled = entry.unwrapped[0] || 0;
+      else {
+        const u = entry.unwrapped;
+        sampled = u[i0] * (1 - w1) + u[i0 + 1] * w1;
+      }
+      phi = sampled;
+    } break;
+    default:
+      phi = basePhase;
+      break;
+  }
+  return wrapPhase(phi);
+}
 function syncOverlaySize() {
   overlayCanvas.width = canvas.width;
   overlayCanvas.style.width = canvas.style.width;
@@ -7,18 +187,13 @@ function syncOverlaySize() {
 
 let pendingPreview = false;
 let lastPreviewCoords = null;
-// Build summed-area (integral) tables for mags and phases.
-// Note: this builds for the whole image. If you want a smaller memory/time footprint,
-// you can adapt to only build for a bounding rectangle (see notes below).
 function buildIntegral(fullW, fullH, magsArr, phasesArr) {
   const W = fullW, H = fullH;
-  const iw = W + 1; // stride in x direction for integral indexing
-  const ih = H + 1; // stride in y direction; we'll use index = x*ih + y
+  const iw = W + 1;
+  const ih = H + 1;
   const size = iw * ih;
   const intMag = new Float64Array(size);
   const intPhase = new Float64Array(size);
-
-  // integral origin (0,*) and (*,0) are zeros already
   for (let x = 1; x <= W; x++) {
     const srcX = x - 1;
     const baseSrc = srcX * H;
@@ -28,7 +203,6 @@ function buildIntegral(fullW, fullH, magsArr, phasesArr) {
       const srcY = y - 1;
       const vMag = magsArr[baseSrc + srcY] || 0;
       const vPhase = phasesArr[baseSrc + srcY] || 0;
-      // standard 2D integral recurrence
       const idx = baseIntX + y;
       intMag[idx] = vMag + intMag[baseIntXminus1 + y] + intMag[baseIntX + (y - 1)] - intMag[baseIntXminus1 + (y - 1)];
       intPhase[idx] = vPhase + intPhase[baseIntXminus1 + y] + intPhase[baseIntX + (y - 1)] - intPhase[baseIntXminus1 + (y - 1)];
@@ -38,11 +212,8 @@ function buildIntegral(fullW, fullH, magsArr, phasesArr) {
   return { intMag, intPhase, iw, ih, W, H };
 }
 
-// Query box sum (inclusive coordinates) using integral tables.
-// x0..x1 and y0..y1 are inclusive and in the same coordinate system as mags (x in [0..W-1], y in [0..H-1]).
 function queryIntegralSum(integral, x0, y0, x1, y1) {
   const { intMag, intPhase, ih } = integral;
-  // convert to integral indices (shift by +1)
   const sx0 = x0 + 1, sy0 = y0 + 1, sx1 = x1 + 1, sy1 = y1 + 1;
   const idxA = sx1 * ih + sy1;
   const idxB = (sx0 - 1) * ih + sy1;
@@ -222,9 +393,7 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     // bounds check not needed if idxBase/bin clamped, but keep safe:
     if (idx < 0 || idx >= magsArr.length) continue;
     if (visited && visited[idx] === 1) continue;
-    if (visited) visited[idx] = 1;
-    
-    let pd = (bin%2<1)?1:1-po;
+    if (visited) visited[idx] = 1; 
 
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
@@ -234,15 +403,8 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
                  ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
                  :(oldMag * (1 - bo) + mag * bo);
     const type = phaseTextureEl.value;
-    let $phase;
-    if (type === 'Harmonics') {
-      $phase = (bin / specHeight * fftSize / 2);
-    } else if (type === 'Static') {
-      $phase = Math.random()*Math.PI;
-    } else if (type === 'Flat') {
-      $phase = phase;
-    }
-    const newPhase = oldPhase * (1-po) + po * ($phase + phase*2);
+    let $phase = computePhaseTexture(type, bin, xI, phase);
+    const newPhase = oldPhase * (1-po) + po * ($phase + phase);
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
     phasesArr[idx] = newPhase;

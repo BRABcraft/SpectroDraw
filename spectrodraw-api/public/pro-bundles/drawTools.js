@@ -1,9 +1,141 @@
-// ---------- Phase texture helpers (paste right after buildBinDisplayLookup) ----------
-const __hopTemplateCache = new Map(); // key = srcBins + '|' + fftSize -> { interpI0, interpW1, checker, tilt, edgeTerm, srcBins, fftSize }
-const __hopFrameCache = new Map();    // key = srcBins + '|' + frameIndex + '|' + fftSize -> { unwrapped }
-const __hopTemplateMax = 64;
-const __hopFrameMax = 256; // you can lower this if memory is tight
+// --- Frame-gains cache & pending bookkeeping (per-channel) ---
+const frameGainsCache = Array.from({ length: channelCount }, () => new Map()); // Map<frameIndex, Float32Array gains>
+const frameGainsPromises = Array.from({ length: channelCount }, () => new Map()); // Map<frameIndex, Promise>
+const pendingBins = Array.from({ length: channelCount }, () => new Map()); // Map<frameIndex, Map<bin, boScaled>>
+const frameMagsViewIdx = new Int32Array(channelCount).fill(-1); // last cached frame index per channel
+const frameMagsView = Array.from({ length: channelCount }, () => null); // last cached subarray per channel
 
+// optional global options for computeFrameGains
+const denoiserOpts = {
+  binFreqs: window.binFreqs || null,
+  sampleRate: window.sampleRate || 48000,
+  fftSize: window.fftSize || 4096,
+  normalizeRef: 128.0,
+  minGain: 0.02,
+  maxGain: 1.0,
+  kneeDb: 6.0
+};
+
+// Ensure frame gains are being computed (non-blocking). Returns Promise resolving to gains.
+function ensureFrameGains(ch, xFrame) {
+  const cache = frameGainsCache[ch];
+  if (cache.has(xFrame)) return Promise.resolve(cache.get(xFrame));
+  const promMap = frameGainsPromises[ch];
+  if (promMap.has(xFrame)) return promMap.get(xFrame);
+
+  // create promise and start async compute
+  const p = (async () => {
+    try {
+      // get a snapshot mags view if available (prefer snapshot to avoid incremental edits compounding)
+      const channel = channels[ch];
+      const snapshot = channel && channel.snapshotMags ? channel.snapshotMags : null;
+      const start = xFrame * specHeight;
+      const end = start + specHeight;
+      const magsView = snapshot ? snapshot.subarray(start, end) : channel.mags.subarray(start, end);
+
+      // call computeFrameGains (user-provided earlier) with modelSession and magsView
+      const gains = await computeFrameGains(denoiseModelSession, magsView, Object.assign({ binFreqs: denoiserOpts.binFreqs, sampleRate: denoiserOpts.sampleRate, fftSize: denoiserOpts.fftSize }, denoiserOpts));
+
+      // store in cache
+      frameGainsCache[ch].set(xFrame, gains);
+
+      // if there are pending bins painted while computing, apply them now
+      const pendingForFrame = pendingBins[ch].get(xFrame);
+      if (pendingForFrame && pendingForFrame.size > 0) {
+        applyFrameGainsToPendingBins(ch, xFrame, gains);
+      }
+      return gains;
+    } catch (err) {
+      console.warn('computeFrameGains failed for', ch, xFrame, err);
+      // remove pending promise so we can retry later
+      promMap.delete(xFrame);
+      return null;
+    } finally {
+      // clear the promise entry
+      promMap.delete(xFrame);
+    }
+  })();
+
+  promMap.set(xFrame, p);
+  return p;
+}
+
+// Record a painted bin as pending (so we can repaint it when gains arrive).
+function markPendingBin(ch, xFrame, bin, boScaled) {
+  let map = pendingBins[ch].get(xFrame);
+  if (!map) {
+    map = new Map();
+    pendingBins[ch].set(xFrame, map);
+  }
+  // keep the maximum boScaled if multiple paints hit the same bin (stronger paint wins)
+  const prev = map.get(bin);
+  if (prev === undefined || boScaled > prev) map.set(bin, boScaled);
+}
+
+// Apply a frame's gains to the recorded pending bins and repaint those bins in the imageBuffer + canvas.
+function applyFrameGainsToPendingBins(ch, xFrame, gains) {
+  if (!gains) return;
+  const map = pendingBins[ch].get(xFrame);
+  if (!map || map.size === 0) return;
+
+  const channel = channels[ch];
+  const magsArr = channel.mags;
+  const phasesArr = channel.phases;
+  const snapshot = channel && channel.snapshotMags ? channel.snapshotMags : null;
+  const startIdx = xFrame * specHeight;
+  const imgData = imageBuffer[ch].data;
+  const width = specWidth;
+  const H = specHeight;
+
+  // For each pending bin, compute final magnitude using saved boScaled, apply to magsArr, update imageBuffer rows
+  for (const [bin, boScaled] of map.entries()) {
+    if (bin < 0 || bin >= H) continue;
+    const idx = startIdx + bin;
+    // make sure idx in bounds
+    if (idx < 0 || idx >= magsArr.length) continue;
+    // read snapshotMag to compute the denoised version (avoids compounding sequential paints)
+    const snapMag = snapshot ? snapshot[idx] : magsArr[idx];
+    const gain = gains[bin] !== undefined ? gains[bin] : 1.0;
+    // mix between current displayed magnitude (magsArr[idx]) and denoised snapshot*gain according to boScaled:
+    const oldMag = magsArr[idx] || 0;
+    const denoisedMag = Math.min(255, Math.max(0, snapMag * gain));
+    const newMag = oldMag * (1 - boScaled) + denoisedMag * boScaled;
+    magsArr[idx] = newMag;
+
+    // keep phase untouched (we don't recompute phase here to avoid complexity). This preserves the interactive phase update you already applied.
+    const phase = phasesArr[idx] || 0;
+    const [r, g, b] = magPhaseToRGB(newMag, phase);
+
+    // update the rows in the imageBuffer for that bin (fast per-bin update)
+    const yTopF = binToTopDisplay[ch][bin];
+    const yBotF = binToBottomDisplay[ch][bin];
+    const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
+    const yEnd   = Math.min(H - 1, Math.ceil(Math.max(yTopF, yBotF)));
+    for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
+      const pix = (yPixel * width + xFrame) * 4;
+      imgData[pix]     = r;
+      imgData[pix + 1] = g;
+      imgData[pix + 2] = b;
+      imgData[pix + 3] = 255;
+    }
+  }
+
+  // remove pending set for that frame and redraw the canvas for this channel
+  pendingBins[ch].delete(xFrame);
+  const specCanvas = document.getElementById("spec-" + ch);
+  if (specCanvas) {
+    const ctx = specCanvas.getContext("2d");
+    ctx.putImageData(imageBuffer[ch], 0, 0);
+  }
+}
+
+
+
+
+const __hopTemplateCache = new Map(); 
+const __hopFrameCache = new Map();    
+const __hopTemplateMax = 64;
+const __hopFrameMax = 256; 
 function __makeTemplateKey(srcBins, fftSize) {
   return srcBins + '|' + fftSize;
 }
@@ -16,20 +148,13 @@ function __evictOldest(map, maxEntries) {
     map.delete(k);
   }
 }
-
-// Build template for mapping high-res bin -> coarse grid indices and weights
 function __buildHopTemplate(srcBins, fftSize, specH) {
   const key = __makeTemplateKey(srcBins, fftSize);
-  // quick: if exists return
   if (__hopTemplateCache.has(key)) return __hopTemplateCache.get(key);
-
-  // interpolation arrays map k in [0..specH-1] -> position in [0..srcBins)
-  const interpI0 = new Uint32Array(specH);   // floor(pos) clamped to [0..srcBins-2]
-  const interpW1 = new Float32Array(specH);  // t in [0..1]
+  const interpI0 = new Uint32Array(specH);   
+  const interpW1 = new Float32Array(specH);  
   const invFFT = 1 / Math.max(1, fftSize);
-  const scale = srcBins * invFFT; // pos = k * scale
-
-  // precompute per-coarse j constant arrays
+  const scale = srcBins * invFFT; 
   const checker = new Float64Array(srcBins);
   const tilt = new Float64Array(srcBins);
   const edgeTerm = new Float64Array(srcBins);
@@ -40,29 +165,23 @@ function __buildHopTemplate(srcBins, fftSize, specH) {
     tilt[j] = (j * invSrcMinus1) * 0.25;
     edgeTerm[j] = (j === 0 || j === srcBins - 1) ? edgeBoost : 0;
   }
-
-  // fill interp maps
   for (let k = 0; k < specH; ++k) {
     const pos = k * scale;
     let i0 = Math.floor(pos);
     let t = pos - i0;
     if (i0 < 0) { i0 = 0; t = 0; }
-    if (i0 >= srcBins - 1) { // clamp to last interval
+    if (i0 >= srcBins - 1) { 
       i0 = Math.max(0, srcBins - 2);
       t = 1.0;
     }
     interpI0[k] = i0;
     interpW1[k] = t;
   }
-
   const tpl = { interpI0, interpW1, checker, tilt, edgeTerm, srcBins, fftSize };
-  // LRU-ish insert
   if (__hopTemplateCache.size >= __hopTemplateMax) __evictOldest(__hopTemplateCache, __hopTemplateMax - 1);
   __hopTemplateCache.set(key, tpl);
   return tpl;
 }
-
-// Unwrap 1D array -> Float64Array (same as before but smaller)
 function __unwrapPhaseVectorFast(arr) {
   const n = arr.length;
   const out = new Float64Array(n);
@@ -77,7 +196,6 @@ function __unwrapPhaseVectorFast(arr) {
   return out;
 }
 function wrapPhase(phi) {
-  // wrap to (-PI, PI]
   phi = ((phi + Math.PI) % (2 * Math.PI)) - Math.PI;
   if (phi <= -Math.PI) phi += 2 * Math.PI;
   return phi;
@@ -85,60 +203,36 @@ function wrapPhase(phi) {
 function binFreq(k, fftSizeLocal, sampleRateLocal) {
   return (k * sampleRateLocal) / fftSizeLocal;
 }
-
-/*
- computePhaseTexture(type, bin, frameIndex, opts)
- - type: string (value from phaseTexture select)
- - bin: integer bin index (0..specHeight-1)
- - frameIndex: integer frame/column index (xI)
- - opts: {
-     t0,                 // seconds for ImpulseAlign
-     tau,                // seconds for LinearDelay
-     sigma,              // radians for RandomSmall
-     harmonicCenter,     // integer for HarmonicStack
-     refPhaseFrame       // Float32Array or Array for CopyFromRef
-   }
-*/
-function computePhaseTexture(type, bin, frameIndex) {
-  // Local fast references to globals (avoid repeated global lookups)
+function computePhaseTexture(type, bin, frameIndex, basePhase) {
   const FFT = fftSize;
   const fs = sampleRate;
   const hopLocal = hop;
   const ch = currentChannel;
   const twoPi = 2 * Math.PI;
-  const k = bin | 0; // assume integer
-  const fk = (k * fs) / FFT; // inline binFreq to reduce call overhead
-  const basePhase = 0;
-
+  const k = bin | 0; 
+  const fk = (k * fs) / FFT; 
   let phi = 0;
-
   switch (type) {
     case 'Harmonics':
       phi = (k / specHeight * FFT / 2);
       break;
-
     case 'Static':
       phi = (Math.random() * 2 - 1) * Math.PI;
       break;
-
     case 'Flat':
       phi = basePhase;
       break;
-
     case 'ImpulseAlign':
       phi = -twoPi * fk * t0 + basePhase;
       break;
-
     case 'FrameAlignedImpulse': {
       const frameTime = (frameIndex * hopLocal) / fs;
       const t0f = frameTime + (hopLocal / (2 * fs));
       phi = -twoPi * fk * t0f + basePhase;
     } break;
-
     case 'ExpectedAdvance':
       phi = basePhase + twoPi * fk * (frameIndex * hopLocal) / fs;
       break;
-
     case 'PhasePropagate': {
       const prevIdx = (frameIndex - 1) * specHeight + k;
       let prevPhase = null;
@@ -152,138 +246,90 @@ function computePhaseTexture(type, bin, frameIndex) {
         phi = twoPi * fk * (frameIndex * hopLocal) / fs;
       }
     } break;
-
     case 'RandomSmall':
       phi = basePhase + (Math.random() * 2 - 1) * sigma;
       break;
-
     case 'HarmonicStack': {
       const center = Math.max(1, harmonicCenter);
       phi = -twoPi * fk * t0 + ((k % center) * 0.12);
     } break;
-
     case 'LinearDelay':
       phi = -twoPi * fk * tau + basePhase;
       break;
-
     case 'Chirp':
       phi = basePhase - twoPi * fk * ((frameIndex * hopLocal) / fs) - Math.pow(k, 1.05) * chirpRate;
       break;
-
     case 'CopyFromRef': {
       const refIx = (refPhaseFrame * specHeight + k) | 0;
       phi = (channels[ch] && channels[ch].phases) ? channels[ch].phases[refIx] || 0 : 0;
     } break;
-
     case 'HopArtifact': {
-      // Parameters (cheap local copies)
       const srcBins = Math.max(1, hopLocal | 0);
       const FFT = fftSize;
       const fs = sampleRate;
       const frameTime = (frameIndex * hopLocal) / fs;
-
-      // get / build template (includes interp maps and static per-coarse terms)
       const tpl = __buildHopTemplate(srcBins, FFT, specHeight);
-
-      // frame cache key
       const fkey = __makeFrameKey(srcBins, frameIndex, FFT);
       let entry = __hopFrameCache.get(fkey);
-
       if (!entry) {
-        // build coarse vector using cheap recurrence for fm (sin(a + j*b))
         const coarse = new Float64Array(srcBins);
-
-        // baseline: baselineStep * j
-        // baselineStep = -2pi * fs * frameTime / srcBins
         const baselineStep = - (2 * Math.PI) * fs * frameTime / srcBins;
-
-        // frame modulation: fm_j = Math.sin(frameIndex*0.6 + j*0.25) * frameMod
-        // compute sinStart/cosStart once
-        const a = frameIndex * 0.6;            // starting angle
-        const b = 0.25;                        // increment per coarse bin
+        const a = frameIndex * 0.6;            
+        const b = 0.25;                        
         const cb = Math.cos(b), sb = Math.sin(b);
         let sinCurr = Math.sin(a);
         let cosCurr = Math.cos(a);
         const frameMod = 0.8;
-
-        // build coarse vector with only simple ops
         const checker = tpl.checker;
         const tilt = tpl.tilt;
         const edgeTerm = tpl.edgeTerm;
-
         for (let j = 0; j < srcBins; ++j) {
-          // baseline = j * baselineStep
           const base = j * baselineStep;
           const fm = sinCurr * frameMod;
           coarse[j] = base + checker[j] + tilt[j] + fm + edgeTerm[j];
-
-          // recurrence step for next j
           const nextSin = sinCurr * cb + cosCurr * sb;
           const nextCos = cosCurr * cb - sinCurr * sb;
           sinCurr = nextSin;
           cosCurr = nextCos;
         }
-
-        // unwrap and cache
         const unwrapped = __unwrapPhaseVectorFast(coarse);
         entry = { unwrapped };
         if (__hopFrameCache.size >= __hopFrameMax) __evictOldest(__hopFrameCache, __hopFrameMax - 1);
         __hopFrameCache.set(fkey, entry);
       }
-
-      // Per-bin sampling: use template interp indices/weights (fast)
       const i0 = tpl.interpI0[k];
       const w1 = tpl.interpW1[k];
-      // sample safely (i0 in [0..srcBins-2]); but guard edge if srcBins==1
       let sampled;
       if (tpl.srcBins === 1) sampled = entry.unwrapped[0] || 0;
       else {
         const u = entry.unwrapped;
         sampled = u[i0] * (1 - w1) + u[i0 + 1] * w1;
       }
-
       phi = sampled;
     } break;
-
     default:
       phi = basePhase;
       break;
   }
-
   return wrapPhase(phi);
 }
-
-// ---------- end helpers ----------
-
-
-
-
 function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMult = 1) {
   if (!img || !img.complete || img.naturalWidth === 0) return;
   const fullW = specWidth;
   const fullH = specHeight;
   let integral = (currentTool === "blur")?buildIntegral(fullW, fullH, channels[ch].mags, channels[ch].phases):null;
-
-  // Clip destination to spectrogram bounds
   const ox = Math.floor(dstOx);
   const oy = Math.floor(dstOy);
   const drawW = Math.max(0, Math.min(fullW - ox, Math.max(0, Math.round(dstW))));
   const drawH = Math.max(0, Math.min(fullH - oy, Math.max(0, Math.round(dstH))));
   if (drawW <= 0 || drawH <= 0) return;
-
-  // Create temp canvas sized to the portion we are going to write (canvas units == spectrogram cells)
   const tempCanvas = document.createElement("canvas");
   tempCanvas.width = drawW;
   tempCanvas.height = drawH;
   const tctx = tempCanvas.getContext("2d");
   tctx.imageSmoothingEnabled = false;
-
-  // Draw the whole source image scaled into drawW x drawH.
-  // This mirrors the commitShape approach: scale the full stamp/image into the target rectangle.
   tctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, drawW, drawH);
   const imgData = tctx.getImageData(0, 0, drawW, drawH);
-
-  // Loop pixels and push into spectrogram via drawPixel, applying brushOpacity & phaseStrength
   const chPressure = (channels[ch] && channels[ch].brushPressure) ? channels[ch].brushPressure : 1;
   for (let yy = 0; yy < drawH; yy++) {
     for (let xx = 0; xx < drawW; xx++) {
@@ -293,7 +339,6 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
       const b = imgData.data[pix + 2];
       const a = imgData.data[pix + 3] / 255;
       if (a <= 0) continue;
-
       const cxPix = ox + xx;
       const cyPix = oy + yy;
       let mag, phase;
@@ -301,25 +346,19 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
         mag = 0;
         phase = 0;
       } else if (currentTool === "blur") {
-        // Blur uses existing spectrogram, NOT image color
         const binCenter = Math.round(displayYToBin(cyPix, fullH, ch));
         const rB = blurRadius | 0;
-
         const x0 = Math.max(0, cxPix - rB);
         const x1 = Math.min(fullW - 1, cxPix + rB);
         const y0 = Math.max(0, binCenter - rB);
         const y1 = Math.min(fullH - 1, binCenter + rB);
-
         const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
         const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-
         mag   = sumMag   / count;
         phase = sumPhase / count;
       } else {
-        // Normal image → mag/phase
         [mag, phase] = rgbToMagPhase(r, g, b);
       }
-
       if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
         const bo = brushOpacity * a * chPressure * boMult;
         const po = phaseStrength * a * poMult;
@@ -328,28 +367,21 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
     }
   }
 }
-
 function syncOverlaySize(canvas,overlay) {
   overlay.width  = canvas.width;
   overlay.height = canvas.height;
   overlay.style.width  = canvas.style.width;
   overlay.style.height = canvas.style.height;
 }
-
 let pendingPreview = false;
 let lastPreviewCoords = null;
-// Build summed-area (integral) tables for mags and phases.
-// Note: this builds for the whole image. If you want a smaller memory/time footprint,
-// you can adapt to only build for a bounding rectangle (see notes below).
 function buildIntegral(fullW, fullH, magsArr, phasesArr) {
   const W = fullW, H = fullH;
-  const iw = W + 1; // stride in x direction for integral indexing
-  const ih = H + 1; // stride in y direction; we'll use index = x*ih + y
+  const iw = W + 1; 
+  const ih = H + 1; 
   const size = iw * ih;
   const intMag = new Float64Array(size);
   const intPhase = new Float64Array(size);
-
-  // integral origin (0,*) and (*,0) are zeros already
   for (let x = 1; x <= W; x++) {
     const srcX = x - 1;
     const baseSrc = srcX * H;
@@ -359,21 +391,15 @@ function buildIntegral(fullW, fullH, magsArr, phasesArr) {
       const srcY = y - 1;
       const vMag = magsArr[baseSrc + srcY] || 0;
       const vPhase = phasesArr[baseSrc + srcY] || 0;
-      // standard 2D integral recurrence
       const idx = baseIntX + y;
       intMag[idx] = vMag + intMag[baseIntXminus1 + y] + intMag[baseIntX + (y - 1)] - intMag[baseIntXminus1 + (y - 1)];
       intPhase[idx] = vPhase + intPhase[baseIntXminus1 + y] + intPhase[baseIntX + (y - 1)] - intPhase[baseIntXminus1 + (y - 1)];
     }
   }
-
   return { intMag, intPhase, iw, ih, W, H };
 }
-
-// Query box sum (inclusive coordinates) using integral tables.
-// x0..x1 and y0..y1 are inclusive and in the same coordinate system as mags (x in [0..W-1], y in [0..H-1]).
 function queryIntegralSum(integral, x0, y0, x1, y1) {
   const { intMag, intPhase, ih } = integral;
-  // convert to integral indices (shift by +1)
   const sx0 = x0 + 1, sy0 = y0 + 1, sx1 = x1 + 1, sy1 = y1 + 1;
   const idxA = sx1 * ih + sy1;
   const idxB = (sx0 - 1) * ih + sy1;
@@ -383,7 +409,6 @@ function queryIntegralSum(integral, x0, y0, x1, y1) {
   const sumPhase = intPhase[idxA] - intPhase[idxB] - intPhase[idxC] + intPhase[idxD];
   return { sumMag, sumPhase };
 }
-
 function drawSpriteOutline(useDelta,cx,cy){
   let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?channelCount:spritePath.ch+1;
   for (let ch=$s;ch<$e;ch++){
@@ -393,9 +418,7 @@ function drawSpriteOutline(useDelta,cx,cy){
     const framesVisible = Math.max(1, iHigh - iLow);
     const mapX = (frameX) => ((frameX - iLow) * canvas.width) / framesVisible;
     const mapY = (binY)   => (binY * canvas.height) / Math.max(1, specHeight);
-
     const pts = spritePath.points.map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-    // Draw filled translucent shape + stroke
     const ctx = overlayCtx;
     ctx.save();
     ctx.beginPath();
@@ -409,21 +432,16 @@ function drawSpriteOutline(useDelta,cx,cy){
       ctx.lineTo(pts[i].x + dx, getY(i));
     }
     ctx.closePath();
-
-    // fill + stroke styles (tweak colors/alpha as you like)
-    ctx.fillStyle = "rgba(255,200,0,0.08)"; // subtle fill
+    ctx.fillStyle = "rgba(255,200,0,0.08)"; 
     ctx.fill();
-
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#ff0000ff";
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.stroke();
-
     ctx.restore();
   }
 }
-
 function drawSampleRegion(cx) {
   const framesVisible = Math.max(1, iHigh - iLow);
   let $s = syncChannels ? 0 : currentChannel;
@@ -446,20 +464,16 @@ function drawSampleRegion(cx) {
     ctx.restore();
   }
 }
-
-
 function previewShape(cx, cy) {
   lastPreviewCoords = { cx, cy };
   if (pendingPreview) return;
   pendingPreview = true;
-
   requestAnimationFrame(() => {
     pendingPreview = false;
     const { cx, cy } = lastPreviewCoords;
-    const overlayCanvas = document.getElementById("overlay-"+currentChannel); //CHANGE LATER
-    const ctx = overlayCanvas.getContext("2d"); // local ref
-    const canvas = document.getElementById("canvas-"+currentChannel); //CHANGE LATER
-
+    const overlayCanvas = document.getElementById("overlay-"+currentChannel); 
+    const ctx = overlayCanvas.getContext("2d"); 
+    const canvas = document.getElementById("canvas-"+currentChannel); 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     if (draggingSample.length > 0) {
       drawSampleRegion(cx);
@@ -469,11 +483,8 @@ function previewShape(cx, cy) {
       drawSpriteOutline(true,cx,cy);
       return;
     }
-
     const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
-
     const x = (currentCursorX - iLow) * canvas.width / (iHigh - iLow);
-    // vertical guide
     ctx.save();
     ctx.strokeStyle = "#0f0";
     ctx.lineWidth = framesTotal / 500;
@@ -481,20 +492,15 @@ function previewShape(cx, cy) {
     ctx.moveTo(x + 0.5, 0);
     ctx.lineTo(x + 0.5, specHeight);
     ctx.stroke();
-
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
-
     const hasStart = startX !== null && startY !== null;
-
     if (currentShape === "rectangle" && hasStart) {
       ctx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
       ctx.restore();
       return;
     }
-
     if (currentShape === "line" && hasStart) {
-      // line shape isn't affected per your note — leave as-is
       ctx.lineWidth = brushSize / 4;
       ctx.beginPath();
       ctx.moveTo(startX + 0.5, startY + 0.5);
@@ -503,19 +509,12 @@ function previewShape(cx, cy) {
       ctx.restore();
       return;
     }
-
-    // compute expensive rect stuff only if needed (image or ellipse)
     const rect = canvas.getBoundingClientRect();
     const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
     const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
-
-    // fallback: if new variables aren't available, fall back to brushSize for compatibility
     const bw = brushWidth;
     const bh = brushHeight;
-
-    // IMAGE preview:
     if (currentShape === "image" && images[selectedImage] && images[selectedImage].img) {
-      // If dragToDraw and we have a start point, show the drag-rect and draw the image in the rect
       if (dragToDraw && hasStart) {
         const x0 = Math.min(startX, cx);
         const y0 = Math.min(startY, cy);
@@ -530,7 +529,6 @@ function previewShape(cx, cy) {
           ctx.fillRect(x0, y0, w, h);
         }
       } else {
-        // existing centered-by-cursor preview (unchanged behavior)
         const screenW = Math.max(1, bw);
         const screenH = Math.max(1, bh);
         const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
@@ -540,10 +538,7 @@ function previewShape(cx, cy) {
       ctx.restore();
       return;
     }
-
-    // STAMP preview:
     if (currentShape === "stamp" && currentStamp !== null) {
-      // If dragToDraw and we have a start point, preview using startX/startY -> cx/cy (draw stamp in preview)
       if (dragToDraw && hasStart) {
         if (!currentStamp.img) {
           currentStamp.img = new Image();
@@ -562,7 +557,6 @@ function previewShape(cx, cy) {
           ctx.fillRect(x0, y0, w, h);
         }
       } else {
-        // NOT dragToDraw: behave like image preview (centered outline), but *do not* draw stamp image in preview
         const screenW = Math.max(1, bw);
         const screenH = Math.max(1, bh);
         const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
@@ -572,24 +566,17 @@ function previewShape(cx, cy) {
       ctx.restore();
       return;
     }
-
-    // BRUSH preview: ellipse sized by brushWidth / brushHeight (screen-space -> canvas coords)
     if (currentShape === "brush") {
-      const radiusX = (bw / 2) / pixelsPerFrame; // in canvas x units (frames)
-      const radiusY = (bh / 2) / pixelsPerBin;   // in canvas y units (bins)
+      const radiusX = (bw / 2) / pixelsPerFrame; 
+      const radiusY = (bh / 2) / pixelsPerBin;   
       ctx.beginPath();
       ctx.ellipse(cx, cy, Math.max(0.5, radiusX), Math.max(0.5, radiusY), 0, 0, 2 * Math.PI);
       ctx.stroke();
       ctx.restore();
       return;
     }
-
-    // drawCursor(false);
   });
 }
-
-
-
 function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let ch=$s;ch<$e;ch++){
@@ -599,18 +586,14 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
     let yStartSpec = startWasLeft ? startSpecY : endSpecY;
     let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
     const brushMag = (brushColor / 255) * 128;
-
     x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
     x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
     let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
     let y1 = Math.max(0, Math.min(specHeight - 1, Math.round(yEndSpec)));
-
     const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
     let err = (dx > dy ? dx : -dy) / 2;
-
     const half = Math.floor(lineWidth / 2);
-
     while (true) {
       for (let dy = -half; dy <= half; dy++) {
         const px = x0;
@@ -626,8 +609,6 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
     }
   }
 }
-
-// call when spectrogram parameters change:
 let binToTopDisplay = new Array(channelCount);
 let binToBottomDisplay = new Array(channelCount);
 function buildBinDisplayLookup() {
@@ -640,7 +621,6 @@ function buildBinDisplayLookup() {
     }
   }
 }
-
 function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,ch) {
   if (!sprite) return;
   let col;
@@ -668,17 +648,12 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,c
     col.nextMags.push(nextMag);
     col.nextPhases.push(nextPhase);
   }
-  
-
   if (x < sprite.minCol) sprite.minCol = x;
   if (x > sprite.maxCol) sprite.maxCol = x;
 }
-
 function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
-
-  // locals for perf
   const fullH = specHeight;
   const fullW = specWidth;
   const width = fullW;
@@ -686,11 +661,8 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const idxBase = xI * fullH;
   const imgData = imageBuffer[ch].data;
   const dbt = Math.pow(10, noiseRemoveFloor / 20) * 128;
-
   const magsArr = channels[ch].mags;
   const phasesArr = channels[ch].phases;
-
-  // optional pitch-align
   let displayYFloat = yDisplay;
   const f = getSineFreq(yDisplay);
   if (alignPitch) {
@@ -698,8 +670,6 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
     displayYFloat = ftvsy(nearestPitch, ch);
   }
-
-  // helper: process a single bin (reused by both flows)
   function processBin(bin, boScaled) {
     if (!Number.isFinite(bin)) return;
     bin = Math.max(0, Math.min(fullH - 1, Math.round(bin)));
@@ -707,7 +677,6 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     if (idx < 0 || idx >= magsArr.length) return;
     if (visited && visited[ch][idx] === 1) return;
     if (visited) visited[ch][idx] = 1;
-
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     function mod(n, m) {
@@ -717,46 +686,63 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     (Math.floor(mod(clonerX + (xFrame-startX)/clonerScale ,framesTotal)+iLow)*specHeight+
      Math.floor(mod(binShift, specHeight ))
     ):null;
-    const newMag = (currentTool === "amplifier")
+        const newMag = (currentTool === "amplifier")
                 ? (oldMag * amp)
                 : (currentTool === "noiseRemover")
-                ? (oldMag > dbt ? oldMag : (oldMag * (1 - boScaled)))
+                ? (function() {
+                    // fast threshold passthrough for strong bins
+                    if (oldMag > dbt) return oldMag;
+
+                    // compute / reuse cached frame view for this xFrame (avoid subarray allocations)
+                    if (frameMagsViewIdx[ch] !== xFrame || !frameMagsView[ch]) {
+                      const start = specHeight * xFrame;
+                      const end = start + specHeight;
+                      // prefer snapshot if available
+                      const channelSnapshot = channels[ch] && channels[ch].snapshotMags ? channels[ch].snapshotMags : null;
+                      frameMagsView[ch] = (channelSnapshot ? channelSnapshot.subarray(start, end) : channels[ch].mags.subarray(start, end));
+                      frameMagsViewIdx[ch] = xFrame;
+                    }
+                    const magsFrameView = frameMagsView[ch];
+
+                    // see if there's a ready gains mask for this frame
+                    const gmap = frameGainsCache[ch];
+                    const gains = gmap.get(xFrame);
+
+                    if (gains) {
+                      // fast path: model gains are ready -> apply them (mix with oldMag using boScaled)
+                      const gain = gains[bin] !== undefined ? gains[bin] : 1.0;
+                      // snapshot mag (the original frame mag captured at mouseDown if present)
+                      const snapGlobal = channels[ch] && channels[ch].snapshotMags ? channels[ch].snapshotMags : channels[ch].mags;
+                      const snapMag = snapGlobal[(xFrame * specHeight) + bin] || 0;
+                      const denoisedMag = Math.min(255, Math.max(0, snapMag * gain));
+                      return oldMag * (1 - boScaled) + denoisedMag * boScaled;
+                    } else {
+                      // not ready: start computing gains async (non-blocking) and use the fast heuristic immediately
+                      // mark this bin as pending so when gains finish we repaint it
+                      markPendingBin(ch, xFrame, bin, boScaled);
+                      // kick off async compute if not already running
+                      ensureFrameGains(ch, xFrame).catch(() => {/*ignore*/});
+
+                      // fallback heuristic immediate preview (fast). Use your previous per-bin semitone heuristic:
+                      return oldMag * (1 - boScaled);
+                    }
+                  })()
                 : (currentTool === "cloner")
                 ? channels[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
+
     const type = phaseTextureEl.value;
     let $phase; let newPhase;
     if (currentTool === "cloner") {
       $phase = channels[clonerCh].phases[clonerPos];
     } else {
-      // Use the centralized computePhaseTexture helper so all textures behave consistently.
-      // type is read earlier as: const type = phaseTextureEl.value;
-      const opts = {
-        ch: ch,
-        specHeight: fullH,
-        fftSize: (typeof fftSize !== "undefined") ? fftSize : undefined,
-        sampleRate: (typeof sampleRate !== "undefined") ? sampleRate : undefined,
-        hop: (typeof hop !== "undefined") ? hop : 1,
-        // optional user tweak points (exposed later via UI)
-        t0: (typeof userPhaseT0 !== "undefined") ? userPhaseT0 : 0.0,
-        tau: (typeof userPhaseTau !== "undefined") ? userPhaseTau : 0.0,
-        sigma: (typeof userPhaseSigma !== "undefined") ? userPhaseSigma : 0.3,
-        harmonicCenter: (typeof userHarmonicCenter !== "undefined") ? userHarmonicCenter : 8,
-        refPhaseFrame: (typeof userRefPhaseFrame !== "undefined") ? userRefPhaseFrame : null,
-        userDelta: (typeof userPhaseDelta !== "undefined") ? userPhaseDelta : 0
-      };
-      $phase = computePhaseTexture(type, bin, xI, opts);
-      // Blend into existing phase using po (phaseStrength)
-      // Keep the old behavior of mixing + the previous 'phase' offset used in your code
+      $phase = computePhaseTexture(type, bin, xI, phase);
     }
-    newPhase = oldPhase * (1 - po) + po * ($phase + phase * 2);
-
+    newPhase = oldPhase * (1 - po) + po * ($phase + phase);
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
     phasesArr[idx] = newPhase;
     channels[ch].mags = magsArr;
-
-    // draw pixel(s) for this bin (use bin's display bounds to pick rows)
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
@@ -770,9 +756,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
       imgData[pix + 3] = 255;
     }
   }
-  
   const binShift = (currentTool==="cloner")?displayYToBin(clonerY+(yDisplay-visibleToSpecY(startY))/clonerScale,specHeight,ch):null;
-  // NOTE shape: draw one bin per harmonic (frequency * (i+1)), with bo scaled by harmonics[i]
   if (currentShape === "note" || currentShape === "line") {
     const harmArr = harmonics;
     let i = 0, binF = 0;
@@ -788,25 +772,19 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     }
     return;
   }
-
-  // default shape: original behavior (range of bins around displayYFloat)
   const topBinF = displayYToBin(displayYFloat - 0.5, fullH, ch);
   const botBinF = displayYToBin(displayYFloat + 0.5, fullH, ch);
-
   let binStart = Math.floor(Math.min(topBinF, botBinF));
   let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
   if (!Number.isFinite(binStart)) binStart = 0;
   if (!Number.isFinite(binEnd))   binEnd   = 0;
   binStart = Math.max(0, binStart);
   binEnd   = Math.min(fullH - 1, binEnd);
-
   for (let bin = binStart; bin <= binEnd; bin++) {
     const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
     processBin(bin, bo*velFactor);
   }
 }
-
-
 function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const tool = newEffect.tool || currentTool;
   let mag, phase;
@@ -817,7 +795,6 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
     const x1 = Math.min(specWidth - 1, x + r);
     const y0 = Math.max(0, binCenter - r);
     const y1 = Math.min(specHeight - 1, binCenter + r);
-
     const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
     const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
     mag = sumMag / count; phase = sumPhase / count;
@@ -845,20 +822,17 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const clampedMag = Math.min(newMag, 255);
   return { mag: clampedMag, phase: newPhase};
 }
-
 function commitShape(cx, cy) {
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let ch=$s;ch<$e;ch++){
     let mags = channels[ch].mags, phases = channels[ch].phases;
     if (!mags || !phases) return;
-
     const fullW = specWidth;
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseStrength;
     const bo = (currentTool === "eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
     const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
     const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-
     const visitedLocal = Array.from({ length: channelCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
     visited = visitedLocal;
@@ -868,30 +842,24 @@ function commitShape(cx, cy) {
     }
     try {
       const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
-
       const startVisX = (startX == null ? cx : startX);
       const startVisY = (startY == null ? cy : startY);
-
       const startFrame = Math.round(startVisX + (iLow || 0));
       const endFrame   = Math.round(cx + (iLow || 0));
       let x0Frame = Math.max(0, Math.min(fullW - 1, Math.min(startFrame, endFrame)));
       let x1Frame = Math.max(0, Math.min(fullW - 1, Math.max(startFrame, endFrame)));
-
       const startSpecY = visibleToSpecY(startVisY);
       const endSpecY   = visibleToSpecY(cy);
       let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
       let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
-
       function dp(xFrame, yDisplay, mag, phase, bo, po, ch,opts={}){
         if (currentTool === "blur") {
-          // map displayY to the nearest bin once
           const binCenter = Math.round(displayYToBin(yDisplay, fullH, ch));
           const r = blurRadius | 0;
           const x0 = Math.max(0, xFrame - r);
           const x1 = Math.min(fullW - 1, xFrame + r);
           const y0 = Math.max(0, binCenter - r);
           const y1 = Math.min(fullH - 1, binCenter + r);
-
           const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
           const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
           drawPixel(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po, ch);
@@ -899,16 +867,12 @@ function commitShape(cx, cy) {
           drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch);
         }
       }
-
       if (currentShape === "rectangle") {
-        // ... (unchanged rectangle code) ...
         const minX = x0Frame;
         const maxX = x1Frame;
-
         let binA = displayYToBin(y0Spec, fullH, ch);
         let binB = displayYToBin(y1Spec, fullH, ch);
         if (binA > binB) { const t = binA; binA = binB; binB = t; }
-
         binA = Math.max(0, Math.min(fullH - 1, Math.round(binA)));
         binB = Math.max(0, Math.min(fullH - 1, Math.round(binB)));
         let pixels = [];
@@ -923,22 +887,17 @@ function commitShape(cx, cy) {
           }
         }
         if (currentTool === "autotune") applyAutotuneToPixels(ch,pixels);
-
       } else if (currentShape === "line") {
-        // ... (unchanged line code; uses brushSize as before) ...
         let x0=startFrame;x1=endFrame;
         let yStartSpec = startSpecY;
         let yEndSpec   = endSpecY;
-
         x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
         x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
         let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
         let y1 = Math.max(0, Math.min(specHeight - 1, Math.round(yEndSpec)));
-
         const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = (dx > dy ? dx : -dy) / 2;
-
         const half = Math.floor(brushSize / 8);
         let pixels = [];
         while (true) {
@@ -962,22 +921,18 @@ function commitShape(cx, cy) {
       }
       if (currentShape === "image") {
         if (!images[selectedImage] || !images[selectedImage].img) {
-          // nothing to commit
         } else {
           const canvas = document.getElementById("canvas-"+ch);
           const screenRect = canvas.getBoundingClientRect();
           const pixelsPerFrame = screenRect.width  / Math.max(1, canvas.width);
           const pixelsPerBin   = screenRect.height / Math.max(1, canvas.height);
-
           if (dragToDraw && startX !== null && startY !== null) {
-            // Use drag rect: startVisX/Y -> cx,cy (canvas units)
             const left   = Math.floor(Math.min(startVisX, cx));
             const top    = Math.floor(Math.min(startVisY, cy));
             const overlayW = Math.max(1, Math.round(Math.abs(cx - startVisX)));
             const overlayH = Math.max(1, Math.round(Math.abs(cy - startVisY)));
             applyImageToChannel(ch, images[selectedImage].img, left, top, overlayW, overlayH);
           } else {
-            // Centered by cursor using brushWidth / brushHeight (screen-space -> canvas units)
             const bw = brushWidth;
             const bh = brushHeight;
             const screenW = Math.max(1, bw);
@@ -992,7 +947,6 @@ function commitShape(cx, cy) {
       }
       if (currentShape === "stamp") {
         if (!currentStamp || !currentStamp.dataUrl) {
-          // nothing to commit
         } else {
           if (!currentStamp.img) {
             currentStamp.img = new Image();
@@ -1008,12 +962,10 @@ function commitShape(cx, cy) {
               const overlayH = Math.max(1, Math.round(Math.abs(cy - startVisY)));
               applyImageToChannel(ch, currentStamp.img, left, top, overlayW, overlayH);
             } else {
-              // center by cursor using brushWidth/brushHeight
               const canvas = document.getElementById("canvas-"+ch);
               const screenRect = canvas.getBoundingClientRect();
               const pixelsPerFrame = screenRect.width  / Math.max(1, canvas.width);
               const pixelsPerBin   = screenRect.height / Math.max(1, canvas.height);
-
               const bw = brushWidth;
               const bh = brushHeight;
               const screenW = Math.max(1, bw);
@@ -1032,15 +984,11 @@ function commitShape(cx, cy) {
     }
     const specCanvas = document.getElementById("spec-"+ch);
     const specCtx = specCanvas.getContext("2d");
-
     specCtx.putImageData(imageBuffer[ch], 0, 0);
   }
   renderView();
 }
-
-
-
-function ftvsy(f,ch,l) {// frequency to visible spectrogram Y
+function ftvsy(f,ch,l) {
   const h = specHeight;
   const s = (ch!==null)?parseFloat(logScaleVal[ch]):l;
   let bin = f / (sampleRate / fftSize);
@@ -1053,9 +1001,7 @@ function ftvsy(f,ch,l) {// frequency to visible spectrogram Y
       const t = Math.log(1 + a * bin) / denom;
       cy = (1 - t) * (h - 1);
   }
-
   const visY = ((cy) / h) * h;
-
   return visY;
 }
 let vr = 1;
@@ -1080,16 +1026,13 @@ function paint(cx, cy) {
     const maxY = Math.min(fullH - 1, Math.ceil((Math.max(cy,prevRealY)) + dy));
     const radiusXsq = radiusXFrames * radiusXFrames;
     const radiusYsq = radiusY * radiusY;
-        // inside paint(), replace the image block with:
     if (currentShape === "image" && images[selectedImage] && images[selectedImage].img) {
       const canvas = document.getElementById("canvas-"+ch);
       const rect = canvas.getBoundingClientRect();
       const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
       const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
-
       const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
       const hasStart = startX !== null && startY !== null;
-
       if (dragToDraw && hasStart) {
         const left = Math.floor(Math.min(startX, cx));
         const top  = Math.floor(Math.min(startY, cy));
@@ -1097,7 +1040,6 @@ function paint(cx, cy) {
         const overlayH = Math.max(1, Math.round(Math.abs(cy - startY)));
         applyImageToChannel(ch, images[selectedImage].img, left, top, overlayW, overlayH);
       } else {
-        // centered by cursor (screen-space -> canvas units)
         const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
         const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
         const screenW = Math.max(1, bw);
@@ -1120,10 +1062,8 @@ function paint(cx, cy) {
         const rect = canvas.getBoundingClientRect();
         const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
         const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
-
         const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
         const hasStart = startX !== null && startY !== null;
-
         if (dragToDraw && hasStart) {
           const left = Math.floor(Math.min(startX, cx));
           const top  = Math.floor(Math.min(startY, cy));
@@ -1131,7 +1071,6 @@ function paint(cx, cy) {
           const overlayH = Math.max(1, Math.round(Math.abs(cy - startY)));
           applyImageToChannel(ch, currentStamp.img, left, top, overlayW, overlayH);
         } else {
-          // centered by cursor using brushWidth/brushHeight
           const bw = (typeof brushWidth === "number") ? brushWidth : brushSize;
           const bh = (typeof brushHeight === "number") ? brushHeight : brushSize;
           const screenW = Math.max(1, bw);
@@ -1146,36 +1085,27 @@ function paint(cx, cy) {
     } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-      // endpoints of the segment (make sure these are in the same coordinate space)
       const p0x = prevMouseX + iLow;
       const p0y = visibleToSpecY(prevMouseY);
-      const p1x = cx;   // current brush center x
-      const p1y = cy;   // current brush center y
-
+      const p1x = cx;   
+      const p1y = cy;   
       const vx = p1x - p0x;
       const vy = p1y - p0y;
       const lenSq = vx * vx + vy * vy;
       const EPS = 1e-9;
-
       for (let yy = minY; yy <= maxY; yy++) {
         for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-
-          // find t for projection of pixel onto the line segment p0->p1 (clamped 0..1)
           let t = 0;
           if (lenSq > EPS) {
             t = ((xx - p0x) * vx + (yy - p0y) * vy) / lenSq;
             if (t < 0) t = 0;
             else if (t > 1) t = 1;
           }
-          // nearest point on the segment to this pixel
           const nearestX = p0x + t * vx;
           const nearestY = p0y + t * vy;
-
-          // elliptical distance test centered on the nearest point
           const dx = xx - nearestX;
           const dy = yy - nearestY;
           if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
-
           drawPixel(xx, yy, brushMag, brushPhase, bo, po, ch);
         }
       }
@@ -1186,14 +1116,12 @@ function paint(cx, cy) {
           const dx = xx - cx;
           const dy = yy - cy;
           if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
-
           const binCenter = Math.round(displayYToBin(yy, fullH, ch));
           const r = blurRadius | 0;
           const x0 = Math.max(0, xx - r);
           const x1 = Math.min(fullW - 1, xx + r);
           const y0 = Math.max(0, binCenter - r);
           const y1 = Math.min(fullH - 1, binCenter + r);
-
           const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
           const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
           drawPixel(xx, yy, sumMag / count, sumPhase / count, bo, po, ch);
@@ -1242,30 +1170,14 @@ function paint(cx, cy) {
         }
       }
     }
-
-
     const specCanvas = document.getElementById("spec-" + ch);
     const specCtx = specCanvas.getContext("2d");
     specCtx.putImageData(imageBuffer[ch], 0, 0);
   }
   renderView();
 }
-/**
- * Apply autotune using a precomputed flat pixel list [[xx,bin],...]
- *
- * @param {number} ch - channel index
- * @param {Array.<Array.<number>>} pixels - flat list of [xx, bin] pairs to process
- * @param {Object} [opts] - optional overrides (strength, fullH, fullW, sampleRate, fftSize, npo, startOnP, etc.)
- * @returns {Object} summary {processedColumns, processedPixels}
- *
- * NOTE: If an option is not set here, the function falls back to variables from outer scope
- * (autoTuneStrength, specHeight, specWidth, sampleRate, fftSize, npo, startOnP, mags, phases,
- * visited, imageBuffer, binToTopDisplay, binToBottomDisplay, magPhaseToRGB, ftvsy, displayYToBin).
- */
 function applyAutotuneToPixels(ch, pixels, opts = {}) {
   if (!Array.isArray(pixels) || pixels.length === 0) return;
-
-  // options with fallbacks to outer-scope variables if not provided:
   const strength = opts.strength ?? autoTuneStrength;
   if (strength <= 0) return;
   const fullH = opts.fullH ?? specHeight;
@@ -1275,13 +1187,10 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
   const npoLocal = opts.npo ?? anpo;
   const startOnPLocal = opts.startOnP ?? aStartOnP;
   const binFreqStep = sampleRateLocal / fftSizeLocal;
-
-  const pixBuf = imageBuffer[ch].data; // assumes imageBuffer is available in scope
-  const magsArr = channels[ch].mags;     // assumes mags is available
-  const phasesArr = channels[ch].phases; // assumes phases is available
+  const pixBuf = imageBuffer[ch].data; 
+  const magsArr = channels[ch].mags;     
+  const phasesArr = channels[ch].phases; 
   const visitedArr = visited;
-
-  // Determine min/max bins present in the pixels list (for pixelWeights computation)
   minBin = fullH; maxBin = 0;
   for (let i = 0; i < pixels.length; i++) {
     const b = pixels[i][1];
@@ -1292,14 +1201,12 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
   minBin = Math.max(0, Math.floor(minBin));
   maxBin = Math.min(fullH - 1, Math.ceil(maxBin));
   if (minBin > maxBin) return;
-  // Precompute pixelWeights for the range [minBin, maxBin]
   const pixelWeights = new Array(fullH).fill(0);
   {
     const semitoneStep = 0.1;
     const mul = Math.pow(2, semitoneStep / npoLocal);
     let b = minBin;
     let pb = -1;
-    // use the same growth logic as before
     while (b < maxBin) {
       pb = b;
       b = (b + 0.5) * mul - 0.5;
@@ -1309,39 +1216,28 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
       for (let i = start; i < end; i++) pixelWeights[i] = 1 / denom;
       if (end >= maxBin) break;
     }
-    // fallback: if a bin didn't get a weight, give it 1
     for (let i = minBin; i <= maxBin; i++) if (pixelWeights[i] === 0) pixelWeights[i] = 1;
   }
-
-  // Group pixels by xx for per-column processing
   const pxByX = new Map();
   for (let i = 0; i < pixels.length; i++) {
     const [xx, bin] = pixels[i];
-    // skip out-of-range bins/columns
     if (bin < 0 || bin >= fullH) continue;
     if (!pxByX.has(xx)) pxByX.set(xx, []);
     pxByX.get(xx).push(bin);
   }
-
   if (pxByX.size === 0) return;
-
-  // iterate columns in ascending order for determinism
   const xKeys = Array.from(pxByX.keys()).sort((a, b) => a - b);
-
   let processedColumns = 0;
   let processedPixelsCount = 0;
-
   for (const xx of xKeys) {
     const binsForX = pxByX.get(xx);
     if (!binsForX || binsForX.length === 0) continue;
-
-    // STEP 1: compute magnitude-weighted average semitone for this column
     let sumW = 0;
     let sumWSemitone = 0;
     for (let j = 0; j < binsForX.length; j++) {
       const bin = binsForX[j];
       const idx = xx * fullH + bin;
-      if (visitedArr&&visitedArr[ch][idx] === 1) continue; // keep safety re-check
+      if (visitedArr&&visitedArr[ch][idx] === 1) continue; 
       const mag = (magsArr[idx] || 0) * (pixelWeights[bin] || 1);
       if (mag <= 0) continue;
       const freq = (bin + 0.5) * binFreqStep;
@@ -1350,25 +1246,21 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
       sumW += mag;
       sumWSemitone += mag * semitone;
     }
-
     if (sumW <= 0) continue;
     const avgSemitone = sumWSemitone / sumW;
     const targetSemitone = Math.round(avgSemitone);
     const semitoneDiff = (targetSemitone - avgSemitone) * strength;
     if (Math.abs(semitoneDiff) < 1e-9) continue;
-    // STEP 2: accumulate shifted energy into tMag
     const tMag = new Float64Array(fullH);
     let minBinTouched = fullH - 1;
     let maxBinTouched = 0;
     let anyWritten = false;
-
     for (let j = 0; j < binsForX.length; j++) {
       const srcBin = binsForX[j];
       const srcIdx = xx * fullH + srcBin;
       if (visitedArr&&visitedArr[ch][srcIdx] === 1) continue;
       const mag = magsArr[srcIdx] || 0;
       if (mag <= 1e-6) continue;
-
       const freqSrc = (srcBin + 0.5) * sampleRateLocal / fftSizeLocal;
       if (!isFinite(freqSrc) || freqSrc <= 0) continue;
       const semitoneSrc = npoLocal * Math.log2(freqSrc / startOnPLocal);
@@ -1377,16 +1269,12 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
       const displayYTarget = ftvsy(freqTarget, ch);
       const dstBinFloat = displayYToBin(displayYTarget, fullH, ch);
       const dstBin = Math.max(0, Math.min(fullH - 1, Math.round(dstBinFloat)));
-
       tMag[dstBin] += mag;
       anyWritten = true;
       minBinTouched = Math.min(minBinTouched, dstBin);
       maxBinTouched = Math.max(maxBinTouched, dstBin);
     }
-
     if (!anyWritten) continue;
-
-    // STEP 3: clear source bins (and mark visited + clear pixels on screen)
     for (let j = 0; j < binsForX.length; j++) {
       const srcBin = binsForX[j];
       const srcIdx = xx * fullH + srcBin;
@@ -1395,12 +1283,10 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
         magsArr[srcIdx] = 0;
         if (visitedArr) visitedArr[ch][srcIdx] = 1;
         processedPixelsCount++;
-
         const yTopF = binToTopDisplay[ch][srcBin];
         const yBotF = binToBottomDisplay[ch][srcBin];
         const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
         const yEnd = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
-
         for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
           const pix = (yPixel * fullW + xx) * 4;
           pixBuf[pix] = 0;
@@ -1410,15 +1296,11 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
         }
       }
     }
-
-    // STEP 4: write destination bins (clamp mags, mark visited, paint pixels)
     const fromBin = Math.max(0, minBinTouched - 1);
     const toBin = Math.min(fullH - 1, maxBinTouched + 1);
-
     for (let b = fromBin; b <= toBin; b++) {
       const dstIdx = xx * fullH + b;
       const newMag = Math.min(255, tMag[b] || 0);
-
       if (newMag > 0) {
         magsArr[dstIdx] = newMag;
         if (visitedArr) visitedArr[ch][dstIdx] = 1;
@@ -1426,14 +1308,11 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
       } else {
         magsArr[dstIdx] = magsArr[dstIdx] || 0;
       }
-
       const yTopF = binToTopDisplay[ch][b];
       const yBotF = binToBottomDisplay[ch][b];
       const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
       const yEnd = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
-
       const [r, g, bl] = magPhaseToRGB(magsArr[dstIdx], phasesArr[dstIdx]);
-
       for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
         const pix = (yPixel * fullW + xx) * 4;
         pixBuf[pix] = r;
@@ -1442,7 +1321,6 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
         pixBuf[pix + 3] = 255;
       }
     }
-
     processedColumns++;
-  } // end for each column
+  } 
 }

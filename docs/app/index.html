@@ -491,10 +491,28 @@
         <div id="ev" class="slider-row" title="Phase texture">
           <label class="h2" for="phaseTexture">Phase texture</label>
           <select id="phaseTexture">
+            <option value="Static" selected>Static</option>
             <option value="Harmonics">Harmonics</option>
-            <option value="Static">Static</option>
             <option value="Flat">Flat</option>
+
+            <!-- Drum-friendly / creative phase textures -->
+            <option value="ImpulseAlign">Custom Impulse</option>
+            <option value="FrameAlignedImpulse">Frame Impulse</option>
+            <option value="ExpectedAdvance">Expected Advance</option>
+            <option value="PhasePropagate">Phase Propagate</option>
+            <option value="RandomSmall">Random Small</option>
+            <option value="HarmonicStack">Harmonic Stack</option>
+            <option value="LinearDelay">Linear Delay</option>
+            <option value="Chirp">Chirp</option>
+            <option value="CopyFromRef">Reference frame</option>
+
+            <option value="HopArtifact">Hop Artifact</option>
           </select>
+        </div>
+        <div class="slider-row" title="Phase" id="phaseSettingsDiv" style="display:none;">
+            <label class="h2" id="phaseSettingsLabel"></label>
+            <input id="phaseSettings"  type="range" min="0" max="0" value="0" step="0.01">
+            <input id="phaseSettingsInput" type="number" value="0" min="0" max="0">
         </div>
         <div class="slider-row" title="Phase" id="phaseDiv">
             <label class="h2">Phase shift</label>
@@ -508,8 +526,8 @@
         </div>
         <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
             <label class="h2">Phase Strength</label>
-            <input id="phaseStrength"  type="range" min="0" max="100" value="0">
-            <input id="phaseStrengthInput" type="number" value="0" min="0" max="100">
+            <input id="phaseStrength"  type="range" min="0" max="100" value="100">
+            <input id="phaseStrengthInput" type="number" value="100" min="0" max="100">
         </div>
       </div> 
       <div class="slider-row" title="Preview sound while drawing">
@@ -908,7 +926,8 @@
                    [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
                    [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
                    [document.getElementById('amp'), document.getElementById('ampInput')],
-                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true]];
+                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
+                   [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -1052,6 +1071,7 @@ let globalGain = 0;
 let playingTutorial = false;
 let currentFrame = 0;
 let lockHop = false;
+let t0 = 0, tau = 1.0, sigma = 0.3, harmonicCenter = 8, userDelta = 0, refPhaseFrame = 0, chirpRate=0.0005;
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][1].addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
@@ -1111,8 +1131,47 @@ sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); up
 sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
 sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
     if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
+function onPhaseSettingsChange(idx) {
+  const v = sliders[19][idx].valueAsNumber;
+  switch (phaseTextureEl.value) {
+    case "ImpulseAlign":      t0 = v; break;
+    case "LinearDelay":       tau = v; break;
+    case "RandomSmall":       sigma = v; break;
+    case "HarmonicStack":     harmonicCenter = v; break;
+    case "CopyFromRef":       refPhaseFrame = v; break;
+    case "PhasePropagate":    userDelta = v; break;
+    case "Chirp":             chirpRate = v; break;
+  }
+  updateBrushPreview();
+}
+sliders[19][0].addEventListener("input", ()=>{onPhaseSettingsChange(0);});
+sliders[19][1].addEventListener("input", ()=>{onPhaseSettingsChange(1);});
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
+function updatePhaseTextureSettings(){
+  const t = document.getElementById("phaseSettings");
+  const u = document.getElementById("phaseSettingsInput");
+  const div = document.getElementById("phaseSettingsDiv");
+  div.style.display = "none";
+  function c(v) {return phaseTextureEl.value === v}
+  function d(variable,min,max,step,label) {
+    t.min = min; t.max = max; t.step = step; t.value = variable;
+    u.min = min; u.max = max; u.value = variable;
+    document.getElementById("phaseSettingsLabel").innerText = label;
+    div.style.display = "flex";
+  }
+       if (c("ImpulseAlign")) d(t0,0,pcm.length/sampleRate,0.001,"t0");
+  else if (c("LinearDelay")) d(tau,0,10,0.01,"tau");
+  else if (c("RandomSmall")) d(sigma,0,1,0.01,"sigma");
+  else if (c("HarmonicStack")) d(harmonicCenter,0,128,0.01,"Harmonic Center");
+  else if (c("PhasePropagate")) d(userDelta,0,1,0.01,"Delta");
+  else if (c("CopyFromRef")) d(refPhaseFrame,0,framesTotal,1,"Reference Frame");
+  else if (c("Chirp")) d(chirpRate,0,0.1,0.0001,"Chirp Rate");
+}
+phaseTextureEl.addEventListener("input",()=>{
+  updatePhaseTextureSettings();
+  updateBrushPreview();
+});
 
 function angleDiff(a, b) {
   const d = a - b;

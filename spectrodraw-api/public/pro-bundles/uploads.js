@@ -437,7 +437,6 @@ async function commitSample(sample, x, insert = false) {
   for (let ch = $s; ch < $e; ch++) {
     const start = Math.max(0, x * hop);
     const end = start + sample[idx].pcm.length;
-    console.log('hi');
     if (!channels[ch].pcm || channels[ch].pcm.length === 0) {
       channels[ch].pcm = sample[idx].pcm.slice(0);
       emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
@@ -473,10 +472,11 @@ async function commitSample(sample, x, insert = false) {
     }
     if (syncChannels) idx++;
   }
-
+  //simpleRestartRender(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hop));
   restartRender(false);
   await waitFor(() => !rendering);
   for (let ch = 0; ch < channelCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
+  autoSetNoiseProfile();
   draggingSample = [];
   idx = 0;
   for (let ch = $s; ch < $e; ch++) {

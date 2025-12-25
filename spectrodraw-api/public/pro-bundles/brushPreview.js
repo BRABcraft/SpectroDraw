@@ -75,13 +75,15 @@ function __hslToRgb(h, s, l){
     g = hue2rgb(p, q, hk);
     b = hue2rgb(p, q, hk - 1/3);
   }
-  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  let ret = [r,g,b];
+  for (let i = 0; i < 3; i++) ret[i] = Math.round(Math.min(ret[i]*(currentTool==="amplifier"?amp:1),1)*255);
+  return ret;
 }
 
 // Given a dataUrl string, produce a processed canvas with hue shifted by hueDegrees.
 // Caches processed canvases keyed by (name + hueDegrees rounded).
 function __getHueShiftedCanvas(name, dataUrl, hueDegrees, callback){
-  const cacheKey = `${name}::${Math.round(hueDegrees)}`;
+  const cacheKey = `${name}::${Math.round(hueDegrees)}::${amp}`;
   if(__brushPreviewCanvasCache[cacheKey]){
     // return cached canvas async-like via callback for consistent interface
     callback(__brushPreviewCanvasCache[cacheKey]);
@@ -209,7 +211,7 @@ function updateBrushPreview() {
   if (currentTool === "amplifier") {
     rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, phaseShift * 2),phaseStrength);
   } else if (currentTool === "noiseRemover") {
-    rgb = adjustSaturation(magPhaseToRGB(60-(noiseRemoveFloor+60 * brushOpacity), 0),0);
+    rgb = adjustSaturation(magPhaseToRGB(brushOpacity*60, 0),0);
   } else {
     rgb = adjustSaturation(magPhaseToRGB((brushColor / 5) * brushOpacity, phaseShift * 2),phaseStrength);
   }
@@ -230,7 +232,7 @@ function updateBrushPreview() {
   }
 
   // Decide whether to use image method or "Existing method" fallback:
-  const useImageMethod = !!textureData; // if textureData is null => existing/simple method
+  const useImageMethod = !!textureData && (currentTool !== "noiseRemover" && currentTool !== "autotune"); // if textureData is null => existing/simple method
 
   // If useImageMethod is true and we are in a shape that can use masks, draw image with mask + hue-shift
   const shapeUsesImageMask = (currentShape === "brush" || currentShape === "rectangle" || currentShape === "image" || currentShape === "stamp" || currentShape === "line");
@@ -681,6 +683,7 @@ function updateBrushPreview() {
     pctx.lineTo(centerX + brushSize/2, centerY);
     pctx.stroke();
     pctx.restore();
+    return;
   }
 }
 

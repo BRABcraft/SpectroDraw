@@ -32,7 +32,7 @@ const sliders = [
   [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
   [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
   [document.getElementById('amp'), document.getElementById('ampInput')],
-  [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
+  [document.getElementById('noiseAgg'), document.getElementById('noiseAggInput'),true],
   [document.getElementById('channels'), document.getElementById('channelsInput'),true],
   [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],
   [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
@@ -91,9 +91,9 @@ sliders[16][0].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16
 sliders[16][1].addEventListener("input", ()=>{blurRadius  =parseInt  (sliders[16][1].value); updateBrushPreview();});
 sliders[17][0].addEventListener("input", ()=>{val=(sliders[17][0].value); currentTool==="cloner" ? (cAmp = val) : (amp = val); updateBrushPreview();});
 sliders[17][1].addEventListener("input", ()=>{val=(sliders[17][1].value); currentTool==="cloner" ? (cAmp = val) : (amp = val); updateBrushPreview();});
-sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
+sliders[18][0].addEventListener('input', () => {noiseAgg = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseAgg;updateBrushPreview();});
 sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
-    if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
+    if (isNaN(val)) val = noiseAgg;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseAgg = val;updateBrushPreview();}});
 sliders[19][0].addEventListener('input', () => {channelCount = parseFloat(sliders[19][0].value); sliders[19][1].value = channelCount;updateChannels();});
 sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[19][1].value);const min = parseFloat(sliders[19][0].min);const max = parseFloat(sliders[19][0].max);
     if (isNaN(val)) val = channelCount;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;channelCount = val;updateChannels();}});
@@ -188,7 +188,8 @@ function updateBrushSettingsDisplay(){
   if (c("noiseRemover")&&d("image")) currentTool = "fill";
   if (showEffectSettings) {
     document.getElementById("amplifyDiv")   .style.display=(c("amplifier")||c("cloner"))?"flex":"none";
-    document.getElementById("noiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
+    document.getElementById("noiseAggDiv").style.display=(c("noiseRemover"))?"flex":"none";
+    document.getElementById("setNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
     document.getElementById("blurRadiusDiv").style.display=(c("blur"))?"flex":"none";
     document.getElementById("autoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("anpoDiv").style.display=(c("autotune"))?"flex":"none";
@@ -701,7 +702,7 @@ function openProject(file) {
       // Ensure reconstructedChannels length matches parsed.channelCount (fill with empty channels if needed)
       const desiredCount = parsed.channelCount || reconstructedChannels.length || 1;
       while (reconstructedChannels.length < desiredCount) {
-        reconstructedChannels.push({ mags: null, phases: null, pcm: [], snapshotMags: [], snapshotPhases: [] });
+        reconstructedChannels.push({ mags: null, phases: null, pcm: [], snapshotMags: [], snapshotPhases: []});
       }
       if (reconstructedChannels.length > desiredCount) {
         reconstructedChannels.length = desiredCount;
@@ -965,3 +966,111 @@ phaseTextureEl.addEventListener("input",()=>{
   updatePhaseTextureSettings();
   updateBrushPreview();
 });
+document.getElementById("amp").addEventListener("input",()=>{
+  updateBrushPreview();
+});
+document.getElementById("setNoiseProfile").addEventListener("click",()=>{
+  changingNoiseProfile = !changingNoiseProfile;
+  hasSetNoiseProfile = true;
+  document.getElementById("setNoiseProfile").classList.toggle('moving', changingNoiseProfile);
+  document.getElementById("setNoiseProfile").innerText = changingNoiseProfile?"Setting noise profile frames":"Set noise profile frames";
+  if (!changingNoiseProfile) {
+    noiseProfile = computeNoiseProfileFromFrames(currentChannel, noiseProfileMin, noiseProfileMax);
+  }
+});
+const noprmi = document.getElementById("setNoiseProfileMin")
+noprmi.addEventListener("input",()=>{noprmi.value = noiseProfileMin = Math.floor(noprmi.value);});
+const noprma = document.getElementById("setNoiseProfileMax")
+noprma.addEventListener("input",()=>{noprma.value = noiseProfileMax = Math.floor(noprma.value);});
+
+function autoSetNoiseProfile() {
+  const mags = channels[currentChannel].mags;
+
+  const BIN_STEP = 8; // skip bins for speed
+  const MIN_REGION_FRAMES = 8; // don't accept tiny regions
+
+  // ----------------------------------------------------
+  // 1) Compute global average magnitude
+  // ----------------------------------------------------
+  let sum = 0;
+  let count = 0;
+
+  for (let frame = 0; frame < framesTotal; frame++) {
+    const base = frame * specHeight;
+    for (let bin = 0; bin < specHeight; bin += BIN_STEP) {
+      const v = mags[base + bin];
+      if (v > 0) {
+        sum += v;
+        count++;
+      }
+    }
+  }
+
+  if (count === 0) return;
+
+  const globalAvg = sum / count;
+
+  // ----------------------------------------------------
+  // 2) Try progressively lower thresholds
+  // ----------------------------------------------------
+  for (let pct = 0.9; pct >= 0.1; pct -= 0.1) {
+    const threshold = globalAvg * pct;
+
+    let bestStart = -1;
+    let bestLen = 0;
+
+    let curStart = -1;
+    let curLen = 0;
+
+    for (let frame = 0; frame < framesTotal; frame++) {
+      // compute frame average (sparse bins)
+      let frameSum = 0;
+      let frameCount = 0;
+
+      const base = frame * specHeight;
+      for (let bin = 0; bin < specHeight; bin += BIN_STEP) {
+        frameSum += mags[base + bin];
+        frameCount++;
+      }
+
+      const frameAvg = frameSum / frameCount;
+
+      if (frameAvg < threshold) {
+        if (curStart < 0) curStart = frame;
+        curLen++;
+      } else {
+        if (curLen > bestLen) {
+          bestLen = curLen;
+          bestStart = curStart;
+        }
+        curStart = -1;
+        curLen = 0;
+      }
+    }
+
+    // catch tail
+    if (curLen > bestLen) {
+      bestLen = curLen;
+      bestStart = curStart;
+    }
+
+    // ------------------------------------------------
+    // 3) Accept if region is big enough
+    // ------------------------------------------------
+    if (bestLen >= MIN_REGION_FRAMES) {
+      noiseProfileMin = bestStart;
+      noiseProfileMax = bestStart + bestLen;
+      noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
+      updateNoiseProfile();
+      return;
+    }
+  }
+
+  // ----------------------------------------------------
+  // 4) Fallback: whole file
+  // ----------------------------------------------------
+  noiseProfileMin = 0;
+  noiseProfileMax = framesTotal;
+  noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
+  updateNoiseProfile();
+}

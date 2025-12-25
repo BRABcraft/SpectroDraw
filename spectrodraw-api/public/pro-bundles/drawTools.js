@@ -1,136 +1,35 @@
-// --- Frame-gains cache & pending bookkeeping (per-channel) ---
-const frameGainsCache = Array.from({ length: channelCount }, () => new Map()); // Map<frameIndex, Float32Array gains>
-const frameGainsPromises = Array.from({ length: channelCount }, () => new Map()); // Map<frameIndex, Promise>
-const pendingBins = Array.from({ length: channelCount }, () => new Map()); // Map<frameIndex, Map<bin, boScaled>>
-const frameMagsViewIdx = new Int32Array(channelCount).fill(-1); // last cached frame index per channel
-const frameMagsView = Array.from({ length: channelCount }, () => null); // last cached subarray per channel
+function computeNoiseProfileFromFrames(ch, startFrame, endFrame) {
+  const mags = channels[ch].mags;
+  const frameCount = Math.max(1, endFrame - startFrame);
 
-// optional global options for computeFrameGains
-const denoiserOpts = {
-  binFreqs: window.binFreqs || null,
-  sampleRate: window.sampleRate || 48000,
-  fftSize: window.fftSize || 4096,
-  normalizeRef: 128.0,
-  minGain: 0.02,
-  maxGain: 1.0,
-  kneeDb: 6.0
-};
+  // median per-bin (robust)
+  const noiseProfile = new Float32Array(specHeight);
+  const temp = new Float32Array(frameCount);
 
-// Ensure frame gains are being computed (non-blocking). Returns Promise resolving to gains.
-function ensureFrameGains(ch, xFrame) {
-  const cache = frameGainsCache[ch];
-  if (cache.has(xFrame)) return Promise.resolve(cache.get(xFrame));
-  const promMap = frameGainsPromises[ch];
-  if (promMap.has(xFrame)) return promMap.get(xFrame);
-
-  // create promise and start async compute
-  const p = (async () => {
-    try {
-      // get a snapshot mags view if available (prefer snapshot to avoid incremental edits compounding)
-      const channel = channels[ch];
-      const snapshot = channel && channel.snapshotMags ? channel.snapshotMags : null;
-      const start = xFrame * specHeight;
-      const end = start + specHeight;
-      const magsView = snapshot ? snapshot.subarray(start, end) : channel.mags.subarray(start, end);
-
-      // call computeFrameGains (user-provided earlier) with modelSession and magsView
-      const gains = await computeFrameGains(denoiseModelSession, magsView, Object.assign({ binFreqs: denoiserOpts.binFreqs, sampleRate: denoiserOpts.sampleRate, fftSize: denoiserOpts.fftSize }, denoiserOpts));
-
-      // store in cache
-      frameGainsCache[ch].set(xFrame, gains);
-
-      // if there are pending bins painted while computing, apply them now
-      const pendingForFrame = pendingBins[ch].get(xFrame);
-      if (pendingForFrame && pendingForFrame.size > 0) {
-        applyFrameGainsToPendingBins(ch, xFrame, gains);
-      }
-      return gains;
-    } catch (err) {
-      console.warn('computeFrameGains failed for', ch, xFrame, err);
-      // remove pending promise so we can retry later
-      promMap.delete(xFrame);
-      return null;
-    } finally {
-      // clear the promise entry
-      promMap.delete(xFrame);
+  for (let bin = 0; bin < specHeight; bin++) {
+    let ti = 0;
+    for (let frame = startFrame; frame < endFrame; frame++) {
+      temp[ti++] = mags[frame * specHeight + bin] || 0;
     }
-  })();
-
-  promMap.set(xFrame, p);
-  return p;
-}
-
-// Record a painted bin as pending (so we can repaint it when gains arrive).
-function markPendingBin(ch, xFrame, bin, boScaled) {
-  let map = pendingBins[ch].get(xFrame);
-  if (!map) {
-    map = new Map();
-    pendingBins[ch].set(xFrame, map);
+    // sort only the used portion
+    const part = Array.from(temp.subarray(0, frameCount));
+    part.sort((a, b) => a - b);
+    noiseProfile[bin] = part[(frameCount / 2) | 0];
   }
-  // keep the maximum boScaled if multiple paints hit the same bin (stronger paint wins)
-  const prev = map.get(bin);
-  if (prev === undefined || boScaled > prev) map.set(bin, boScaled);
-}
 
-// Apply a frame's gains to the recorded pending bins and repaint those bins in the imageBuffer + canvas.
-function applyFrameGainsToPendingBins(ch, xFrame, gains) {
-  if (!gains) return;
-  const map = pendingBins[ch].get(xFrame);
-  if (!map || map.size === 0) return;
-
-  const channel = channels[ch];
-  const magsArr = channel.mags;
-  const phasesArr = channel.phases;
-  const snapshot = channel && channel.snapshotMags ? channel.snapshotMags : null;
-  const startIdx = xFrame * specHeight;
-  const imgData = imageBuffer[ch].data;
-  const width = specWidth;
-  const H = specHeight;
-
-  // For each pending bin, compute final magnitude using saved boScaled, apply to magsArr, update imageBuffer rows
-  for (const [bin, boScaled] of map.entries()) {
-    if (bin < 0 || bin >= H) continue;
-    const idx = startIdx + bin;
-    // make sure idx in bounds
-    if (idx < 0 || idx >= magsArr.length) continue;
-    // read snapshotMag to compute the denoised version (avoids compounding sequential paints)
-    const snapMag = snapshot ? snapshot[idx] : magsArr[idx];
-    const gain = gains[bin] !== undefined ? gains[bin] : 1.0;
-    // mix between current displayed magnitude (magsArr[idx]) and denoised snapshot*gain according to boScaled:
-    const oldMag = magsArr[idx] || 0;
-    const denoisedMag = Math.min(255, Math.max(0, snapMag * gain));
-    const newMag = oldMag * (1 - boScaled) + denoisedMag * boScaled;
-    magsArr[idx] = newMag;
-
-    // keep phase untouched (we don't recompute phase here to avoid complexity). This preserves the interactive phase update you already applied.
-    const phase = phasesArr[idx] || 0;
-    const [r, g, b] = magPhaseToRGB(newMag, phase);
-
-    // update the rows in the imageBuffer for that bin (fast per-bin update)
-    const yTopF = binToTopDisplay[ch][bin];
-    const yBotF = binToBottomDisplay[ch][bin];
-    const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
-    const yEnd   = Math.min(H - 1, Math.ceil(Math.max(yTopF, yBotF)));
-    for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
-      const pix = (yPixel * width + xFrame) * 4;
-      imgData[pix]     = r;
-      imgData[pix + 1] = g;
-      imgData[pix + 2] = b;
-      imgData[pix + 3] = 255;
+  // small frequency smoothing (3-tap) to avoid narrow spikes
+  if (specHeight > 2) {
+    const sm = new Float32Array(specHeight);
+    sm[0] = (noiseProfile[0] * 0.75 + noiseProfile[1] * 0.25);
+    for (let i = 1; i < specHeight - 1; i++) {
+      sm[i] = noiseProfile[i - 1] * 0.25 + noiseProfile[i] * 0.5 + noiseProfile[i + 1] * 0.25;
     }
+    sm[specHeight - 1] = (noiseProfile[specHeight - 2] * 0.25 + noiseProfile[specHeight - 1] * 0.75);
+    return sm;
   }
 
-  // remove pending set for that frame and redraw the canvas for this channel
-  pendingBins[ch].delete(xFrame);
-  const specCanvas = document.getElementById("spec-" + ch);
-  if (specCanvas) {
-    const ctx = specCanvas.getContext("2d");
-    ctx.putImageData(imageBuffer[ch], 0, 0);
-  }
+  return noiseProfile;
 }
-
-
-
 
 const __hopTemplateCache = new Map(); 
 const __hopFrameCache = new Map();    
@@ -373,8 +272,6 @@ function syncOverlaySize(canvas,overlay) {
   overlay.style.width  = canvas.style.width;
   overlay.style.height = canvas.style.height;
 }
-let pendingPreview = false;
-let lastPreviewCoords = null;
 function buildIntegral(fullW, fullH, magsArr, phasesArr) {
   const W = fullW, H = fullH;
   const iw = W + 1; 
@@ -475,6 +372,23 @@ function previewShape(cx, cy) {
     const ctx = overlayCanvas.getContext("2d"); 
     const canvas = document.getElementById("canvas-"+currentChannel); 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    if (changingNoiseProfile) {
+      noiseProfileMin = Math.min(noiseProfileMin,Math.floor(cx));
+      noiseProfileMax = Math.max(noiseProfileMax,Math.floor(cx));
+      updateNoiseProfile();
+      const framesVisible = Math.max(1, iHigh - iLow);
+      const overlayCanvas = document.getElementById("overlay-" + currentChannel);
+      const ctx = overlayCanvas.getContext("2d");
+      const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
+      const xPixel = mapX(noiseProfileMin);
+      const endPixel = mapX(noiseProfileMax);
+      const width = Math.max(1, Math.round(endPixel - xPixel));
+      ctx.save();
+      ctx.fillStyle = "rgba(255,0,0,0.15)";
+      ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+      ctx.restore();
+      return;
+    }
     if (draggingSample.length > 0) {
       drawSampleRegion(cx);
       return;
@@ -660,7 +574,6 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const height = fullH;
   const idxBase = xI * fullH;
   const imgData = imageBuffer[ch].data;
-  const dbt = Math.pow(10, noiseRemoveFloor / 20) * 128;
   const magsArr = channels[ch].mags;
   const phasesArr = channels[ch].phases;
   let displayYFloat = yDisplay;
@@ -686,68 +599,31 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     (Math.floor(mod(clonerX + (xFrame-startX)/clonerScale ,framesTotal)+iLow)*specHeight+
      Math.floor(mod(binShift, specHeight ))
     ):null;
-        const newMag = (currentTool === "amplifier")
+    const newMag = (currentTool === "amplifier")
                 ? (oldMag * amp)
                 : (currentTool === "noiseRemover")
-                ? (function() {
-                    // fast threshold passthrough for strong bins
-                    if (oldMag > dbt) return oldMag;
-
-                    // compute / reuse cached frame view for this xFrame (avoid subarray allocations)
-                    if (frameMagsViewIdx[ch] !== xFrame || !frameMagsView[ch]) {
-                      const start = specHeight * xFrame;
-                      const end = start + specHeight;
-                      // prefer snapshot if available
-                      const channelSnapshot = channels[ch] && channels[ch].snapshotMags ? channels[ch].snapshotMags : null;
-                      frameMagsView[ch] = (channelSnapshot ? channelSnapshot.subarray(start, end) : channels[ch].mags.subarray(start, end));
-                      frameMagsViewIdx[ch] = xFrame;
-                    }
-                    const magsFrameView = frameMagsView[ch];
-
-                    // see if there's a ready gains mask for this frame
-                    const gmap = frameGainsCache[ch];
-                    const gains = gmap.get(xFrame);
-
-                    if (gains) {
-                      // fast path: model gains are ready -> apply them (mix with oldMag using boScaled)
-                      const gain = gains[bin] !== undefined ? gains[bin] : 1.0;
-                      // snapshot mag (the original frame mag captured at mouseDown if present)
-                      const snapGlobal = channels[ch] && channels[ch].snapshotMags ? channels[ch].snapshotMags : channels[ch].mags;
-                      const snapMag = snapGlobal[(xFrame * specHeight) + bin] || 0;
-                      const denoisedMag = Math.min(255, Math.max(0, snapMag * gain));
-                      return oldMag * (1 - boScaled) + denoisedMag * boScaled;
-                    } else {
-                      // not ready: start computing gains async (non-blocking) and use the fast heuristic immediately
-                      // mark this bin as pending so when gains finish we repaint it
-                      markPendingBin(ch, xFrame, bin, boScaled);
-                      // kick off async compute if not already running
-                      ensureFrameGains(ch, xFrame).catch(() => {/*ignore*/});
-
-                      // fallback heuristic immediate preview (fast). Use your previous per-bin semitone heuristic:
-                      return oldMag * (1 - boScaled);
-                    }
-                  })()
+                ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
                 : (currentTool === "cloner")
                 ? channels[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
-
     const type = phaseTextureEl.value;
-    let $phase; let newPhase;
-    if (currentTool === "cloner") {
-      $phase = channels[clonerCh].phases[clonerPos];
-    } else {
-      $phase = computePhaseTexture(type, bin, xI, phase);
+    if (currentTool === "fill" || currentTool === "eraser") {
+      let $phase;
+      if (currentTool === "cloner") {
+        $phase = channels[clonerCh].phases[clonerPos];
+      } else {
+        $phase = computePhaseTexture(type, bin, xI, phase);
+      }
+      phasesArr[idx] = oldPhase * (1 - po) + po * ($phase + phase);
     }
-    newPhase = oldPhase * (1 - po) + po * ($phase + phase);
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
-    phasesArr[idx] = newPhase;
     channels[ch].mags = magsArr;
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
     const yEnd   = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
-    const [r, g, b] = magPhaseToRGB(clampedMag, newPhase);
+    const [r, g, b] = magPhaseToRGB(clampedMag, phasesArr[idx]);
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * width + xI) * 4;
       imgData[pix]     = r;
@@ -805,9 +681,9 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* channels[ch].brushPressure;
   const po =  (tool === "eraser" ? 0 : (newEffect.phaseStrength   !== undefined) ? newEffect.phaseStrength   :  0);
   const _amp = newEffect.amp || amp;
-  const dbt = Math.pow(10, newEffect.noiseRemoveFloor / 20)*128;
+  const dbt = Math.pow(10, newEffect.noiseAgg / 20)*128;
   const newMag =  (tool === "amplifier" || tool === "sample")    ? (oldMag * _amp)
-                : (tool === "noiseRemover") ? (oldMag > dbt?oldMag:(oldMag*(1-bo)))
+                : (currentTool === "noiseRemover") ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
                 :                             (oldMag * (1 - bo) + mag * bo);
   const type = newEffect.phaseTexture;
   let $phase;

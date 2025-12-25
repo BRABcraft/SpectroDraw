@@ -181,7 +181,7 @@ const sliderDefs = [
   ['sphaseStrength',    'sphaseStrengthInput',     'phaseStrength'],
   ['sblurRadius',      'sblurRadiusInput',       'blurRadius'      ],
   ['samp',             'sampInput',              'amp'             ],
-  ['snoiseRemoveFloor','snoiseRemoveFloorInput', 'noiseRemoveFloor'],
+  ['snoiseAgg','snoiseAggInput', 'noiseAgg'],
   ['sautoTuneStrength','sautoTuneStrengthInput', 'autoTuneStrength'],
   ['snpo',             'snpoInput',              'anpo'],
   ['sstartOnPitch',    'sstartOnPitchInput',     'aStartOnP'],
@@ -245,6 +245,7 @@ function renderToolEditorSettings(sprite,newEffect) {
   function c(b){return sprite.effect.tool===b;}
   document.getElementById("samplifyDiv")   .style.display=(c("amplifier"))?"flex":"none";
   document.getElementById("snoiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
+  document.getElementById("ssetNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("sblurRadiusDiv").style.display=(c("blur"))?"flex":"none";
   document.getElementById("sautoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("snpoDiv").style.display=(c("autotune"))?"flex":"none";

@@ -141,7 +141,6 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
       imageBuffer[ch].data[pix+3] = 255;
     }
   }
-
   specCtx.putImageData(imageBuffer[ch], 0, 0, colStart, 0, (colEnd-colStart+1), specHeight);
   renderView();
   drawCursor();
@@ -189,7 +188,7 @@ function doUndo() {
     // mark disabled
     sprite.enabled = false;
     renderSpritesTable();
-
+    console.log(sprite);
     // recompute/render only affected columns
     const minCol = Math.max(0, sprite.minCol);
     const maxCol = Math.min(specWidth - 1, sprite.maxCol);

@@ -389,6 +389,8 @@ async function doUpload(e) {
       for (let ch = 0; ch < nChannels; ch++) {
         uploads.push({name:(f.name+((nChannels>1)?("_channel"+ch):"")), pcm:ab.getChannelData(ch), samplePos: 0, sampleRate: ab.sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid});
       }
+      const usbtn = document.getElementById("uploadsSectionBtn");
+      if (usbtn.getAttribute('aria-expanded')==='false') toggleSection(usbtn);
       if (currentPanel==="3")renderUploads();
     } catch (err) {
       alert("Error decoding audio. Please try a different file.");
@@ -419,7 +421,7 @@ async function updateChannels(){
       audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none")),
       samplePos: 0,
       sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,
-      uuid:crypto.randomUUID()
+      uuid:crypto.randomUUID(),
     });
     logScaleVal.push(1.12);
   }

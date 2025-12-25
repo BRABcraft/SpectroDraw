@@ -57,11 +57,12 @@ function canvasMouseDown(e,touch) {
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   prevMouseX = cx; prevMouseY = cy; vr = 1;
   const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
-  const overlayCanvas = document.getElementById("overlay-"+currentChannel);//CHANGE LATER
-  const overlayCtx = overlayCanvas.getContext("2d");//CHANGE LATER
+  const overlayCanvas = document.getElementById("overlay-"+currentChannel)
+  const overlayCtx = overlayCanvas.getContext("2d");
   startX = cx; startY = cy;
   if (currentTool==="cloner"&&changingClonerPos) {clonerX = cx; clonerY = cy;clonerCh=currentChannel;updateBrushPreview();}
   painting = true;
+  if (changingNoiseProfile) {noiseProfileMin = noiseProfileMax = Math.floor(cx); return;}
   if (movingSprite) {
     spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
     return;
@@ -97,7 +98,7 @@ function canvasMouseDown(e,touch) {
     // --- CREATE NEW SPRITE FOR THIS STROKE ---
     currentSprite = {
       id: nextSpriteId++,
-      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseRemoveFloor, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength},
+      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength},
       enabled: true,
       pixels: pixelmap,
       minCol: Infinity,
@@ -173,7 +174,8 @@ function canvasMouseMove(e,touch,el) {
   currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   let mags = channels[currentChannel].mags; //change to channel that mouse is touching
-  if (painting && movingSprite || draggingSample.length>0) {previewShape(cx, cy);return;}
+  if (painting && (movingSprite||changingNoiseProfile) || draggingSample.length>0) {previewShape(cx, cy);return;}
+  if (changingNoiseProfile) return;
   if (zooming) return;
   if (!recording) {
     const hz = getSineFreq(visibleToSpecY(cy));
@@ -243,6 +245,8 @@ function canvasMouseUp(e,touch) {
   if(currentTool==="cloner"){changingClonerPos=false;updateBrushPreview();const ccp = document.getElementById("changeClonerPosBtn"); ccp.innerText ="Change Reference Point";ccp.classList.toggle('moving', false);}
   paintedPixels = null;
   mouseDown = false;
+  if (changingNoiseProfile) {document.getElementById("setNoiseProfile").click();return;}
+  if (!hasSetNoiseProfile) autoSetNoiseProfile();
   stopSource();
   if (sineOsc) {
     sineOsc.stop();
@@ -296,9 +300,9 @@ function simpleRestartRender(min=-1,max=-1){
 
 let minCol = Infinity; maxCol = -Infinity;
 function calcMinMaxCol() {
-  if (minCol != Infinity) return {minCol,maxCol};
+  if (minCol !== Infinity && maxCol !== -Infinity) return {minCol,maxCol};
   const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases, snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;//CHANGE LATER
-  if (snapshotMags == null || snapshotMags.length != mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
+  if (snapshotMags === null || snapshotMags.length !== mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
   const epsMag = 1e-3;
   const epsPhase = 1e-2;
   const h = specHeight;
@@ -679,4 +683,8 @@ async function playFrame(frameX) {
   sourceNode.start();
   playing = true;
   pausedAtSample = null;
+}
+function updateNoiseProfile(){
+  document.getElementById("setNoiseProfileMin").value = noiseProfileMin;
+  document.getElementById("setNoiseProfileMax").value = noiseProfileMax;
 }

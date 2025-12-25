@@ -8,7 +8,7 @@ const phaseStrengthEl=document.getElementById("phaseStrength");
 const brushColorEl=document.getElementById("brushColor");
 const blurRadiusEl=document.getElementById("blurRadius");
 const ampEl=document.getElementById("amp");
-const noiseRemoveFloorEl=document.getElementById("noiseRemoveFloor");
+const noiseAggEl=document.getElementById("noiseAgg");
 const phaseShiftEl=document.getElementById("phaseShift");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
 const phaseTextureEl = document.getElementById("phaseTexture");
@@ -129,7 +129,7 @@ let phaseStrength=parseInt(phaseStrengthEl.value)/100;
 let brushColor=parseInt(brushColorEl.value);
 let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value),cAmp=1;
-let noiseRemoveFloor = parseInt(noiseRemoveFloorEl.value);
+let noiseAgg = parseInt(noiseAggEl.value);
 let phaseShift=parseInt(phaseShiftEl.value)/10000;
 let currentTool = "fill";
 let currentShape = "brush";
@@ -179,19 +179,24 @@ let autoTuneStrength = 1;
 let clonerX = null, clonerY = null, clonerCh = 0, changingClonerPos = true, rcY = 0, rsY = 0, clonerScale = 1;
 let t0 = 0, tau = 1.0, sigma = 0.3, harmonicCenter = 8, userDelta = 0, refPhaseFrame = 0, chirpRate=0.0005;
 
-let denoiseModelSession = null;
-async function loadDenoiseModel(url) {
-  try {
-    // ensure ort global is available (onnxruntime-web)
-    denoiseModelSession = await ort.InferenceSession.create(url);
-    window.denoiseModelSession = denoiseModelSession;
-    console.log('Denoiser model loaded');
-  } catch (e) {
-    console.warn('Failed to load denoiser model', e);
-    denoiseModelSession = null;
-  }
-}
-loadDenoiseModel('/path/to/your.onnx'); //CHANGE LATER
+// let denoiseModelSession = null;
+// async function loadDenoiseModel(url) {
+//   try {
+//     // ensure ort global is available (onnxruntime-web)
+//     denoiseModelSession = await ort.InferenceSession.create(url);
+//     window.denoiseModelSession = denoiseModelSession;
+//     console.log('Denoiser model loaded');
+//   } catch (e) {
+//     console.warn('Failed to load denoiser model', e);
+//     denoiseModelSession = null;
+//   }
+// }
+// loadDenoiseModel('/path/to/your.onnx'); //CHANGE LATER
+
+
+let pendingPreview = false;
+let lastPreviewCoords = null;
+let changingNoiseProfile = false, hasSetNoiseProfile = false, noiseProfileMin = null, noiseProfileMax = null, noiseProfile = Array(specHeight).fill(0);
 
 let handlers = {
   "canvas-": (el) => {

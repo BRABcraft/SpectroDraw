@@ -408,7 +408,7 @@ playPauseBtn.addEventListener("click", () => {
 });
 
 document.addEventListener('keydown', function(event) {
-  if (event.key === ' ' && !event.ctrlKey && !event.metaKey) {
+  if (event.key === ' ' && !event.ctrlKey && !event.metaKey && editingExpression===null) {
     playPause();
     event.preventDefault();
   }

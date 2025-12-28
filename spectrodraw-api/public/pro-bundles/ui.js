@@ -1,5 +1,10 @@
+function updateAllVariables(keyWord){
+  const p = keyWord===null;
+  let expr;
+  expr = getExpressionById("brushBrightnessDiv").expression;
+  if (p||expr.includes(keyWord)) brushBrightness = parseExpression(expr);
+}
 function syncNumberAndRange(numberInput, rangeInput) {
-
   numberInput.addEventListener('input', () => {
     let val = parseInt(numberInput.value);
     if (val < rangeInput.min) val = rangeInput.min;
@@ -12,34 +17,33 @@ function syncNumberAndRange(numberInput, rangeInput) {
     numberInput.value = rangeInput.value;
   });
 }
-
 const sliders = [
-  [document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
+  [document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],//0
   [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
-  [document.getElementById('brushColor'), document.getElementById('brushColorInput')],
+  [document.getElementById('brushBrightness'), document.getElementById('brushBrightnessInput')],
   [document.getElementById('phaseShift'), document.getElementById('phaseShiftInput')],
   [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
-  [document.getElementById('phaseStrength'), document.getElementById('phaseStrengthInput')],
+  [document.getElementById('phaseStrength'), document.getElementById('phaseStrengthInput')],//5
   [document.getElementById('npo'), document.getElementById('npoInput')],
   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
   [document.getElementById('bpm'), document.getElementById('bpmInput')],
   [document.getElementById('startOnPitch'), document.getElementById('startOnPitchInput'), true],
-  [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
+  [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],//10
   [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
   [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
   [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
   [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
-  [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
+  [document.getElementById('tQt'), document.getElementById('tQtInput'), true],//15
   [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
   [document.getElementById('amp'), document.getElementById('ampInput')],
   [document.getElementById('noiseAgg'), document.getElementById('noiseAggInput'),true],
   [document.getElementById('channels'), document.getElementById('channelsInput'),true],
-  [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],
+  [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],//20
   [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
   [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],
   [document.getElementById('autoTuneStrength'), document.getElementById('autoTuneStrengthInput')],
   [document.getElementById('anpo'), document.getElementById('anpoInput')],
-  [document.getElementById('astartOnPitch'), document.getElementById('astartOnPitchInput')],
+  [document.getElementById('astartOnPitch'), document.getElementById('astartOnPitchInput')],//25
   [document.getElementById('clonerScale'), document.getElementById('clonerScaleInput')],
   [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
 ];
@@ -51,8 +55,10 @@ sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let va
 function rs_(i){const v = sliders[1][i].value; const f = v/brushSize; sliders[21][0].value=sliders[21][1].value=Math.round(brushWidth *= f); sliders[22][0].value=sliders[22][1].value=Math.round(brushHeight *= f); brushSize=v; updateBrushPreview();}
 sliders[1][0].addEventListener("input", ()=>{rs_(0);});
 sliders[1][1].addEventListener("input", ()=>{rs_(1);});
-sliders[2][0].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][0].value); updateBrushPreview();});
-sliders[2][1].addEventListener("input", ()=>{brushColor  =parseInt  (sliders[2][1].value); updateBrushPreview();});
+// sliders[2][0].addEventListener("input", ()=>{brushBrightness  =parseInt  (sliders[2][0].value); updateBrushPreview();});
+// sliders[2][1].addEventListener("input", ()=>{brushBrightness  =parseInt  (sliders[2][1].value); updateBrushPreview();});
+sliders[2][0].addEventListener("input",()=>{updateAllVariables();updateBrushPreview();});
+sliders[2][1].addEventListener("input",()=>{updateAllVariables();updateBrushPreview();});
 sliders[3][0].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][0].value); updateBrushPreview();});
 sliders[3][1].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][1].value); updateBrushPreview();});
 sliders[4][0].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][0].value)/100; updateBrushPreview();});
@@ -194,8 +200,8 @@ function updateBrushSettingsDisplay(){
     document.getElementById("autoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("anpoDiv").style.display=(c("autotune"))?"flex":"none";
     document.getElementById("astartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
-    document.getElementById("brushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner"))?"none":"flex";
-    document.getElementById("ev").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
+    document.getElementById("brushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner"))?"none":"flex";
+    document.getElementById("phaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
     updatePhaseTextureSettings();
     document.getElementById("phaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
     document.getElementById("phaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune"))?"none":"flex";
@@ -350,6 +356,7 @@ async function toggleLockHop() {
 document.addEventListener('mousemove', e=>{
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false);
   $x=cx;$y=cy;
+  updateAllVariables("mouse");
   if (pressedN) {
     const realY = visibleToSpecY($y);
     if (sineOsc) {
@@ -434,7 +441,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 document.addEventListener('keydown', (event) => {
-  keyBind(event);
+  if (editingExpression===null) keyBind(event);
 });
 let pressedN=false;document.addEventListener('keydown', (e) => {
   if (e.key === 'n') {
@@ -1074,3 +1081,6 @@ function autoSetNoiseProfile() {
   noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
   updateNoiseProfile();
 }
+
+
+

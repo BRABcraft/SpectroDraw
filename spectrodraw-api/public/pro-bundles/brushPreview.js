@@ -213,7 +213,7 @@ function updateBrushPreview() {
   } else if (currentTool === "noiseRemover") {
     rgb = adjustSaturation(magPhaseToRGB(brushOpacity*60, 0),0);
   } else {
-    rgb = adjustSaturation(magPhaseToRGB((brushColor / 5) * brushOpacity, phaseShift * 2),phaseStrength);
+    rgb = adjustSaturation(magPhaseToRGB((brushBrightness / 5) * brushOpacity, phaseShift * 2),phaseStrength);
   }
 
   const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
@@ -270,7 +270,7 @@ function updateBrushPreview() {
     if (currentShape === "rectangle" || currentShape === "image") {
       pctx.strokeRect(centerX - 30, centerY - 30, 60, 60);
     } else {
-      pctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+      pctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     }
     pctx.stroke();
     return;
@@ -581,15 +581,11 @@ function updateBrushPreview() {
         pctx.ellipse(150, 50, rx, ry, 0, 0, Math.PI * 2);
       } else if (currentShape === "line") {
         // diagonal thin rectangle mask centered in the image box
-        const w = destW;
-        const h = Math.max(2, destH / 4); // thin-ish line
+        const w = 100;
+        const h = brushSize/4; // thin-ish line
         pctx.translate(150, 50);
         pctx.rotate(-Math.PI/4);
-        if (pctx.roundRect) {
-          pctx.roundRect(-w/2, -h/2, w, h, h/2);
-        } else {
-          pctx.rect(-w/2, -h/2, w, h);
-        }
+        pctx.rect(-w/2, -h/2, w, h);
         pctx.rotate(Math.PI/4);
         pctx.translate(-150, -50);
       } else {
@@ -614,12 +610,7 @@ function updateBrushPreview() {
         pctx.ellipse(centerX, centerY, rx - 0.5, ry - 0.5, 0, 0, Math.PI * 2);
         pctx.stroke();
       } else if (currentShape === "line") {
-        // stroke approximate rotated rect outline
-        pctx.save();
-        pctx.translate(centerX, centerY);
-        pctx.rotate(-Math.PI/4);
-        pctx.strokeRect(-destW/2 + 0.5, -Math.max(2,destH/4)/2 + 0.5, destW - 1, Math.max(2,destH/4) - 1);
-        pctx.restore();
+        return;
       } else {
         pctx.strokeRect(dx + 0.5, dy + 0.5, destW - 1, destH - 1);
       }

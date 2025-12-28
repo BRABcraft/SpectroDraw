@@ -98,7 +98,7 @@ function canvasMouseDown(e,touch) {
     // --- CREATE NEW SPRITE FOR THIS STROKE ---
     currentSprite = {
       id: nextSpriteId++,
-      effect: {tool: currentTool, brushColor, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength},
+      effect: {tool: currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,refPhaseFrame,chirpRate},
       enabled: true,
       pixels: pixelmap,
       minCol: Infinity,
@@ -303,8 +303,8 @@ function calcMinMaxCol() {
   if (minCol !== Infinity && maxCol !== -Infinity) return {minCol,maxCol};
   const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases, snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;//CHANGE LATER
   if (snapshotMags === null || snapshotMags.length !== mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
-  const epsMag = 1e-3;
-  const epsPhase = 1e-2;
+  const epsMag = 1e-2;
+  const epsPhase = 1e-1;
   const h = specHeight;
   const total = mags.length;
   for (let idx = 0; idx < total; idx++) {
@@ -365,6 +365,7 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
+  if (dontChangeSprites) {dontChangeSprites=false; return;}
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let ch=$s;ch<$e;ch++){
     let mags = channels[ch].mags, phases = channels[ch].phases;

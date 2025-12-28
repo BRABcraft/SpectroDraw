@@ -102,7 +102,17 @@ function wrapPhase(phi) {
 function binFreq(k, fftSizeLocal, sampleRateLocal) {
   return (k * sampleRateLocal) / fftSizeLocal;
 }
-function computePhaseTexture(type, bin, frameIndex, basePhase) {
+function computePhaseTexture(type, bin, frameIndex, basePhase, isSprite) {
+  const fx = isSprite?getSpriteById(selectedSpriteId).effect:null;
+  const e = {
+    t0:isSprite?fx.t0:t0,
+    tau:isSprite?fx.tau:tau,
+    sigma:isSprite?fx.sigma:sigma,
+    harmonicCenter:isSprite?fx.harmonicCenter:harmonicCenter,
+    userDelta:isSprite?fx.userDelta:userDelta,
+    refPhaseFrame:isSprite?fx.refPhaseFrame:refPhaseFrame,
+    chirpRate:isSprite?fx.chirpRate:chirpRate
+  }
   const FFT = fftSize;
   const fs = sampleRate;
   const hopLocal = hop;
@@ -122,7 +132,7 @@ function computePhaseTexture(type, bin, frameIndex, basePhase) {
       phi = basePhase;
       break;
     case 'ImpulseAlign':
-      phi = -twoPi * fk * t0 + basePhase;
+      phi = -twoPi * fk * e.t0 + basePhase;
       break;
     case 'FrameAlignedImpulse': {
       const frameTime = (frameIndex * hopLocal) / fs;
@@ -140,26 +150,26 @@ function computePhaseTexture(type, bin, frameIndex, basePhase) {
       }
       if (prevPhase !== null && isFinite(prevPhase)) {
         const expected = prevPhase + twoPi * fk * (hopLocal / fs);
-        phi = expected + userDelta;
+        phi = expected + e.userDelta;
       } else {
         phi = twoPi * fk * (frameIndex * hopLocal) / fs;
       }
     } break;
     case 'RandomSmall':
-      phi = basePhase + (Math.random() * 2 - 1) * sigma;
+      phi = basePhase + (Math.random() * 2 - 1) * e.sigma;
       break;
     case 'HarmonicStack': {
-      const center = Math.max(1, harmonicCenter);
+      const center = Math.max(1, e.harmonicCenter);
       phi = -twoPi * fk * t0 + ((k % center) * 0.12);
     } break;
     case 'LinearDelay':
-      phi = -twoPi * fk * tau + basePhase;
+      phi = -twoPi * fk * e.tau + basePhase;
       break;
     case 'Chirp':
-      phi = basePhase - twoPi * fk * ((frameIndex * hopLocal) / fs) - Math.pow(k, 1.05) * chirpRate;
+      phi = basePhase - twoPi * fk * ((frameIndex * hopLocal) / fs) - Math.pow(k, 1.05) * e.chirpRate;
       break;
     case 'CopyFromRef': {
-      const refIx = (refPhaseFrame * specHeight + k) | 0;
+      const refIx = (e.refPhaseFrame * specHeight + k) | 0;
       phi = (channels[ch] && channels[ch].phases) ? channels[ch].phases[refIx] || 0 : 0;
     } break;
     case 'HopArtifact': {
@@ -499,7 +509,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
     const startWasLeft = (startFrame <= endFrame);
     let yStartSpec = startWasLeft ? startSpecY : endSpecY;
     let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
-    const brushMag = (brushColor / 255) * 128;
+    const brushMag = (brushBrightness / 255) * 128;
     x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
     x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
     let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
@@ -612,7 +622,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
       if (currentTool === "cloner") {
         $phase = channels[clonerCh].phases[clonerPos];
       } else {
-        $phase = computePhaseTexture(type, bin, xI, phase);
+        $phase = computePhaseTexture(type, bin, xI, phase, false);
       }
       phasesArr[idx] = oldPhase * (1 - po) + po * ($phase + phase);
     }
@@ -675,7 +685,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
     const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
     mag = sumMag / count; phase = sumPhase / count;
   } else {
-    mag = (tool === "eraser" ? 0 : (newEffect.brushColor  !== undefined) ? newEffect.brushColor  :128);
+    mag = (tool === "eraser" ? 0 : (newEffect.brushBrightness  !== undefined) ? newEffect.brushBrightness  :128);
     phase=(tool === "eraser" ? 0 : (newEffect.phaseShift!== undefined) ? newEffect.phaseShift:  0);
   }
   const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* channels[ch].brushPressure;
@@ -686,14 +696,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
                 : (currentTool === "noiseRemover") ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
                 :                             (oldMag * (1 - bo) + mag * bo);
   const type = newEffect.phaseTexture;
-  let $phase;
-  if (type === 'Harmonics') {
-    $phase = (bin / specHeight * fftSize / 2);
-  } else if (type === 'Static') {
-    $phase = Math.random()*Math.PI;
-  } else if (type === 'Flat') {
-    $phase = phase;
-  }
+  let $phase = computePhaseTexture(type, bin, x+0.5, phase, true);
   const newPhase = (tool === "sample")?(oldPhase+phase):(oldPhase * (1-po) + po * ($phase + phase*2));
   const clampedMag = Math.min(newMag, 255);
   return { mag: clampedMag, phase: newPhase};
@@ -707,7 +710,7 @@ function commitShape(cx, cy) {
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseStrength;
     const bo = (currentTool === "eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
-    const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+    const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
     const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
     const visitedLocal = Array.from({ length: channelCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
@@ -959,7 +962,7 @@ function paint(cx, cy) {
         }
       }
     } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
-      const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+      const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
       const p0x = prevMouseX + iLow;
       const p0y = visibleToSpecY(prevMouseY);
@@ -981,7 +984,7 @@ function paint(cx, cy) {
           const nearestY = p0y + t * vy;
           const dx = xx - nearestX;
           const dy = yy - nearestY;
-          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
+          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.001:1)) continue;
           drawPixel(xx, yy, brushMag, brushPhase, bo, po, ch);
         }
       }

@@ -308,8 +308,8 @@ input[type="range"]::-moz-range-thumb:hover {
 
 /* range slider fixed width — change this width to make sliders shorter/longer */
 .slider-row input[type="range"] {
-  flex: 0 0 90px;      /* explicit fixed value */
-  width: 90px;
+  flex: 0 0 76px;      /* explicit fixed value */
+  width: 76px;
   min-width: 70px;
   max-width: 100px;
   box-sizing: border-box;
@@ -780,3 +780,30 @@ select {
   width: 100%;
   box-sizing: border-box;
 }
+
+.expressionBox{
+  border: 1px solid #fff;
+  position:relative;
+  width:300px;
+  margin:0;
+  background:#0b1220;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Consolas,monospace;
+  margin-bottom:10px;
+  color:#d6deff;
+}
+.expressionBoxwrap{max-height:300px;padding:0;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;}
+.expressionEditorArea{flex:1;display:flex;overflow:hidden;border:1px solid rgba(255,255,255,0.04);background:#0f1724;position:relative}
+/* reduce gutter width visually (base width is still computed dynamically) */
+.gutterCanvas{flex:0 0 32px;border-right:1px solid rgba(255,255,255,0.02); cursor:default;}
+.mainExpCanvasWrap{flex:1;position:relative;touch-action:none; overflow:hidden}
+/* findBox positioned relative to expressionBox (absolute) */
+.findBox{
+  position:absolute; right:3px; bottom:3px; background:#181818; border:1px solid #777;
+  padding:2px; z-index:60; color:#d6deff; font-family:inherit; font-size:13px; display:none;
+  box-shadow:0 8px 30px rgba(0,0,0,0.6);
+}
+.findBox input{background:#333;border:1px solid rgba(255,255,255,0.04); padding:0; color:#d6deff; width:80px}
+.findBox button{margin-left:6px;padding:2px;background:#222;border:1px solid #777; color:#fff}
+.sr-only{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.expHeaderButtons{padding:0;width:20px;height:20px;background:var(--accent-gradient);border:1px solid #444;border-radius:2px;cursor:pointer;}
+.expBtn{background:none;width:14px;height:14px;padding:0;margin-left:-3px;border:none;}

@@ -262,8 +262,8 @@
     <button class="shape-btn" data-shape="note" id="noteBtn" title="Note brush">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20px" height="20px"><path fill="#333" d="M28.6,178.2c0,0-13.7,53.7-18.6,74.8l26.3-36c-2.4-5.3-0.9-13.4,3.2-17.9c5.6-6.1,15.6-6.1,21.7-0.5c6.2,5.6,6.5,15.1,1,21.2c-4.3,4.6-12.1,6.5-17.7,4.4l-32.9,30.9l69.3-26.8l27.8-41.7l-36.4-34.1L28.6,178.2z M223.3,1.4c-10.5,7.2-142,140.9-142,140.9l37,35.4c0,0,111.5-132,127.7-158.8C243.6-3.8,223.3,1.4,223.3,1.4z"/></svg>
     </button>
-    <button class="shape-btn" data-shape="stamp" id="noteBtn" title="Stamp">
-      <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="1.25 1.25 17.5 17.5" > <g fill="#333" stroke="#333" stroke-width="2" stroke-linejoin="round" > <rect x="2.5" y="10" width="15" height="5" rx="2" ry="2" /> <line x1="10" y1="9" x2="10" y2="6" /> <rect x="8" y="4" width="4" height="3" rx="2" ry="2" /> </g> </svg>
+    <button class="shape-btn" data-shape="stamp" id="stampBtn" title="Stamp">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="1.25 1.25 17.5 17.5" > <g fill="#333" stroke="#333" stroke-width="2" stroke-linejoin="round" > <rect x="2.5" y="10" width="15" height="5" rx="2" ry="2" /> <line x1="10" y1="9" x2="10" y2="6" /> <rect x="8" y="4" width="4" height="3" rx="2" ry="2" /> </g> </svg>
     </button>
     <button class="shape-btn" data-shape="line" id="lineBtn" title="Line (l)">
       <svg xmlns="http://www.w3.org/2000/svg" 
@@ -439,14 +439,6 @@
         <rect x="14" y="14.5" width="8"  height="3" rx="1.5" fill="white" stroke="white" stroke-width="1"/>
       </svg>
     </button>
-    
-    <!--Macros-->
-    <button class="panel-btn" id="macrosBtn" title="Macros" data-tool="7">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 8 10 12 6 16" />
-        <line x1="13" y1="16" x2="18" y2="16" />
-      </svg>
-    </button>
   </aside>
   <aside class="left-panel">
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
@@ -480,7 +472,7 @@
       </div>
       <hr>
       </label>
-      <div id ="es" class="slider-row" title="Buffer length">
+      <div id ="emptyAudioLengthDiv" class="slider-row" title="Buffer length">
         <label class="h2">Buffer length</label>
         <input id="emptyAudioLength" type="range" min="0.01" max="100" step="0.01" value="10">
         <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="100">
@@ -612,7 +604,7 @@
           <input id="brushHeight" type="range" min="1" max="200" value="10">
           <input id="brushHeightInput" type="number" value="10" min="1" max="200">
         </div>
-        <div class="slider-row" title="Opacity">
+        <div class="slider-row" title="Opacity" id="opacityDiv">
           <label class="h2">Opacity</label>
           <input id="brushOpacity"  type="range" min="0" max="100" value="100">
           <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
@@ -635,6 +627,7 @@
                     aria-expanded="false"
                     aria-label="Toggle Harmonics editor settings"
                     id="brushHarmonisEditorDivToggleBtn"></button>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3"><path d="M4.5 14.5 C6 5 10 5 13 12 S18 19 19.5 9.4"/><circle cx="4.5" cy="17" r="3"/><circle cx="19.5" cy="7" r="3"/></svg>
           </h3>
           <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
         </div>
@@ -661,10 +654,10 @@
                   aria-label="Toggle Effect settings"
                   id="beffectSettingsToggleBtn"></button>
         </h3>
-        <div class="slider-row" title="Brightness" id="brushColorDiv">
+        <div class="slider-row" title="Brightness" id="brushBrightnessDiv">
             <label class="h2">Brush Brightness</label>
-            <input id="brushColor" type="range" min="0" max="255" value="255">
-            <input id="brushColorInput" type="number" value="255" min="0" max="255">
+            <input id="brushBrightness" type="range" min="0" max="255" value="255">
+            <input id="brushBrightnessInput" type="number" value="255" min="0" max="255">
         </div>
         <div class="slider-row" title="Blur Radius" style="display:none;" id="blurRadiusDiv">
             <label class="h2">Blur Radius</label>
@@ -701,14 +694,12 @@
           <input id="anpo" type="range" min="1" max="48" step="1" value="12">
           <input id="anpoInput" type="number" value="12" min="1" max="384">
         </div>
-        <div id="ev" class="slider-row" title="Phase texture">
+        <div id="phaseTextureDiv" class="slider-row" title="Phase texture">
           <label class="h2" for="phaseTexture">Phase texture</label>
-          <select id="phaseTexture">
+          <select id="phaseTexture" style="width:137.5px;">
             <option value="Static" selected>Static</option>
             <option value="Harmonics">Harmonics</option>
             <option value="Flat">Flat</option>
-
-            <!-- Drum-friendly / creative phase textures -->
             <option value="ImpulseAlign">Custom Impulse</option>
             <option value="FrameAlignedImpulse">Frame Impulse</option>
             <option value="ExpectedAdvance">Expected Advance</option>
@@ -718,8 +709,8 @@
             <option value="LinearDelay">Linear Delay</option>
             <option value="Chirp">Chirp</option>
             <option value="CopyFromRef">Reference frame</option>
-
             <option value="HopArtifact">Hop Artifact</option>
+            <option value="HopArtifact">Custom</option>
           </select>
 
         </div>
@@ -786,10 +777,10 @@
                     aria-label="Toggle Effect settings"
                     id="effectSettingsToggleBtn"></button>
           </h3>
-          <div class="slider-row" title="Brightness" id="sbrushColorDiv">
+          <div class="slider-row" title="Brightness" id="sbrushBrightnessDiv">
               <label class="h2">Brush Brightness</label>
-              <input id="sbrushColor" type="range" min="0" max="255" value="255">
-              <input id="sbrushColorInput" type="number" value="255" min="0" max="255">
+              <input id="sbrushBrightness" type="range" min="0" max="255" value="255">
+              <input id="sbrushBrightnessInput" type="number" value="255" min="0" max="255">
           </div>
           <div class="slider-row" title="Blur Radius" id="sblurRadiusDiv">
               <label class="h2">Blur Radius</label>
@@ -801,7 +792,7 @@
               <input id="samp"  type="range" min="0" max="2" value="2" step="0.01">
               <input id="sampInput" type="number" value="2" min="0" max="2">
           </div>
-          <div class="slider-row" title="Remove noise below this threshold" id="snoiseFloorDiv">
+          <div class="slider-row" title="Remove noise below this threshold" id="snoiseAggDiv">
               <label class="h2">Noise Threshold (dB)</label>
               <input id="snoiseAgg"  type="range" min="-60" max="0" value="-10" step="0.1">
               <input id="snoiseAggInput" type="number" value="-10" min="-60" max="0">
@@ -826,13 +817,29 @@
             <input id="snpo" type="range" min="1" max="48" step="1" value="12">
             <input id="snpoInput" type="number" value="12" min="1" max="384">
           </div>
-          <div id="sev" class="slider-row" title="Phase texture">
+          <div id="sphaseTextureDiv" class="slider-row" title="Phase texture">
             <label class="h2" for="sphaseTexture">Phase texture</label>
             <select id="sphaseTexture">
+              <option value="Static" selected>Static</option>
               <option value="Harmonics">Harmonics</option>
-              <option value="Static">Static</option>
               <option value="Flat">Flat</option>
+              <option value="ImpulseAlign">Custom Impulse</option>
+              <option value="FrameAlignedImpulse">Frame Impulse</option>
+              <option value="ExpectedAdvance">Expected Advance</option>
+              <option value="PhasePropagate">Phase Propagate</option>
+              <option value="RandomSmall">Random Small</option>
+              <option value="HarmonicStack">Harmonic Stack</option>
+              <option value="LinearDelay">Linear Delay</option>
+              <option value="Chirp">Chirp</option>
+              <option value="CopyFromRef">Reference frame</option>
+              <option value="HopArtifact">Hop Artifact</option>
+              <option value="HopArtifact">Custom</option>
             </select>
+          </div>
+          <div class="slider-row" title="Phase" id="sphaseSettingsDiv">
+              <label class="h2" id="sphaseSettingsLabel"></label>
+              <input id="sphaseSettings"  type="range" min="0" max="0" value="0" step="0.01">
+              <input id="sphaseSettingsInput" type="number" value="0" min="0" max="0">
           </div>
           <div class="slider-row" title="Phase" id="sphaseDiv">
               <label class="h2">Phase shift</label>
@@ -1039,12 +1046,12 @@
     <div id="d5" style="display:none; height: 80%">
       <h2 style="margin-bottom:10px;margin-top:10px;">Equalizer</h2>
       <h5 style="margin-top:0px; margin-bottom:10px;">Note: Does not update on the spectrogram to save lag</h5>
-      <div class="slider-row" title="Global gain">
+      <div class="slider-row" title="Global gain" id="globalGainDiv">
         <label class="h2">Global gain</label>
         <input id="globalGain" type="range" min="-30" max="30" step="0.1" value="0">
         <input id="globalGainInput" type="number" value="0" min="-30" max="30">
       </div>
-      <div class="slider-row" title="EQ Presets">
+      <div class="slider-row" title="EQ Presets" id="eqPresetsDiv">
         <label class="h2" for="eqPresets">Presets</label>
         <select id="eqPresets">
           <option value="Flat">Flat</option>
@@ -1072,14 +1079,10 @@
         <input id="channelHeightInput" type="number" value="500" min="0" max="500">
       </div>
       <div class="slider-row" title="Sync actions to all channels">
-          <label class="h2">Sync channels</label>
-          <input id="syncChannels" type="checkbox">
+        <label class="h2">Sync channels</label>
+        <input id="syncChannels" type="checkbox">
       </div>
       <div id="channelsMixerDiv"></div>
-    </div>
-    <!--Macros-->
-    <div id="d7" style="display:none;">
-      <h2 style="margin-bottom:10px;margin-top:10px;">Macros</h2>
     </div>
   </aside>
   <main class="main-area"><div id="canvasWrapper" style="width:100%; top:0px"></div></main>
@@ -1099,7 +1102,8 @@
 <script data-manifest="midi.js"></script>
 <script data-manifest="recordingAndPresets.js"></script>
 <script data-manifest="renderer.js"></script>
-<script data-manifest="noiseRemoverAI.js"></script>
+<script data-manifest="expressions.js"></script>
+<script data-manifest="expressionsParser.js"></script>
 <script data-manifest="drawTools.js"></script>
 <script data-manifest="undoredo.js"></script>
 <script data-manifest="interactive.js"></script>
@@ -1123,7 +1127,8 @@
 <script src="midi.js"></script>
 <script src="recordingAndPresets.js"></script>
 <script src="renderer.js"></script>
-<script src="noiseRemoverAI.js"></script>
+<script src="expressions.js"></script>
+<script src="expressionsParser.js"></script>
 <script src="drawTools.js"></script>
 <script src="undoredo.js"></script>
 <script src="interactive.js"></script>

@@ -313,7 +313,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
   const startWasLeft = (startFrame <= endFrame);
   let yStartSpec = startWasLeft ? startSpecY : endSpecY;
   let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
-  const brushMag = (brushColor / 255) * 128;
+  const brushMag = (brushBrightness / 255) * 128;
 
   x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
   x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
@@ -437,7 +437,7 @@ function commitShape(cx, cy) {
   const fullH = specHeight;
   const po = currentTool === "eraser" ? 1 : phaseStrength;
   const bo = currentTool === "eraser" ? 1 : brushOpacity;
-  const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+  const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
   const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
 
   const visitedLocal = new Uint8Array(fullW * fullH);
@@ -624,7 +624,7 @@ function paint(cx, cy) {
         }
       }
     } else if (currentTool === "color" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
-        const brushMag = currentTool === "eraser" ? 0 : (brushColor / 255) * 128;
+        const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
         const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
         for (let yy = minY; yy <= maxY; yy++) {
           for (let xx = minXFrame; xx <= maxXFrame; xx++) {

@@ -5,17 +5,18 @@ const hopSizeEl=document.getElementById("hopSize");
 const brushSizeEl=document.getElementById("brushSize");
 const brushOpacityEl=document.getElementById("brushOpacity");
 const phaseStrengthEl=document.getElementById("phaseStrength");
-const brushColorEl=document.getElementById("brushColor");
+const brushBrightnessEl=document.getElementById("brushBrightness");
 const blurRadiusEl=document.getElementById("blurRadius");
 const ampEl=document.getElementById("amp");
 const noiseAggEl=document.getElementById("noiseAgg");
 const phaseShiftEl=document.getElementById("phaseShift");
 const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
 const phaseTextureEl = document.getElementById("phaseTexture");
+const sphaseTextureEl = document.getElementById("sphaseTexture");
 const recordBtn = document.getElementById("rec");
 const preset = document.getElementById("presets");
-const es = document.getElementById("es");
-const ev = document.getElementById("ev");
+//const es = document.getElementById("emptyAudioLengthDiv");
+const ev = document.getElementById("phaseTextureDiv");
 const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
 const alignPitchBtn = document.getElementById("alignPitch");
@@ -126,7 +127,7 @@ let zooming = false;
 let brushSize=parseInt(brushSizeEl.value), brushWidth = brushSize, brushHeight = brushSize;
 let brushOpacity=parseInt(brushOpacityEl.value)/100;
 let phaseStrength=parseInt(phaseStrengthEl.value)/100;
-let brushColor=parseInt(brushColorEl.value);
+let brushBrightness=parseInt(brushBrightnessEl.value);
 let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value),cAmp=1;
 let noiseAgg = parseInt(noiseAggEl.value);
@@ -178,25 +179,12 @@ let currentStamp = stamps[0];
 let autoTuneStrength = 1;
 let clonerX = null, clonerY = null, clonerCh = 0, changingClonerPos = true, rcY = 0, rsY = 0, clonerScale = 1;
 let t0 = 0, tau = 1.0, sigma = 0.3, harmonicCenter = 8, userDelta = 0, refPhaseFrame = 0, chirpRate=0.0005;
-
-// let denoiseModelSession = null;
-// async function loadDenoiseModel(url) {
-//   try {
-//     // ensure ort global is available (onnxruntime-web)
-//     denoiseModelSession = await ort.InferenceSession.create(url);
-//     window.denoiseModelSession = denoiseModelSession;
-//     console.log('Denoiser model loaded');
-//   } catch (e) {
-//     console.warn('Failed to load denoiser model', e);
-//     denoiseModelSession = null;
-//   }
-// }
-// loadDenoiseModel('/path/to/your.onnx'); //CHANGE LATER
-
-
 let pendingPreview = false;
 let lastPreviewCoords = null;
 let changingNoiseProfile = false, hasSetNoiseProfile = false, noiseProfileMin = null, noiseProfileMax = null, noiseProfile = Array(specHeight).fill(0);
+
+let editingExpression = null;
+let dontChangeSprites = false;
 
 let handlers = {
   "canvas-": (el) => {
@@ -339,4 +327,19 @@ function resizeCanvasToDisplaySize(canvas, ctx) {
 
   ctx.imageSmoothingEnabled = false;
   ctx.imageSmoothingQuality = "low";
+}
+function removeOption(select, value) {
+  for (let i = 0; i < select.options.length; i++) {
+    if (select.options[i].value === value) {
+      select.remove(i);
+      return;
+    }
+  }
+}
+function updateOptionValue(select, oldValue, newValue, newText = newValue) {
+  const opt = select.querySelector(`option[value="${CSS.escape(oldValue)}"]`);
+  if (!opt) return false;
+  opt.value = newValue;
+  opt.textContent = newText;
+  return true;
 }

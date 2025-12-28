@@ -23,7 +23,7 @@ function updateBrushPreview() {
   } else if (currentTool === "noiseRemover") {
     rgb = adjustSaturation(magPhaseToRGB(60-(noiseRemoveFloor+60 * brushOpacity), 0),0);
   } else {
-    rgb = adjustSaturation(magPhaseToRGB((brushColor / 5) * brushOpacity, phaseShift * 2),phaseStrength);
+    rgb = adjustSaturation(magPhaseToRGB((brushBrightness / 5) * brushOpacity, phaseShift * 2),phaseStrength);
   }
 
   const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);

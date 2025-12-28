@@ -923,7 +923,7 @@
         const seen = localStorage.getItem('tutorialSeen') && !testingTutorial;
         if (!seen) {
             playingTutorial = true;
-            brushColorEl.value=50;brushColorInput.value=50;brushColor=50;
+            brushBrightnessEl.value=50;brushBrightnessInput.value=50;brushBrightness=50;
             openStep(0);
         } else {
             document.getElementById('tutorialDialog').style.display = 'none';

@@ -158,7 +158,7 @@ function updateEditorSelection(spriteId) {
     enabledEl.checked = s.enabled;
     if (s.effect.tool==="sample"){toolEl.style.display="none";document.getElementById("stlb").innerText="Tool: sample"}else{toolEl.style.display="";toolEl.value = s.effect.tool;}
     sChannelEl.value = s.ch;
-    renderToolEditorSettings(s);
+    renderToolEditorSettings(s,s.effect);
     renderSpriteFade();
     processSpriteFade();
   }
@@ -169,13 +169,65 @@ document.getElementById('sphaseTexture').addEventListener('change', () => {
   if (!s) return;
   s.effect.phaseTexture = document.getElementById('sphaseTexture').value;
   updateSpriteEffects(selectedSpriteId, s.effect);
+  updateSpritePhaseTextureSettings(s.effect);
 });
+
+function onSpritePhaseSettingsChange(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  // read numeric value robustly
+  let v = Number(el.value);
+  if (Number.isNaN(v)) v = el.valueAsNumber || 0;
+
+  const s = getSpriteById(selectedSpriteId);
+  if (!s || !s.effect) return;
+  const f = s.effect;
+
+  // read current selected phase texture value from the DOM (avoid undefined var)
+  const phaseTexture = (document.getElementById('sphaseTexture') || {}).value || '';
+
+  switch (phaseTexture) {
+    case "ImpulseAlign":   f.t0 = v; break;
+    case "LinearDelay":    f.tau = v; break;
+    case "RandomSmall":    f.sigma = v; break;
+    case "HarmonicStack":  f.harmonicCenter = v; break;
+    case "CopyFromRef":    f.refPhaseFrame = Math.round(v); break; // integer frame
+    case "PhasePropagate": f.userDelta = v; break;
+    case "Chirp":          f.chirpRate = v; break;
+    default:
+      // unknown texture — nothing to set
+      return;
+  }
+
+  // keep range + text inputs in sync
+  const otherId = (id === 'sphaseSettings') ? 'sphaseSettingsInput' : 'sphaseSettings';
+  const otherEl = document.getElementById(otherId);
+  if (otherEl) {
+    // clamp to min/max of source element if possible
+    const min = (el.min !== undefined && el.min !== '') ? Number(el.min) : null;
+    const max = (el.max !== undefined && el.max !== '') ? Number(el.max) : null;
+    if (min !== null && v < min) v = min;
+    if (max !== null && v > max) v = max;
+    otherEl.value = v;
+  }
+
+  updateSpriteEffects(selectedSpriteId, s.effect);
+  renderToolEditorSettings(s, s.effect);
+}
+
+// attach listeners (idempotent — safe to call even if they exist)
+const sphaseEl = document.getElementById("sphaseSettings");
+const sphaseInputEl = document.getElementById("sphaseSettingsInput");
+if (sphaseEl) sphaseEl.addEventListener("input", () => onSpritePhaseSettingsChange("sphaseSettings"));
+if (sphaseInputEl) sphaseInputEl.addEventListener("input", () => onSpritePhaseSettingsChange("sphaseSettingsInput"));
+
 
 // ---------- config (top) ----------
 // [ rangeId, textId, assignFn, optionalExtraFn ]
 const sliderDefs = [
   // [rangeId, textId, effectsKey, optionalCallback]
-  ['sbrushColor',      'sbrushColorInput',       'brushColor'],
+  ['sbrushBrightness',      'sbrushBrightnessInput',       'brushBrightness'],
   ['sphaseShift',        'sphaseShiftInput',         'phaseShift'],
   ['sbrushOpacity',    'sbrushOpacityInput',     'brushOpacity'],
   ['sphaseStrength',    'sphaseStrengthInput',     'phaseStrength'],
@@ -208,7 +260,7 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     if (!s.effect) s.effect = {};
     updateSpriteEffects(selectedSpriteId, s.effect);
     s.effect[effectsKey] = val;
-    renderToolEditorSettings(s);
+    renderToolEditorSettings(s,s.effect);
   };
 
   const handleValueChange = val => {
@@ -239,25 +291,45 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     handleValueChange(val);
   });
 });
-
+function updateSpritePhaseTextureSettings(newEffect){
+  const t = document.getElementById("sphaseSettings");
+  const u = document.getElementById("sphaseSettingsInput");
+  const div = document.getElementById("sphaseSettingsDiv");
+  div.style.display = "none";
+  function c(v) {return newEffect.phaseTexture === v}
+  function d(variable,min,max,step,label) {
+    t.min = min; t.max = max; t.step = step; t.value = variable;
+    u.min = min; u.max = max; u.value = variable;
+    document.getElementById("sphaseSettingsLabel").innerText = label;
+    div.style.display = "flex";
+  }
+       if (c("ImpulseAlign")) d(newEffect.t0,0,channels[0].pcm.length/sampleRate,0.001,"t0");
+  else if (c("LinearDelay")) d(newEffect.tau,0,10,0.01,"tau");
+  else if (c("RandomSmall")) d(newEffect.sigma,0,1,0.01,"sigma");
+  else if (c("HarmonicStack")) d(newEffect.harmonicCenter,0,128,0.01,"Harmonic Center");
+  else if (c("PhasePropagate")) d(newEffect.userDelta,0,1,0.01,"Delta");
+  else if (c("CopyFromRef")) d(newEffect.refPhaseFrame,0,framesTotal,1,"Reference Frame");
+  else if (c("Chirp")) d(newEffect.chirpRate,0,0.1,0.0001,"Chirp Rate");
+}
 function renderToolEditorSettings(sprite,newEffect) {
+  const effects = newEffect?newEffect:sprite.effect;
   if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
   function c(b){return sprite.effect.tool===b;}
   document.getElementById("samplifyDiv")   .style.display=(c("amplifier"))?"flex":"none";
-  document.getElementById("snoiseFloorDiv").style.display=(c("noiseRemover"))?"flex":"none";
+  document.getElementById("snoiseAggDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("ssetNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("sblurRadiusDiv").style.display=(c("blur"))?"flex":"none";
   document.getElementById("sautoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("snpoDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("sstartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
-  document.getElementById("sbrushColorDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune"))?"none":"flex";
-  document.getElementById("sev").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
-  document.getElementById("sphaseDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
-  document.getElementById("sphaseStrengthDiv").style.display=c("noiseRemover"||c("autotune"))?"none":"flex";
+  document.getElementById("sbrushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner"))?"none":"flex";
+  document.getElementById("sphaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
+  updateSpritePhaseTextureSettings(effects);
+  document.getElementById("sphaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
+  document.getElementById("sphaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune"))?"none":"flex";
   if (!sprite) return;
 
   // Ensure effects object exists to read from
-  const effects = newEffect?newEffect:sprite.effect;
 
   // Load slider values from sprite.effect for each defined slider
   sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
@@ -375,10 +447,12 @@ async function updateSpriteEffects(spriteId, newEffect) {
     } else {
       const integral = buildIntegral(specWidth, specHeight, mags, phases);
       forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, newMag, newPhase) => {
-        const id = x * specHeight + y;
-        const newPixel = applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
-        mags[id] = newPixel.mag;
-        phases[id] = newPixel.phase;
+        if (x<sprite.maxCol&&x>sprite.minCol) {
+          const id = x * specHeight + y;
+          const newPixel = applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
+          mags[id] = newPixel.mag;
+          phases[id] = newPixel.phase;
+        }
       });
     }
 
@@ -388,15 +462,14 @@ async function updateSpriteEffects(spriteId, newEffect) {
     const sigCols = Array.from(sigSprite.pixels[ch].keys()).sort((a,b)=>a-b);
     const minCol = sigCols.length ? Math.max(0, sigCols[0]) : Math.max(0, sprite.minCol || 0);
     const maxCol = sigCols.length ? Math.min(specWidth - 1, sigCols[sigCols.length - 1]) : Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
-
     // expand bounds to include FFT overlap region
     const min = Math.max(0, minCol - padCols);
     const max = Math.min(specWidth - 1, maxCol + padCols);
 
-    // Additional safeguard: if the user instantly set brushColor to zero, aggressively clear
+    // Additional safeguard: if the user instantly set brushBrightness to zero, aggressively clear
     // a small neighborhood so partial overlap contributions get zeroed immediately.
-    // (Only do this when brushColor exists in effects and it changed to 0.)
-    if (newEffect.brushColor === 0 && oldEffect.brushColor !== 0) {
+    // (Only do this when brushBrightness exists in effects and it changed to 0.)
+    if (newEffect.brushBrightness === 0 && oldEffect.brushBrightness !== 0) {
       for (let c = min; c <= max; c++) {
         const colBase = c * specHeight;
         for (let r = 0; r < specHeight; r++) {
@@ -409,6 +482,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
     if (min<recomputeMin)recomputeMin=min;if (max>recomputeMax)recomputeMax=max;
   }
   // Recompute PCM for the expanded area and restart render / audio
+  dontChangeSprites = (sprite.effect.tool !== "autotune");
   simpleRestartRender(recomputeMin,recomputeMax);
   // await waitFor(()=>!rendering); CHANGE THIS 413
   // for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,ch);
@@ -427,7 +501,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
 
 
 nameEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.name = nameEl.value;renderSpritesTable();});
-toolEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.effect.tool = toolEl.value;updateSpriteEffects(selectedSpriteId,c.effect);renderSpritesTable();});
+toolEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.effect.tool = toolEl.value;updateSpriteEffects(selectedSpriteId,c.effect);renderSpritesTable();renderToolEditorSettings(c,c.effect);});
 enabledEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.enabled = enabledEl.checked;toggleSpriteEnabled(selectedSpriteId,c.enabled);renderSpritesTable();});
 
 // Toggle sprite (apply prev or next values)
@@ -685,15 +759,32 @@ function getSignificantPixels(sprite, options = {}) {
   const height = options.height;
   if (typeof height !== 'number') throw new Error('getSignificantPixels: options.height is required');
 
+  // Allow caller to specify a frame range (min/max column) to limit X
+  // options.frameRange = [minCol, maxCol] OR options.minCol/options.maxCol
+  let minAllowedX = null, maxAllowedX = null;
+  if (options.frameRange && Array.isArray(options.frameRange) && options.frameRange.length >= 2) {
+    minAllowedX = options.frameRange[0];
+    maxAllowedX = options.frameRange[1];
+  }
+  if (typeof options.minCol === 'number') minAllowedX = options.minCol;
+  if (typeof options.maxCol === 'number') maxAllowedX = options.maxCol;
+
+  // Fall back to sprite's own bounds if available
+  if (minAllowedX === null && Number.isFinite(sprite.minCol)) minAllowedX = sprite.minCol;
+  if (maxAllowedX === null && Number.isFinite(sprite.maxCol)) maxAllowedX = sprite.maxCol;
+
   const clusterOptions = Object.assign({ kernel: 3, minFrac: 0.25, stdFactor: 0.5 }, options.clusterOptions || {});
+
   // --- 1) build per-y histogram of magnitude deltas ----------------
   const histogram = new Float64Array(height);
   let maxDelta = 0;
   let anyPixels = false;
-  let ch= sprite.ch=="all"?0:sprite.ch;
+  let ch = sprite.ch == "all" ? 0 : sprite.ch;
 
+  // iterate only columns within allowed X range (if defined)
   for (const [x, col] of sprite.pixels[ch]) {
     if (!col || !col.ys) continue;
+    if (minAllowedX !== null && (x < minAllowedX || x > maxAllowedX)) continue;
     for (let i = 0; i < col.ys.length; i++) {
       const y = col.ys[i];
       if (y < 0 || y >= height) continue;
@@ -770,9 +861,26 @@ function getSignificantPixels(sprite, options = {}) {
   const clusterY1 = bestSeg.y1;
 
   // --- 2) build mask limited to cluster Y-range and columns -----------
-  const colsList = Array.from(sprite.pixels[ch].keys()).sort((a, b) => a - b);
+
+  // build full colsList limited to allowed X range
+  const allCols = Array.from(sprite.pixels[ch].keys());
+  const colsList = allCols
+    .filter(x => x != null && (minAllowedX === null || (x >= minAllowedX && x <= maxAllowedX)))
+    .sort((a, b) => a - b);
+
   if (colsList.length === 0) return null;
-  const minX = colsList[0], maxX = colsList[colsList.length - 1];
+
+  // trim frames from both ends (default 2). This is not erosion—just slicing columns.
+  const trimFrames = 3;
+  if (colsList.length <= 2 * trimFrames) {
+    // after trimming nothing remains
+    return null;
+  }
+
+  const trimmedCols = colsList.slice(trimFrames, colsList.length - trimFrames);
+  if (!trimmedCols || trimmedCols.length === 0) return null;
+
+  const minX = trimmedCols[0], maxX = trimmedCols[trimmedCols.length - 1];
   const width = ('width' in options && options.width != null) ? options.width : (maxX - minX + 1);
 
   const maskHeight = clusterY1 - clusterY0 + 1;
@@ -780,7 +888,8 @@ function getSignificantPixels(sprite, options = {}) {
   const maskCols = {};
   let maxCellDelta = 0;
 
-  for (const x of colsList) {
+  // build mask only from trimmedCols (no morphological changes, just trimming)
+  for (const x of trimmedCols) {
     const col = sprite.pixels[ch].get(x);
     if (!col) continue;
     const xRel = x - minX;
@@ -802,14 +911,14 @@ function getSignificantPixels(sprite, options = {}) {
   let anyInMask = false;
   for (const k in maskCols) { const a = maskCols[k]; for (let i = 0; i < a.length; i++) if (a[i]) { anyInMask = true; break; } if (anyInMask) break; }
   if (!anyInMask) {
-    // fallback: consider histogram>0 rows across full height (caller may decide to abort)
+    // fallback: nothing significant in trimmed area
     return null;
   }
 
   // choose per-cell threshold relative to maxCellDelta
   const cellThreshold = maxCellDelta > 0 ? Math.max(maxCellDelta * 0.15, 1e-12) : 0;
 
-  // build boolean filled mask for x in [minX..maxX]
+  // build boolean filled mask for x in [minX..maxX] using trimmed range
   const filled = {};
   let totalFilled = 0;
   for (let x = minX; x <= maxX; x++) {
@@ -823,7 +932,12 @@ function getSignificantPixels(sprite, options = {}) {
         const prev = (colSrc.prevMags && colSrc.prevMags[i] != null) ? colSrc.prevMags[i] : 0;
         const next = (colSrc.nextMags && colSrc.nextMags[i] != null) ? colSrc.nextMags[i] : 0;
         const d = Math.abs(next - prev);
-        if (d >= cellThreshold) { arr[y - clusterY0] = 1; totalFilled++; }
+        if (d >= cellThreshold) {
+          arr[y - clusterY0] = 1;
+          arr[y - clusterY0+1] = 1;
+          arr[y - clusterY0-1] = 1;
+          totalFilled++;
+        }
       }
     }
     filled[xRel] = arr;
@@ -875,6 +989,8 @@ function getSignificantPixels(sprite, options = {}) {
     W, H, filled, bestComponent, compSet, areaPixels
   };
 }
+
+
 
 /**
  * Main: generate outline path from sprite (uses getSignificantPixels)
@@ -1124,7 +1240,9 @@ function toggleSection(btn) {
     });
     btn.setAttribute('aria-expanded', 'true');
     btn.innerHTML = svgMinus;
-    renderToolEditorSettings(getSpriteById(selectedSpriteId));
+    if (btn.id==="effectSettingsToggleBtn") {
+      renderToolEditorSettings(getSpriteById(selectedSpriteId));
+    }
     updateBrushSettingsDisplay();
   }
 }

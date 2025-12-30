@@ -282,13 +282,18 @@
       </svg>
     </button>
     <button class="shape-btn" data-shape="image" id="imageBtn" title="Image Overlay (i)">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
         <polygon points="1,20 8,10 15,20" fill="#333"/>
         <polygon points="8,20 15,12 23,20" fill="#333"/>
       </svg>
     </button>
     <input type="file" id="overlayFile" accept="image/*" style="display:none;">
+    <button class="shape-btn" data-shape="select" id="selectBtn" title="Selection Tool">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" >
+        <rect x="1" y="1" width="22" height="22" rx="3" ry="3" stroke-dasharray="3 5" />
+      </svg>
+    </button>
 
     <button class="tool-btn" data-tool="fill" id="colorBtn" title="Color (c)" style="margin-left:10px;">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
@@ -551,6 +556,7 @@
           <option value="brush">Pressure Brush</option>
           <option value="rectangle">Rectangle</option>
           <option value="image">Image Overlay</option>
+          <option value="select">Selection</option>
         </select>
       </div>
       <!--Effect select: Fill, Noise remover (AI), amplifier, Eraser, Blur-->
@@ -596,18 +602,18 @@
         </div>
         <div class="slider-row" title="Width" id="brushWidthDiv">
           <label class="h2">Width</label>
-          <input id="brushWidth" type="range" min="1" max="200" value="10">
-          <input id="brushWidthInput" type="number" value="10" min="1" max="200">
+          <input id="brushWidth" type="range" min="1" max="200" value="40">
+          <input id="brushWidthInput" type="number" value="40" min="1" max="200">
         </div>
         <div class="slider-row" title="Height" id="brushHeightDiv">
           <label class="h2">Height</label>
-          <input id="brushHeight" type="range" min="1" max="200" value="10">
-          <input id="brushHeightInput" type="number" value="10" min="1" max="200">
+          <input id="brushHeight" type="range" min="1" max="200" value="40">
+          <input id="brushHeightInput" type="number" value="40" min="1" max="200">
         </div>
         <div class="slider-row" title="Opacity" id="opacityDiv">
           <label class="h2">Opacity</label>
-          <input id="brushOpacity"  type="range" min="0" max="100" value="100">
-          <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
+          <input id="brushOpacity"  type="range" min="0" max="1" value="1" step="0.01">
+          <input id="brushOpacityInput" type="number" value="1" min="0" max="1">
         </div>
         <div class="slider-row" title="Harmonics Preset" id="harmonicsPresetSelectDiv" style="display:none;">
           <label class="h2">Harmonics preset</label>
@@ -619,15 +625,14 @@
             <option value="custom">Custom</option>
           </select>
         </div>
-        <div id="brushHarmonisEditorDiv" style="margin-left:10px;display:none;">
-          <h3 style="font-size:15px;margin:0;">Advanced Harmonics
+        <div id="brushHarmonicsEditorDiv" style="margin-left:10px;display:none;">
+          <h3 style="font-size:15px;margin:0;"id="brushHarmonicsEditorh3">Advanced Harmonics
             <button type="button"
                     class="section-toggle"
-                    data-target="brushHarmonisEditorDiv"
+                    data-target="brushHarmonicsEditorDiv"
                     aria-expanded="false"
                     aria-label="Toggle Harmonics editor settings"
-                    id="brushHarmonisEditorDivToggleBtn"></button>
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3"><path d="M4.5 14.5 C6 5 10 5 13 12 S18 19 19.5 9.4"/><circle cx="4.5" cy="17" r="3"/><circle cx="19.5" cy="7" r="3"/></svg>
+                    id="brushHarmonicsEditorDivToggleBtn"></button>
           </h3>
           <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
         </div>
@@ -710,7 +715,7 @@
             <option value="Chirp">Chirp</option>
             <option value="CopyFromRef">Reference frame</option>
             <option value="HopArtifact">Hop Artifact</option>
-            <option value="HopArtifact">Custom</option>
+            <option value="Custom">Custom</option>
           </select>
 
         </div>
@@ -721,13 +726,13 @@
         </div>
         <div class="slider-row" title="Phase" id="phaseDiv">
             <label class="h2">Phase shift</label>
-            <input id="phaseShift"  type="range" min="0" max="3.1415" value="0" step="0.0001">
-            <input id="phaseShiftInput" type="number" value="0" min="0" max="3.1415">
+            <input id="phaseShift"  type="range" min="0" max="6.283" value="0" step="0.0001">
+            <input id="phaseShiftInput" type="number" value="0" min="0" max="6.283">
         </div>
         <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
             <label class="h2">Phase Strength</label>
-            <input id="phaseStrength"  type="range" min="0" max="100" value="100">
-            <input id="phaseStrengthInput" type="number" value="100" min="0" max="100">
+            <input id="phaseStrength"  type="range" min="0" max="1" value="1" step="0.001">
+            <input id="phaseStrengthInput" type="number" value="1" min="0" max="1">
         </div>
       </div>
     </div>
@@ -755,7 +760,7 @@
         </div>
         <div class="slider-row"><label for="spriteName">Name:</label><input type="text" id="spriteName" value="No sprite selected"></input></div>
         <div class="slider-row"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
-        <div class="slider-row"><label for="spriteTool" id="stlb">Tool:</label><select id="spriteTool">
+        <div class="slider-row" id="spriteToolDiv"><label for="spriteTool" id="stlb">Tool:</label><select id="spriteTool">
           <option value="fill">Fill</option>
           <option value="noiseRemover">Noise Remover</option>
           <option value="autotune">Autotune</option>
@@ -843,8 +848,8 @@
           </div>
           <div class="slider-row" title="Phase" id="sphaseDiv">
               <label class="h2">Phase shift</label>
-              <input id="sphaseShift"  type="range" min="0" max="3.1415" value="0" step="0.0001">
-              <input id="sphaseShiftInput" type="number" value="0" min="0" max="3.1415">
+              <input id="sphaseShift"  type="range" min="0" max="6.283" value="0" step="0.0001">
+              <input id="sphaseShiftInput" type="number" value="0" min="0" max="6.283">
           </div>
           <div class="slider-row" title="Brightness strength" id="sbrushOpacityDiv">
               <label class="h2">Opacity</label>

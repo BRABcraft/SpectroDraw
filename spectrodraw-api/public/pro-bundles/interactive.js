@@ -46,6 +46,30 @@ function handleMoveSprite(cx,cy) {
   let dx = cx-startX, dy=startY-cy;
   moveSprite(selectedSpriteId, Math.round(dx), Math.round(dy));
 }
+function newSprite(opts={}){
+  let count = 1;
+  for (let sprite of sprites) {
+    if (sprite.effect.tool === (opts.name??currentTool)) count++;
+  }
+  let name = (opts.name??currentTool) + `_${count}`;
+  let pixelmap=[];
+  for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
+  currentSprite = {
+    id: nextSpriteId++,
+    effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,refPhaseFrame,chirpRate,shape:currentShape},
+    enabled: true,
+    pixels: pixelmap,
+    minCol: Infinity,
+    maxCol: -Infinity,
+    createdAt: performance.now(),
+    fadePoints: defaultFadePoints,
+    spriteFade: [],
+    prevSpriteFade: [],
+    name,
+    ch: syncChannels?"all":currentChannel
+  };
+  sprites.push(currentSprite);
+}
 let sx2 = 0, sy2 = 0;
 
 let prevMouseX =null, prevMouseY = null;
@@ -66,95 +90,74 @@ function canvasMouseDown(e,touch) {
   if (movingSprite) {
     spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
     return;
-  } else {
-    let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
-    for (let ch=$s;ch<$e;ch++){
-      channels[ch].snapshotMags = new Float32Array(channels[ch].mags);
-      channels[ch].snapshotPhases = new Float32Array(channels[ch].phases);
-    }
+  }
+  if (currentShape === "select") return;
+  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  for (let ch=$s;ch<$e;ch++){
+    channels[ch].snapshotMags = new Float32Array(channels[ch].mags);
+    channels[ch].snapshotPhases = new Float32Array(channels[ch].phases);
+  }
 
-    visited = Array.from({ length: channelCount }, () => new Uint8Array(mags.length));
-    stopSource();
-    paintedPixels = new Set();
-    
-    if (alignTime) {
-      const snapSize = 30/bpm/subBeat;
-      const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
-      const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      sx2 = cx; sy2 = cy;
-      startX = startFrame0 - iLow;
-    }
-    overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
-    const realY = visibleToSpecY(cy);
+  visited = Array.from({ length: channelCount }, () => new Uint8Array(mags.length));
+  stopSource();
+  paintedPixels = new Set();
+  
+  if (alignTime) {
+    const snapSize = 30/bpm/subBeat;
+    const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
+    const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    sx2 = cx; sy2 = cy;
+    startX = startFrame0 - iLow;
+  }
+  overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
+  const realY = visibleToSpecY(cy);
 
-    let count = 1;
-    for (let sprite of sprites) {
-      if (sprite.effect.tool === currentTool) count++;
-    }
-    let name = currentTool + `_${count}`;
-    let pixelmap=[];
-    for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
 
-    // --- CREATE NEW SPRITE FOR THIS STROKE ---
-    currentSprite = {
-      id: nextSpriteId++,
-      effect: {tool: currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,refPhaseFrame,chirpRate},
-      enabled: true,
-      pixels: pixelmap,
-      minCol: Infinity,
-      maxCol: -Infinity,
-      createdAt: performance.now(),
-      fadePoints: defaultFadePoints,
-      spriteFade: [],
-      prevSpriteFade: [],
-      name,
-      ch: syncChannels?"all":currentChannel
-    };
-    startCh = currentChannel;
-    sprites.push(currentSprite);
+  // --- CREATE NEW SPRITE FOR THIS STROKE ---
+  startCh = currentChannel;
+  newSprite();
 
-    const isRectangle = currentShape === "rectangle";
-    const isLine = currentShape === "line";
-    const isDragToDrawEnabled = document.getElementById("dragToDraw").checked;
-    const isStampOrImage = currentShape === "stamp" || currentShape === "image";
-    const isDragStampOrImage = isDragToDrawEnabled && isStampOrImage;
-    const shouldDisable = isRectangle || isLine || isDragStampOrImage || (currentTool==="cloner"&&changingClonerPos);
+  const isRectangle = currentShape === "rectangle";
+  const isLine = currentShape === "line";
+  const isDragToDrawEnabled = document.getElementById("dragToDraw").checked;
+  const isStampOrImage = currentShape === "stamp" || currentShape === "image";
+  const isDragStampOrImage = isDragToDrawEnabled && isStampOrImage;
+  const shouldDisable = isRectangle || isLine || isDragStampOrImage || (currentTool==="cloner"&&changingClonerPos);
 
-    if (!shouldDisable) {
-      setClonerYShift();
-      paint(cx + iLow, realY);
-    }
-    currentFrame = Math.floor(cx);
-    if (document.getElementById("previewWhileDrawing").checked) {
-      ensureAudioCtx();
-      mouseDown = true;
-      playFrame(currentFrame);
+  if (!shouldDisable) {
+    setClonerYShift();
+    paint(cx + iLow, realY);
+  }
+  currentFrame = Math.floor(cx);
+  if (document.getElementById("previewWhileDrawing").checked) {
+    ensureAudioCtx();
+    mouseDown = true;
+    playFrame(currentFrame);
 
-      if (!sineOsc) {
-          // Use harmonics array (100 values 0..1) to build a PeriodicWave.
-          // If `harmonics` is missing or too short, fall back to a simple sine (fundamental only).
-          const real = new Float32Array(101); // index 0 = DC (leave 0)
-          const imag = new Float32Array(101); // index 1..100 -> harmonics 1..100
+    if (!sineOsc) {
+        // Use harmonics array (100 values 0..1) to build a PeriodicWave.
+        // If `harmonics` is missing or too short, fall back to a simple sine (fundamental only).
+        const real = new Float32Array(101); // index 0 = DC (leave 0)
+        const imag = new Float32Array(101); // index 1..100 -> harmonics 1..100
 
-          if (typeof harmonics !== 'undefined' && harmonics && harmonics.length >= 100) {
-            for (let i = 0; i < 100; i++) imag[i + 1] = harmonics[i];
-          } else {
-            // fallback: only the fundamental
-            imag[1] = 1.0;
-          }
+        if (typeof harmonics !== 'undefined' && harmonics && harmonics.length >= 100) {
+          for (let i = 0; i < 100; i++) imag[i + 1] = harmonics[i];
+        } else {
+          // fallback: only the fundamental
+          imag[1] = 1.0;
+        }
 
-          const wave = audioCtx.createPeriodicWave(real, imag, { disableNormalization: false });
+        const wave = audioCtx.createPeriodicWave(real, imag, { disableNormalization: false });
 
-          sineOsc = audioCtx.createOscillator();
-          sineOsc.setPeriodicWave(wave);
-          // create gain node after periodic wave so we can do clean fades later if needed
-          sineGain = audioCtx.createGain();
-          sineGain.gain.value = 0.2;
+        sineOsc = audioCtx.createOscillator();
+        sineOsc.setPeriodicWave(wave);
+        // create gain node after periodic wave so we can do clean fades later if needed
+        sineGain = audioCtx.createGain();
+        sineGain.gain.value = 0.2;
 
-          sineOsc.connect(sineGain).connect(audioCtx.destination);
-          setSineFreq(realY);
-          sineOsc.start();
-      }
+        sineOsc.connect(sineGain).connect(audioCtx.destination);
+        setSineFreq(realY);
+        sineOsc.start();
     }
   }
 }
@@ -174,7 +177,7 @@ function canvasMouseMove(e,touch,el) {
   currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   let mags = channels[currentChannel].mags; //change to channel that mouse is touching
-  if (painting && (movingSprite||changingNoiseProfile) || draggingSample.length>0) {previewShape(cx, cy);return;}
+  if (painting && (movingSprite||changingNoiseProfile||currentShape==="select") || draggingSample.length>0) {previewShape(cx, cy);return;}
   if (changingNoiseProfile) return;
   if (zooming) return;
   if (!recording) {
@@ -255,14 +258,15 @@ function canvasMouseUp(e,touch) {
     sineGain = null;
   }
   const { cx, cy } = getCanvasCoords(e,touch);
-  if (movingSprite) handleMoveSprite(cx,cy);
+  if (movingSprite) {handleMoveSprite(cx,cy); return;}
+  if (currentShape === "select") {createNewSpriteFromSelection(startX, displayYToBin(visibleToSpecY(startY),specHeight,currentChannel), cx, displayYToBin(visibleToSpecY(cy),specHeight,currentChannel)); return;}
   const overlayCanvas = document.getElementById("overlay-"+currentChannel);
   const overlayCtx = overlayCanvas.getContext("2d");
   if (currentShape === "rectangle" || (document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image")) || currentShape === "line") {
     commitShape(cx, cy); 
     overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
   }
-  if (alignTime && currentTool === "fill") {
+  if (alignTime && currentTool === "fill") {idNew
     const startFrame = Math.round(cx + iLow);
     const snapSize = 30/bpm/subBeat;
     const brushS = brushSize*fWidth/sampleRate*fftSize/512;
@@ -688,4 +692,31 @@ async function playFrame(frameX) {
 function updateNoiseProfile(){
   document.getElementById("setNoiseProfileMin").value = noiseProfileMin;
   document.getElementById("setNoiseProfileMax").value = noiseProfileMax;
+}
+
+function createNewSpriteFromSelection(startX, startY, endX, endY) {console.log(697);
+  const minX = Math.floor(Math.min(startX, endX));
+  const minY = Math.floor(Math.min(startY, endY));
+  const maxX = Math.floor(Math.max(startX, endX));
+  const maxY = Math.floor(Math.max(startY, endY));
+  const opts = { name: "selection", tool: "n/a" };
+  newSprite(opts);
+  const s = sprites[sprites.length - 1];
+  selectedSpriteId = sprites.length;
+  s.minCol = minX;
+  s.maxCol = maxX;
+  s.minY = minY;
+  s.maxY = maxY;
+  const mags = channels[currentChannel].mags;
+  const phases = channels[currentChannel].phases;
+  for (let x = minX; x <= maxX; x++) {
+    for (let y = minY; y <= maxY; y++) {
+      const idx = x * specHeight + y;
+      const mag = mags[idx];
+      const phase = phases[idx];
+      addPixelToSprite(s, x, y, 0, 0, mag, phase, currentChannel);
+    }
+  }
+  renderSpritesTable();
+  updateEditorSelection(selectedSpriteId);
 }

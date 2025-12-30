@@ -93,6 +93,7 @@ function __getHueShiftedCanvas(name, dataUrl, hueDegrees, callback){
   // ensure we have an HTMLImageElement cached
   let img = __brushPreviewImageCache[name];
   if(img && img.complete){
+    if (!img || img.width <= 0 || img.height <= 0) {callback(null);return;}
     // process immediately
     const c = document.createElement('canvas');
     c.width = img.width;
@@ -123,6 +124,7 @@ function __getHueShiftedCanvas(name, dataUrl, hueDegrees, callback){
   img = new Image();
   img.onload = () => {
     __brushPreviewImageCache[name] = img;
+    if (!img || img.width <= 0 || img.height <= 0) {callback(null);return;}
     const c = document.createElement('canvas');
     c.width = img.width;
     c.height = img.height;
@@ -209,11 +211,11 @@ function updateBrushPreview() {
   }
   let rgb;
   if (currentTool === "amplifier") {
-    rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, phaseShift * 2),phaseStrength);
+    rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, phaseShift),phaseStrength);
   } else if (currentTool === "noiseRemover") {
     rgb = adjustSaturation(magPhaseToRGB(brushOpacity*60, 0),0);
   } else {
-    rgb = adjustSaturation(magPhaseToRGB((brushBrightness / 5) * brushOpacity, phaseShift * 2),phaseStrength);
+    rgb = adjustSaturation(magPhaseToRGB((brushBrightness / 5) * brushOpacity, phaseShift),phaseStrength);
   }
 
   const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
@@ -381,6 +383,10 @@ function updateBrushPreview() {
         pctx.fillText("Source canvas missing", centerX, centerY + 4);
         return;
       }
+      if (srcCanvas.width <= 0 || srcCanvas.height <= 0) {
+        return;
+      }
+
 
       // compute pixels-per-unit for source canvas (same approach as previewShape())
       const srcRect = srcCanvas.getBoundingClientRect();
@@ -487,7 +493,7 @@ function updateBrushPreview() {
         pctx.closePath();
         pctx.clip();
 
-        pctx.drawImage(tmp, 0, 0, tmp.width, tmp.height, dx, dy, destW, destH);
+        if (tmp.width>0 && tmp.height>0) pctx.drawImage(tmp, 0, 0, tmp.width, tmp.height, dx, dy, destW, destH);
 
         pctx.restore();
 
@@ -514,7 +520,7 @@ function updateBrushPreview() {
     const {name, dataUrl} = textureData;
     // Request (async) the processed canvas with hue shift. Once available, draw masked to the UI preview.
     __getHueShiftedCanvas(name, dataUrl, hueShiftDeg, (imgCanvas) => {
-      if(!imgCanvas){
+      if(!imgCanvas || !imgCanvas.width || !imgCanvas.height){
         // failed to create processed canvas -> fallback to simple fill
         if (currentShape === "rectangle" || currentShape === "image" || currentShape === "stamp") {
           pctx.fillStyle = color;
@@ -542,6 +548,9 @@ function updateBrushPreview() {
         if (currentStamp) {
           const img = new Image();
           img.onload = () => {
+            if (!img.width || !img.height) {
+              return;
+            }
             // create offscreen mask canvas sized to the stamp preview
             const maskCanvas = document.createElement('canvas');
             maskCanvas.width = destW;
@@ -623,10 +632,14 @@ function updateBrushPreview() {
   if (currentShape === "image") {
     // Draw image stretched to brushWidth x brushHeight (no aspect preservation) - original behavior
     if (images[selectedImage] && images[selectedImage].img && images[selectedImage].img.complete) {
+      const srcImg = images[selectedImage].img;
+      if (!srcImg.width || !srcImg.height) {
+        return;
+      }
       const dx = centerX - brushWidth / 2;
       const dy = centerY - brushHeight / 2;
       pctx.imageSmoothingEnabled = false;
-      pctx.drawImage(images[selectedImage].img, dx, dy, brushWidth, brushHeight);
+      pctx.drawImage(srcImg, dx, dy, brushWidth, brushHeight);
     }
     return;
   }
@@ -640,6 +653,9 @@ function updateBrushPreview() {
       pctx.imageSmoothingEnabled = false;
 
       img.onload = () => {
+        if (!img.width || !img.height) {
+          return;
+        }
         pctx.drawImage(img, dx, dy, brushWidth, brushHeight);
       };
       img.src = currentStamp.dataUrl;

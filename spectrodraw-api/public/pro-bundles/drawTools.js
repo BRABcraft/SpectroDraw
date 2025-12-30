@@ -126,7 +126,7 @@ function computePhaseTexture(type, bin, frameIndex, basePhase, isSprite) {
       phi = (k / specHeight * FFT / 2);
       break;
     case 'Static':
-      phi = (Math.random() * 2 - 1) * Math.PI;
+      phi = Math.random()*Math.PI*2;
       break;
     case 'Flat':
       phi = basePhase;
@@ -160,7 +160,7 @@ function computePhaseTexture(type, bin, frameIndex, basePhase, isSprite) {
       break;
     case 'HarmonicStack': {
       const center = Math.max(1, e.harmonicCenter);
-      phi = -twoPi * fk * t0 + ((k % center) * 0.12);
+      phi = -twoPi * fk * e.t0 + ((k % center) * 0.12);
     } break;
     case 'LinearDelay':
       phi = -twoPi * fk * e.tau + basePhase;
@@ -382,6 +382,7 @@ function previewShape(cx, cy) {
     const ctx = overlayCanvas.getContext("2d"); 
     const canvas = document.getElementById("canvas-"+currentChannel); 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
     if (changingNoiseProfile) {
       noiseProfileMin = Math.min(noiseProfileMin,Math.floor(cx));
       noiseProfileMax = Math.max(noiseProfileMax,Math.floor(cx));
@@ -405,6 +406,16 @@ function previewShape(cx, cy) {
     }
     if (movingSprite) {
       drawSpriteOutline(true,cx,cy);
+      return;
+    }
+    if (currentShape==="select"){
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 100)));
+      ctx.setLineDash([40, 40]);
+      ctx.lineDashOffset = 0;
+      ctx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
+      ctx.restore();
+      ctx.setLineDash([0, 0]);
       return;
     }
     const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
@@ -574,6 +585,14 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,c
   }
   if (x < sprite.minCol) sprite.minCol = x;
   if (x > sprite.maxCol) sprite.maxCol = x;
+  if (sprite.effect.shape!=="select")updateSelections(x,y,ch,prevMag,prevPhase,nextMag,nextPhase);
+}
+function updateSelections(x,y,ch,prevMag,prevPhase,nextMag,nextPhase){
+  for (let s of sprites){
+    if (s.effect.shape==="select" && s.ch===ch && x>=s.minCol && x<=s.maxCol && y>=s.minY && y<=s.maxY){
+      addPixelToSprite(s,x,y,prevMag,prevPhase,nextMag,nextPhase,ch);
+    }
+  }
 }
 function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
@@ -617,14 +636,25 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
                 ? channels[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
     const type = phaseTextureEl.value;
+    parseExpression.setVars({
+      "pixel.frame": () => xI,
+      "pixel.bin": () => bin,
+    });
+
     if (currentTool === "fill" || currentTool === "eraser") {
       let $phase;
       if (currentTool === "cloner") {
         $phase = channels[clonerCh].phases[clonerPos];
       } else {
-        $phase = computePhaseTexture(type, bin, xI, phase, false);
+        if (type==="HopArtifact") {
+          $phase = computePhaseTexture(type, bin, xI, phase, false);
+        } else {
+          const expr = getExpressionById("phaseTextureDiv");
+          if (expr.hasChanged || type==="Custom") {$phase = parseExpression(expr.expression,expr);}
+          else {$phase = computePhaseTexture(type, bin, xI, phase, false);}
+        }
       }
-      phasesArr[idx] = oldPhase * (1 - po) + po * ($phase + phase);
+      phasesArr[idx] = oldPhase * (1 - po) + po * ($phase);
     }
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
@@ -892,7 +922,7 @@ function paint(cx, cy) {
     const fullW = specWidth;
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseStrength;
-    const bo = (currentTool === "eraser" ? channels[ch].brushPressure : brushOpacity)* channels[ch].brushPressure;
+    const bo = (currentTool === "eraser") ? channels[ch].brushPressure : brushOpacity*channels[ch].brushPressure;
     vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
     const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
     const radiusXFrames = Math.floor((brushWidth/2/canvas.getBoundingClientRect().width*canvas.width)*vr);

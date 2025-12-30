@@ -1,8 +1,42 @@
 function updateAllVariables(keyWord){
   const p = keyWord===null;
-  let expr;
-  expr = getExpressionById("brushBrightnessDiv").expression;
-  if (p||expr.includes(keyWord)) brushBrightness = parseExpression(expr);
+  function conditionalEvaluateExpression(expressionId, setValue) {
+    const exprObj = getExpressionById(expressionId);
+    if (!exprObj) return;
+    const expr = exprObj.expression;
+    if (p || expr.includes(keyWord)) {
+      let result = parseExpression(expr,exprObj);
+      if (exprObj.isError) {
+        const errorEl = document.getElementById(`error-${expressionId}`);
+        if (errorEl) {
+          errorEl.style.display = "block";
+          errorEl.innerText = result;
+        } else {
+          console.log(result);
+        }
+        setValue(parseExpression(defaultExpressions[expressionId],exprObj));
+      } else {
+        setValue(result);
+      }
+      if (expressionId==="eqPresetsDiv") {updateGlobalGain(); updateEQ(); drawEQ();} else {updateBrushPreview();}
+    }
+  }
+  conditionalEvaluateExpression("brushBrightnessDiv", v => {sliders[2][0].value = sliders[2][1].value = brushBrightness = v;});
+  conditionalEvaluateExpression("blurRadiusDiv",      v => {sliders[16][0].value = sliders[16][1].value = blurRadius = v});
+  conditionalEvaluateExpression("amplifyDiv",         v => {sliders[17][0].value = sliders[17][1].value = amp = v});
+  conditionalEvaluateExpression("noiseAggDiv",        v => {sliders[18][0].value = sliders[18][1].value = noiseAgg = v});
+  conditionalEvaluateExpression("autoTuneStrengthDiv",v => {sliders[23][0].value = sliders[23][1].value = autoTuneStrength = v});
+  conditionalEvaluateExpression("astartOnPitchDiv",   v => {sliders[25][0].value = sliders[25][1].value = astartOnPitch = v});
+  conditionalEvaluateExpression("anpoDiv",            v => {sliders[24][0].value = sliders[24][1].value = anpo = v});
+  conditionalEvaluateExpression("phaseDiv",           v => {sliders[3][0].value = sliders[3][1].value = phaseShift = v});
+  conditionalEvaluateExpression("phaseStrengthDiv",   v => {sliders[5][0].value = sliders[5][1].value = phaseStrength = v});
+  conditionalEvaluateExpression("brushWidthDiv",      v => {sliders[21][0].value = sliders[21][1].value = brushWidth = v});
+  conditionalEvaluateExpression("brushHeightDiv",     v => {sliders[22][0].value = sliders[22][1].value = brushHeight = v});
+  conditionalEvaluateExpression("opacityDiv",         v => {sliders[4][0].value = sliders[4][1].value = brushOpacity = v});
+  conditionalEvaluateExpression("clonerScaleDiv",     v => {sliders[26][0].value = sliders[26][1].value = clonerScale = Math.max(v,0.001)});
+  conditionalEvaluateExpression("brushHarmonicsEditorh3",v => {harmonics = v});
+  conditionalEvaluateExpression("eqPresetsDiv",       v => {eqBands = v});
+
 }
 function syncNumberAndRange(numberInput, rangeInput) {
   numberInput.addEventListener('input', () => {
@@ -53,18 +87,16 @@ sliders[0][0].addEventListener('mouseup', ()=>{initEmptyPCM(false);});
 sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[0][1].value);const min = parseFloat(sliders[0][0].min);const max = parseFloat(sliders[0][0].max);
     if (isNaN(val)) val = 0;if (val < min) val = min;if (val > max) val = max;sliders[0][1].value = val;sliders[0][0].value = val;initEmptyPCM(false);}});
 function rs_(i){const v = sliders[1][i].value; const f = v/brushSize; sliders[21][0].value=sliders[21][1].value=Math.round(brushWidth *= f); sliders[22][0].value=sliders[22][1].value=Math.round(brushHeight *= f); brushSize=v; updateBrushPreview();}
-sliders[1][0].addEventListener("input", ()=>{rs_(0);});
-sliders[1][1].addEventListener("input", ()=>{rs_(1);});
-// sliders[2][0].addEventListener("input", ()=>{brushBrightness  =parseInt  (sliders[2][0].value); updateBrushPreview();});
-// sliders[2][1].addEventListener("input", ()=>{brushBrightness  =parseInt  (sliders[2][1].value); updateBrushPreview();});
-sliders[2][0].addEventListener("input",()=>{updateAllVariables();updateBrushPreview();});
-sliders[2][1].addEventListener("input",()=>{updateAllVariables();updateBrushPreview();});
-sliders[3][0].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][0].value); updateBrushPreview();});
-sliders[3][1].addEventListener("input", ()=>{phaseShift    =parseFloat(sliders[3][1].value); updateBrushPreview();});
-sliders[4][0].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][0].value)/100; updateBrushPreview();});
-sliders[4][1].addEventListener("input", ()=>{brushOpacity=parseInt  (sliders[4][1].value)/100; updateBrushPreview();});
-sliders[5][0].addEventListener("input", ()=>{phaseStrength=parseInt  (sliders[5][0].value)/100; updateBrushPreview();});
-sliders[5][1].addEventListener("input", ()=>{phaseStrength=parseInt  (sliders[5][1].value)/100; updateBrushPreview();});
+sliders[1][0].addEventListener("input", ()=>{rs_(0);updateAllVariables(null);});
+sliders[1][1].addEventListener("input", ()=>{rs_(1);updateAllVariables(null);});
+sliders[2][0].addEventListener("input",()=>{updateAllVariables(null);updateBrushPreview();});
+sliders[2][1].addEventListener("input",()=>{updateAllVariables(null);updateBrushPreview();});
+sliders[3][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[3][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[4][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[4][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[5][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[5][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
 sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
 sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) npo=parseInt  (sliders[6][1].value);});
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
@@ -107,18 +139,18 @@ sliders[20][0].addEventListener('input', () => {channelHeight = parseFloat(slide
 sliders[20][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[20][1].value);const min = parseFloat(sliders[20][0].min);const max = parseFloat(sliders[20][0].max);
     if (isNaN(val)) val = channelHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;channelHeight = val;updateChannelHeight();}});
 function rs(){sliders[1][0].value = sliders[1][1].value = brushSize = Math.max(brushWidth, brushHeight);updateBrushPreview();}
-sliders[21][0].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[21][0].value); rs(); updateBrushPreview();});
-sliders[21][1].addEventListener("input", ()=>{brushWidth   =parseInt  (sliders[21][1].value); rs(); updateBrushPreview();});
-sliders[22][0].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][0].value); rs(); updateBrushPreview();});
-sliders[22][1].addEventListener("input", ()=>{brushHeight  =parseInt  (sliders[22][1].value); rs(); updateBrushPreview();});
-sliders[23][0].addEventListener("input", ()=>{autoTuneStrength=(sliders[23][0].value); updateBrushPreview();});
-sliders[23][1].addEventListener("input", ()=>{autoTuneStrength=(sliders[23][1].value); updateBrushPreview();});
-sliders[24][0].addEventListener("input", ()=>{anpo=(sliders[24][0].value); updateBrushPreview();});
-sliders[24][1].addEventListener("input", ()=>{anpo=(sliders[24][1].value); updateBrushPreview();});
-sliders[25][0].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][0].value); updateBrushPreview();});
-sliders[25][1].addEventListener("input", ()=>{aStartOnPitch=(sliders[25][1].value); updateBrushPreview();});
-sliders[26][0].addEventListener("input", ()=>{clonerScale=(sliders[26][0].value); updateBrushPreview();});
-sliders[26][1].addEventListener("input", ()=>{clonerScale=(sliders[26][1].value); updateBrushPreview();});
+sliders[21][0].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
+sliders[21][1].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
+sliders[22][0].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
+sliders[22][1].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
+sliders[23][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[23][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[24][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[24][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[25][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[25][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[26][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+sliders[26][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
 function onPhaseSettingsChange(idx) {
   const v = sliders[27][idx].valueAsNumber;
 
@@ -189,42 +221,52 @@ document.getElementById("changeClonerPosBtn").addEventListener("click",()=>{
 function updateBrushSettingsDisplay(){
   function c(b){return currentTool===b;}
   function d(b){return currentShape===b;}
+  function s(id, display, id2=null){
+    if (id2===null) id2=id;
+    if (typeof id2 === "string") {
+      document.getElementById(id2).style.display=display?"flex":"none";
+    }
+    if (typeof id === "string") {
+      const exprObj = getExpressionById(id);
+      if (!exprObj.showing) return;
+      if (!display) hideExpression(id);
+    }
+  }
   if (c("cloner")&&(d("image")||d("stamp"))) currentTool = "fill";
   if (c("autotune")&&(d("image")||d("note"))) currentTool = "fill";
   if (c("noiseRemover")&&d("image")) currentTool = "fill";
   if (showEffectSettings) {
-    document.getElementById("amplifyDiv")   .style.display=(c("amplifier")||c("cloner"))?"flex":"none";
-    document.getElementById("noiseAggDiv").style.display=(c("noiseRemover"))?"flex":"none";
-    document.getElementById("setNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
-    document.getElementById("blurRadiusDiv").style.display=(c("blur"))?"flex":"none";
-    document.getElementById("autoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
-    document.getElementById("anpoDiv").style.display=(c("autotune"))?"flex":"none";
-    document.getElementById("astartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
-    document.getElementById("brushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner"))?"none":"flex";
-    document.getElementById("phaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
+    s("amplifyDiv",       c("amplifier")||c("cloner"));
+    s("noiseAggDiv",      c("noiseRemover"));
+    s(0                  ,c("noiseRemover"),"setNoiseProfileDiv");
+    s("blurRadiusDiv",    c("blur"));
+    s("autoTuneStrengthDiv",c("autotune"));
+    s("anpoDiv",          c("autotune"));
+    s("astartOnPitchDiv", c("autotune"));
+    s("brushBrightnessDiv",!(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner")));
+    s("phaseTextureDiv", !(c("noiseRemover")||c("autotune")||c("cloner")));
     updatePhaseTextureSettings();
-    document.getElementById("phaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
-    document.getElementById("phaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune"))?"none":"flex";
-    document.getElementById("changeClonerPosDiv").style.display=c("cloner")?"flex":"none";
-    document.getElementById("clonerScaleDiv").style.display=c("cloner")?"flex":"none";
+    s("phaseDiv",          !(c("noiseRemover")||c("autotune")||c("cloner")));
+    s("phaseStrengthDiv",  !(c("noiseRemover")||c("autotune")));
+    s(0,                   c("cloner"),"changeClonerPosDiv");
+    s("clonerScaleDiv",    c("cloner"));
     sliders[17][0].value=sliders[17][1].value=c("cloner")?cAmp:amp;
   }
-  const bw = document.getElementById("brushWidthDiv");
-  const bh = document.getElementById("brushHeightDiv");
   const bs = document.getElementById("brushSizeDiv");
 
   const dragToDraw = document.getElementById("dragToDraw").checked;
   bs.style.display = (showToolSettings && (((d('line') || d('image') && !dragToDraw)) || (!(d('line') || d('image')) && !(d('rectangle') || d('note')))))?"flex":"none";
 
-  let disp = showToolSettings?"flex":"none";
-  if (d("line") || d("rectangle") || d("note")) disp = "none";
-  if (d("image")) disp="flex";
-  if (dragToDraw) disp="none";
-  bw.style.display = disp;
-  bh.style.display = disp;
+  let disp = showToolSettings?true:false;;
+  if (d("line") || d("rectangle") || d("note")) disp = false;
+  if (d("image")) disp=true;
+  if (dragToDraw) disp=false;
+  s("brushWidthDiv", disp);
+  s("brushHeightDiv", disp);
   const showHarmonics = d("note") || d("line");
   document.getElementById("harmonicsPresetSelectDiv").style.display = showHarmonics?"block":"none";
-  document.getElementById("brushHarmonisEditorDiv").style.display = showHarmonics?"block":"none";
+  document.getElementById("brushHarmonicsEditorDiv").style.display = showHarmonics?"block":"none";
+  s("brushHarmonicsEditorh3", showHarmonics, 0);
   if (showHarmonics) renderHarmonicsCanvas();
   document.getElementById("stampsDiv").style.display = d("stamp")?"block":"none";
   if (currentShape==='stamp') {renderStamps();}
@@ -254,15 +296,16 @@ function onToolChange(tool){
   if (c("cloner")&&(d("image")||d("stamp"))) tool = "fill";
   else if (c("autotune")&&(d("image")||d("note"))) tool = "fill";
   else if (c("noiseRemover")&&d("image")) tool = "fill";
-  else document.getElementById("toolEditBtn").click();
+  else {if (currentShape==="select")document.getElementById("spritesBtn").click(); else document.getElementById("toolEditBtn").click();}
   currentTool = tool;
   toolButtons.forEach(b => {
     const t = b.dataset.tool;
     const shouldHide = 
       (t==="cloner"      &&(d("image")||d("stamp")))
     ||(t==="autotune"    &&(d("image")||d("note" )))
-    ||(t==="noiseRemover"&& d("image"))
-    b.style.background =(t===tool)?"#4af":(shouldHide)?"#999":""});
+    ||(t==="noiseRemover"&& d("image")
+    ||(d("select")))
+    b.style.background =(t===tool&&!d("select"))?"#4af":(shouldHide)?"#999":""});
   document.getElementById("brushEffectSelect").value=tool;
   updateBrushSettingsDisplay();
   updateBrushPreview();
@@ -282,7 +325,7 @@ shapeButtons.forEach(btn => {
 });
 function onShapeChange(shape){
   if (shape!=="image" || images.length>0) {
-    document.getElementById("toolEditBtn").click();
+    if (shape==="select")document.getElementById("spritesBtn").click(); else document.getElementById("toolEditBtn").click();
     document.getElementById("brushToolSelect").value=currentShape = shape;
     shapeButtons.forEach(b => b.style.background = (b.dataset.shape===shape)?"#4af":"");
     document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
@@ -357,6 +400,7 @@ document.addEventListener('mousemove', e=>{
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false);
   $x=cx;$y=cy;
   updateAllVariables("mouse");
+  updateAllVariables("Math.random()");
   if (pressedN) {
     const realY = visibleToSpecY($y);
     if (sineOsc) {
@@ -969,9 +1013,78 @@ function updatePhaseTextureSettings(){
   else if (c("CopyFromRef")) d(refPhaseFrame,0,framesTotal,1,"Reference Frame");
   else if (c("Chirp")) d(chirpRate,0,0.1,0.0001,"Chirp Rate");
 }
+let customExpr = "brush.effect.phaseShift", prevPhaseTexture="Static";
+function updatePhaseTextureExpression() {
+  const exprObj = getExpressionById("phaseTextureDiv");
+  if (phaseTextureEl.value=== "Custom" && !exprObj.showing) showExpression("phaseTextureDiv");
+  if (prevPhaseTexture === "Custom") customExpr = exprObj.expression;
+  prevPhaseTexture = phaseTextureEl.value;
+  let expr = "";
+  switch (phaseTextureEl.value) {
+    case 'Harmonics':
+      expr = "pixel.bin + brush.effect.phaseShift;";
+      break;
+    case 'Static':
+      expr = "Math.random() * 2 * Math.PI + brush.effect.phaseShift;";
+      break;
+    case 'Flat':
+      expr = "brush.effect.phaseShift;";
+      break;
+    case 'ImpulseAlign':
+      expr = "brush.effect.phaseShift - (Math.PI * k * sampleRate * brush.effect.phaseSettings.t0) / specHeight;";
+      break;
+    case 'FrameAlignedImpulse': 
+      expr=`const frameTime = (pixel.frame * hop) / sampleRate;
+const t0f = frameTime + (hop / (2 * sampleRate));
+return brush.effect.phaseShift - (Math.PI * k * sampleRate * t0f) / specHeight;`;
+      break;
+    case 'ExpectedAdvance':
+      expr="brush.effect.phaseShift + (Math.PI * k * pixel.frame * hop) / specHeight";
+      break;
+    case 'PhasePropagate':
+      expr=`const prevIdx = (pixel.frame - 1) * specHeight + k;
+let prevPhase = null;
+if (pixel.frame > 0 && channels[currentChannel].phases[prevIdx] !== undefined) {
+  prevPhase = channels[currentChannel].phases[prevIdx];
+}
+if (prevPhase !== null && isFinite(prevPhase)) {
+  const expected = prevPhase + (Math.PI * k * hop) / specHeight;
+  phi = expected + brush.effect.phaseSettings.userDelta;
+} else {
+  phi = (Math.PI * k * pixel.frame * hop) / specHeight;
+}`;
+      break;
+    case 'RandomSmall':
+      expr = "brush.effect.phaseShift + (Math.random() * 2 - 1) * brush.effect.phaseSettings.sigma;";
+      break;
+    case 'HarmonicStack': 
+      expr = `const center = Math.max(1, brush.effect.phaseSettings.harmonicCenter);
+return brush.effect.phaseShift - (Math.PI * k * sampleRate * brush.effect.phaseSettings.t0) / specHeight + (k % center) * 0.12;`;
+      break;
+    case 'LinearDelay':
+      expr = "brush.effect.phaseShift - (Math.PI * k * sampleRate * brush.effect.phaseSettings.tau) / specHeight;";
+      break;
+    case 'Chirp':
+      expr = "brush.effect.phaseShift - (Math.PI * k * pixel.frame * hop) / specHeight - Math.pow(k, 1.05) * brush.effect.phaseSettings.chirpRate;";
+      break;
+    case 'CopyFromRef': 
+      expr = `const refIx = (brush.effect.phaseSettings.refPhaseFrame * specHeight + k) | 0;
+phi = channels[currentChannel].phases[refIx];`;
+      break;
+    case 'HopArtifact':
+      expr = "//Expressions disabled for HopArtifact";
+      break;
+    case 'Custom':
+      expr = customExpr;
+      break;
+  }
+  exprObj.expression = expr;
+  exprObj.lines = expr.split(/\r\n|\r|\n/);
+}
 phaseTextureEl.addEventListener("input",()=>{
   updatePhaseTextureSettings();
   updateBrushPreview();
+  updatePhaseTextureExpression();
 });
 document.getElementById("amp").addEventListener("input",()=>{
   updateBrushPreview();

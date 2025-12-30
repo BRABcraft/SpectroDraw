@@ -147,6 +147,7 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
 }
 
 document.addEventListener('keydown', (ev) => {
+  if (editingExpression !== null) return; // don't interfere with expression editing
   const key = ev.key.toLowerCase();
   if ((ev.ctrlKey || ev.metaKey) && key === 'z') {
     ev.preventDefault();

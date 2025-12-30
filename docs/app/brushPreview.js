@@ -19,11 +19,11 @@ function updateBrushPreview() {
   }
   let rgb;
   if (currentTool === "amplifier") {
-    rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, phaseShift * 2),phaseStrength);
+    rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, phaseShift),phaseStrength);
   } else if (currentTool === "noiseRemover") {
     rgb = adjustSaturation(magPhaseToRGB(60-(noiseRemoveFloor+60 * brushOpacity), 0),0);
   } else {
-    rgb = adjustSaturation(magPhaseToRGB((brushBrightness / 5) * brushOpacity, phaseShift * 2),phaseStrength);
+    rgb = adjustSaturation(magPhaseToRGB((brushBrightness / 5) * brushOpacity, phaseShift),phaseStrength);
   }
 
   const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);

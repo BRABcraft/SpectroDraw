@@ -79,24 +79,24 @@ function computePhaseTexture(type, bin, frameIndex, basePhase) {
   let phi = 0;
   switch (type) {
     case 'Harmonics':
-      phi = (k / specHeight * FFT / 2);
+      phi = k;
       break;
     case 'Static':
-      phi = (Math.random() * 2 - 1) * Math.PI;
+      phi = Math.random() * 2 * Math.PI;
       break;
     case 'Flat':
-      phi = basePhase;
+      phi = 0;
       break;
     case 'ImpulseAlign':
-      phi = -twoPi * fk * t0 + basePhase;
+      phi = -twoPi * fk * t0;
       break;
     case 'FrameAlignedImpulse': {
       const frameTime = (frameIndex * hopLocal) / fs;
       const t0f = frameTime + (hopLocal / (2 * fs));
-      phi = -twoPi * fk * t0f + basePhase;
+      phi = -twoPi * fk * t0f;
     } break;
     case 'ExpectedAdvance':
-      phi = basePhase + twoPi * fk * (frameIndex * hopLocal) / fs;
+      phi = twoPi * fk * (frameIndex * hopLocal) / fs;
       break;
     case 'PhasePropagate': {
       const prevIdx = (frameIndex - 1) * specHeight + k;
@@ -112,17 +112,17 @@ function computePhaseTexture(type, bin, frameIndex, basePhase) {
       }
     } break;
     case 'RandomSmall':
-      phi = basePhase + (Math.random() * 2 - 1) * sigma;
+      phi = (Math.random() * 2 - 1) * sigma;
       break;
     case 'HarmonicStack': {
       const center = Math.max(1, harmonicCenter);
       phi = -twoPi * fk * t0 + ((k % center) * 0.12);
     } break;
     case 'LinearDelay':
-      phi = -twoPi * fk * tau + basePhase;
+      phi = -twoPi * fk * tau;
       break;
     case 'Chirp':
-      phi = basePhase - twoPi * fk * ((frameIndex * hopLocal) / fs) - Math.pow(k, 1.05) * chirpRate;
+      phi = - twoPi * fk * ((frameIndex * hopLocal) / fs) - Math.pow(k, 1.05) * chirpRate;
       break;
     case 'CopyFromRef': {
       const refIx = (refPhaseFrame * specHeight + k) | 0;
@@ -173,9 +173,10 @@ function computePhaseTexture(type, bin, frameIndex, basePhase) {
       phi = sampled;
     } break;
     default:
-      phi = basePhase;
+      phi = 0;
       break;
   }
+  phi += basePhase;
   return wrapPhase(phi);
 }
 function syncOverlaySize() {
@@ -404,7 +405,7 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
                  :(oldMag * (1 - bo) + mag * bo);
     const type = phaseTextureEl.value;
     let $phase = computePhaseTexture(type, bin, xI, phase);
-    const newPhase = oldPhase * (1-po) + po * ($phase + phase);
+    const newPhase = oldPhase * (1-po) + po * ($phase);
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
     phasesArr[idx] = newPhase;

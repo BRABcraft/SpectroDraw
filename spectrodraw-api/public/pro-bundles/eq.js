@@ -417,6 +417,7 @@ function onPointerMove(evt) {
     b._cachedAngle = b.angle; b._cachedTLen = b.tLen;
     ptsDirty = true;
   }
+  updateAllVariables(null);
   scheduleDraw();
   updateCurveEQ();
   updateGlobalGain(); 
@@ -707,3 +708,5 @@ if (eqPresetsSelect && eqPresetsSelect.value === "") {
   eqPresetsSelect.value = "Flat";
   applyPresetByName("Flat");
 }
+
+

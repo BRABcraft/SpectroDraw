@@ -143,6 +143,7 @@ function renderSpritesTable() {
 
 // Update editor info for selected sprite
 function updateEditorSelection(spriteId) {
+  document.getElementById("spriteToolDiv").style.display = currentShape==="select"?"none":"flex";
   document.getElementById("stlb").innerText="Tool:"
   if (spriteId === null || selectedSpriteId === null) {
     selectedSpriteId = null;
@@ -314,7 +315,7 @@ function updateSpritePhaseTextureSettings(newEffect){
 function renderToolEditorSettings(sprite,newEffect) {
   const effects = newEffect?newEffect:sprite.effect;
   if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
-  function c(b){return sprite.effect.tool===b;}
+  function c(b){return sprite.effect.tool===b}
   document.getElementById("samplifyDiv")   .style.display=(c("amplifier"))?"flex":"none";
   document.getElementById("snoiseAggDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("ssetNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
@@ -322,11 +323,12 @@ function renderToolEditorSettings(sprite,newEffect) {
   document.getElementById("sautoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("snpoDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("sstartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
-  document.getElementById("sbrushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner"))?"none":"flex";
-  document.getElementById("sphaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
+  document.getElementById("sbrushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner")||c("n/a"))?"none":"flex";
+  document.getElementById("sphaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner")||c("n/a"))?"none":"flex";
   updateSpritePhaseTextureSettings(effects);
   document.getElementById("sphaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
   document.getElementById("sphaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune"))?"none":"flex";
+  document.getElementById("sbrushOpacityDiv").style.display=c("n/a")?"none":"flex";
   if (!sprite) return;
 
   // Ensure effects object exists to read from
@@ -424,7 +426,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
     const oldEffect = Object.assign({}, sprite.effect || {});
 
     // compute local sig sprite once
-    const z = (sprite.effect.tool==="sample"||sprite.effect.tool==="autotune");
+    const z = (sprite.effect.tool==="sample"||sprite.effect.tool==="autotune"||sprite.effect.shape==="select");
     const sigSprite = z?(sprite):(formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight })));
     if (!sigSprite) return;
 
@@ -449,7 +451,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
       forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, newMag, newPhase) => {
         if (x<sprite.maxCol&&x>sprite.minCol) {
           const id = x * specHeight + y;
-          const newPixel = applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
+          const newPixel = (sprite.effect.shape==="select")?{mag:newMag,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift}:applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
           mags[id] = newPixel.mag;
           phases[id] = newPixel.phase;
         }
@@ -570,7 +572,8 @@ async function moveSprite(spriteId, dx, dy) {
     // We'll build a fresh map for the new sprite pixels.
     // But avoid writing to mags/phases until we've finished building the structure.
     const newMap = new Map();
-    let newMin = Infinity, newMax = -Infinity;
+    let newMinX = Infinity, newMaxX = -Infinity;
+    let newMinY = Infinity, newMaxY = -Infinity;
 
     const cols = Array.from(sprite.pixels[ch].keys()); // no sort - insertion order is fine
     for (const oldX of cols) {
@@ -582,7 +585,7 @@ async function moveSprite(spriteId, dx, dy) {
         const nextMag = col.nextMags ? col.nextMags[i] : col.prevMags[i]; // keep your pattern
         const nextPhase = col.nextPhases ? col.nextPhases[i] : col.prevPhases[i];
 
-        const nx = oldX + dx;
+        const nx = Math.floor(oldX + dx);
         const f = sampleRate / fftSize;
         const $s = sampleRate/2, $l = logScaleVal[ch];
         const ny  = Math.floor(invlsc(lsc( oldY   *f,$s,$l) + dy * f,$s,$l) / f);
@@ -609,10 +612,12 @@ async function moveSprite(spriteId, dx, dy) {
           ncol.prevPhases.push(phases[destIdx]);
           ncol.nextMags.push(nextMag);
           ncol.nextPhases.push(phases[destIdx] + nextPhase);
+          if (j < newMinY) newMinY = j;
+          if (j > newMaxY) newMaxY = j;
         }
 
-        if (nx < newMin) newMin = nx;
-        if (nx > newMax) newMax = nx;
+        if (nx < newMinX) newMinX = nx;
+        if (nx > newMaxX) newMaxX = nx;
       }
     }
 
@@ -630,8 +635,10 @@ async function moveSprite(spriteId, dx, dy) {
 
     // 4) replace sprite.pixels, update bounds
     sprite.pixels[ch] = newMap;
-    sprite.minCol = newMin === Infinity ? Infinity : Math.max(0, newMin);
-    sprite.maxCol = newMax === -Infinity ? -1 : Math.min(specWidth - 1, newMax);
+    sprite.minCol = newMinX === Infinity ? 0 : Math.max(0, newMinX);
+    sprite.maxCol = newMaxX === -Infinity ? 0 : Math.min(specWidth - 1, newMaxX);
+    sprite.minY = newMinY === Infinity ? 0 : Math.max(0, newMinY);
+    sprite.maxY = newMaxY === -Infinity ? 0 : Math.min(specHeight - 1, newMaxY);
 
     // Recompute columns once over the union of old/new ranges
     let min = Math.min(
@@ -723,7 +730,10 @@ function formatSignificantAsSprite(origSprite, sig) {
   let out = {
     pixels: pixelmap,
     minCol: Infinity,
-    maxCol: -Infinity
+    maxCol: -Infinity,
+    effect: Object.assign({}, origSprite.effect),
+    name: origSprite.name,
+    ch: origSprite.ch,
   };
   let $s = origSprite.ch==="all"?0:origSprite.ch, $e = origSprite.ch==="all"?channelCount:origSprite.ch+1;
   for (let ch=$s;ch<$e;ch++) {
@@ -997,7 +1007,7 @@ function getSignificantPixels(sprite, options = {}) {
  * Mostly unchanged logic after we obtain the significant pixels/component.
  */
 function generateSpriteOutlinePath(sprite, options = {}) {
-  if (sprite.effect.tool === "sample"){
+  if (sprite.effect.tool === "sample"||sprite.effect.shape==="select"){
     const mn = sprite.minCol, mx = sprite.maxCol;
     const ny = sprite.minY || 0;
     const my = sprite.maxY || specHeight;

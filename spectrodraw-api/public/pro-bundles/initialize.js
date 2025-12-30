@@ -125,8 +125,8 @@ let cx_ = null, cy_ = null;
 let zooming = false;
 
 let brushSize=parseInt(brushSizeEl.value), brushWidth = brushSize, brushHeight = brushSize;
-let brushOpacity=parseInt(brushOpacityEl.value)/100;
-let phaseStrength=parseInt(phaseStrengthEl.value)/100;
+let brushOpacity=parseInt(brushOpacityEl.value);
+let phaseStrength=parseInt(phaseStrengthEl.value);
 let brushBrightness=parseInt(brushBrightnessEl.value);
 let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value),cAmp=1;

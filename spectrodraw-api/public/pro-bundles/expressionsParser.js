@@ -1,110 +1,128 @@
-function parseExpression(source) {
-  // -------------------------
-  // Configuration / vars map
-  // -------------------------
-  // Edit this object from outside before calling parseExpression:
-  if (!parseExpression.vars) parseExpression.vars = {
-    // sliders / elements
-    "brush.tool.size": () => sliders[1][0],
-    "brush.tool.width": () => sliders[21][0],
-    "brush.tool.height": () => sliders[22][0],
-    "brush.tool.opacity": () => sliders[4][0],
-    "brush.tool.harmonics": () => harmonics,
-    "brush.effect.brightness": () => sliders[2][0],
-    "brush.effect.blurRadius": () => sliders[16][0],
-    "brush.effect.amplify": () => sliders[17][0],
-    "brush.effect.aggressiveness": () => sliders[18][0],
-    "brush.effect.autotuneStrength": () => sliders[23][0],
-    "brush.effect.baseHz": () => sliders[25][0],
-    "brush.effect.notesPerOctave": () => sliders[24][0],
-    "brush.effect.phaseTexture": () => phaseTextureEl,
-    "brush.effect.phaseSettings": () => sliders[27][0],
-    "brush.effect.phaseStrength": () => sliders[5][0],
-    "brush.effect.phaseShift": () => sliders[3][0],
-    "eqBands": () => eqBands,
-    "mouse.frame": () => $x,
-    "mouse.bin": () => visibleToSpecY($y),
-    "zoom.x.min": () => iLow,
-    "zoom.x.max": () => iHigh,
-    "zoom.y.min": () => fLow,
-    "zoom.y.max": () => fHigh,
-    "currentChannel.logScale": () => logScaleVal[currentChannel],
-    "sampleRate": () => sampleRate,
-    "specHeight": () => specHeight,
-    "specWidth": () => framesTotal,
-  };
+// Put these constants once (top-level) so they are not recreated on every call
+const __PE_RESERVED = new Set([
+  "if","else","for","while","do","switch","case","break","continue","return",
+  "var","let","const","function","new","this","typeof","instanceof","in",
+  "try","catch","finally","throw","class","extends","super","import","export",
+  "default","yield","await","async","with","debugger"
+]);
+const __PE_ALLOWED_ROOTS = new Set([
+  "Math","Array","Number","String","Object","Boolean","JSON","Date","RegExp",
+  "parseInt","parseFloat","isNaN","isFinite","console","Intl","Map","Set",
+  "WeakMap","WeakSet","BigInt"
+]);
+const __PE_SIMPLE_LITERALS = new Set(["true","false","null","undefined","NaN","Infinity"]);
+const __ID_START = /[A-Za-z_$]/;
+const __ID_CONT = /[A-Za-z0-9_$]/;
 
+function parseExpression(source, exprObj) {
+  // keep the same external behavior
+  const expressionId = (exprObj && exprObj.id) ? exprObj.id : undefined;
+  const S = source || "";
+  const N = S.length;
 
-  const reservedWords = new Set([
-    "if","else","for","while","do","switch","case","break","continue","return",
-    "var","let","const","function","new","this","typeof","instanceof","in",
-    "try","catch","finally","throw","class","extends","super","import","export",
-    "default","yield","await","async","with","debugger"
-  ]);
-
-  const allowedGlobalRoots = new Set([
-    "Math","Array","Number","String","Object","Boolean","JSON","Date","RegExp",
-    "parseInt","parseFloat","isNaN","isFinite","console","Intl","Map","Set",
-    "WeakMap","WeakSet","BigInt"
-  ]);
-
-  function lineColFromIndex(str, idx) {
-    const upTo = str.slice(0, idx);
-    const lines = upTo.split("\n");
-    const line = lines.length;
-    const col = lines[lines.length - 1].length + 1;
+  // quick helpers: precompute lineStarts for O(log n) position->line/col
+  const lineStarts = [0];
+  for (let k = 0; k < N; k++) if (S[k] === "\n") lineStarts.push(k + 1);
+  function lineColFromIndex(idx) {
+    if (idx < 0) idx = 0;
+    // binary search in lineStarts
+    let lo = 0, hi = lineStarts.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (lineStarts[mid] <= idx) lo = mid + 1;
+      else hi = mid - 1;
+    }
+    const line = hi + 1;
+    const col = idx - lineStarts[hi] + 1;
     return { line, col };
   }
 
   // -------------------------
-  // Step 1: Scan the source and find dotted identifiers (skipping strings/comments)
+  // 1) Gather declared identifiers (var/let/const/function + params) — single regex passes
+  // -------------------------
+  const declared = new Set();
+  for (const m of source.matchAll(/\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g)) declared.add(m[1]);
+  for (const m of source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)) declared.add(m[1]);
+  // function params in classic function declarations
+  for (const m of source.matchAll(/function\b[^(]*\(([^)]*)\)/g)) {
+    const raw = m[1].trim();
+    if (!raw) continue;
+    for (const p of raw.split(",")) {
+      const pname = p.split("=")[0].trim();
+      if (pname) declared.add(pname);
+    }
+  }
+  // arrow params
+  for (const m of source.matchAll(/([A-Za-z_$][\w$]*|\([^)]*\))\s*=>/g)) {
+    const raw = m[1].trim();
+    if (!raw) continue;
+    if (raw[0] === "(") {
+      const inner = raw.slice(1, -1).trim();
+      if (!inner) continue;
+      for (const p of inner.split(",")) {
+        const pname = p.split("=")[0].trim();
+        if (pname) declared.add(pname);
+      }
+    } else declared.add(raw);
+  }
+
+  // -------------------------
+  // 2) Single-pass scanner: find candidate dotted identifiers (skip strings/comments/template-expr)
   // -------------------------
   const matches = []; // {text, start, end}
-  const S = source;
-  const N = S.length;
   let i = 0;
-
   while (i < N) {
     const ch = S[i];
 
+    // Strings / template / skip
     if (ch === '"' || ch === "'" || ch === "`") {
       const quote = ch;
       i++;
-      while (i < N) {
-        if (S[i] === "\\") { i += 2; continue; }
-        if (S[i] === quote) { i++; break; }
-        if (quote === "`" && S[i] === "$" && S[i+1] === "{") {
-          i += 2;
-          let depth = 1;
-          while (i < N && depth > 0) {
-            if (S[i] === "\\") { i += 2; continue; }
-            if (S[i] === "{") depth++;
-            else if (S[i] === "}") depth--;
-            else if (S[i] === "'" || S[i] === '"' || S[i] === "`") {
-              const q = S[i];
-              i++;
-              while (i < N) {
-                if (S[i] === "\\") { i += 2; continue; }
-                if (S[i] === q) { i++; break; }
-                i++;
+      if (quote === "`") {
+        // template literal - need to handle ${ ... } blocks
+        while (i < N) {
+          if (S[i] === "\\") { i += 2; continue; }
+          if (S[i] === "$" && S[i+1] === "{") {
+            i += 2;
+            // skip until matching }
+            let depth = 1;
+            while (i < N && depth > 0) {
+              if (S[i] === "\\") { i += 2; continue; }
+              if (S[i] === "{") depth++;
+              else if (S[i] === "}") depth--;
+              else if (S[i] === "'" || S[i] === '"' || S[i] === "`") {
+                const q = S[i]; i++;
+                while (i < N) {
+                  if (S[i] === "\\") { i += 2; continue; }
+                  if (S[i] === q) { i++; break; }
+                  i++;
+                }
+                continue;
               }
-              continue;
+              i++;
             }
-            i++;
+            continue;
           }
-          continue;
+          if (S[i] === "`") { i++; break; }
+          i++;
         }
-        i++;
+      } else {
+        while (i < N) {
+          if (S[i] === "\\") { i += 2; continue; }
+          if (S[i] === quote) { i++; break; }
+          i++;
+        }
       }
       continue;
     }
 
+    // single-line comment
     if (S[i] === "/" && S[i+1] === "/") {
       i += 2;
       while (i < N && S[i] !== "\n") i++;
       continue;
     }
-
+    // multi-line comment
     if (S[i] === "/" && S[i+1] === "*") {
       i += 2;
       while (i < N && !(S[i] === "*" && S[i+1] === "/")) i++;
@@ -112,20 +130,35 @@ function parseExpression(source) {
       continue;
     }
 
-    const idStart = /[A-Za-z_$]/;
-    if (idStart.test(ch)) {
-      let j = i;
-      while (j < N && /[A-Za-z0-9_$]/.test(S[j])) j++;
+    // identifier start?
+    if (__ID_START.test(ch)) {
+      let j = i + 1;
+      while (j < N && __ID_CONT.test(S[j])) j++;
+      // now optionally chained ".id"
       while (j < N && S[j] === ".") {
-        let k = j+1;
-        if (k < N && /[A-Za-z_$]/.test(S[k])) {
+        let k = j + 1;
+        if (k < N && __ID_START.test(S[k])) {
           k++;
-          while (k < N && /[A-Za-z0-9_$]/.test(S[k])) k++;
+          while (k < N && __ID_CONT.test(S[k])) k++;
           j = k;
         } else break;
       }
-      const text = S.slice(i, j);
-      matches.push({ text, start: i, end: j });
+
+      // check object-literal property like "{ foo: ... }" — skip those
+      let next = j;
+      while (next < N && /\s/.test(S[next])) next++;
+      if (S[next] === ":") {
+        // check previous non-space
+        let prev = i - 1;
+        while (prev >= 0 && /\s/.test(S[prev])) prev--;
+        const prevCh = prev >= 0 ? S[prev] : null;
+        if (prevCh === "{" || prevCh === ",") {
+          i = j;
+          continue; // skip object key
+        }
+      }
+
+      matches.push({ text: S.slice(i, j), start: i, end: j });
       i = j;
       continue;
     }
@@ -134,186 +167,300 @@ function parseExpression(source) {
   }
 
   // -------------------------
-  // Step 2: Find declarations inside the source to allow local vars
+  // 3) Validate tokens against allowed set (fast checks + caching)
   // -------------------------
-  const declared = new Set();
-  const declRegex = /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g;
-  let m;
-  while ((m = declRegex.exec(source)) !== null) declared.add(m[1]);
-
-  const fnDeclRegex = /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g;
-  while ((m = fnDeclRegex.exec(source)) !== null) declared.add(m[1]);
-
-  const fnParamsRegex = /function\b[^(]*\(([^)]*)\)/g;
-  while ((m = fnParamsRegex.exec(source)) !== null) {
-    const params = m[1].split(",").map(s => s.trim()).filter(Boolean);
-    params.forEach(p => {
-      const pname = p.split("=")[0].trim();
-      if (pname) declared.add(pname);
-    });
-  }
-  const arrowParamsRegex = /([A-Za-z_$][\w$]*|\([^)]*\))\s*=>/g;
-  while ((m = arrowParamsRegex.exec(source)) !== null) {
-    const raw = m[1].trim();
-    if (raw.startsWith("(")) {
-      const inner = raw.slice(1, -1);
-      inner.split(",").map(s => s.trim()).filter(Boolean).forEach(p => {
-        declared.add(p.split("=")[0].trim());
-      });
-    } else declared.add(raw);
-  }
-
-  // -------------------------
-  // Step 3: Validate tokens against parseExpression.vars and allowed globals
-  // -------------------------
-  const varKeys = Object.keys(parseExpression.vars || {});
-  varKeys.sort((a,b)=>b.length-a.length); // prefer longest
+  const varMap = parseExpression.vars || {};
+  const varKeys = Object.keys(varMap);
+  const varSet = new Set(varKeys);
+  const tokenAllowedCache = new Map();
 
   function tokenAllowed(token) {
     if (!token) return true;
-    if (reservedWords.has(token)) return true;
-    if (parseExpression.vars && Object.prototype.hasOwnProperty.call(parseExpression.vars, token)) return true;
-    // allow token that ends with ".value" when base exists in vars
-    if (token.endsWith(".value")) {
-      const base = token.slice(0, -6);
-      if (parseExpression.vars && Object.prototype.hasOwnProperty.call(parseExpression.vars, base)) return true;
-    }
+    if (tokenAllowedCache.has(token)) return tokenAllowedCache.get(token);
+
+    // quick checks
+    if (__PE_RESERVED.has(token)) return tokenAllowedCache.set(token, true), true;
+    if (varSet.has(token)) return tokenAllowedCache.set(token, true), true;
     const root = token.split(".")[0];
-    if (declared.has(root)) return true;
-    if (allowedGlobalRoots.has(root)) return true;
-    if (["true","false","null","undefined","NaN","Infinity"].includes(token)) return true;
+    if (declared.has(root)) return tokenAllowedCache.set(token, true), true;
+    if (__PE_ALLOWED_ROOTS.has(root)) return tokenAllowedCache.set(token, true), true;
+    if (__PE_SIMPLE_LITERALS.has(token)) return tokenAllowedCache.set(token, true), true;
+
+    tokenAllowedCache.set(token, false);
+    return false;
+  }
+
+  // Helper for property-access case: if identifier appears after a dot, allow it if left-root is allowed
+  function allowedByLeftRoot(mt) {
+    // find preceding non-space char
+    let leftPos = mt.start - 1;
+    while (leftPos >= 0 && /\s/.test(S[leftPos])) leftPos--;
+    if (leftPos < 0 || S[leftPos] !== ".") return false;
+
+    // skip backward over a parenthesized/bracketed expression (fast heuristic)
+    let left = leftPos - 1;
+    function skipBack(openChar, closeChar) {
+      let depth = 1;
+      left--;
+      while (left >= 0 && depth > 0) {
+        if (S[left] === closeChar) depth++;
+        else if (S[left] === openChar) depth--;
+        else if (S[left] === '"' || S[left] === "'" || S[left] === "`") {
+          const q = S[left]; left--;
+          while (left >= 0) {
+            if (S[left] === "\\") { left -= 2; continue; }
+            if (S[left] === q) { left--; break; }
+            left--;
+          }
+          continue;
+        }
+        left--;
+      }
+      while (left >= 0 && /\s/.test(S[left])) left--;
+    }
+    if (left >= 0 && S[left] === ")") skipBack("(", ")");
+    else if (left >= 0 && S[left] === "]") skipBack("[", "]");
+
+    // collect identifier left of that position (if any)
+    let idEnd = left;
+    while (idEnd >= 0 && __ID_CONT.test(S[idEnd])) idEnd--;
+    const idStart = idEnd + 1;
+    if (idStart <= left) {
+      const root = S.slice(idStart, left + 1);
+      return tokenAllowed(root) || varSet.has(root);
+    }
     return false;
   }
 
   for (const mt of matches) {
     const t = mt.text;
-    if (!tokenAllowed(t)) {
-      const pos = lineColFromIndex(source, mt.start);
-      return(`Error parsing expression at line ${pos.line}, col ${pos.col}: Cannot find "${t}"`);
-    }
+    if (tokenAllowed(t)) continue;
+    // try property-access rescue
+    if (allowedByLeftRoot(mt)) continue;
+    // If reached here token unknown -> error
+    const pos = lineColFromIndex(mt.start);
+    if (exprObj) exprObj.isError = true;
+    return `Error parsing expression at line ${pos.line}, col ${pos.col}: Cannot find "${t}"`;
   }
 
   // -------------------------
-  // Step 4: Replace mapped keys with safe parameter names (support .value)
+  // 4) Build replacements for mapped vars (single pass, stable order)
   // -------------------------
-  const replacements = []; // {start,end, name, value, replacementText, original}
-  const usedParamNames = [];
-  const paramValues = [];
-
+  const replacements = []; // {start,end,name,value}
   let paramCounter = 0;
-  function makeParamName() { return "__p" + (paramCounter++); }
-
+  // Map occurrences in order; fetch each var value once now
   for (const mt of matches) {
     const tok = mt.text;
-    // find longest varKey that matches either tok exactly or tok === key + ".value"
-    let matchedKey = null;
-    let isValueAccess = false;
-    for (const key of varKeys) {
-      if (tok === key) { matchedKey = key; isValueAccess = false; break; }
-      if (tok === key + ".value") { matchedKey = key; isValueAccess = true; break; }
-    }
-    if (matchedKey !== null) {
-      const name = makeParamName();
-      const val = parseExpression.vars[matchedKey]();
-      const replacementText = isValueAccess ? (name + ".value") : name;
-      replacements.push({ start: mt.start, end: mt.end, name, value: val, replacementText, original: tok });
-      usedParamNames.push(name);
-      paramValues.push(val);
+    if (varSet.has(tok)) {
+      const name = "__p" + (paramCounter++);
+      // fetch value by calling var function (guarded)
+      let value;
+      try {
+        const accessor = varMap[tok];
+        value = (typeof accessor === "function") ? accessor() : accessor;
+      } catch (e) { value = undefined; }
+      replacements.push({ start: mt.start, end: mt.end, name, value });
     }
   }
-
+  // sort by start (should already be in order but ensure)
   replacements.sort((a,b)=>a.start-b.start);
 
-  // build transformed source using replacementText
-  let newSrc = "";
-  let lastPos = 0;
-  for (const r of replacements) {
-    newSrc += source.slice(lastPos, r.start);
-    newSrc += r.replacementText;
-    lastPos = r.end;
+  // build transformed code with minimal slicing
+  if (replacements.length === 0) {
+    var newSrc = source;
+  } else {
+    let parts = [];
+    let last = 0;
+    for (const r of replacements) {
+      if (r.start > last) parts.push(S.substring(last, r.start));
+      parts.push(r.name);
+      last = r.end;
+    }
+    if (last < N) parts.push(S.substring(last));
+    var newSrc = parts.join("");
   }
-  newSrc += source.slice(lastPos);
+
+  // collect param names/values in order
+  const usedParamNames = replacements.map(r=>r.name);
+  const paramValues = replacements.map(r=>r.value);
 
   // -------------------------
-  // Step 5: Decide what to evaluate/return
+  // 5) Decide what to evaluate/return (return keyword or bare-expression line)
   // -------------------------
-  const hasReturnKeyword = /\breturn\b/.test(source);
+  const hasReturnKeyword = /\breturn\b/.test(source); // acceptable heuristic
 
   function evaluateCode(codeText) {
     try {
       const fn = new Function(...usedParamNames, '"use strict";\n' + codeText);
       return fn(...paramValues);
     } catch (err) {
+      // Attempt to produce friendly errors similar to previous behavior
       if (err instanceof ReferenceError) {
-        const mm = /(\w+)\s+is not defined/.exec(err.message);
-        if (mm) {
-          const name = mm[1];
+        const m = /(\w+)\s+is not defined/.exec(err.message);
+        if (m) {
+          const name = m[1];
           const idx = source.indexOf(name);
-          const pos = idx >= 0 ? lineColFromIndex(source, idx) : {line:1,col:1};
-          return(`Error parsing expression at line ${pos.line}, col ${pos.col}: Cannot find "${name}"`);
+          const pos = idx >= 0 ? lineColFromIndex(idx) : {line:1,col:1};
+          if (exprObj) exprObj.isError = true;
+          return `Error parsing expression at line ${pos.line}, col ${pos.col}: Cannot find "${name}"`;
         }
       }
+      // attempt to get column from stack if possible
       let extra = err.message || String(err);
       if (err.stack) {
         const stackMatch = /<anonymous>:(\d+):(\d+)/.exec(err.stack) || /:1:(\d+)/.exec(err.stack);
         if (stackMatch) {
           const col = parseInt(stackMatch[stackMatch.length-1], 10);
-          const pos = lineColFromIndex(source, Math.max(0, col-1));
-          return(`Error parsing expression at line ${pos.line}, col ${pos.col}: ${extra}`);
+          const pos = lineColFromIndex(Math.max(0, col-1));
+          if (exprObj) exprObj.isError = true;
+          return `Error parsing expression at line ${pos.line}, col ${pos.col}: ${extra}`;
         }
       }
-      return(`Error parsing expression: ${extra}`);
+      if (exprObj) exprObj.isError = true;
+      return `Error parsing expression: ${extra}`;
     }
   }
 
-  if (hasReturnKeyword) {
-    // use newSrc as the function body so top-level `return` works
-    return evaluateCode(newSrc);
+  // Reuse your finalizeResult logic (kept nearly identical)
+  function finalizeResult(result) {
+    if (typeof result === "string" && result.startsWith("Error")) return result;
+    function err(msg) { try { if (exprObj) exprObj.isError = true; } catch (e) {} return msg; }
+
+    if (expressionId !== "eqPresetsDiv" && expressionId !== "brushHarmonicsEditorh3" && typeof result === "object") {
+      return err("Error: Expected a single numeric value, but got an object.");
+    }
+
+    if (expressionId === "brushHarmonicsEditorh3") {
+      if (!Array.isArray(result)) return err(`Error: Expected an array, got ${typeof result}: ${JSON.stringify(result)}`);
+      if (result.length !== 100) return err(`Error: Expected an array of length 100, got an array of length ${result.length}.`);
+      if (!result.every(v => typeof v === "number" && Number.isFinite(v) && v >= 0.0 && v <= 1.0)) {
+        return err(`Error: Array must contain all numbers in the range [0.0, 1.0]. Got [${result.map(v => JSON.stringify(v)).join(", ")}]`);
+      }
+      if (result.every(v => v === 0.0)) return err("Error: Must contain at least one nonzero value.");
+    }
+
+    if (expressionId === "eqPresetsDiv") {
+      let sr = typeof sampleRate !== "undefined" ? sampleRate : NaN;
+      if ((!sr || !Number.isFinite(sr)) && parseExpression.vars && typeof parseExpression.vars["sampleRate"] === "function") {
+        try { sr = parseExpression.vars["sampleRate"](); } catch (e) { sr = NaN; }
+      }
+      if (!Array.isArray(result)) return err(`Error: EQ presets must be an array. Got ${typeof result}: ${JSON.stringify(result)}`);
+      const allowedTypes = new Set(["low_shelf", "peaking", "high_shelf"]);
+      for (let idx = 0; idx < result.length; idx++) {
+        const band = result[idx], label = `band[${idx}]`;
+        if (band === null || typeof band !== "object" || Array.isArray(band)) return err(`Error: ${label} must be an object. Got ${JSON.stringify(band)}.`);
+        if (!("gain" in band) || typeof band.gain !== "number" || !Number.isFinite(band.gain)) return err(`Error: ${label}.gain must be a finite number. Got ${JSON.stringify(band.gain)}.`);
+        if (!("freq" in band) || typeof band.freq !== "number" || !Number.isFinite(band.freq) || !(band.freq >= 0)) return err(`Error: ${label}.freq cannot be negative. Got ${JSON.stringify(band.freq)}.`);
+        if (Number.isFinite(sr) && !(band.freq >= 0 && band.freq <= sr)) return err(`Error: ${label}.freq must be >= 0 and <= sampleRate (${sr}). Got ${band.freq}.`);
+        if (!("angle" in band) || typeof band.angle !== "number" || !Number.isFinite(band.angle)) return err(`Error: ${label}.angle must be a finite number. Got ${JSON.stringify(band.angle)}.`);
+        if (!("tLen" in band) || typeof band.tLen !== "number" || !Number.isFinite(band.tLen) || !(band.tLen > 0)) return err(`Error: ${label}.tLen must be a positive number. Got ${JSON.stringify(band.tLen)}.`);
+        if (!("type" in band) || typeof band.type !== "string" || !allowedTypes.has(band.type)) return err(`Error: ${label}.type must be one of ${JSON.stringify(Array.from(allowedTypes))}. Got ${JSON.stringify(band.type)}.`);
+      }
+    }
+
+    try { if (exprObj) exprObj.isError = false; } catch (e) {}
+    return result;
   }
 
-  // find first bare-expression line (no "=" and not a statement)
-  const lines = source.split(/\r?\n/);
-  let exprLineIndex = -1;
-  let exprText = null;
-  for (let idx = 0; idx < lines.length; idx++) {
-    const raw = lines[idx];
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
-    if (/^(var|let|const|if|for|while|switch|function|return|throw|break|continue|try|catch|class)\b/.test(trimmed)) continue;
-    if (/[^=!<>+\-*/%^|&?:]\=/.test(raw)) continue;
-    exprLineIndex = idx;
-    exprText = raw;
-    break;
+  // If there's a top-level 'return', evaluate the transformed source as the function body
+  if (hasReturnKeyword) {
+    const result = evaluateCode(newSrc);
+    return finalizeResult(result);
+  }
+
+  // Otherwise try to find the first bare expression line (avoid scanning twice aggressively)
+  const lines = S.split(/\r?\n/);
+  let exprLineIndex = -1, exprText = null;
+  for (let idx = 0, pos = 0; idx < lines.length; idx++) {
+    const raw = lines[idx]; const trimmed = raw.trim();
+    if (!trimmed) { pos += raw.length + 1; continue; }
+    if (/^(var|let|const|if|for|while|switch|function|return|throw|break|continue|try|catch|class)\b/.test(trimmed)) { pos += raw.length + 1; continue; }
+    if (/[^=!<>+\-*/%^|&?:]\=/.test(raw)) { pos += raw.length + 1; continue; }
+    exprLineIndex = idx; exprText = raw; break;
   }
 
   if (exprLineIndex !== -1) {
-    const lineStartIndex = (() => {
-      let pos = 0;
-      for (let k = 0; k < exprLineIndex; k++) pos += lines[k].length + 1;
-      return pos;
-    })();
-
-    // Build transformed expression using replacements affecting the line
-    let transformedExpr = "";
-    let last = lineStartIndex;
-    for (const r of replacements) {
-      if (r.end <= lineStartIndex) continue;
-      if (r.start >= lineStartIndex + lines[exprLineIndex].length + 1) continue;
-      const rs = Math.max(r.start, lineStartIndex);
-      transformedExpr += source.slice(last, rs) + r.replacementText;
-      last = r.end;
+    // compute lineStart index
+    let lineStartIndex = 0;
+    for (let k = 0; k < exprLineIndex; k++) lineStartIndex += lines[k].length + 1;
+    // apply replacements that intersect this line to produce transformed expression
+    if (replacements.length === 0) {
+      const codeToEval = `return (${exprText.trim()});`;
+      const r = evaluateCode(codeToEval);
+      return finalizeResult(r);
+    } else {
+      let transformedParts = [];
+      let last = lineStartIndex;
+      for (const r of replacements) {
+        const lineEnd = lineStartIndex + lines[exprLineIndex].length;
+        if (r.end <= lineStartIndex) continue;
+        if (r.start > lineEnd) continue;
+        const rs = Math.max(r.start, lineStartIndex);
+        if (rs > last) transformedParts.push(S.substring(last, rs));
+        transformedParts.push(r.name);
+        last = r.end;
+      }
+      if (last <= lineStartIndex + lines[exprLineIndex].length) transformedParts.push(S.substring(Math.max(last, lineStartIndex), lineStartIndex + lines[exprLineIndex].length + 1));
+      const transformedExpr = transformedParts.join("").trim();
+      const codeToEval = `return (${transformedExpr});`;
+      const result = evaluateCode(codeToEval);
+      return finalizeResult(result);
     }
-    transformedExpr += source.slice(last, lineStartIndex + lines[exprLineIndex].length + 1);
-    transformedExpr = transformedExpr.replace(/^\s+|\s+$/g, "");
-    const codeToEval = `return (${transformedExpr});`;
-    return evaluateCode(codeToEval);
   }
 
-  // Fallback: evaluate whole transformed source as function body (no IIFE)
-  return evaluateCode(newSrc);
+  // fallback: evaluate whole code as an IIFE (preserve original behavior)
+  const codeToEval = `(function(){\n${newSrc}\n})();`;
+  const result = evaluateCode(codeToEval);
+  return finalizeResult(result);
 }
-
-// helper
+parseExpression.vars = {
+  //-- defaults (placeholders). Replace these with your actual runtime values:
+  "brush.tool.size": () => parseFloat(sliders[1][0].value),
+  "brush.tool.width": () => parseFloat(sliders[21][0].value),
+  "brush.tool.height": () => parseFloat(sliders[22][0].value),
+  "brush.tool.opacity": () => parseFloat(sliders[4][0].value),
+  "brush.tool.harmonics": () => harmonics,
+  "brush.tool.clonerRefX": ()=> clonerX,
+  "brush.tool.clonerRefY": ()=> clonerY,
+  "brush.tool.clonerScale": ()=> clonerScale,
+  "brush.effect.brightness": () => parseFloat(sliders[2][0].value),
+  "brush.effect.blurRadius": () => parseFloat(sliders[16][0].value),
+  "brush.effect.amplify": () => parseFloat(sliders[17][0].value),
+  "brush.effect.aggressiveness": () => parseFloat(sliders[18][0].value),
+  "brush.effect.autotuneStrength": () => parseFloat(sliders[23][0].value),
+  "brush.effect.baseHz": () => parseFloat(sliders[25][0].value),
+  "brush.effect.notesPerOctave": () => parseFloat(sliders[24][0].value),
+  "brush.effect.phaseTexture": () => phaseTextureEl.value,
+  "brush.effect.phaseSettings": () => parseFloat(sliders[27][0].value),
+  "brush.effect.phaseStrength": () => parseFloat(sliders[5][0].value),
+  "brush.effect.phaseShift": () => parseFloat(sliders[3][0].value),
+  "eqBands": () => eqBands,
+  "mouse.frame": () => Math.max(0, Math.min($x, framesTotal)),
+  "mouse.bin": () => visibleToSpecY($y),
+  "zoom.x.min": () => iLow,
+  "zoom.x.max": () => iHigh,
+  "zoom.y.min": () => fLow,
+  "zoom.y.max": () => fHigh,
+  "currentChannel.logScale": () => logScaleVal[currentChannel],
+  "sampleRate": () => sampleRate,
+  "specHeight": () => specHeight,
+  "specWidth": () => framesTotal,
+  "currentTool": () => currentTool,
+  "currentEffect": () => currentShape,
+  "pixel.frame": () => null,
+  "pixel.bin": () => null,
+  "hop": () => hop,
+  "brush.effect.phaseSettings.t0": () => t0,
+  "brush.effect.phaseSettings.tau": () => tau,
+  "brush.effect.phaseSettings.sigma": () => sigma,
+  "brush.effect.phaseSettings.harmonicCenter": () => harmonicCenter,
+  "brush.effect.phaseSettings.userDelta": () => userDelta,
+  "brush.effect.phaseSettings.refPhaseFrame": () => refPhaseFrame,
+  "brush.effect.phaseSettings.chirpRate": () => chirpRate,
+  "currentChannel": () => currentChannel,
+  "channels": () => channels,
+};
+// keep helper to set vars
 parseExpression.setVars = function(map) {
   parseExpression.vars = Object.assign({}, parseExpression.vars || {}, map);
 };

@@ -92,7 +92,7 @@ function _handleHarmonicsPointer(e) {
   // convert y -> harmonic value (clamped 0..1). y=0 -> top -> val=1; y=h-1 -> bottom -> val=0
   const newVal = Math.max(0, Math.min(1, 1 - (y / (h - 1))));
   if (editingHarmonics) harmonics[bestI] = newVal;
-
+  updateAllVariables(null);
   // redraw
   renderHarmonicsCanvas();
 }
@@ -142,7 +142,7 @@ harmonicsPreset.addEventListener("input", ()=>{
     harmonics = new Array(100);
     for (let i = 0; i < 100; i++) harmonics[i] = 1 / (i + 1); // all harmonics, 1/n
   } else if (e === "custom") {
-    toggleSection(document.getElementById("brushHarmonisEditorDivToggleBtn"));
+    toggleSection(document.getElementById("brushHarmonicsEditorDivToggleBtn"));
   }
   renderHarmonicsCanvas();
   updateBrushPreview();

@@ -63,7 +63,7 @@ function hideExpression(targetId) {
   const expr = getExpressionById(targetId);
   if (!expr || !expr.showing) return;
   expr.showing = false;
-  console.log(parseExpression(expr.expression));
+  console.log(parseExpression(expr.expression,expr),expr);
 
   // remove DOM
   const box = document.getElementById(`name-${targetId}-box`);
@@ -84,6 +84,7 @@ function hideExpression(targetId) {
 function makeExpressionObject(text, id){
   const obj = {
     id,
+    isError: false,
     showing: false,
     hasChanged: false,
     expression: (text || ''),
@@ -129,22 +130,37 @@ function ensureExpressionShape(expr){
   expr.needsResize = typeof expr.needsResize === 'boolean' ? expr.needsResize : true;
 }
 const defaultExpressions={
-  "brushBrightnessDiv":"brush.effect.brightness.value",
-  "blurRadiusDiv":"brush.effect.blurRadius.value",
-  "amplifyDiv":"brush.effect.amplify.value",
-  "noiseAggDiv":"brush.effect.aggressiveness.value",
-  "autoTuneStrengthDiv":"brush.effect.autotuneStrength.value",
-  "astartOnPitchDiv":"brush.effect.baseHz.value",
-  "anpoDiv":"brush.effect.notesPerOctave.value",
-  "phaseTextureDiv":"brush.effect.phaseTexture.value",
-  "phaseSettingsDiv":"brush.effect.phaseSettings.value",
-  "phaseDiv":"brush.effect.phaseShift.value",
-  "phaseStrengthDiv":"brush.effect.phaseStrength.value",
-  "brushWidthDiv":"brush.tool.width.value",
-  "brushHeightDiv":"brush.tool.height.value",
-  "opacityDiv":"brush.tool.opacity.value",
-  "harmonicsPresetSelectDiv":"brush.tool.harmonics.value",
-  "eqPresetsDiv":"eqBands",
+  "brushBrightnessDiv":"brush.effect.brightness",
+  "blurRadiusDiv":"brush.effect.blurRadius",
+  "amplifyDiv":"brush.effect.amplify",
+  "noiseAggDiv":"brush.effect.aggressiveness",
+  "autoTuneStrengthDiv":"brush.effect.autotuneStrength",
+  "astartOnPitchDiv":"brush.effect.baseHz",
+  "anpoDiv":"brush.effect.notesPerOctave",
+  "phaseTextureDiv":"return (Math.random() * 2 - 1) * Math.PI + brush.effect.phaseShift;",
+  "phaseSettingsDiv":"brush.effect.phaseSettings",
+  "phaseDiv":"brush.effect.phaseShift",
+  "phaseStrengthDiv":"brush.effect.phaseStrength",
+  "brushWidthDiv":"brush.tool.width",
+  "brushHeightDiv":"brush.tool.height",
+  "opacityDiv":"brush.tool.opacity",
+  "brushHarmonicsEditorh3":`//uncomment for advanced editing
+//let h = Array(100).fill(0);
+//h[0]=1; 
+//return h;
+return brush.tool.harmonics;`,
+  "eqPresetsDiv":`//uncomment for advanced editing
+//return [
+//   { gain:0, freq: 0, type: "low_shelf", angle: Math.PI/2, tLen: 60}, 
+//   { gain:0, freq: sampleRate/128, type: "peaking", angle: Math.PI/2, tLen: 60}, 
+//   { gain:0, freq: sampleRate/32, type: "peaking", angle: Math.PI/2, tLen: 60}, 
+//   { gain:0, freq: sampleRate/16, type: "peaking", angle: Math.PI/2, tLen: 60}, 
+//   { gain:0, freq: sampleRate/8, type: "peaking", angle: Math.PI/2, tLen: 60}, 
+//   { gain:0, freq: sampleRate/4, type: "peaking", angle: Math.PI/2, tLen: 60}, 
+//   { gain:0, freq: sampleRate/2, type: "high_shelf", angle: Math.PI/2, tLen: 60}
+//];
+return eqBands;`,
+  "clonerScaleDiv":"brush.tool.clonerScale",
 }
 addExpressionBtns();
 function addExpressionBtns(){
@@ -170,8 +186,9 @@ function addExpressionBtns(){
     "brushWidthDiv",
     "brushHeightDiv",
     "opacityDiv",
-    "harmonicsPresetSelectDiv",
+    "brushHarmonicsEditorh3",
     "eqPresetsDiv",
+    "clonerScaleDiv",
   ];
   for (const id of targetDivIds) {
     const div = document.getElementById(id);
@@ -200,10 +217,54 @@ function addExpressionBtns(){
         btn.title = "Edit expression for " + id;
       }
     });
+    btn.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Remove any existing menu
+      const existingMenu = document.getElementById('resetExprMenu');
+      if (existingMenu) existingMenu.remove();
+
+      // Create menu element
+      const menu = document.createElement('div');
+      menu.id = 'resetExprMenu';
+      menu.textContent = 'Reset Expression';
+      menu.style.fontSize = '14px';
+      menu.style.position = 'absolute';
+      menu.style.left = e.pageX + 'px';
+      menu.style.top = e.pageY + 'px';
+      menu.style.background = '#222';
+      menu.style.border = '1px solid #777';
+      menu.style.padding = '2px 4px';
+      menu.style.cursor = 'pointer';
+      menu.style.zIndex = 10000;
+      menu.style.borderRadius = '2px';
+      menu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+      menu.style.color = "#f00";
+
+      // Attach click handler
+      menu.addEventListener('click', () => {
+        const expObj = getExpressionById(id);
+        expObj.expression = defaultExpressions[id];
+        expObj.lines = expObj.expression.split(/\r\n|\r|\n/);
+        menu.remove(); // remove menu after click
+      });
+
+      // Remove menu if click elsewhere
+      const removeMenu = () => {
+        menu.remove();
+        document.removeEventListener('click', removeMenu);
+      };
+      document.addEventListener('click', removeMenu);
+
+      document.body.appendChild(menu);
+    });
+
     expressions.push(makeExpressionObject(defaultExpressions[id], id));
     div.appendChild(btn);
   }
 }
+const predefinedConstVars = new Set([ "brush", "tool", "size", "width", "height", "opacity", "harmonics", "effect", "brightness", "blurRadius", "amplify", "aggressiveness", "autotuneStrength", "baseHz", "notesPerOctave", "phaseTexture", "phaseSettings", "phaseStrength", "phaseShift", "eqBands", "mouse", "frame", "bin", "zoom", "x", "min", "max", "y", "currentChannel", "logScale", "sampleRate", "specHeight", "specWidth", "clonerScale", "currentTool", "currentEffect","pixel"]);
 
 // ------------ Editor core (per-instance) ----------------
 function initEditor(expr){
@@ -466,7 +527,7 @@ function initEditor(expr){
         else if(t.type === 'string') fill = colors.string;
         else if(t.type === 'number') fill = colors.number;
         else if(t.type === 'punct') fill = colors.punct;
-        else if(t.type === 'constvar') fill = colors.constvar;
+        else if(t.type === 'constvar'|| predefinedConstVars.has(t.text)) fill = colors.constvar;
         else if(t.type === 'mutvar') fill = colors.mutvar;
         ctx.fillStyle = fill;
         ctx.fillText(t.text, x, y);
@@ -1001,19 +1062,41 @@ document.addEventListener('mousedown', (e) => {
   // if click is NOT inside any expression box, clear editingExpression
   if (!e.target.closest('.expressionBoxwrap')) {
     if (editingExpression !== null){
-      const id = getExpressionById(editingExpression).id;
-      if (id === "brushBrightnessDiv") {
-        let expr = getExpressionById("brushBrightnessDiv").expression;
-        let result = parseExpression(expr);
-        const error = document.getElementById(`error-${id}`);
-        if (typeof result === "string") {
-          error.innerText = result;
-          error.style.display = "block";
+      function evaluateExpressionToVar(expressionId, setValue) {
+        const exprObj = getExpressionById(expressionId);
+        if (!exprObj) return;
+
+        const expr = exprObj.expression;
+        const result = parseExpression(expr,exprObj);
+
+        const errorEl = document.getElementById(`error-${expressionId}`);
+        if (!errorEl) return;
+
+        if (typeof result === "string" && result.startsWith("Error")) {
+          errorEl.innerText = result;
+          errorEl.style.display = "block";
+          exprObj.isError = true;
         } else {
-          error.style.display = "none";
-          brushBrightness = result;
+          errorEl.style.display = "none";
+          exprObj.isError = false;
+          setValue(result);
         }
       }
+      evaluateExpressionToVar("brushBrightnessDiv", v => {sliders[2][0].value = sliders[2][1].value = brushBrightness = v;});
+      evaluateExpressionToVar("blurRadiusDiv",      v => {sliders[16][0].value = sliders[16][1].value = blurRadius = v});
+      evaluateExpressionToVar("amplifyDiv",         v => {sliders[17][0].value = sliders[17][1].value = amp = v});
+      evaluateExpressionToVar("noiseAggDiv",        v => {sliders[18][0].value = sliders[18][1].value = noiseAgg = v});
+      evaluateExpressionToVar("autoTuneStrengthDiv",v => {sliders[23][0].value = sliders[23][1].value = autoTuneStrength = v});
+      evaluateExpressionToVar("astartOnPitchDiv",   v => {sliders[25][0].value = sliders[25][1].value = astartOnPitch = v});
+      evaluateExpressionToVar("anpoDiv",            v => {sliders[24][0].value = sliders[24][1].value = anpo = v});
+      evaluateExpressionToVar("phaseDiv",           v => {sliders[3][0].value = sliders[3][1].value = phaseShift = v});
+      evaluateExpressionToVar("phaseStrengthDiv",   v => {sliders[5][0].value = sliders[5][1].value = phaseStrength = v});
+      evaluateExpressionToVar("brushWidthDiv",      v => {sliders[21][0].value = sliders[21][1].value = brushWidth = v});
+      evaluateExpressionToVar("brushHeightDiv",     v => {sliders[22][0].value = sliders[22][1].value = brushHeight = v});
+      evaluateExpressionToVar("opacityDiv",         v => {sliders[4][0].value = sliders[4][1].value = brushOpacity = v});
+      evaluateExpressionToVar("clonerScaleDiv",     v => {sliders[26][0].value = sliders[26][1].value = clonerScale = v});
+      evaluateExpressionToVar("brushHarmonicsEditorh3",v => {harmonics = v; renderHarmonicsCanvas(); updateBrushPreview();});
+      evaluateExpressionToVar("eqPresetsDiv",       v => {eqBands = v; updateGlobalGain();updateEQ();drawEQ();});
     }
     editingExpression = null;
   }

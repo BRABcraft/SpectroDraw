@@ -27,6 +27,7 @@ function getSpriteById(id) {
 
 // Render the sprites table
 function renderSpritesTable() {
+  if (currentPanel !== "2") return;
   const tbody = document.getElementById('spriteTableBody');
   tbody.innerHTML = '';
   if (sprites.length == 0) {
@@ -316,19 +317,19 @@ function renderToolEditorSettings(sprite,newEffect) {
   const effects = newEffect?newEffect:sprite.effect;
   if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
   function c(b){return sprite.effect.tool===b}
-  document.getElementById("samplifyDiv")   .style.display=(c("amplifier"))?"flex":"none";
+  document.getElementById("samplifyDiv")   .style.display=(c("amplifier")||c("sample"))?"flex":"none";
   document.getElementById("snoiseAggDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("ssetNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("sblurRadiusDiv").style.display=(c("blur"))?"flex":"none";
   document.getElementById("sautoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("snpoDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("sstartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
-  document.getElementById("sbrushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner")||c("n/a"))?"none":"flex";
-  document.getElementById("sphaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner")||c("n/a"))?"none":"flex";
+  document.getElementById("sbrushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner")||c("n/a")||c("sample"))?"none":"flex";
+  document.getElementById("sphaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner")||c("n/a")||c("sample"))?"none":"flex";
   updateSpritePhaseTextureSettings(effects);
   document.getElementById("sphaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
-  document.getElementById("sphaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune"))?"none":"flex";
-  document.getElementById("sbrushOpacityDiv").style.display=c("n/a")?"none":"flex";
+  document.getElementById("sphaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune")||c("sample"))?"none":"flex";
+  document.getElementById("sbrushOpacityDiv").style.display=(c("n/a")||c("sample"))?"none":"flex";
   if (!sprite) return;
 
   // Ensure effects object exists to read from

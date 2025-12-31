@@ -31,7 +31,8 @@ async function initEmptyPCM(doReset) {
         brushPressure: 1,
         audioDevice: channelCount==1?"both":(ch==0?"left":(ch==1?"right":"none")),
         samplePos: 0,
-        sampleRate: sampleRateLocal, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid:crypto.randomUUID()
+        sampleRate: sampleRateLocal, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid:crypto.randomUUID(),
+        hasCanvases:!!document.getElementById("spec-"+ch),
       };
     }
   }
@@ -422,6 +423,7 @@ async function updateChannels(){
       samplePos: 0,
       sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,
       uuid:crypto.randomUUID(),
+      hasCanvases:false,
     });
     logScaleVal.push(1.12);
   }

@@ -1730,7 +1730,7 @@ function drawFrame(w,h) {
         try {
           playing = true;
           playPause.innerHTML = pauseHtml;
-          playPCM(false,currentFrame<specWidth*0.8?minCol:0); 
+          playPCM(false,currentFrame<specWidth*0.8?minCol:specWidth*0.8); 
         } catch (e) { console.warn("playPCM() failed after render:", e); }
         const playPauseEl = document.getElementById("playPause");
         if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
@@ -1740,7 +1740,7 @@ function drawFrame(w,h) {
           autoPlayOnFinish = false;
           playing = true;
           playPause.innerHTML = pauseHtml;
-          playPCM(true,currentFrame<specWidth*0.8?minCol:0);
+          playPCM(true,currentFrame<specWidth*0.8?minCol:specWidth*0.8);
       }
       status.style.display = "none";
       minCol = Infinity;

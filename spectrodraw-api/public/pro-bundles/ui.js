@@ -83,7 +83,7 @@ const sliders = [
 ];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
-sliders[0][0].addEventListener('mouseup', ()=>{initEmptyPCM(false);});
+sliders[0][0].addEventListener('mouseup', ()=>{/*for(let ch=0;ch<channelCount;ch++){channels[ch].hasCanvases=false;}*/initEmptyPCM(false);});
 sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[0][1].value);const min = parseFloat(sliders[0][0].min);const max = parseFloat(sliders[0][0].max);
     if (isNaN(val)) val = 0;if (val < min) val = min;if (val > max) val = max;sliders[0][1].value = val;sliders[0][0].value = val;initEmptyPCM(false);}});
 function rs_(i){const v = sliders[1][i].value; const f = v/brushSize; sliders[21][0].value=sliders[21][1].value=Math.round(brushWidth *= f); sliders[22][0].value=sliders[22][1].value=Math.round(brushHeight *= f); brushSize=v; updateBrushPreview();}
@@ -202,6 +202,7 @@ panelButtons.forEach(btn => {
       panel.style.display = (i == currentPanel) ? "block" : "none";
       i++;
     }
+    if (currentPanel == "2") renderSpritesTable();
     if (currentPanel == "5") drawEQ();
     if (currentPanel == "3") renderUploads();
   });
@@ -745,7 +746,8 @@ function openProject(file) {
             brushPressure: src.brushPressure,
             samplePos: 0,
             sampleRate,
-            audioDevice: src.audioDevice
+            audioDevice: src.audioDevice,
+            hasCanvases: false
           };
         }
       }
@@ -1104,6 +1106,7 @@ const noprma = document.getElementById("setNoiseProfileMax")
 noprma.addEventListener("input",()=>{noprma.value = noiseProfileMax = Math.floor(noprma.value);});
 
 function autoSetNoiseProfile() {
+  if (currentTool !== "noiseRemover") return;
   const mags = channels[currentChannel].mags;
 
   const BIN_STEP = 8; // skip bins for speed
@@ -1115,7 +1118,7 @@ function autoSetNoiseProfile() {
   let sum = 0;
   let count = 0;
 
-  for (let frame = 0; frame < framesTotal; frame++) {
+  for (let frame = 0; frame < framesTotal; frame+=Math.floor(framesTotal/20)) {
     const base = frame * specHeight;
     for (let bin = 0; bin < specHeight; bin += BIN_STEP) {
       const v = mags[base + bin];

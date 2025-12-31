@@ -182,7 +182,7 @@ function canvasMouseMove(e,touch,el) {
   if (zooming) return;
   if (!recording) {
     const hz = getSineFreq(visibleToSpecY(cy));
-    const secs = Math.floor(cx/(sampleRate/hopSizeEl.value)*10000)/10000;
+    const secs = Math.floor((cx+iLow)/(sampleRate/hopSizeEl.value)*10000)/10000;
     const hx = Math.floor(cx);
     const hy = Math.floor(hz/(sampleRate/fftSize));
     const i = hx*specHeight+hy;
@@ -236,12 +236,20 @@ function canvasMouseMove(e,touch,el) {
   }
 
   currentCursorX = currentFrame;
-}
-function canvasMouseUp(e,touch) {
+}let debugTime = 0;
+function canvasMouseUp(e,touch) {debugTime = Date.now();//console.log("Canvasmouseup",debugTime-Date.now());
   previewingShape = false;
   if (zooming || !painting) return;
-  renderSpritesTable();
+  renderSpritesTable();//console.log("renderSpritesTable",debugTime-Date.now());
   
+  if (!hasSetNoiseProfile) autoSetNoiseProfile();//console.log("autoSetNoiseProfile",debugTime-Date.now());
+  stopSource();//console.log("stopSource",debugTime-Date.now());
+  if (sineOsc) {
+    sineOsc.stop();
+    sineOsc.disconnect();
+    sineOsc = null;
+    sineGain = null;
+  }
   minCol = Infinity; maxCol = -Infinity;
   visited = null;
   painting = false;
@@ -249,24 +257,16 @@ function canvasMouseUp(e,touch) {
   paintedPixels = null;
   mouseDown = false;
   if (changingNoiseProfile) {document.getElementById("setNoiseProfile").click();return;}
-  if (!hasSetNoiseProfile) autoSetNoiseProfile();
-  stopSource();
-  if (sineOsc) {
-    sineOsc.stop();
-    sineOsc.disconnect();
-    sineOsc = null;
-    sineGain = null;
-  }
   const { cx, cy } = getCanvasCoords(e,touch);
-  if (movingSprite) {handleMoveSprite(cx,cy); return;}
+  if (movingSprite) {handleMoveSprite(cx,cy); console.log("moveSprite",debugTime-Date.now());return;}
   if (currentShape === "select") {createNewSpriteFromSelection(startX, displayYToBin(visibleToSpecY(startY),specHeight,currentChannel), cx, displayYToBin(visibleToSpecY(cy),specHeight,currentChannel)); return;}
   const overlayCanvas = document.getElementById("overlay-"+currentChannel);
   const overlayCtx = overlayCanvas.getContext("2d");
   if (currentShape === "rectangle" || (document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image")) || currentShape === "line") {
-    commitShape(cx, cy); 
+    commitShape(cx, cy); console.log("commitShape",debugTime-Date.now());
     overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
   }
-  if (alignTime && currentTool === "fill") {idNew
+  if (alignTime && currentTool === "fill") {
     const startFrame = Math.round(cx + iLow);
     const snapSize = 30/bpm/subBeat;
     const brushS = brushSize*fWidth/sampleRate*fftSize/512;
@@ -277,7 +277,7 @@ function canvasMouseUp(e,touch) {
 
     startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
     startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-    line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
+    line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);console.log("alignTime",debugTime-Date.now());
   }
   simpleRestartRender();
 }
@@ -287,28 +287,27 @@ function simpleRestartRender(min=-1,max=-1){
   startX=startY=null;
   startTime = performance.now();
   audioProcessed = 0;
-  if (!movingSprite) {
-    autoRecomputePCM(min,max);
-    pendingHistory = true;
-    pendingPlayAfterRender = true; 
-  }
-  let startFrame = calcMinMaxCol().minCol;
-  if (startFrame == Infinity) startFrame = 0;
+  let a;
+  a = autoRecomputePCM(min,max);
+  pendingHistory = true;
+  pendingPlayAfterRender = true; 
+  let startFrame = a.minCol;
+  if (startFrame === Infinity) startFrame = 0;
   pos = startFrame * hop;
   x = startFrame;
   rendering = true;
+  //console.log("drawLoop begin",debugTime-Date.now());
   requestAnimationFrame(() => drawLoop());
   startTime = performance.now();
   audioProcessed = 0;
 }
 
 let minCol = Infinity; maxCol = -Infinity;
-function calcMinMaxCol() {
-  if (minCol !== Infinity && maxCol !== -Infinity) return {minCol,maxCol};
-  const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases, snapshotMags = channels[currentChannel].snapshotMags, snapshotPhases = channels[currentChannel].snapshotPhases;//CHANGE LATER
+function calcMinMaxCol() {console.log(minCol,maxCol);
+  if (isFinite(minCol) && isFinite(maxCol)) {return {minCol,maxCol};}
+  const mags = channels[currentChannel].mags, snapshotMags = channels[currentChannel].snapshotMags;
   if (snapshotMags === null || snapshotMags.length !== mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
   const epsMag = 1e-2;
-  const epsPhase = 1e-1;
   const h = specHeight;
   const total = mags.length;
   for (let idx = 0; idx < total; idx++) {
@@ -319,13 +318,6 @@ function calcMinMaxCol() {
       if (col < minCol) minCol = col;
       if (col > maxCol) maxCol = col;
       continue;
-    }
-    const oldP = snapshotPhases[idx];
-    const newP = phases[idx];
-    if (Math.abs(angleDiff(oldP, newP)) > epsPhase) {
-      const col = Math.floor(idx / h);
-      if (col < minCol) minCol = col;
-      if (col > maxCol) maxCol = col;
     }
   }
   if (isFinite(minCol)) {
@@ -366,6 +358,7 @@ function autoRecomputePCM(min,max) {
     pendingRecomputeDone = false;
     pendingRecomputeMinCol = pendingRecomputeMaxCol = null;
   }
+  return {minCol,maxCol};
 }
 
 function newHistory() {
@@ -374,31 +367,21 @@ function newHistory() {
   for (let ch=$s;ch<$e;ch++){
     let mags = channels[ch].mags, phases = channels[ch].phases;
     let snapshotMags = channels[ch].snapshotMags, snapshotPhases = channels[ch].snapshotPhases;
-    const epsMag = 0.1;
-    const epsPhase = 0.4;
-
-    const changedIdxs = [];
-    const prevMags = [];
-    const prevPhases = [];
-
-    const h = specHeight;
-    const startF = minCol*fftSize/2
-    const endF = maxCol*fftSize/2; 
+    const startF = minCol*specHeight;
+    const endF = maxCol*specHeight;
     let totalDiff = 0;
     let countDiff = 0;
     for (let idx = startF; idx < endF; idx++) {
       const oldM = snapshotMags[idx] || 0;
       const newM = mags[idx] || 0;
-      const oldP = snapshotPhases[idx] || 0;
-      const newP = phases[idx] || 0;
-      if (idx%fftSize/2 === 0) {countDiff=0; totalDiff=0;}
+      const bin = idx%specHeight;
+      if (bin === 0) {countDiff=0; totalDiff=0;}
       countDiff++;
       totalDiff += Math.abs(oldM - newM);  
       if (Math.abs(oldM - newM) > Math.min(0.4,(totalDiff/countDiff)*0.2)){
-        changedIdxs.push(idx);
-        prevMags.push(oldM);
-        prevPhases.push(snapshotPhases[idx] || 0);
-        addPixelToSprite(currentSprite, Math.floor(idx/(fftSize/2)), idx%(fftSize/2), oldM, oldP, newM, newP, ch);
+        const oldP = snapshotPhases[idx] || 0;
+        const newP = phases[idx] || 0;
+        addPixelToSprite(currentSprite, Math.floor(idx/specHeight), bin, oldM, oldP, newM, newP, ch);
       }
     }
   }
@@ -422,6 +405,7 @@ initEmptyPCM(false);
 
 function updateCursorLoop() {
   const specCanvas = document.getElementById("spec-"+currentChannel);
+  if (!specCanvas) return;
   const specCtx = specCanvas.getContext("2d");
   if (playing && !painting && channels[currentChannel].pcm && sourceNode) {
     const elapsed = audioCtx.currentTime - sourceStartTime; 
@@ -445,8 +429,7 @@ updateCursorLoop();
 
 function stopSource(preservePaused=false){
     if(sourceNode){
-        try { sourceNode.stop(); } catch(e) {  }
-        try { sourceNode.disconnect(); } catch(e) {  }
+      sourceNode.stop();
         sourceNode = null;
     }
 
@@ -473,7 +456,7 @@ function _getPlaybackTarget() {
 async function playPCM(loop = true, startFrame = null) {
   ensureAudioCtx();
 
-  stopSource(true);
+  //stopSource(true);
 
   if (!channels || channels.length === 0) {
     console.warn("No channels to play.");
@@ -694,7 +677,7 @@ function updateNoiseProfile(){
   document.getElementById("setNoiseProfileMax").value = noiseProfileMax;
 }
 
-function createNewSpriteFromSelection(startX, startY, endX, endY) {console.log(697);
+function createNewSpriteFromSelection(startX, startY, endX, endY) {
   const minX = Math.floor(Math.min(startX, endX));
   const minY = Math.floor(Math.min(startY, endY));
   const maxX = Math.floor(Math.max(startX, endX));

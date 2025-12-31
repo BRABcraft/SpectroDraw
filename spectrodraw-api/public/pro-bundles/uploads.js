@@ -429,13 +429,13 @@ function shiftSpritesForInsert(ch, start, insertLen) {
   }
 }
 
-async function commitSample(sample, x, insert = false) {
-  if (draggingSample.length === 0 || !sample || !sample[0].pcm || x < -30) {draggingSample = []; return;}
+async function commitSample(sample, X, insert = false) {
+  if (draggingSample.length === 0 || !sample || !sample[0].pcm || X < -30) {draggingSample = []; return;}
   let $s = syncChannels ? 0 : currentChannel;
   let $e = syncChannels ? channelCount : currentChannel + 1;
   let idx = 0;
   for (let ch = $s; ch < $e; ch++) {
-    const start = Math.max(0, x * hop);
+    const start = Math.max(0, X * hop);
     const end = start + sample[idx].pcm.length;
     if (!channels[ch].pcm || channels[ch].pcm.length === 0) {
       channels[ch].pcm = sample[idx].pcm.slice(0);
@@ -453,9 +453,9 @@ async function commitSample(sample, x, insert = false) {
       emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
-      shiftSpritesForInsert(ch, x, Math.floor(sample[idx].pcm.length/hop));
+      shiftSpritesForInsert(ch, X, Math.floor(sample[idx].pcm.length/hop));
     } else if (sample[idx].pcm.length > channels[ch].pcm.length) {
-      channels[ch].pcm = sample[idx].pcm.slice(0);
+      channels[ch].pcm = sample[idx].pcm;
       emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
@@ -470,12 +470,18 @@ async function commitSample(sample, x, insert = false) {
     } else {
       channels[ch].pcm.set(sample[idx].pcm, start);
     }
+    framesTotal = Math.max(Math.floor(channels[ch].pcm.length / hop), framesTotal);
+    maxCol = framesTotal;
     if (syncChannels) idx++;
+    channels[ch].snapshotMags = new Float32Array(channels[ch].mags);
+    channels[ch].snapshotPhases = new Float32Array(channels[ch].phases);
   }
   //simpleRestartRender(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hop));
+  uploadingSprite = true;
   restartRender(false);
-  await waitFor(() => !rendering);
-  for (let ch = 0; ch < channelCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
+  // await waitFor(() => !rendering);
+  // rendering=true;
+  // for (let ch = 0; ch < channelCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
   autoSetNoiseProfile();
   draggingSample = [];
   idx = 0;
@@ -483,8 +489,8 @@ async function commitSample(sample, x, insert = false) {
     console.log("Creating sprite for channel", ch);
     newUploadSprite({
       ch,
-      minCol:Math.floor(x),
-      maxCol:Math.floor(x+sample[0].pcm.length/hop),
+      minCol:Math.floor(X),
+      maxCol:Math.floor(X+sample[0].pcm.length/hop),
       name:sample[idx].name,
       pcm:sample[idx].pcm
     });
@@ -496,23 +502,8 @@ function newUploadSprite(data) {
   let pixelmap=[];
   const width = (data.maxCol-data.minCol);
   const size = width * fftSize;
-  let pcm = data.pcm, mags = new Float32Array(size), phases = new Float32Array(size);
+  let mags = new Float32Array(size), phases = new Float32Array(size);
   for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
-  x=0;
-  for (let pos = 0; pos < pcm.length; pos += hop) {
-    const re = new Float32Array(fftSize);
-    const im = new Float32Array(fftSize);
-    for (let i = 0; i < fftSize; i++) { re[i] = (pcm[i+pos] || 0); im[i] = 0; }
-    fft_inplace(re, im);
-    for (let bin = 0; bin < fftSize; bin++) {
-      const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
-      const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
-      const idx = x * fftSize + bin; 
-      mags[idx] = mag;
-      phases[idx] = phase;
-    }
-    x++;
-  }
   sprites.push({
     id: nextSpriteId++,
     effect: {tool: "sample", phaseShift:0, amp:1},
@@ -527,12 +518,6 @@ function newUploadSprite(data) {
     prevSpriteFade: [],
     name: data.name
   });
-  const prevMags = new Float32Array(size), prevPhases = new Float32Array(size);
-  for (let i = 0; i < size; i++) {prevMags[i] = Math.random() * 0.00001;prevPhases[i] = Math.random() * 2*Math.PI;}
-  for (let i=0;i<mags.length;i++){
-    let x = Math.floor(i / fftSize) + data.minCol, y = i % fftSize;
-    addPixelToSprite(sprites[sprites.length-1], x, y, prevMags[i], prevPhases[i], mags[i], phases[i], data.ch);
-  }
   renderSpritesTable();
 }
 

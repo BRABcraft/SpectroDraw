@@ -387,20 +387,20 @@ const pauseHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20
 
 function playPause() {
   ensureAudioCtx();
-    if (playing) {
-        const elapsed = audioCtx.currentTime - sourceStartTime;
-        let samplePos = Math.floor(elapsed * sampleRate);
-        if (sourceNode && sourceNode.loop) {
-            samplePos = samplePos % channels[0].pcm.length;
-        }
-        pausedAtSample = Math.max(0, Math.min(channels[0].pcm.length - 1, samplePos));
-        stopSource(true);
-        playPauseBtn.innerHTML = playHtml;
-    } else {
-        const startFrame = (pausedAtSample !== null) ? Math.floor(pausedAtSample / hop) : 0;
-        playPCM(true, startFrame);
-        playPauseBtn.innerHTML = pauseHtml;
-    }
+  if (playing) {
+      const elapsed = audioCtx.currentTime - sourceStartTime;
+      let samplePos = Math.floor(elapsed * sampleRate);
+      if (sourceNode && sourceNode.loop) {
+          samplePos = samplePos % channels[0].pcm.length;
+      }
+      pausedAtSample = Math.max(0, Math.min(channels[0].pcm.length - 1, samplePos));
+      stopSource(true);
+      playPauseBtn.innerHTML = playHtml;
+  } else {
+      const startFrame = (pausedAtSample !== null) ? Math.floor(pausedAtSample / hop) : 0;
+      playPCM(true, startFrame);
+      playPauseBtn.innerHTML = pauseHtml;
+  }
 }
 
 playPauseBtn.addEventListener("click", () => {

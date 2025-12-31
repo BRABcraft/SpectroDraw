@@ -1,10 +1,5 @@
 
 function recomputePCMForCols(colStart, colEnd, opts = {}) {
-  if (!channels || channels.length === 0) {
-    console.warn("No channels available.");
-    return;
-  }
-
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;
@@ -14,14 +9,7 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
   const colLast  = Math.min(specWidth - 1, colEnd + marginCols);
 
   const h = specHeight;
-
-  const window = (typeof win !== 'undefined' && win && win.length === fftSize)
-                ? win
-                : (function buildLocalWin() {
-                    const w = new Float32Array(fftSize);
-                    for (let i = 0; i < fftSize; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
-                    return w;
-                  })();
+  const window = win;
 
   // Re / Im arrays reused across channels/columns to avoid repeated allocation
   const re = new Float32Array(fftSize);
@@ -50,10 +38,12 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
       im.fill(0);
 
       // populate frequency bins from this channel's mags/phases
+      const mags = channel.mags;
+      const phases = channel.phases;
       for (let bin = 0; bin < h && bin < fftSize; bin++) {
         const idx = xCol * h + bin;
-        const mag = (channel.mags && channel.mags[idx]) ? channel.mags[idx] : 0;
-        const phase = (channel.phases && channel.phases[idx]) ? channel.phases[idx] : 0;
+        const mag = mags[idx];
+        const phase = phases[idx];
         re[bin] = mag * Math.cos(phase);
         im[bin] = mag * Math.sin(phase);
 
@@ -105,7 +95,7 @@ function recomputePCMForCols(colStart, colEnd, opts = {}) {
     // write back into channel PCM
     channel.pcm.set(newSegment, sampleStart);
     // Re-render the spectrogram columns affected
-    renderSpectrogramColumnsToImageBuffer(colFirst, colLast, ch);
+    //renderSpectrogramColumnsToImageBuffer(colFirst, colLast, ch);
   } // end channel loop
 
 

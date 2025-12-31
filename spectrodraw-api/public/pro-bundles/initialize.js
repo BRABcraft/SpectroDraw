@@ -185,6 +185,7 @@ let changingNoiseProfile = false, hasSetNoiseProfile = false, noiseProfileMin = 
 
 let editingExpression = null;
 let dontChangeSprites = false;
+let uploadingSprite = false;
 
 let handlers = {
   "canvas-": (el) => {
@@ -221,17 +222,6 @@ let handlers = {
 }
 
 //GLOBAL HELPER FUNCTIONS
-
-function addEventListeners(){
-  for (let ch = 0; ch < channelCount; ch++) {
-    for (const prefix in handlers) {
-      const id = prefix + ch;
-      const el = document.getElementById(id);
-      if (!el) continue;
-      handlers[prefix](el);
-    }
-  }
-}
 
 async function waitFor(fn, interval = 10) {while (!fn()) await new Promise(r => setTimeout(r, interval));}
 function sanitizeFilename(name) {return (name || "unnamed").replace(/[^a-z0-9\-_\.]/gi, "_");}

@@ -557,7 +557,6 @@ function buildBinDisplayLookup() {
   }
 }
 function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,ch) {
-  if (!sprite) return;
   let col;
   try{col=sprite.pixels[ch].get(x);}catch(e){col=null};
   if (!col) {

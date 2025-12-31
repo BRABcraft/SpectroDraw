@@ -11,7 +11,7 @@ hopSizeEl.addEventListener("change",()=>{
   // for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value),ch);
   buildBinDisplayLookup();});
 
-function restartRender(autoPlay){
+function restartRender(autoPlay){console.log("start restartRender");
   autoPlayOnFinish = !!playing || !!autoPlay;
   fftSize = parseInt(fftSizeEl.value);
   hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
@@ -28,52 +28,72 @@ function restartRender(autoPlay){
   } else {
     document.getElementById("chdiv").removeAttribute('disabled');
   }
-  const wrapper = document.getElementById("canvasWrapper");
-  wrapper.innerHTML = "";
   if (imageBuffer === null) imageBuffer = new Array(channelCount);
   if (currentChannel >= channelCount) currentChannel = channelCount-1;
   for (let ch = 0; ch < channelCount; ch++){
-    const timeline = document.createElement("canvas");
-    timeline.id = `timeline-${ch}`;
-    timeline.style.cssText ="height:40px;background:#222;position:absolute;left:40px;z-index:9998;top:"+(0 + ch*offsetY)+"px";
-    wrapper.appendChild(timeline);
+    let timeline, canvas, overlayCanvas, yAxis, specCanvas, logscaleEl;
+    if (!channels[ch].hasCanvases) {
+      let w = document.getElementById("canvasWrapper-"+ch);
+      const wrapper = (w!==null)?w:document.createElement("div");
+      wrapper.innerHTML = "";
+      wrapper.id = "canvasWrapper-"+ch;
+      timeline = document.createElement("canvas");
+      timeline.id = `timeline-${ch}`;
+      timeline.style.cssText ="height:40px;background:#222;position:absolute;left:40px;z-index:9998;top:"+(0 + ch*offsetY)+"px";
+      wrapper.appendChild(timeline);
 
-    // main canvas
-    const canvas = document.createElement("canvas");
-    canvas.id = `canvas-${ch}`;
-    canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
-    // prefer pixelated rendering at DOM-level (extra protection)
-    canvas.style.imageRendering = "pixelated";
-    canvas.style.webkitImageRendering = "pixelated";
-    wrapper.appendChild(canvas);
+      // main canvas
+      canvas = document.createElement("canvas");
+      canvas.id = `canvas-${ch}`;
+      canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
+      // prefer pixelated rendering at DOM-level (extra protection)
+      canvas.style.imageRendering = "pixelated";
+      canvas.style.webkitImageRendering = "pixelated";
+      wrapper.appendChild(canvas);
 
-    // overlay
-    const overlayCanvas = document.createElement("canvas");
-    overlayCanvas.id = `overlay-${ch}`;
-    overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
-    // overlay should also be pixelated
-    overlayCanvas.style.imageRendering = "pixelated";
-    wrapper.appendChild(overlayCanvas);
+      // overlay
+      overlayCanvas = document.createElement("canvas");
+      overlayCanvas.id = `overlay-${ch}`;
+      overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
+      // overlay should also be pixelated
+      overlayCanvas.style.imageRendering = "pixelated";
+      wrapper.appendChild(overlayCanvas);
 
-    // freq bar
-    const yAxis = document.createElement("canvas");
-    yAxis.id = `freq-${ch}`;
-    yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
-    wrapper.appendChild(yAxis);
-    
-    // logscale
-    const logscaleEl = document.createElement("canvas");
-    logscaleEl.id = `logscale-${ch}`;logscaleEl.width=40;logscaleEl.height=40;
-    logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
-    wrapper.appendChild(logscaleEl);
+      // freq bar
+      yAxis = document.createElement("canvas");
+      yAxis.id = `freq-${ch}`;
+      yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
+      wrapper.appendChild(yAxis);
+      
+      // logscale
+      logscaleEl = document.createElement("canvas");
+      logscaleEl.id = `logscale-${ch}`;logscaleEl.width=40;logscaleEl.height=40;
+      logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
+      wrapper.appendChild(logscaleEl);
 
-    // specCanvas bar (hidden source canvas)
-    const specCanvas = document.createElement("canvas");
-    specCanvas.style.display = "none";
-    specCanvas.id = `spec-${ch}`;
-    wrapper.appendChild(specCanvas);
+      // specCanvas bar (hidden source canvas)
+      specCanvas = document.createElement("canvas");
+      specCanvas.style.display = "none";
+      specCanvas.id = `spec-${ch}`;
+      wrapper.appendChild(specCanvas);
+      channels[ch].hasCanvases = true;
+      document.getElementById("canvasWrapper").appendChild(wrapper);
+      
+      for (const prefix in handlers) {
+        const id = prefix + ch;
+        const el = document.getElementById(id);
+        if (!el) continue;
+        handlers[prefix](el);
+      }
+    } else {
+      timeline = document.getElementById(`timeline-${ch}`);
+      canvas = document.getElementById(`canvas-${ch}`);
+      overlayCanvas = document.getElementById(`overlay-${ch}`);
+      yAxis = document.getElementById(`freq-${ch}`);
+      logscaleEl = document.getElementById(`logscale-${ch}`);
+      specCanvas = document.getElementById(`spec-${ch}`);
+    }
     const specCtx = specCanvas.getContext("2d");
-
     // ----- IMPORTANT: keep backing store = data resolution (spec resolution) -----
     // This lets you use ImageData(specWidth,specHeight) without having to rewrite imageBuffer logic.
     canvas.width = framesTotal;
@@ -134,19 +154,14 @@ function restartRender(autoPlay){
     specCanvas.height = specHeight;
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
     specCtx.putImageData(imageBuffer[ch], 0, 0);
-    
-    channels[ch].mags = new Float32Array(specWidth * specHeight);
-    channels[ch].phases = new Float32Array(specWidth * specHeight);
-    let mags = channels[ch].mags;
-    let phases = channels[ch].phases;
-    for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
+
+    if (!channels[ch].mags) channels[ch].mags = new Float32Array(specWidth * specHeight).fill(0);
+    if (!channels[ch].phases) channels[ch].phases = new Float32Array(specWidth * specHeight).fill(0);
 
     // IMPORTANT: after (re)setting canvas.width/height the context is reset, so re-obtain it
     const ctx = canvas.getContext("2d");
     // If you have a resize helper that might alter the canvas, call it, then re-disable smoothing again.
-    if (typeof resizeCanvasToDisplaySize === "function") {
-      try { resizeCanvasToDisplaySize(canvas, ctx); } catch (e) { /* ignore if not compatible */ }
-    }
+    resizeCanvasToDisplaySize(canvas, ctx); 
 
     // Ensure no smoothing on THIS destination context (must be set after any width/height reset)
     ctx.imageSmoothingEnabled = false;
@@ -164,7 +179,6 @@ function restartRender(autoPlay){
     ctx.fillStyle = "black";
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
-  addEventListeners();
   buildBinDisplayLookup();
 
   let startFrame = calcMinMaxCol().minCol;
@@ -175,8 +189,8 @@ function restartRender(autoPlay){
 
   startTime = performance.now();
   audioProcessed = 0;
-
   if (playing) stopSource(true);
+  console.log("start drawLoop");
   requestAnimationFrame(drawLoop);
 
   if (!autoPlay) {
@@ -271,7 +285,14 @@ function drawFrame(w,h) {
       phases[idx] = phase;
       if (mag>max) max=mag;
     }
-    //console.log(max);
+    if (uploadingSprite){
+      const s = sprites[sprites.length-1];
+      if (x>=s.minCol && x<=s.maxCol){
+        for (let i=x * h;i<(x+1) * h;i++){
+          addPixelToSprite(s, Math.floor(i / specHeight), i%specHeight, Math.random()*0.00001, Math.random()*6.315, mags[i], phases[i], s.ch);
+        }
+      }
+    }
     const skipY = (recording?8:1)*channelCount;
     for (let yy = 0; yy < h; yy+=skipY) {
       const mappedBin = displayYToBin(yy, h, ch);
@@ -293,13 +314,15 @@ function drawFrame(w,h) {
   audioProcessed += hop;
   ch = currentChannel;
   if (x >= (maxCol==0?w:maxCol)) {
+    uploadingSprite = false;
     if (recording) return false;
     const c = channels[ch];
     let snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
     rendering = false;
     if (pendingHistory) {
       pendingHistory = false; 
-      newHistory(); 
+      //console.log("newHistory begin",debugTime-Date.now());
+      newHistory();
       snapshotMags = null;
       snapshotPhases = null;
     }
@@ -308,7 +331,7 @@ function drawFrame(w,h) {
       try {
         playing = true;
         playPause.innerHTML = pauseHtml;
-        playPCM(false,currentFrame<specWidth*0.8?minCol:0); 
+        playPCM(false,currentFrame<specWidth*0.8?minCol:specWidth*0.8); //console.log("playPCM()",debugTime-Date.now());
       } catch (e) { console.warn("playPCM() failed after render:", e); }
       const playPauseEl = document.getElementById("playPause");
       if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
@@ -318,7 +341,7 @@ function drawFrame(w,h) {
       autoPlayOnFinish = false;
       playing = true;
       playPause.innerHTML = pauseHtml;
-      playPCM(true,currentFrame<specWidth*0.8?minCol:0);
+      playPCM(true,currentFrame<specWidth*0.8?minCol:specWidth*0.8);
     }
     status.style.display = "none";
     minCol = Infinity;
@@ -363,17 +386,18 @@ function waitForSpecUpdate(timeout = SPEC_UPDATE_TIMEOUT_MS) {
 
 function drawLoop() {
   if (!rendering) return;
-  const framesPerTick = 500;
+  const framesPerTick = 200;
   const h = specHeight;
   const w = specWidth;
-  
+  console.log(x);
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let f = 0; f < framesPerTick; f++) if (!drawFrame(w,h)) break;
-  for (let ch=$s;ch<$e;ch++) document.getElementById("spec-"+ch).getContext("2d").putImageData(imageBuffer[ch], 0, 0);
-  
-  drawCursor(true);
+  for (let ch=$s;ch<$e;ch++) {
+    document.getElementById("spec-"+ch).getContext("2d").putImageData(imageBuffer[ch], 0, 0);
+  }
+  //drawCursor(true);
+  renderView();
 
-  if (requestSpecUpdate && typeof resolveSpecUpdate === 'function') resolveSpecUpdate(true);
 
   const elapsedMS = performance.now() - startTime;
   const elapsedSec = elapsedMS / 1000;
@@ -515,15 +539,15 @@ function getCanvasCoords(e,touch){
   const rect=canvas.getBoundingClientRect();
   const scaleX=canvas.width/rect.width;
   const scaleY=canvas.height/rect.height;
-  let x; let y;
+  let X; let Y;
   if (touch && e.touches.length === 0) {
-      x = _cx; y = _cy;
+      X = _cx; Y = _cy;
   } else {
-      x = touch ? e.touches[0].clientX : e.clientX;
-      y = touch ? e.touches[0].clientY : e.clientY;
-      _cx = x; _cy = y;
+      X = touch ? e.touches[0].clientX : e.clientX;
+      Y = touch ? e.touches[0].clientY : e.clientY;
+      _cx = X; _cy = Y;
   }
-  return {cx:(x-rect.left)*scaleX, cy:(y-rect.top)*scaleY, scaleX, scaleY};
+  return {cx:(X-rect.left)*scaleX, cy:(Y-rect.top)*scaleY, scaleX, scaleY};
 }
 function processPendingFramesLive(){
   let count=0;

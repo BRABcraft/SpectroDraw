@@ -2,16 +2,12 @@ if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
 fftSizeEl.addEventListener("change",()=>{
   if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
   restartRender(false);
-  // await waitFor(() => !rendering);
-  // for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value),ch);
   buildBinDisplayLookup();});
 hopSizeEl.addEventListener("change",()=>{
   restartRender(false);
-  // await waitFor(() => !rendering);
-  // for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value),ch);
   buildBinDisplayLookup();});
 
-function restartRender(autoPlay){console.log("start restartRender");
+function restartRender(autoPlay){
   autoPlayOnFinish = !!playing || !!autoPlay;
   fftSize = parseInt(fftSizeEl.value);
   hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
@@ -190,7 +186,6 @@ function restartRender(autoPlay){console.log("start restartRender");
   startTime = performance.now();
   audioProcessed = 0;
   if (playing) stopSource(true);
-  console.log("start drawLoop");
   requestAnimationFrame(drawLoop);
 
   if (!autoPlay) {
@@ -320,8 +315,7 @@ function drawFrame(w,h) {
     let snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
     rendering = false;
     if (pendingHistory) {
-      pendingHistory = false; 
-      //console.log("newHistory begin",debugTime-Date.now());
+      pendingHistory = false;
       newHistory();
       snapshotMags = null;
       snapshotPhases = null;
@@ -331,7 +325,7 @@ function drawFrame(w,h) {
       try {
         playing = true;
         playPause.innerHTML = pauseHtml;
-        playPCM(false,currentFrame<specWidth*0.8?minCol:specWidth*0.8); //console.log("playPCM()",debugTime-Date.now());
+        playPCM(false,currentFrame<specWidth*0.8?minCol:specWidth*0.8);
       } catch (e) { console.warn("playPCM() failed after render:", e); }
       const playPauseEl = document.getElementById("playPause");
       if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
@@ -389,7 +383,6 @@ function drawLoop() {
   const framesPerTick = 200;
   const h = specHeight;
   const w = specWidth;
-  console.log(x);
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let f = 0; f < framesPerTick; f++) if (!drawFrame(w,h)) break;
   for (let ch=$s;ch<$e;ch++) {
@@ -420,26 +413,22 @@ function drawCursor(clear){
     const canvas = document.getElementById("canvas-"+ch);
     const overlayCanvas = document.getElementById("overlay-"+ch);
     const overlayCtx = overlayCanvas.getContext("2d");
-    if (previewingShape && clear && !recording) {
-      previewShape($x, $y);
-    } else {
-      const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
-      if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
-      overlayCtx.strokeStyle = "#0f0";
-      overlayCtx.lineWidth = iWidth/500;
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(x + 0.5, 0);
-      overlayCtx.lineTo(x + 0.5, specHeight);
-      overlayCtx.stroke();
-      if (alignTime) {
-        overlayCtx.strokeStyle = "#222";
-        for (let i = 0; i < specWidth; i += (sampleRate/fftSize)/subBeat * (120/bpm)) {
-          const x = (i-iLow)* canvas.width / (iHigh-iLow);
-          overlayCtx.beginPath();
-          overlayCtx.moveTo(x,0);
-          overlayCtx.lineTo(x,specHeight);
-          overlayCtx.stroke();
-        }
+    const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
+    if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
+    overlayCtx.strokeStyle = "#0f0";
+    overlayCtx.lineWidth = iWidth/500;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(x + 0.5, 0);
+    overlayCtx.lineTo(x + 0.5, specHeight);
+    overlayCtx.stroke();
+    if (alignTime) {
+      overlayCtx.strokeStyle = "#444";
+      for (let i = 0; i < specWidth; i += (sampleRate/fftSize)/subBeat * (120/bpm)) {
+        const x = (i-iLow)* canvas.width / (iHigh-iLow);
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(x,0);
+        overlayCtx.lineTo(x,specHeight);
+        overlayCtx.stroke();
       }
     }
   }
@@ -557,7 +546,7 @@ function processPendingFramesLive(){
   
   const specCanvas=document.getElementById("spec-"+currentChannel);
   const specCtx = specCanvas.getContext("2d");
-  if (imageBuffer[currentChannel] && specCtx) specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
   renderView();
   drawCursor(true);
 }

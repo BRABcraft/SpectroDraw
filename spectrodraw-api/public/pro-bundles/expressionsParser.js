@@ -14,9 +14,10 @@ const __PE_SIMPLE_LITERALS = new Set(["true","false","null","undefined","NaN","I
 const __ID_START = /[A-Za-z_$]/;
 const __ID_CONT = /[A-Za-z0-9_$]/;
 
-function parseExpression(source, exprObj) {
+function parseExpression(exprObj, defaultExprObj) {
   // keep the same external behavior
   const expressionId = (exprObj && exprObj.id) ? exprObj.id : undefined;
+  const source = defaultExprObj??exprObj.expression;
   const S = source || "";
   const N = S.length;
 
@@ -327,7 +328,7 @@ function parseExpression(source, exprObj) {
     function err(msg) { try { if (exprObj) exprObj.isError = true; } catch (e) {} return msg; }
 
     if (expressionId !== "eqPresetsDiv" && expressionId !== "brushHarmonicsEditorh3" && typeof result === "object") {
-      return err("Error: Expected a single numeric value, but got an object.");
+      return err("Error: Expected a single numeric value, but got an object: " + JSON.stringify(result));
     }
 
     if (expressionId === "brushHarmonicsEditorh3") {
@@ -447,8 +448,8 @@ parseExpression.vars = {
   "specWidth": () => framesTotal,
   "currentTool": () => currentTool,
   "currentEffect": () => currentShape,
-  "pixel.frame": () => null,
-  "pixel.bin": () => null,
+  "pixel.frame": () => Math.max(0, Math.min($x, framesTotal)),
+  "pixel.bin": () => visibleToSpecY($y),
   "hop": () => hop,
   "brush.effect.phaseSettings.t0": () => t0,
   "brush.effect.phaseSettings.tau": () => tau,

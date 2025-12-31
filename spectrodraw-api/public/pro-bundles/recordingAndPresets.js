@@ -179,7 +179,8 @@ function countdown(seconds) {
   return new Promise(resolve => {
     let remaining = seconds;
     const beep = new Audio("beep.mp3");
-    beep.load();
+    //beep.load();
+    beep.preload="auto";
 
     function tick() {
       if (!recording) return resolve(); // stop if recording canceled
@@ -238,7 +239,6 @@ async function startRecording() {
   x = 0;
   rendering = false;
 
-
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaSource = audioCtx.createMediaStreamSource(mediaStream);
@@ -267,19 +267,14 @@ async function startRecording() {
     workletNode.port.onmessage = (ev) => {
       const chunk = ev.data;
       if (!(chunk instanceof Float32Array)) return;
-      pcmChunks.push(chunk);
+      pcmChunks.push(...chunk);
 
       // quick merged view for live display
-      let total = 0;
-      for (let c of pcmChunks) total += c.length;
-      const merged = new Float32Array(total);
-      let off = 0;
-      for (let c of pcmChunks) { merged.set(c, off); off += c.length; }
-      channels[ch].pcm = merged;
+      channels[currentChannel].pcm = new Float32Array(pcmChunks);
       
-      if (Math.floor(merged.length/hop) != Math.floor((merged.length-chunk.length)/hop)) processPendingFramesLive();
+      if (Math.floor(pcmChunks.length/hop) != Math.floor((pcmChunks.length-chunk.length)/hop)) processPendingFramesLive();
       iLow = 0;
-      const framesSoFar = Math.max(1, Math.floor((merged.length - fftSize) / hopSizeEl.value) + 1);
+      const framesSoFar = Math.max(1, Math.floor((pcmChunks.length - fftSize) / hopSizeEl.value) + 1);
       iHigh = Math.max(Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value), framesSoFar);
       info.innerHTML = `Recording...<br>${(framesSoFar/(sampleRate/hopSizeEl.value)).toFixed(1)} secs<br>Press record or ctrl+space to stop`;
     };

@@ -382,7 +382,7 @@ function previewShape(cx, cy) {
     const ctx = overlayCanvas.getContext("2d"); 
     const canvas = document.getElementById("canvas-"+currentChannel); 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
+    drawCursor(true);
     if (changingNoiseProfile) {
       noiseProfileMin = Math.min(noiseProfileMin,Math.floor(cx));
       noiseProfileMax = Math.max(noiseProfileMax,Math.floor(cx));
@@ -520,7 +520,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
     const startWasLeft = (startFrame <= endFrame);
     let yStartSpec = startWasLeft ? startSpecY : endSpecY;
     let yEndSpec   = startWasLeft ? endSpecY   : startSpecY;
-    const brushMag = (brushBrightness / 255) * 128;
+    const brushMag = (parseExpression(getExpressionById("brushBrightnessDiv")) / 255) * 128;
     x0 = Math.max(0, Math.min(specWidth - 1, Math.round(x0)));
     x1 = Math.max(0, Math.min(specWidth - 1, Math.round(x1)));
     let y0 = Math.max(0, Math.min(specHeight - 1, Math.round(yStartSpec)));
@@ -596,11 +596,7 @@ function updateSelections(x,y,ch,prevMag,prevPhase,nextMag,nextPhase){
 function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
-  const fullH = specHeight;
-  const fullW = specWidth;
-  const width = fullW;
-  const height = fullH;
-  const idxBase = xI * fullH;
+  const idxBase = xI * specHeight;
   const imgData = imageBuffer[ch].data;
   const magsArr = channels[ch].mags;
   const phasesArr = channels[ch].phases;
@@ -612,8 +608,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     displayYFloat = ftvsy(nearestPitch, ch);
   }
   function processBin(bin, boScaled) {
-    if (!Number.isFinite(bin)) return;
-    bin = Math.max(0, Math.min(fullH - 1, Math.round(bin)));
+    bin = Math.max(0, Math.min(specHeight - 1, Math.round(bin)));
     const idx = idxBase + bin;
     if (idx < 0 || idx >= magsArr.length) return;
     if (visited && visited[ch][idx] === 1) return;
@@ -635,10 +630,8 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
                 ? channels[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
     const type = phaseTextureEl.value;
-    parseExpression.setVars({
-      "pixel.frame": () => xI,
-      "pixel.bin": () => bin,
-    });
+    parseExpression.vars["pixel.frame"]= xI;
+    parseExpression.vars["pixel.bin"]= bin;
 
     if (currentTool === "fill" || currentTool === "eraser") {
       let $phase;
@@ -649,7 +642,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
           $phase = computePhaseTexture(type, bin, xI, phase, false);
         } else {
           const expr = getExpressionById("phaseTextureDiv");
-          if (expr.hasChanged || type==="Custom") {$phase = parseExpression(expr.expression,expr);}
+          if (expr.hasChanged || type==="Custom") {$phase = parseExpression(expr);}
           else {$phase = computePhaseTexture(type, bin, xI, phase, false);}
         }
       }
@@ -661,10 +654,10 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
-    const yEnd   = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
+    const yEnd   = Math.min(specHeight - 1, Math.ceil(Math.max(yTopF, yBotF)));
     const [r, g, b] = magPhaseToRGB(clampedMag, phasesArr[idx]);
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
-      const pix = (yPixel * width + xI) * 4;
+      const pix = (yPixel * specWidth + xI) * 4;
       imgData[pix]     = r;
       imgData[pix + 1] = g;
       imgData[pix + 2] = b;
@@ -680,21 +673,21 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
       if (harmVal < 0.001) {i++; continue;}
       const freqI = getSineFreq(displayYFloat) * (i + 1);
       const displayY_i = ftvsy(freqI, ch);
-      binF = displayYToBin(displayY_i, fullH, ch);
+      binF = displayYToBin(displayY_i, specHeight, ch);
       const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
       processBin(binF, bo * harmVal * velFactor);
       i++;
     }
     return;
   }
-  const topBinF = displayYToBin(displayYFloat - 0.5, fullH, ch);
-  const botBinF = displayYToBin(displayYFloat + 0.5, fullH, ch);
+  const topBinF = displayYToBin(displayYFloat - 0.5, specHeight, ch);
+  const botBinF = displayYToBin(displayYFloat + 0.5, specHeight, ch);
   let binStart = Math.floor(Math.min(topBinF, botBinF));
   let binEnd   = Math.ceil (Math.max(topBinF, botBinF));
   if (!Number.isFinite(binStart)) binStart = 0;
   if (!Number.isFinite(binEnd))   binEnd   = 0;
   binStart = Math.max(0, binStart);
-  binEnd   = Math.min(fullH - 1, binEnd);
+  binEnd   = Math.min(specHeight - 1, binEnd);
   for (let bin = binStart; bin <= binEnd; bin++) {
     const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
     processBin(bin, bo*velFactor);
@@ -718,9 +711,8 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
     phase=(tool === "eraser" ? 0 : (newEffect.phaseShift!== undefined) ? newEffect.phaseShift:  0);
   }
   const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* channels[ch].brushPressure;
-  const po =  (tool === "eraser" ? 0 : (newEffect.phaseStrength   !== undefined) ? newEffect.phaseStrength   :  0);
+  const po =  (tool === "eraser" ? 0 : (newEffect.phaseStrength  !== undefined) ? newEffect.phaseStrength  :  0);
   const _amp = newEffect.amp || amp;
-  const dbt = Math.pow(10, newEffect.noiseAgg / 20)*128;
   const newMag =  (tool === "amplifier" || tool === "sample")    ? (oldMag * _amp)
                 : (currentTool === "noiseRemover") ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
                 :                             (oldMag * (1 - bo) + mag * bo);
@@ -737,9 +729,15 @@ function commitShape(cx, cy) {
     if (!mags || !phases) return;
     const fullW = specWidth;
     const fullH = specHeight;
-    const po = currentTool === "eraser" ? 1 : phaseStrength;
-    const bo = (currentTool === "eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
-    const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
+    const gpo = currentTool === "eraser" ? 1 : phaseStrength;
+    const expressionpo = getExpressionById("phaseStrengthDiv");
+    function po() { return expressionpo.expression.includes("pixel.")?(currentTool === "eraser" ? 1 : parseExpression(expressionpo)):gpo; }
+    const gbo = (currentTool === "eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
+    const expressionbo = getExpressionById("opacityDiv");
+    function bo(){return expressionbo.expression.includes("pixel.")?(currentTool === "eraser" ? 1 : parseExpression(expressionbo)* channels[ch].brushPressure):gbo;}
+    const gBrushMag = (currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128);
+    const expressionBrushMag = getExpressionById("brushBrightnessDiv");
+    function brushMag(){return expressionBrushMag.expression.includes("pixel.")?(currentTool === "eraser" ? 0 : (parseExpression(expressionBrushMag) / 255) * 128):gBrushMag;}
     const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
     const visitedLocal = Array.from({ length: channelCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
@@ -749,7 +747,6 @@ function commitShape(cx, cy) {
       integral = buildIntegral(fullW, fullH, mags, phases);
     }
     try {
-      const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
       const startVisX = (startX == null ? cx : startX);
       const startVisY = (startY == null ? cy : startY);
       const startFrame = Math.round(startVisX + (iLow || 0));
@@ -760,7 +757,7 @@ function commitShape(cx, cy) {
       const endSpecY   = visibleToSpecY(cy);
       let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
       let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
-      function dp(xFrame, yDisplay, mag, phase, bo, po, ch,opts={}){
+      function dp(xFrame, yDisplay, mag, phase, bo, po, ch){
         if (currentTool === "blur") {
           const binCenter = Math.round(displayYToBin(yDisplay, fullH, ch));
           const r = blurRadius | 0;
@@ -776,25 +773,28 @@ function commitShape(cx, cy) {
         }
       }
       if (currentShape === "rectangle") {
-        const minX = x0Frame;
-        const maxX = x1Frame;
         let binA = displayYToBin(y0Spec, fullH, ch);
         let binB = displayYToBin(y1Spec, fullH, ch);
         if (binA > binB) { const t = binA; binA = binB; binB = t; }
         binA = Math.max(0, Math.min(fullH - 1, Math.round(binA)));
         binB = Math.max(0, Math.min(fullH - 1, Math.round(binB)));
-        let pixels = [];
-        for (let xx = minX; xx <= maxX; xx++) {
-          for (let bin = binA; bin <= binB; bin++) {
-            if (currentTool !== "autotune") {
-              const displayY = binToDisplayY(bin, fullH,ch);
-              dp(xx, displayY, brushMag, brushPhase, bo, po, ch,{minBin:binA,maxBin:binB});
-            } else {
+        if (currentTool === "autotune"){
+          let pixels = [];
+          for (let xx = x0Frame; xx <= x1Frame; xx++) {
+            for (let bin = binA; bin <= binB; bin++) {
               pixels.push([xx,bin]);
             }
           }
+          applyAutotuneToPixels(ch,pixels);
+        } else {
+          for (let xx = x0Frame; xx <= x1Frame; xx++) {
+            for (let bin = binA; bin <= binB; bin++) {
+              const displayY = binToBottomDisplay[ch][bin];
+              dp(xx, displayY, brushMag(), brushPhase, bo(), po(), ch);
+            }
+          }
         }
-        if (currentTool === "autotune") applyAutotuneToPixels(ch,pixels);
+        return;
       } else if (currentShape === "line") {
         let x0=startFrame;x1=endFrame;
         let yStartSpec = startSpecY;
@@ -814,7 +814,7 @@ function commitShape(cx, cy) {
             const py = y0;
             if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
               if (currentTool !== "autotune") {
-                dp(px, py, brushMag, phaseShift, brushOpacity* channels[ch].brushPressure, phaseStrength,ch);
+                dp(px, py, brushMag(), brushPhase, bo(), po(), ch);
               } else {
                 pixels.push([px,py]);
               }
@@ -826,7 +826,9 @@ function commitShape(cx, cy) {
           if (e2 < dy)  { err += dx; y0 += sy; }
         }
         if (currentTool === "autotune") applyAutotuneToPixels(ch,pixels,opts={expand:5});
+        return;
       }
+      const dragToDraw = document.getElementById("dragToDraw").checked;
       if (currentShape === "image") {
         if (!images[selectedImage] || !images[selectedImage].img) {
         } else {
@@ -920,8 +922,8 @@ function paint(cx, cy) {
     const canvas = document.getElementById("canvas-"+ch);
     const fullW = specWidth;
     const fullH = specHeight;
-    const po = currentTool === "eraser" ? 1 : phaseStrength;
-    const bo = (currentTool === "eraser") ? channels[ch].brushPressure : brushOpacity*channels[ch].brushPressure;
+    const po = currentTool === "eraser" ? 1 : parseExpression(getExpressionById("phaseStrengthDiv"));
+    const bo = (currentTool === "eraser") ? channels[ch].brushPressure : parseExpression(getExpressionById("opacityDiv"))*channels[ch].brushPressure;
     vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
     const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
     const radiusXFrames = Math.floor((brushWidth/2/canvas.getBoundingClientRect().width*canvas.width)*vr);
@@ -991,7 +993,7 @@ function paint(cx, cy) {
         }
       }
     } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
-      const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
+      const brushMag = currentTool === "eraser" ? 0 : (parseExpression(getExpressionById("brushBrightnessDiv")) / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
       const p0x = prevMouseX + iLow;
       const p0y = visibleToSpecY(prevMouseY);

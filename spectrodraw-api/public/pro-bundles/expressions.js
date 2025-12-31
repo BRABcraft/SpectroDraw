@@ -63,7 +63,7 @@ function hideExpression(targetId) {
   const expr = getExpressionById(targetId);
   if (!expr || !expr.showing) return;
   expr.showing = false;
-  console.log(parseExpression(expr.expression,expr),expr);
+  //console.log(parseExpression(expr),expr);
 
   // remove DOM
   const box = document.getElementById(`name-${targetId}-box`);
@@ -1067,7 +1067,7 @@ document.addEventListener('mousedown', (e) => {
         if (!exprObj) return;
 
         const expr = exprObj.expression;
-        const result = parseExpression(expr,exprObj);
+        const result = parseExpression(exprObj);
 
         const errorEl = document.getElementById(`error-${expressionId}`);
         if (!errorEl) return;

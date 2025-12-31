@@ -5,7 +5,7 @@ function updateAllVariables(keyWord){
     if (!exprObj) return;
     const expr = exprObj.expression;
     if (p || expr.includes(keyWord)) {
-      let result = parseExpression(expr,exprObj);
+      let result = parseExpression(exprObj);
       if (exprObj.isError) {
         const errorEl = document.getElementById(`error-${expressionId}`);
         if (errorEl) {
@@ -14,7 +14,7 @@ function updateAllVariables(keyWord){
         } else {
           console.log(result);
         }
-        setValue(parseExpression(defaultExpressions[expressionId],exprObj));
+        setValue(parseExpression(exprObj,defaultExpressions[expressionId]));
       } else {
         setValue(result);
       }

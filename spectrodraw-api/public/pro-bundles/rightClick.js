@@ -51,6 +51,7 @@ function zoomYAxisFit(){
     fLow = 0;
     fHigh = sampleRate/2;
     fWidth = fHigh - fLow;
+    updateCanvasScroll();
     drawYAxis();
     closeMenu();
 }

@@ -237,13 +237,13 @@ function canvasMouseMove(e,touch,el) {
 
   currentCursorX = currentFrame;
 }let debugTime = 0;
-function canvasMouseUp(e,touch) {debugTime = Date.now();//console.log("Canvasmouseup",debugTime-Date.now());
+function canvasMouseUp(e,touch) {debugTime = Date.now();
   previewingShape = false;
   if (zooming || !painting) return;
-  renderSpritesTable();//console.log("renderSpritesTable",debugTime-Date.now());
+  renderSpritesTable();
   
-  if (!hasSetNoiseProfile) autoSetNoiseProfile();//console.log("autoSetNoiseProfile",debugTime-Date.now());
-  stopSource();//console.log("stopSource",debugTime-Date.now());
+  if (!hasSetNoiseProfile) autoSetNoiseProfile();
+  stopSource();
   if (sineOsc) {
     sineOsc.stop();
     sineOsc.disconnect();
@@ -258,18 +258,19 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();//console.log("Canvasmou
   mouseDown = false;
   if (changingNoiseProfile) {document.getElementById("setNoiseProfile").click();return;}
   const { cx, cy } = getCanvasCoords(e,touch);
-  if (movingSprite) {handleMoveSprite(cx,cy); console.log("moveSprite",debugTime-Date.now());return;}
+  if (movingSprite) {handleMoveSprite(cx,cy);return;}
   if (currentShape === "select") {createNewSpriteFromSelection(startX, displayYToBin(visibleToSpecY(startY),specHeight,currentChannel), cx, displayYToBin(visibleToSpecY(cy),specHeight,currentChannel)); return;}
   const overlayCanvas = document.getElementById("overlay-"+currentChannel);
   const overlayCtx = overlayCanvas.getContext("2d");
   if (currentShape === "rectangle" || (document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image")) || currentShape === "line") {
-    commitShape(cx, cy); console.log("commitShape",debugTime-Date.now());
+    commitShape(cx, cy);
     overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
   }
-  if (alignTime && currentTool === "fill") {
+  if (alignTime && currentTool === "fill" && currentShape !== "rectangle") {
     const startFrame = Math.round(cx + iLow);
     const snapSize = 30/bpm/subBeat;
-    const brushS = brushSize*fWidth/sampleRate*fftSize/512;
+    let brushS = (brushSize)*((fHigh-fLow)/(sampleRate/4));
+    if (currentShape === "note") brushS = 1;
 
     let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
     let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
@@ -277,7 +278,7 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();//console.log("Canvasmou
 
     startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
     startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-    line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);console.log("alignTime",debugTime-Date.now());
+    line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
   }
   simpleRestartRender();
 }
@@ -296,14 +297,13 @@ function simpleRestartRender(min=-1,max=-1){
   pos = startFrame * hop;
   x = startFrame;
   rendering = true;
-  //console.log("drawLoop begin",debugTime-Date.now());
   requestAnimationFrame(() => drawLoop());
   startTime = performance.now();
   audioProcessed = 0;
 }
 
 let minCol = Infinity; maxCol = -Infinity;
-function calcMinMaxCol() {console.log(minCol,maxCol);
+function calcMinMaxCol() {
   if (isFinite(minCol) && isFinite(maxCol)) {return {minCol,maxCol};}
   const mags = channels[currentChannel].mags, snapshotMags = channels[currentChannel].snapshotMags;
   if (snapshotMags === null || snapshotMags.length !== mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}

@@ -410,7 +410,7 @@ async function updateSpriteChannels(){
   recomputePCMForCols(s.minCol, s.maxCol);
   restartRender(false);
   await waitFor(()=>!rendering);
-  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(s.minCol,s.maxCol,ch);
+  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
 } 
 
 
@@ -487,8 +487,6 @@ async function updateSpriteEffects(spriteId, newEffect) {
   // Recompute PCM for the expanded area and restart render / audio
   dontChangeSprites = (sprite.effect.tool !== "autotune");
   simpleRestartRender(recomputeMin,recomputeMax);
-  // await waitFor(()=>!rendering); CHANGE THIS 413
-  // for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,ch);
 
   // keep previous behaviour for audio restart
   if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
@@ -537,16 +535,10 @@ function toggleSpriteEnabled(spriteId, enable) {
     }
   }
   for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(minCol,maxCol,ch);
-  //restartRender(false);
   recomputePCMForCols(minCol, maxCol);
-  if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
-    // toggleSpriteEnabled(spriteId+1, getSpriteById(spriteId+1).enabled);
-  } else {
-
-    if (playing) {
-      stopSource(true);
-      playPCM(true);
-    }
+  if (playing) {
+    stopSource(true);
+    playPCM(true);
   }
 }
 
@@ -655,11 +647,11 @@ async function moveSprite(spriteId, dx, dy) {
   if (recomputeMin <= recomputeMax && Number.isFinite(recomputeMin)) {
     recomputePCMForCols(recomputeMin, recomputeMax);
   }
-
-  // Only restart render / audio if necessary
   restartRender(false);
-  await waitFor(()=>!rendering);
-  for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(recomputeMin,recomputeMax,ch);
+  await waitFor(() => !rendering);
+  for (let ch = 0; ch < channelCount; ch++) {
+    renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
+  }
 
   if (playing) {
     stopSource(true);
@@ -667,7 +659,6 @@ async function moveSprite(spriteId, dx, dy) {
   }
 
   renderSpritesTable();
-  // updateEditorSelection(spriteId);
 }
 
 
@@ -690,9 +681,6 @@ async function deleteSprite(spriteId) {
   sprites.splice(idx, 1);
   recomputePCMForCols(minCol, maxCol);
   restartRender(false);
-  
-  await waitFor(()=>!rendering);
-  for (let ch=0;ch<channelCount;ch++) renderSpectrogramColumnsToImageBuffer(minCol,maxCol,ch);
 
   if (playing) {
     stopSource(true);

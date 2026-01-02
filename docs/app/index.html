@@ -179,7 +179,8 @@
     </button>
     <button id="rec" title="Record (Ctrl + space)"></button>
     <input id="file" title="Import audio (Ctrl + O)" type="file" accept="audio/*,video/*" style="display:none;"/>
-    <button id="playPause" title="Play (space)" style="margin-left: 20px">
+    <svg xmlns="http://www.w3.org/2000/svg" width="5" height="50" viewBox="0 0 5 24" fill="none" style="margin-left:5px;margin-right:5px;"><line x1="2" y1="0" x2="2" y2="24" stroke="#999" stroke-width="2" stroke-linecap="round"/></svg>
+    <button id="playPause" title="Play (space)">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#333" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>
     </button>
     <button id="stop" title="Stop">
@@ -187,7 +188,8 @@
         <rect x="0" y="0" width="18" height="18" rx="2" ry="2"/>
       </svg>
     </button>
-    <button class="shape-btn" data-shape="brush" id="brushBtn" style="margin-left: 20px" title="Brush (b)">
+    <svg xmlns="http://www.w3.org/2000/svg" width="5" height="50" viewBox="0 0 5 24" fill="none" style="margin-left:5px;margin-right:5px;"><line x1="2" y1="0" x2="2" y2="24" stroke="#999" stroke-width="2" stroke-linecap="round"/></svg>
+    <button class="shape-btn" data-shape="brush" id="brushBtn" title="Brush (b)">
       <svg xmlns="http://www.w3.org/2000/svg" 
            width="20" height="20" 
            viewBox="5 4 18 18" 
@@ -219,7 +221,8 @@
       </svg>
     </button>
     <input type="file" id="overlayFile" accept="image/*" style="display:none;">
-    <button class="tool-btn" data-tool="color" id="colorBtn" title="Color (c)" style="margin-left:10px;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="5" height="50" viewBox="0 0 5 24" fill="none" style="margin-left:5px;margin-right:5px;"><line x1="2" y1="0" x2="2" y2="24" stroke="#999" stroke-width="2" stroke-linecap="round"/></svg>
+    <button class="tool-btn" data-tool="color" id="colorBtn" title="Color (c)">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333">
         <circle cx="12" cy="12" r="9"/>
       </svg>
@@ -243,7 +246,8 @@
     </button>
     <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
       <img src="../assets/toothbrush.svg"></button>
-    <button id="trueScale" title="Use true aspect ratio" style="margin-left: 20px">
+    <svg xmlns="http://www.w3.org/2000/svg" width="5" height="50" viewBox="0 0 5 24" fill="none" style="margin-left:5px;margin-right:5px;"><line x1="2" y1="0" x2="2" y2="24" stroke="#999" stroke-width="2" stroke-linecap="round"/></svg>
+    <button id="trueScale" title="Use true aspect ratio">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" role="img">
         <g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 9V3h6" />
@@ -260,7 +264,8 @@
         <line x1="4" y1="4" x2="18" y2="14" />
       </svg>
     </button>
-     <button id="downloadWav" style="margin-left:20px" title="Download audio (ctrl + s)">
+    <svg xmlns="http://www.w3.org/2000/svg" width="5" height="50" viewBox="0 0 5 24" fill="none" style="margin-left:5px;margin-right:5px;"><line x1="2" y1="0" x2="2" y2="24" stroke="#999" stroke-width="2" stroke-linecap="round"/></svg>
+     <button id="downloadWav" title="Download audio (ctrl + s)">
       <svg width="20" height="20" viewBox="2 2 20 21" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
         <path d="M5 14v4h2v-4H6z" />
@@ -1183,7 +1188,7 @@ panelButtons.forEach(btn => {
     currentPanel = btn.dataset.tool;
     panelButtons.forEach(b => b.style.background = "");
     btn.style.background = "#4af";
-    for (let i = 1; i < 8; i++){
+    for (let i = 1; i < 7; i++){
       document.getElementById("d"+i).style.display = (parseInt(currentPanel) === i) ? "block" : "none";
     }
     document.getElementById("proOverlay").style.display = (currentPanel == "2" || currentPanel == "3" || currentPanel == "6" || currentPanel == "7")?"flex":"none";

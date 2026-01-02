@@ -415,47 +415,75 @@ function keyBind(event) {
     return; 
   }
   const key = event.key.toLowerCase();
-  if (key === 'b') {
-    document.getElementById("brushBtn").click();
-  } else if (key === 'e') {
-    document.getElementById("eraserBtn").click();
-  } else if (key === 'p') {
-    document.getElementById("pianoBtn").click();
-  } else if (key === 'g') {
-    document.getElementById("settingsBtn").click();
-  } else if (key === 'q') {
-    document.getElementById("eqBtn").click();
-  } else if (key === 'r') {
-    document.getElementById("rectBtn").click();
-  } else if (key === 'a') {
-    document.getElementById("amplifierBtn").click();
-  } else if (key === 'u') {
-    document.getElementById("blurBtn").click();
-  } else if (key === 'i' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-    document.getElementById("imageBtn").click();
-  } else if (key === 'l') {
-    document.getElementById("lineBtn").click();
-  } else if ((event.ctrlKey || event.metaKey) && key === 'o') {
-    event.preventDefault();
-    fileEl.click();
-  } else if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 's') {
-    event.preventDefault();
-    document.getElementById('downloadButton').click();
-  } else if ((event.ctrlKey || event.metaKey) && key === 's') {
-    event.preventDefault();
-    document.getElementById('downloadWav').click();
-  } else if ((event.ctrlKey || event.metaKey) && key === 'm') {
-    exportMidi();
-  } else if ((event.ctrlKey || event.metaKey) && key === ' ') {
-    recordBtn.click();
-  } else if (key === 'y' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-    yAxisMode.click();
-  } else if (key === 'j') {
-    alignPitchBtn.click();
-  } else if (key === 'k') {
-    alignTimeBtn.click();
-  } else if (key === 'x') {
-    document.getElementById("noiseRemoverBtn").click();
+  const ctrl = (event.ctrlKey || event.metaKey);
+  if (!ctrl) {
+    if (!event.shiftKey) {
+      if (key === 'b') {
+        document.getElementById("brushBtn").click();
+      } else if (key === 'e') {
+        document.getElementById("eraserBtn").click();
+      } else if (key === 'r') {
+        document.getElementById("rectBtn").click();
+      } else if (key === 'a') {
+        document.getElementById("amplifierBtn").click();
+      } else if (key === 'u') {
+        document.getElementById("blurBtn").click();
+      } else if (key === 'i') {
+        document.getElementById("imageBtn").click();
+      } else if (key === 'l') {
+        document.getElementById("lineBtn").click();
+      } else if (key === 'o') {
+        document.getElementById("noteBtn").click();
+      } else if (key === 's') {
+        document.getElementById("stampBtn").click();
+      } else if (key === 'x') {
+        document.getElementById("noiseRemoverBtn").click();
+      } else if (key === 'c') {
+        document.getElementById("clonerBtn").click();
+      } else if (key === 'f') {
+        document.getElementById("colorBtn").click();
+      } else if (key === 'y') {
+        yAxisMode.click();
+      } else if (key === 'j') {
+        alignPitchBtn.click();
+      } else if (key === 'k') {
+        alignTimeBtn.click();
+      }
+    } else {
+      if (key === 'a') {
+        document.getElementById("autotuneBtn").click();
+      }
+    }
+  } else {
+    if (!event.shiftKey) {
+      event.preventDefault();
+      if (key === 'p') {
+        document.getElementById("pianoBtn").click();
+      } else if (key === 'd') {
+        document.getElementById("settingsBtn").click();
+      } else if (key === 'e') {
+        document.getElementById("eqBtn").click();
+      } else if (key === 'q') {
+        document.getElementById("channelsBtn").click();
+      } else if (key === 'b') {
+        document.getElementById("spritesBtn").click();
+      } else if (key === 'u') {
+        document.getElementById("uploadsBtn").click();
+      } else if (key === 'o') {
+        document.getElementById("uploadsBtn").click();
+        fileEl.click();
+      } else if (key === 's') {
+        document.getElementById('downloadWav').click();
+      } else if (key === 'm') {
+        exportMidi();
+      } else if (key === ' ') {
+        recordBtn.click();
+      }
+    } else {
+      if (key === 's') {
+        document.getElementById('downloadButton').click();
+      }
+    }
   }
 }
 document.addEventListener("keydown", (e) => {
@@ -606,7 +634,8 @@ async function saveProject() {
     currentShape,
     channels: outChannels,
     deltaEncoded: true,
-    sprites: serializeSprites(sprites)
+    sprites: serializeSprites(sprites),
+    expressions
   };
 
   const zip = new JSZip();
@@ -764,6 +793,7 @@ function openProject(file) {
       // Expose reconstructed channels to app globals
       channels = reconstructedChannels;
       if (parsed.sprites !== undefined) sprites = deserializeSprites(parsed.sprites);
+      if (parsed.expressions !== undefined) expressions = parsed.expressions;
       recomputePCMForCols(0, Math.floor(parsed.bufferLength * sampleRate / parsed.hop));
       updateChannels();
 
@@ -1197,6 +1227,7 @@ function autoSetNoiseProfile() {
   noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
   updateNoiseProfile();
 }
-
-
-
+window.addEventListener("resize",()=>{
+  minCol = 0; maxCol = framesTotal;
+  restartRender();
+});

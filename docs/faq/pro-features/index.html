@@ -226,30 +226,241 @@
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <div class="badge">Coming Soon!</div>
+      <div class="badge">Version 1.0</div>
       <h1 class="title">Spectrodraw Pro Features</h1>
     </div>
   </header>
 
-  <main class="wrap" style="text-align:center;">
+  <main class="wrap">
 
-    <h1>Coming soon!</h1>
-    <h3>Features include:</h3> 
-    <p> Stereo Support<br>
-        Sprite-based editor<br>
-        Cloner Tool<br>
-        Harmonics brush<br>
-        Autotune<br>
-        Improved noise remover<br>
-        Stamp<br>
-        Save/open<br>
-        Audio and image storage<br>
-    </p>
-    <h3>Features to add:</h3>
-    <p>
-        Region Selection<br>
-        Custom brushes (Expressions)<br>
-    </p>
+    <section class="section">
+
+      <h1 style="text-align:center;">Tools:</h1>
+
+      <!-- Brush -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon glow-strong float" title="Brush">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="5 4 18 18" fill="black" aria-hidden="true">
+              <path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Brush</strong> – A simple circular brush that paints magnitude/phase on the spectrogram. Use brush size to control the drawn area and the sliders to adjust brightness/phase.</p>
+          <div class="media-row">
+            <img src="../../assets/features/brush.jpg" alt="Brush example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Rectangle -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Rectangle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 20 20" fill="none" stroke="black" stroke-width="5" aria-hidden="true">
+              <rect x="2" y="3" width="16" height="14" rx="2" ry="2" />
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Rectangle</strong> – Draws a filled rectangular region across time and frequency. Rectangle size is independent of brush size.</p>
+          <div class="media-row">
+            <img src="../../assets/features/rectangle.jpg" alt="Rectangle example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Line -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Line">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 20 20" fill="none" stroke="black" stroke-width="3" aria-hidden="true">
+              <path d="M2 18 L18 2"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Line</strong> – Draws a line of frequencies. Change brush size to adjust the line thickness.</p>
+          <div class="media-row">
+            <img src="../../assets/features/line.jpg" alt="Line example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Image overlay -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Image overlay">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="18" cy="6" r="3" fill="#333" stroke="none"/>
+              <polygon points="1,20 8,10 15,20" fill="#333"/>
+              <polygon points="8,20 15,12 23,20" fill="#333"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Image overlay</strong> – Paint an image onto the spectrogram. Change brush size to adjust the image size. Image overlay follows opacity, phase shift and phase strength but ignores brush brightness.</p>
+          <div class="media-row">
+            <img src="../../assets/features/imageOverlay.jpg" alt="Image overlay example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <h1 style="text-align:center;">Effects:</h1>
+
+      <!--color-->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Color">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="black" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Color</strong> – Applies solid color to the spectrogram.</p>
+          <div class="media-row">
+            <img src="../../assets/features/color.jpg" alt="Blur example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Blur -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Blur">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="black" aria-hidden="true">
+              <path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Blur</strong> – Averages magnitude/phase across a circular region to reduce precision in time and frequency. In blur mode the "Brush Brightness" slider is replaced by a "Blur Radius" slider.</p>
+          <div class="media-row">
+            <img src="../../assets/features/blur.jpg" alt="Blur example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Eraser -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Eraser">
+            <svg width="26" height="26" viewBox="-1 -1 16 16" aria-hidden="true">
+              <path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/>
+              <path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Eraser</strong> – Clears magnitude and phase data inside a circular region. Eraser ignores brush opacity/brightness and phase settings so it reliably removes data.</p>
+          <div class="media-row">
+            <img src="../../assets/features/eraser.jpg" alt="Eraser example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Amplify -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Amplify">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/>
+              <path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Amplify</strong> – Multiplies magnitude by a factor between 0.0 and 2.0. Phase is affected in the same way as when using the brush.</p>
+          <div class="media-row">
+            <img src="../../assets/features/amplify.jpg" alt="Amplify example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+      <!-- Noise Removal -->
+      <div class="tool-row fade-in">
+        <div class="tool-left">
+          <div class="icon" title="Noise Removal">
+            <img src="/assets/toothbrush.svg">
+          </div>
+        </div>
+        <div class="tool-right">
+          <p><strong>Noise Remover</strong> – Sets all magnitudes under a decibel threshold to 0.</p>
+          <div class="media-row">
+            <img src="../../assets/features/noiseRemoval.jpg" alt="Amplify example" class="illustration">
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Phase texturing -->
+    <section class="section fade-in">
+      <h2>Phase Texturing</h2>
+
+      <p><strong>Default silence</strong> - On startup SpectroDraw adds a tiny static buffer so the canvas isn't perfectly silent. This small amount of static prevents phase interference when you first draw with zero phase strength, so you can hear results immediately.</p>
+
+      <p><strong>Phase strength</strong> - Controls how strongly the phase texture influences drawn audio.</p>
+
+      <div class="media-row">
+        <img src="../../assets/features/phaseStrength.jpg" alt="Phase strength examples" class="illustration">
+      </div>
+      <p class="muted-caption">A brush drawn on the default silence with phase strength at 0, 50, and 100</p>
+
+      <p><strong>Phase texture</strong> - If you've ever tried recreating a sound effect in SpectroDraw, you've likely had the question: How come my spectrogram looks the same, but sounds completely different? The answer is likely that the phase texturing was different. A crucial but often overlooked part of spectrograms, phase texturing significantly changes the way your drawings sound. The basic version offers <strong>thirteen</strong> phase textures, including harmonics, static, and flat (shown below).</p>
+
+      <div class="media-row">
+        <img src="../../assets/features/phaseTexture.jpg" alt="Phase textures" class="illustration">
+      </div>
+      <p class="muted-caption">Harmonics, static, and flat phase textures drawn at pitch & time resolution 1024</p>
+    </section>
+
+    <!-- Piano tools -->
+    <section class="section fade-in">
+      <div class="tool-row" style="align-items:flex-start;">
+        <div class="tool-left">
+          <div class="icon" id="piano" title="Piano tools">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 22" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+              <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
+              <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
+              <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <h2>Piano Tools</h2>
+          <p><strong>Auto align pitch</strong> - When enabled, edits snap to specific frequencies based on your notes-per-octave and base Hz settings, so drawn notes stay in-tune.</p>
+          <div class="media-row"><img src="../../assets/features/alignPitch.jpg" alt="Align pitch" class="illustration"></div>
+
+          <p><strong>Auto align time</strong> - Snaps brushes, rectangles, and lines to an adjustable tempo grid. Beat division updates as you zoom in/out.</p>
+          <div class="media-row"><img src="../../assets/features/alignTime.jpg" alt="Align time" class="illustration"></div>
+
+          <p><strong>Remove harmonics</strong> - Removes harmonic overtones within a region, leaving the fundamental frequencies. Handy for cleaning up muddy or overtone-heavy material.</p>
+
+          <p style="margin-top:10px"><strong>Export MIDI with BasicPitch AI</strong> - BasicPitch is an open-source model that converts audio to MIDI and supports polyphonic detection. Great for approximating MIDI from songs, but it can make errors.</p>
+
+          <p><strong>Export MIDI without BasicPitch AI</strong> - A heuristic-based MIDI export useful for short sounds and SFX; it provides adjustable heuristics (beat, duration, noise filtering) but is generally less accurate than BasicPitch.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Equalizer -->
+    <section class="section fade-in">
+      <h2>Equalizer</h2>
+      <p>Adjust loudness across frequencies in real time. The equalizer is an effect pass applied to playback and to exported audio — it doesn't actually affect the spectrogram itself. This is to save the lag of having to re-compute the spectrogram every time a point is changed. You can add or remove points by right-clicking, and adjust tangents lines to achieve unique curve shapes.</p>
+      <div class="media-row"><img src="../../assets/features/equalizer.jpg" alt="Equalizer" style="border-radius:8px;max-width:40%"></div>
+    </section>
+
+    <!-- Other features -->
+    <section class="section fade-in">
+      <h2>Other features</h2>
+      <p><strong>Adjustable log scale</strong> - Switch between linear (evenly spaced frequencies) and logarithmic (evenly spaced notes) frequency display by dragging or right-clicking the curve in the top-left of the spectrogram. The higher the log scale, the more compressed the high frequencies and the more zoomed in the low frequencies.</p>
+      <div class="media-row"><img src="../../assets/features/logScale.jpg" alt="Log scale" class="illustration"></div>
+    </section>
+
   </main>
 
   <footer>

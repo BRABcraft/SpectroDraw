@@ -1,4 +1,4 @@
-const expressions = [];
+let expressions = [];
 const DPR = Math.max(1, window.devicePixelRatio || 1);
 let fontSpec = '14px Consolas, "Liberation Mono", Monaco, monospace';
 let lineHeight = 20;

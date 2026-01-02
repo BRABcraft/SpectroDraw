@@ -220,12 +220,12 @@
       </form>
     </div>
   </div>
-  <link rel="stylesheet" type="text/css" href="/accounts.css">
-  <script src="/accounts.js"></script>
+  <link rel="stylesheet" type="text/css" href="../accounts.css">
+  <script src="../accounts.js"></script>
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <div class="badge">Beta</div>
+      <div class="badge">Version 1.0</div>
       <h1 class="title">Spectrodraw Basic Features</h1>
     </div>
   </header>
@@ -248,7 +248,7 @@
         <div class="tool-right">
           <p><strong>Brush</strong> – A simple circular brush that paints magnitude/phase on the spectrogram. Use brush size to control the drawn area and the sliders to adjust brightness/phase.</p>
           <div class="media-row">
-            <img src="/assets/features/brush.jpg" alt="Brush example" class="illustration">
+            <img src="../../assets/features/brush.jpg" alt="Brush example" class="illustration">
           </div>
         </div>
       </div>
@@ -265,7 +265,7 @@
         <div class="tool-right">
           <p><strong>Rectangle</strong> – Draws a filled rectangular region across time and frequency. Rectangle size is independent of brush size.</p>
           <div class="media-row">
-            <img src="/assets/features/rectangle.jpg" alt="Rectangle example" class="illustration">
+            <img src="../../assets/features/rectangle.jpg" alt="Rectangle example" class="illustration">
           </div>
         </div>
       </div>
@@ -282,7 +282,7 @@
         <div class="tool-right">
           <p><strong>Line</strong> – Draws a line of frequencies. Change brush size to adjust the line thickness.</p>
           <div class="media-row">
-            <img src="/assets/features/line.jpg" alt="Line example" class="illustration">
+            <img src="../../assets/features/line.jpg" alt="Line example" class="illustration">
           </div>
         </div>
       </div>
@@ -301,7 +301,7 @@
         <div class="tool-right">
           <p><strong>Image overlay</strong> – Paint an image onto the spectrogram. Change brush size to adjust the image size. Image overlay follows opacity, phase shift and phase strength but ignores brush brightness.</p>
           <div class="media-row">
-            <img src="/assets/features/imageOverlay.jpg" alt="Image overlay example" class="illustration">
+            <img src="../../assets/features/imageOverlay.jpg" alt="Image overlay example" class="illustration">
           </div>
         </div>
       </div>
@@ -320,7 +320,7 @@
         <div class="tool-right">
           <p><strong>Color</strong> – Applies solid color to the spectrogram.</p>
           <div class="media-row">
-            <img src="/assets/features/color.jpg" alt="Blur example" class="illustration">
+            <img src="../../assets/features/color.jpg" alt="Blur example" class="illustration">
           </div>
         </div>
       </div>
@@ -337,7 +337,7 @@
         <div class="tool-right">
           <p><strong>Blur</strong> – Averages magnitude/phase across a circular region to reduce precision in time and frequency. In blur mode the "Brush Brightness" slider is replaced by a "Blur Radius" slider.</p>
           <div class="media-row">
-            <img src="/assets/features/blur.jpg" alt="Blur example" class="illustration">
+            <img src="../../assets/features/blur.jpg" alt="Blur example" class="illustration">
           </div>
         </div>
       </div>
@@ -355,7 +355,7 @@
         <div class="tool-right">
           <p><strong>Eraser</strong> – Clears magnitude and phase data inside a circular region. Eraser ignores brush opacity/brightness and phase settings so it reliably removes data.</p>
           <div class="media-row">
-            <img src="/assets/features/eraser.jpg" alt="Eraser example" class="illustration">
+            <img src="../../assets/features/eraser.jpg" alt="Eraser example" class="illustration">
           </div>
         </div>
       </div>
@@ -373,7 +373,7 @@
         <div class="tool-right">
           <p><strong>Amplify</strong> – Multiplies magnitude by a factor between 0.0 and 2.0. Phase is affected in the same way as when using the brush.</p>
           <div class="media-row">
-            <img src="/assets/features/amplify.jpg" alt="Amplify example" class="illustration">
+            <img src="../../assets/features/amplify.jpg" alt="Amplify example" class="illustration">
           </div>
         </div>
       </div>
@@ -386,9 +386,9 @@
           </div>
         </div>
         <div class="tool-right">
-          <p><strong>Noise Remover</strong> – Sets all magnitudes under a decibal threshold to 0.</p>
+          <p><strong>Noise Remover</strong> – Sets all magnitudes under a decibel threshold to 0.</p>
           <div class="media-row">
-            <img src="/assets/features/noiseRemoval.jpg" alt="Amplify example" class="illustration">
+            <img src="../../assets/features/noiseRemoval.jpg" alt="Amplify example" class="illustration">
           </div>
         </div>
       </div>
@@ -404,14 +404,14 @@
       <p><strong>Phase strength</strong> - Controls how strongly the phase texture influences drawn audio.</p>
 
       <div class="media-row">
-        <img src="/assets/features/phaseStrength.jpg" alt="Phase strength examples" class="illustration">
+        <img src="../../assets/features/phaseStrength.jpg" alt="Phase strength examples" class="illustration">
       </div>
       <p class="muted-caption">A brush drawn on the default silence with phase strength at 0, 50, and 100</p>
 
-      <p><strong>Phase texture</strong> - The building blocks of sound texturing: harmonics, static, and flat. The harmonics and static textures are designed to resist phase interference and work across time resolutions.</p>
+      <p><strong>Phase texture</strong> - If you've ever tried recreating a sound effect in SpectroDraw, you've likely had the question: How come my spectrogram looks the same, but sounds completely different? The answer is likely that the phase texturing was different. A crucial but often overlooked part of spectrograms, phase texturing significantly changes the way your drawings sound. The basic version offers <strong>thirteen</strong> phase textures, including harmonics, static, and flat (shown below).</p>
 
       <div class="media-row">
-        <img src="/assets/features/phaseTexture.jpg" alt="Phase textures" class="illustration">
+        <img src="../../assets/features/phaseTexture.jpg" alt="Phase textures" class="illustration">
       </div>
       <p class="muted-caption">Harmonics, static, and flat phase textures drawn at pitch & time resolution 1024</p>
     </section>
@@ -432,10 +432,10 @@
         <div class="tool-right">
           <h2>Piano Tools</h2>
           <p><strong>Auto align pitch</strong> - When enabled, edits snap to specific frequencies based on your notes-per-octave and base Hz settings, so drawn notes stay in-tune.</p>
-          <div class="media-row"><img src="/assets/features/alignPitch.jpg" alt="Align pitch" class="illustration"></div>
+          <div class="media-row"><img src="../../assets/features/alignPitch.jpg" alt="Align pitch" class="illustration"></div>
 
           <p><strong>Auto align time</strong> - Snaps brushes, rectangles, and lines to an adjustable tempo grid. Beat division updates as you zoom in/out.</p>
-          <div class="media-row"><img src="/assets/features/alignTime.jpg" alt="Align time" class="illustration"></div>
+          <div class="media-row"><img src="../../assets/features/alignTime.jpg" alt="Align time" class="illustration"></div>
 
           <p><strong>Remove harmonics</strong> - Removes harmonic overtones within a region, leaving the fundamental frequencies. Handy for cleaning up muddy or overtone-heavy material.</p>
 
@@ -450,14 +450,14 @@
     <section class="section fade-in">
       <h2>Equalizer</h2>
       <p>Adjust loudness across frequencies in real time. The equalizer is an effect pass applied to playback and to exported audio — it doesn't actually affect the spectrogram itself. This is to save the lag of having to re-compute the spectrogram every time a point is changed. You can add or remove points by right-clicking, and adjust tangents lines to achieve unique curve shapes.</p>
-      <div class="media-row"><img src="/assets/features/equalizer.jpg" alt="Equalizer" style="border-radius:8px;max-width:40%"></div>
+      <div class="media-row"><img src="../../assets/features/equalizer.jpg" alt="Equalizer" style="border-radius:8px;max-width:40%"></div>
     </section>
 
     <!-- Other features -->
     <section class="section fade-in">
       <h2>Other features</h2>
       <p><strong>Adjustable log scale</strong> - Switch between linear (evenly spaced frequencies) and logarithmic (evenly spaced notes) frequency display by dragging or right-clicking the curve in the top-left of the spectrogram. The higher the log scale, the more compressed the high frequencies and the more zoomed in the low frequencies.</p>
-      <div class="media-row"><img src="/assets/features/logScale.jpg" alt="Log scale" class="illustration"></div>
+      <div class="media-row"><img src="../../assets/features/logScale.jpg" alt="Log scale" class="illustration"></div>
     </section>
 
   </main>

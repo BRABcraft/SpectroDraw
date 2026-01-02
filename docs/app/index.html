@@ -22,150 +22,150 @@
 </head>
 <body>
   <script>
-    (async function loadProUIInIframeOverlay() {
-      try {
-        function getCurrentUserEmail() {
-          try {
-            const raw = localStorage.getItem('spectrodraw_user');
-            if (!raw) return null;
-            const parsed = JSON.parse(raw);
-            return parsed?.email || parsed?.user || parsed?.id || null;
-          } catch (e) { return null; }
-        }
-        const email = getCurrentUserEmail();
-        if (!email) return;
-        const stored = (() => {
-          try { return localStorage.getItem('spectrodraw_user'); }
-          catch (e) { return null; }
-        })();
+    // (async function loadProUIInIframeOverlay() {
+    //   try {
+    //     function getCurrentUserEmail() {
+    //       try {
+    //         const raw = localStorage.getItem('spectrodraw_user');
+    //         if (!raw) return null;
+    //         const parsed = JSON.parse(raw);
+    //         return parsed?.email || parsed?.user || parsed?.id || null;
+    //       } catch (e) { return null; }
+    //     }
+    //     const email = getCurrentUserEmail();
+    //     if (!email) return;
+    //     const stored = (() => {
+    //       try { return localStorage.getItem('spectrodraw_user'); }
+    //       catch (e) { return null; }
+    //     })();
 
-        const headers = { 'Accept': 'application/json' };
-        if (stored) headers['X-Spectrodraw-User'] = stored;
+    //     const headers = { 'Accept': 'application/json' };
+    //     if (stored) headers['X-Spectrodraw-User'] = stored;
 
-        let res;
-        try {
-          res = await fetch('https://api.spectrodraw.com/api/products', {
-            method: 'GET',
-            credentials: 'include',
-            headers
-          });
-        } catch (err) {
-          return;
-        }
-        if (!res || !res.ok) return;
-        const j = await res.json().catch(()=>null);
-        if (!j || !Array.isArray(j.products)) return;
-        const found = j.products.some(entry =>
-          entry && typeof entry.email === 'string' &&
-          entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
-        );
-        if (!found) return;
-        const overlay = document.createElement('div');
-        overlay.id = 'spectrodraw-pro-iframe-overlay';
-        overlay.setAttribute('role','dialog');
-        overlay.setAttribute('aria-modal','true');
-        overlay.innerHTML = `
-          <div class="sd-pro__frame-wrap" role="document">
-            <div class="sd-pro__loading" aria-hidden="true">
-              <div class="sd-pro__spinner" aria-hidden="true"></div>
-              <div class="sd-pro__text">Loading SpectroDraw Pro…</div>
-            </div>
-            <iframe class="sd-pro__iframe" title="SpectroDraw Pro"></iframe>
-            <!--<button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>-->
-          </div>
-          <style>
-            #spectrodraw-pro-iframe-overlay{
-              position:fixed;
-              inset:0;
-              display:flex;
-              align-items:center;
-              justify-content:center;
-              background: rgba(0,0,0,0.45);
-              z-index:2147483647;
-              -webkit-font-smoothing:antialiased;
-              -moz-osx-font-smoothing:grayscale;
-            }
-            .sd-pro__frame-wrap{
-              width:100%;
-              height:100%;
-              max-width:100%;
-              max-height:100%;
-              position:relative;
-            }
-            .sd-pro__iframe{
-              position:fixed;
-              inset:0;
-              width:100%;
-              height:100%;
-              border:0;
-              background: rgba(0,0,0,0.72);
-            }
-            .sd-pro__loading{
-              position: absolute;
-              left:50%;
-              top:48%;
-              transform:translate(-50%,-50%);
-              text-align:center;
-              z-index:2147483650;
-              pointer-events:none;
-            }
-            .sd-pro__spinner{
-              width:52px;
-              height:52px;
-              border-radius:50%;
-              border:6px solid rgba(255,255,255,0.08);
-              border-top-color: rgba(255,255,255,0.6);
-              animation: sd-spin 0.9s linear infinite;
-              margin:0 auto 12px;
-            }
-            @keyframes sd-spin{ to{ transform: rotate(360deg); } }
-            .sd-pro__text{ font-size:15px; color:#fff; 
-              font-family: 'Inter', 'Segoe UI', sans-serif;}
-          </style>
-        `;
-        try {
-          (document.documentElement || document.body || document).appendChild(overlay);
-        } catch (e) {
-          window.addEventListener('load', ()=> document.body.appendChild(overlay), { once: true });
-        }
-        const iframe = overlay.querySelector('.sd-pro__iframe');
-        const loadingEl = overlay.querySelector('.sd-pro__loading');
-        let token;
-        try {
-          const tkRes = await fetch('https://api.spectrodraw.com/api/pro-token', {
-            method: 'POST',
-            credentials: 'include',
-            headers
-          });
-          if (!tkRes || !tkRes.ok) {
-            try { overlay.remove(); } catch (e) {}
-            return;
-          }
-          const tkj = await tkRes.json().catch(()=>null);
-          token = tkj && tkj.token;
-          if (!token) {
-            try { overlay.remove(); } catch (e) {}
-            return;
-          }
-        } catch (err) {
-          try { overlay.remove(); } catch (e) {}
-          return;
-        }
-        iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv?t=' + encodeURIComponent(token);
-        iframe.addEventListener('load', () => {
-          if (loadingEl) loadingEl.style.display = 'none';
-        });
-        window.addEventListener('message', (ev) => {
-          try {
-            const allowedOrigin = new URL(iframe.src).origin;
-            if (ev.origin !== allowedOrigin) return;
-          } catch (e) { return; }
-          if (!ev.data) return;
-        }, false);
-      } catch (err) {
-        console.error('Error initializing SpectroDraw Pro overlay:', err);
-      }
-    })();
+    //     let res;
+    //     try {
+    //       res = await fetch('https://api.spectrodraw.com/api/products', {
+    //         method: 'GET',
+    //         credentials: 'include',
+    //         headers
+    //       });
+    //     } catch (err) {
+    //       return;
+    //     }
+    //     if (!res || !res.ok) return;
+    //     const j = await res.json().catch(()=>null);
+    //     if (!j || !Array.isArray(j.products)) return;
+    //     const found = j.products.some(entry =>
+    //       entry && typeof entry.email === 'string' &&
+    //       entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
+    //     );
+    //     if (!found) return;
+    //     const overlay = document.createElement('div');
+    //     overlay.id = 'spectrodraw-pro-iframe-overlay';
+    //     overlay.setAttribute('role','dialog');
+    //     overlay.setAttribute('aria-modal','true');
+    //     overlay.innerHTML = `
+    //       <div class="sd-pro__frame-wrap" role="document">
+    //         <div class="sd-pro__loading" aria-hidden="true">
+    //           <div class="sd-pro__spinner" aria-hidden="true"></div>
+    //           <div class="sd-pro__text">Loading SpectroDraw Pro…</div>
+    //         </div>
+    //         <iframe class="sd-pro__iframe" title="SpectroDraw Pro"></iframe>
+    //         <!--<button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>-->
+    //       </div>
+    //       <style>
+    //         #spectrodraw-pro-iframe-overlay{
+    //           position:fixed;
+    //           inset:0;
+    //           display:flex;
+    //           align-items:center;
+    //           justify-content:center;
+    //           background: rgba(0,0,0,0.45);
+    //           z-index:2147483647;
+    //           -webkit-font-smoothing:antialiased;
+    //           -moz-osx-font-smoothing:grayscale;
+    //         }
+    //         .sd-pro__frame-wrap{
+    //           width:100%;
+    //           height:100%;
+    //           max-width:100%;
+    //           max-height:100%;
+    //           position:relative;
+    //         }
+    //         .sd-pro__iframe{
+    //           position:fixed;
+    //           inset:0;
+    //           width:100%;
+    //           height:100%;
+    //           border:0;
+    //           background: rgba(0,0,0,0.72);
+    //         }
+    //         .sd-pro__loading{
+    //           position: absolute;
+    //           left:50%;
+    //           top:48%;
+    //           transform:translate(-50%,-50%);
+    //           text-align:center;
+    //           z-index:2147483650;
+    //           pointer-events:none;
+    //         }
+    //         .sd-pro__spinner{
+    //           width:52px;
+    //           height:52px;
+    //           border-radius:50%;
+    //           border:6px solid rgba(255,255,255,0.08);
+    //           border-top-color: rgba(255,255,255,0.6);
+    //           animation: sd-spin 0.9s linear infinite;
+    //           margin:0 auto 12px;
+    //         }
+    //         @keyframes sd-spin{ to{ transform: rotate(360deg); } }
+    //         .sd-pro__text{ font-size:15px; color:#fff; 
+    //           font-family: 'Inter', 'Segoe UI', sans-serif;}
+    //       </style>
+    //     `;
+    //     try {
+    //       (document.documentElement || document.body || document).appendChild(overlay);
+    //     } catch (e) {
+    //       window.addEventListener('load', ()=> document.body.appendChild(overlay), { once: true });
+    //     }
+    //     const iframe = overlay.querySelector('.sd-pro__iframe');
+    //     const loadingEl = overlay.querySelector('.sd-pro__loading');
+    //     let token;
+    //     try {
+    //       const tkRes = await fetch('https://api.spectrodraw.com/api/pro-token', {
+    //         method: 'POST',
+    //         credentials: 'include',
+    //         headers
+    //       });
+    //       if (!tkRes || !tkRes.ok) {
+    //         try { overlay.remove(); } catch (e) {}
+    //         return;
+    //       }
+    //       const tkj = await tkRes.json().catch(()=>null);
+    //       token = tkj && tkj.token;
+    //       if (!token) {
+    //         try { overlay.remove(); } catch (e) {}
+    //         return;
+    //       }
+    //     } catch (err) {
+    //       try { overlay.remove(); } catch (e) {}
+    //       return;
+    //     }
+    //     iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv?t=' + encodeURIComponent(token);
+    //     iframe.addEventListener('load', () => {
+    //       if (loadingEl) loadingEl.style.display = 'none';
+    //     });
+    //     window.addEventListener('message', (ev) => {
+    //       try {
+    //         const allowedOrigin = new URL(iframe.src).origin;
+    //         if (ev.origin !== allowedOrigin) return;
+    //       } catch (e) { return; }
+    //       if (!ev.data) return;
+    //     }, false);
+    //   } catch (err) {
+    //     console.error('Error initializing SpectroDraw Pro overlay:', err);
+    //   }
+    // })();
   </script>
 <div class="app">
   <header class="top-bar">

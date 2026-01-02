@@ -2020,7 +2020,7 @@ function detectPopupPost(popup, provider, opts = {}) {
     }
     if(n === 3){
       // If already claimed - show message
-      
+      if(!progress.reviewSubmitted) return;
       claimSection.style.display = 'block';
       reviewSection.style.display = 'none';
       shareSection.style.display = 'none';

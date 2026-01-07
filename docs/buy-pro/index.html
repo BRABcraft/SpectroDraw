@@ -253,7 +253,7 @@
   </header>
 
 <main class="wrap">
-  <!-- Placeholder text body the user will fill later -->
+  <div style="align-items: center; justify-content: center; display:flex;"><h1 id="countdown" style="font-size:30px;padding:0;margin:0;height:140px;"></h1></div>
   <section class="section body-copy">
     <h1 id="body-placeholder">Congratulations, you made it here early! 🎉</h1>
 <p>SpectroDraw Pro is still in development and hasn’t been officially released yet, <strong>but as an early visitor, you can get lifetime access for free (no credit card required).</strong><br>
@@ -2181,6 +2181,25 @@ window.addEventListener('message', async (ev) => {
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  
+  <script>
+    const targetDate = new Date("February 15, 2026 00:00:00").getTime();
+    const content = document.getElementById("countdown");
+    function updateCountdown() {
+      const now = Date.now();
+      let diff = targetDate - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      diff %= 1000 * 60 * 60 * 24;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      diff %= 1000 * 60 * 60;
+      const minutes = Math.floor(diff / (1000 * 60));
+      diff %= 1000 * 60;
+      const seconds = Math.floor(diff / 1000);
+      content.innerHTML = `<h1 style="color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);">${days}d ${hours}h ${minutes}m ${seconds}s</h1>`;
+    }
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>

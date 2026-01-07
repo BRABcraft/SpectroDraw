@@ -87,6 +87,11 @@ const enabledEl = document.getElementById('spriteEnabled');
 const spriteEditorDiv = document.getElementById('spriteEditor');
 const sChannelEl = document.getElementById('spriteChannel');
 
+const sWidth = document.getElementById("sWidth");
+const sWidthI = document.getElementById("sWidthInput");
+const sHeight = document.getElementById("sHeight");
+const sHeightI = document.getElementById("sHeightInput");
+
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
 const defaultFadePoints = [

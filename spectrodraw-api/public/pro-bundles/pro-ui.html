@@ -780,7 +780,7 @@
             <button type="button"
                     class="section-toggle"
                     data-target="spriteEffectSettings"
-                    aria-expanded="false"
+                    aria-expanded="true"
                     aria-label="Toggle Effect settings"
                     id="effectSettingsToggleBtn"></button>
           </h3>
@@ -799,10 +799,10 @@
               <input id="samp"  type="range" min="0" max="2" value="2" step="0.01">
               <input id="sampInput" type="number" value="2" min="0" max="2">
           </div>
-          <div class="slider-row" title="Remove noise below this threshold" id="snoiseAggDiv">
-              <label class="h2">Noise Threshold (dB)</label>
-              <input id="snoiseAgg"  type="range" min="-60" max="0" value="-10" step="0.1">
-              <input id="snoiseAggInput" type="number" value="-10" min="-60" max="0">
+          <div class="slider-row" title="Noise remover aggressiveness" id="snoiseAggDiv">
+              <label class="h2">Aggressiveness</label>
+              <input id="snoiseAgg"  type="range" min="0" max="8" value="5" step="0.1">
+              <input id="snoiseAggInput" type="number" value="5" min="0" max="8">
           </div>
           <div class="slider-row" id="ssetNoiseProfileDiv" style="display:none;">
             <button id="ssetNoiseProfile" class="leftBtn">Set noise profile frames</button>
@@ -862,6 +862,16 @@
               <label class="h2">Phase Strength</label>
               <input id="sphaseStrength"  type="range" min="0" max="1" value="0" step="0.01">
               <input id="sphaseStrengthInput" type="number" value="0" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Width" id="sWidthDiv">
+              <label class="h2">Selection Width</label>
+              <input id="sWidth"  type="range" min="0" max="468" value="0" step="1">
+              <input id="sWidthInput" type="number" value="0" min="0" max="468">
+          </div>
+          <div class="slider-row" title="Height" id="sHeightDiv">
+              <label class="h2">Selection Height</label>
+              <input id="sHeight"  type="range" min="0" max="2048" value="0" step="1">
+              <input id="sHeightInput" type="number" value="0" min="0" max="2048">
           </div>
         </div>
         <div id="spriteFadeDiv">

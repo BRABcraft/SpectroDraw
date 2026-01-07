@@ -22,150 +22,256 @@
 </head>
 <body>
   <script>
-    // (async function loadProUIInIframeOverlay() {
-    //   try {
-    //     function getCurrentUserEmail() {
-    //       try {
-    //         const raw = localStorage.getItem('spectrodraw_user');
-    //         if (!raw) return null;
-    //         const parsed = JSON.parse(raw);
-    //         return parsed?.email || parsed?.user || parsed?.id || null;
-    //       } catch (e) { return null; }
-    //     }
-    //     const email = getCurrentUserEmail();
-    //     if (!email) return;
-    //     const stored = (() => {
-    //       try { return localStorage.getItem('spectrodraw_user'); }
-    //       catch (e) { return null; }
-    //     })();
 
-    //     const headers = { 'Accept': 'application/json' };
-    //     if (stored) headers['X-Spectrodraw-User'] = stored;
+    (async function loadProUIInIframeOverlay() {
+      try {
+        function getCurrentUserEmail() {
+          try {
+            const raw = localStorage.getItem('spectrodraw_user');
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.email || parsed?.user || parsed?.id || null;
+          } catch (e) { return null; }
+        }
+        const email = getCurrentUserEmail();
+        if (!email) return;
+        const stored = (() => {
+          try { return localStorage.getItem('spectrodraw_user'); }
+          catch (e) { return null; }
+        })();
 
-    //     let res;
-    //     try {
-    //       res = await fetch('https://api.spectrodraw.com/api/products', {
-    //         method: 'GET',
-    //         credentials: 'include',
-    //         headers
-    //       });
-    //     } catch (err) {
-    //       return;
-    //     }
-    //     if (!res || !res.ok) return;
-    //     const j = await res.json().catch(()=>null);
-    //     if (!j || !Array.isArray(j.products)) return;
-    //     const found = j.products.some(entry =>
-    //       entry && typeof entry.email === 'string' &&
-    //       entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
-    //     );
-    //     if (!found) return;
-    //     const overlay = document.createElement('div');
-    //     overlay.id = 'spectrodraw-pro-iframe-overlay';
-    //     overlay.setAttribute('role','dialog');
-    //     overlay.setAttribute('aria-modal','true');
-    //     overlay.innerHTML = `
-    //       <div class="sd-pro__frame-wrap" role="document">
-    //         <div class="sd-pro__loading" aria-hidden="true">
-    //           <div class="sd-pro__spinner" aria-hidden="true"></div>
-    //           <div class="sd-pro__text">Loading SpectroDraw Pro…</div>
-    //         </div>
-    //         <iframe class="sd-pro__iframe" title="SpectroDraw Pro"></iframe>
-    //         <!--<button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>-->
-    //       </div>
-    //       <style>
-    //         #spectrodraw-pro-iframe-overlay{
-    //           position:fixed;
-    //           inset:0;
-    //           display:flex;
-    //           align-items:center;
-    //           justify-content:center;
-    //           background: rgba(0,0,0,0.45);
-    //           z-index:2147483647;
-    //           -webkit-font-smoothing:antialiased;
-    //           -moz-osx-font-smoothing:grayscale;
-    //         }
-    //         .sd-pro__frame-wrap{
-    //           width:100%;
-    //           height:100%;
-    //           max-width:100%;
-    //           max-height:100%;
-    //           position:relative;
-    //         }
-    //         .sd-pro__iframe{
-    //           position:fixed;
-    //           inset:0;
-    //           width:100%;
-    //           height:100%;
-    //           border:0;
-    //           background: rgba(0,0,0,0.72);
-    //         }
-    //         .sd-pro__loading{
-    //           position: absolute;
-    //           left:50%;
-    //           top:48%;
-    //           transform:translate(-50%,-50%);
-    //           text-align:center;
-    //           z-index:2147483650;
-    //           pointer-events:none;
-    //         }
-    //         .sd-pro__spinner{
-    //           width:52px;
-    //           height:52px;
-    //           border-radius:50%;
-    //           border:6px solid rgba(255,255,255,0.08);
-    //           border-top-color: rgba(255,255,255,0.6);
-    //           animation: sd-spin 0.9s linear infinite;
-    //           margin:0 auto 12px;
-    //         }
-    //         @keyframes sd-spin{ to{ transform: rotate(360deg); } }
-    //         .sd-pro__text{ font-size:15px; color:#fff; 
-    //           font-family: 'Inter', 'Segoe UI', sans-serif;}
-    //       </style>
-    //     `;
-    //     try {
-    //       (document.documentElement || document.body || document).appendChild(overlay);
-    //     } catch (e) {
-    //       window.addEventListener('load', ()=> document.body.appendChild(overlay), { once: true });
-    //     }
-    //     const iframe = overlay.querySelector('.sd-pro__iframe');
-    //     const loadingEl = overlay.querySelector('.sd-pro__loading');
-    //     let token;
-    //     try {
-    //       const tkRes = await fetch('https://api.spectrodraw.com/api/pro-token', {
-    //         method: 'POST',
-    //         credentials: 'include',
-    //         headers
-    //       });
-    //       if (!tkRes || !tkRes.ok) {
-    //         try { overlay.remove(); } catch (e) {}
-    //         return;
-    //       }
-    //       const tkj = await tkRes.json().catch(()=>null);
-    //       token = tkj && tkj.token;
-    //       if (!token) {
-    //         try { overlay.remove(); } catch (e) {}
-    //         return;
-    //       }
-    //     } catch (err) {
-    //       try { overlay.remove(); } catch (e) {}
-    //       return;
-    //     }
-    //     iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv?t=' + encodeURIComponent(token);
-    //     iframe.addEventListener('load', () => {
-    //       if (loadingEl) loadingEl.style.display = 'none';
-    //     });
-    //     window.addEventListener('message', (ev) => {
-    //       try {
-    //         const allowedOrigin = new URL(iframe.src).origin;
-    //         if (ev.origin !== allowedOrigin) return;
-    //       } catch (e) { return; }
-    //       if (!ev.data) return;
-    //     }, false);
-    //   } catch (err) {
-    //     console.error('Error initializing SpectroDraw Pro overlay:', err);
-    //   }
-    // })();
+        const headers = { 'Accept': 'application/json' };
+        if (stored) headers['X-Spectrodraw-User'] = stored;
+
+        let res;
+        try {
+          res = await fetch('https://api.spectrodraw.com/api/products', {
+            method: 'GET',
+            credentials: 'include',
+            headers
+          });
+        } catch (err) {
+          return;
+        }
+        if (!res || !res.ok) return;
+        const j = await res.json().catch(()=>null);
+        if (!j || !Array.isArray(j.products)) return;
+        const found = j.products.some(entry =>
+          entry && typeof entry.email === 'string' &&
+          entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
+        );
+        if (!found) return;
+        /////////////////////////////////
+        
+        
+          // Overlay
+          const _overlay = document.createElement("div");
+          Object.assign(_overlay.style, {
+            position: "fixed",
+            inset: "0",
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: "10000"
+          });
+
+          // Modal box
+          const modal = document.createElement("div");
+          Object.assign(modal.style, {
+            background: "#111",
+            width: "400px",
+            maxWidth: "90%",
+            padding: "20px",
+            borderRadius: "8px",
+            position: "relative",
+            boxShadow: "0 10px 30px rgba(255,255,255,0.3)",
+            fontFamily: "sans-serif"
+          });
+
+          // Close button (X)
+          const closeBtn = document.createElement("button");
+          closeBtn.textContent = "✕";
+          Object.assign(closeBtn.style, {
+            position: "absolute",
+            top: "10px",
+            right: "10px",
+            border: "none",
+            color: "#aaa",
+            background:"none",
+            fontSize: "18px",
+            cursor: "pointer"
+          });
+          const targetDate = new Date("February 15, 2026 00:00:00").getTime();
+
+          const content = document.createElement("div");
+          content.style.textAlign = "center";
+          function updateCountdown() {
+            const now = Date.now();
+            let diff = targetDate - now;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            diff %= 1000 * 60 * 60 * 24;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            diff %= 1000 * 60 * 60;
+            const minutes = Math.floor(diff / (1000 * 60));
+            diff %= 1000 * 60;
+            const seconds = Math.floor(diff / 1000);
+            content.innerHTML = `<br>
+            <h2>Thank you for claiming SpectroDraw Pro!</h2>
+            <p>This feature is currently in development and will be available soon. Follow me on social media for updates!</p>
+            <div id="social-row" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;align-items:center;justify-content:center;">
+              <button class="social-btn" title="YouTube" style="background:#FFFFFF;" onClick="window.open('https://www.youtube.com/@spectrodraw', '_blank')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="external-icon" viewBox="0 0 28.57  20" focusable="false">
+                  <svg viewBox="0 0 28.57 20" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                    <g>
+                      <path d="M27.9727 3.12324C27.6435 1.89323 26.6768 0.926623 25.4468 0.597366C23.2197 2.24288e-07 14.285 0 14.285 0C14.285 0 5.35042 2.24288e-07 3.12323 0.597366C1.89323 0.926623 0.926623 1.89323 0.597366 3.12324C2.24288e-07 5.35042 0 10 0 10C0 10 2.24288e-07 14.6496 0.597366 16.8768C0.926623 18.1068 1.89323 19.0734 3.12323 19.4026C5.35042 20 14.285 20 14.285 20C14.285 20 23.2197 20 25.4468 19.4026C26.6768 19.0734 27.6435 18.1068 27.9727 16.8768C28.5701 14.6496 28.5701 10 28.5701 10C28.5701 10 28.5677 5.35042 27.9727 3.12324Z" fill="#FF0000"></path>
+                      <path d="M11.4253 14.2854L18.8477 10.0004L11.4253 5.71533V14.2854Z" fill="white"></path>
+                    </g>
+                  </svg>
+                </svg>  
+              </button>
+              <button class="social-btn" title="Tiktok" style="background:#000;" onClick="window.open('https://www.tiktok.com/@spectrodraw', '_blank')">
+                <svg viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="96" height="96" rx="21" fill="black" style="fill:black;fill-opacity:1;"/>
+                  <path d="M73.31 25.7456C72.785 25.4743 72.274 25.1769 71.7788 24.8545C70.3389 23.9025 69.0186 22.7808 67.8465 21.5135C64.9139 18.158 63.8186 14.7538 63.4151 12.3705H63.4313C63.0943 10.3921 63.2337 9.11214 63.2547 9.11214H49.8974V60.7624C49.8974 61.4558 49.8974 62.1412 49.8682 62.8185C49.8682 62.9027 49.8601 62.9805 49.8553 63.0712C49.8553 63.1085 49.8553 63.1474 49.8472 63.1863C49.8472 63.196 49.8472 63.2057 49.8472 63.2154C49.7064 65.0686 49.1123 66.8588 48.1173 68.4286C47.1222 69.9983 45.7566 71.2994 44.1407 72.2175C42.4565 73.1757 40.5517 73.6782 38.614 73.6757C32.3906 73.6757 27.3468 68.6011 27.3468 62.334C27.3468 56.0669 32.3906 50.9923 38.614 50.9923C39.7921 50.9912 40.9629 51.1766 42.083 51.5415L42.0992 37.9412C38.6989 37.502 35.2444 37.7722 31.9538 38.7348C28.6631 39.6975 25.6077 41.3317 22.9802 43.5343C20.678 45.5346 18.7425 47.9214 17.2608 50.5872C16.6969 51.5594 14.5695 55.4658 14.3119 61.8058C14.1499 65.4044 15.2306 69.1326 15.7458 70.6734V70.7058C16.0699 71.6132 17.3256 74.7094 19.372 77.3197C21.0221 79.4135 22.9716 81.2527 25.1579 82.7783V82.7459L25.1903 82.7783C31.6567 87.1724 38.8263 86.884 38.8263 86.884C40.0674 86.8338 44.2249 86.884 48.9463 84.6464C54.183 82.1658 57.1642 78.47 57.1642 78.47C59.0688 76.2618 60.5832 73.7452 61.6426 71.0282C62.8513 67.8509 63.2547 64.0401 63.2547 62.5171V35.1155C63.4168 35.2127 65.5749 36.6401 65.5749 36.6401C65.5749 36.6401 68.6842 38.633 73.5352 39.9309C77.0155 40.8544 81.7045 41.0488 81.7045 41.0488V27.7887C80.0615 27.9669 76.7255 27.4485 73.31 25.7456Z" fill="white" style="fill:white;fill-opacity:1;"/>
+                </svg>
+              </button>
+              
+              <button class="social-btn" title="YouTube" style="background:#FE0381;" onClick="window.open('https://www.instagram.com/spectrodraw/', '_blank')">
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 264.5833 264.5833" inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)" sodipodi:docname="Instagram_(2022).svg"><defs><radialGradient id="f" cx="158.429" cy="578.088" r="52.3515" xlink:href="#a" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0 -4.03418 4.28018 0 -2332.2273 942.2356)" fx="158.429" fy="578.088"/><radialGradient inkscape:collect="always" xlink:href="#b" id="g" gradientUnits="userSpaceOnUse" gradientTransform="matrix(.67441 -1.16203 1.51283 .87801 -814.3657 -47.8354)" cx="172.6149" cy="600.6924" fx="172.6149" fy="600.6924" r="65"/><radialGradient inkscape:collect="always" xlink:href="#c" id="h" cx="144.012" cy="51.3367" fx="144.012" fy="51.3367" r="67.081" gradientTransform="matrix(-2.3989 .67549 -.23008 -.81732 464.9957 -26.4035)" gradientUnits="userSpaceOnUse"/><radialGradient inkscape:collect="always" xlink:href="#d" id="e" gradientUnits="userSpaceOnUse" gradientTransform="matrix(-3.10797 .87652 -.6315 -2.23914 1345.6503 1374.1983)" cx="199.7884" cy="628.4379" fx="199.7884" fy="628.4379" r="52.3515"/><linearGradient inkscape:collect="always" id="d"><stop offset="0" stop-color="#ff005f"/><stop offset="1" stop-color="#fc01d8"/></linearGradient><linearGradient id="c"><stop offset="0" stop-color="#780cff"/><stop stop-color="#820bff" offset="1" stop-opacity="0"/>
+                  </linearGradient><linearGradient inkscape:collect="always" id="b"><stop offset="0" stop-color="#fc0"/><stop offset="1" stop-color="#fc0" stop-opacity="0"/></linearGradient><linearGradient id="a"><stop offset="0" stop-color="#fc0"/><stop offset=".1242" stop-color="#fc0"/><stop offset=".5672" stop-color="#fe4a05"/><stop offset=".6942" stop-color="#ff0f3f"/><stop offset="1" stop-color="#fe0657" stop-opacity="0"/>
+                  </linearGradient></defs><sodipodi:namedview pagecolor="#ffffff" bordercolor="#666666" borderopacity="1" inkscape:pageopacity="0" inkscape:pageshadow="2" inkscape:zoom=".515" inkscape:cx="500" inkscape:cy="500" inkscape:document-units="mm" inkscape:current-layer="layer1" inkscape:document-rotation="0" showgrid="false" inkscape:window-width="1366" inkscape:window-height="705" inkscape:window-x="-8" inkscape:window-y="-8" inkscape:window-maximized="1"/><g inkscape:label="Layer 1" inkscape:groupmode="layer"><path d="M204.1503 18.1429c-55.2305 0-71.3834.057-74.5232.3175-11.3342.9424-18.387 2.7275-26.0708 6.554-5.9214 2.9413-10.5915 6.3506-15.2005 11.1298-8.3938 8.7157-13.481 19.4383-15.3226 32.1842-.8953 6.1877-1.1558 7.4496-1.2087 39.0558-.0203 10.5354 0 24.4007 0 42.9984 0 55.2008.061 71.3418.3256 74.4764.9157 11.032 2.6453 17.9728 6.3081 25.565 7 14.5329 20.369 25.4428 36.119 29.5137 5.4535 1.4044 11.4767 2.1779 19.2092 2.5442 3.2762.1425 36.6684.2443 70.081.2443 33.4127 0 66.8253-.0407 70.02-.2035 8.9535-.4214 14.1526-1.1195 19.9011-2.6054 15.8517-4.0912 28.9767-14.8383 36.119-29.5748 3.5916-7.409 5.4128-14.6144 6.237-25.0704.179-2.2796.2543-38.6263.2543-74.924 0-36.304-.0814-72.5835-.2605-74.8632-.8343-10.6249-2.6555-17.7692-6.363-25.3207-3.0421-6.1816-6.42-10.798-11.324-15.518-8.752-8.3616-19.4555-13.4502-32.2101-15.2902-6.18-.8936-7.411-1.1582-39.033-1.2131z" inkscape:connector-curvature="0" fill="url(#e)" transform="translate(-71.8155 -18.1429)"/><path d="M204.1503 18.1429c-55.2305 0-71.3834.057-74.5232.3175-11.3342.9424-18.387 2.7275-26.0708 6.554-5.9214 2.9413-10.5915 6.3506-15.2005 11.1298-8.3938 8.7157-13.481 19.4383-15.3226 32.1842-.8953 6.1877-1.1558 7.4496-1.2087 39.0558-.0203 10.5354 0 24.4007 0 42.9984 0 55.2008.061 71.3418.3256 74.4764.9157 11.032 2.6453 17.9728 6.3081 25.565 7 14.5329 20.369 25.4428 36.119 29.5137 5.4535 1.4044 11.4767 2.1779 19.2092 2.5442 3.2762.1425 36.6684.2443 70.081.2443 33.4127 0 66.8253-.0407 70.02-.2035 8.9535-.4214 14.1526-1.1195 19.9011-2.6054 15.8517-4.0912 28.9767-14.8383 36.119-29.5748 3.5916-7.409 5.4128-14.6144 6.237-25.0704.179-2.2796.2543-38.6263.2543-74.924 0-36.304-.0814-72.5835-.2605-74.8632-.8343-10.6249-2.6555-17.7692-6.363-25.3207-3.0421-6.1816-6.42-10.798-11.324-15.518-8.752-8.3616-19.4555-13.4502-32.2101-15.2902-6.18-.8936-7.411-1.1582-39.033-1.2131z" inkscape:connector-curvature="0" fill="url(#f)" transform="translate(-71.8155 -18.1429)"/>
+                    <path d="M204.1503 18.1429c-55.2305 0-71.3834.057-74.5232.3175-11.3342.9424-18.387 2.7275-26.0708 6.554-5.9214 2.9413-10.5915 6.3506-15.2005 11.1298-8.3938 8.7157-13.481 19.4383-15.3226 32.1842-.8953 6.1877-1.1558 7.4496-1.2087 39.0558-.0203 10.5354 0 24.4007 0 42.9984 0 55.2008.061 71.3418.3256 74.4764.9157 11.032 2.6453 17.9728 6.3081 25.565 7 14.5329 20.369 25.4428 36.119 29.5137 5.4535 1.4044 11.4767 2.1779 19.2092 2.5442 3.2762.1425 36.6684.2443 70.081.2443 33.4127 0 66.8253-.0407 70.02-.2035 8.9535-.4214 14.1526-1.1195 19.9011-2.6054 15.8517-4.0912 28.9767-14.8383 36.119-29.5748 3.5916-7.409 5.4128-14.6144 6.237-25.0704.179-2.2796.2543-38.6263.2543-74.924 0-36.304-.0814-72.5835-.2605-74.8632-.8343-10.6249-2.6555-17.7692-6.363-25.3207-3.0421-6.1816-6.42-10.798-11.324-15.518-8.752-8.3616-19.4555-13.4502-32.2101-15.2902-6.18-.8936-7.411-1.1582-39.033-1.2131z" inkscape:connector-curvature="0" fill="url(#g)" transform="translate(-71.8155 -18.1429)"/>
+                    <path d="M204.1503 18.1429c-55.2305 0-71.3834.057-74.5232.3175-11.3342.9424-18.387 2.7275-26.0708 6.554-5.9214 2.9413-10.5915 6.3506-15.2005 11.1298-8.3938 8.7157-13.481 19.4383-15.3226 32.1842-.8953 6.1877-1.1558 7.4496-1.2087 39.0558-.0203 10.5354 0 24.4007 0 42.9984 0 55.2008.061 71.3418.3256 74.4764.9157 11.032 2.6453 17.9728 6.3081 25.565 7 14.5329 20.369 25.4428 36.119 29.5137 5.4535 1.4044 11.4767 2.1779 19.2092 2.5442 3.2762.1425 36.6684.2443 70.081.2443 33.4127 0 66.8253-.0407 70.02-.2035 8.9535-.4214 14.1526-1.1195 19.9011-2.6054 15.8517-4.0912 28.9767-14.8383 36.119-29.5748 3.5916-7.409 5.4128-14.6144 6.237-25.0704.179-2.2796.2543-38.6263.2543-74.924 0-36.304-.0814-72.5835-.2605-74.8632-.8343-10.6249-2.6555-17.7692-6.363-25.3207-3.0421-6.1816-6.42-10.798-11.324-15.518-8.752-8.3616-19.4555-13.4502-32.2101-15.2902-6.18-.8936-7.411-1.1582-39.033-1.2131z" inkscape:connector-curvature="0" fill="url(#h)" transform="translate(-71.8155 -18.1429)"/>
+                    <path d="M132.3452 33.973c-26.7167 0-30.0696.1167-40.5629.5939-10.4727.4792-17.6212 2.136-23.8762 4.567-6.4701 2.5107-11.9586 5.8693-17.4265 11.3352-5.472 5.464-8.8332 10.9483-11.354 17.4116-2.4389 6.2524-4.099 13.3976-4.5703 23.8585-.4693 10.4854-.5923 13.8379-.5923 40.5348 0 26.697.1189 30.0371.5943 40.5225.4817 10.465 2.1397 17.6082 4.5703 23.8585 2.5147 6.4654 5.8758 11.9497 11.3458 17.4136 5.466 5.468 10.9544 8.8349 17.4204 11.3456 6.259 2.4309 13.4097 4.0877 23.8803 4.567 10.4933.477 13.8441.5938 40.5588.5938 26.7188 0 30.0615-.1167 40.5547-.5939 10.4728-.4792 17.6295-2.136 23.8885-4.567 6.4681-2.5106 11.9484-5.8775 17.4143-11.3455 5.472-5.4639 8.8332-10.9482 11.354-17.4115 2.4183-6.2524 4.0784-13.3976 4.5703-23.8585.4713-10.4854.5943-13.8277.5943-40.5246 0-26.697-.123-30.0473-.5943-40.5328-.4919-10.465-2.152-17.6081-4.5703-23.8584-2.5208-6.4654-5.882-11.9498-11.354-17.4137-5.4721-5.468-10.9442-8.8266-17.4204-11.3353-6.2714-2.4309-13.424-4.0877-23.8967-4.5669-10.4933-.4772-13.8339-.5939-40.5588-.5939zm-8.825 17.7147c2.6193-.0041 5.5418 0 8.825 0 26.2659 0 29.379.0942 39.7513.5652 9.5915.4383 14.7971 2.0397 18.2648 3.3852 4.5908 1.7817 7.8638 3.9116 11.3048 7.3521 3.4431 3.4406 5.5745 6.7173 7.3617 11.3046 1.3465 3.461 2.9512 8.6628 3.3877 18.2472.4714 10.3625.5739 13.4754.5739 39.7095 0 26.234-.1025 29.347-.5739 39.7095-.4386 9.5843-2.0412 14.7861-3.3877 18.2471-1.783 4.5874-3.9186 7.8539-7.3617 11.2923-3.443 3.4406-6.712 5.5704-11.3048 7.3521-3.4636 1.3517-8.6733 2.949-18.2648 3.3873-10.3702.471-13.4854.5734-39.7513.5734-26.2679 0-29.381-.1024-39.7513-.5734-9.5914-.4423-14.797-2.0438-18.2668-3.3893-4.5908-1.7817-7.87-3.9116-11.313-7.3521-3.4431-3.4405-5.5745-6.709-7.3617-11.2985-1.3465-3.461-2.9512-8.6628-3.3877-18.2471-.4714-10.3626-.5657-13.4754-.5657-39.7259 0-26.2504.0943-29.347.5657-39.7095.4386-9.5844 2.0412-14.7861 3.3877-18.2512 1.783-4.5874 3.9186-7.8641 7.3617-11.3046 3.443-3.4406 6.7222-5.5704 11.313-7.3562 3.4677-1.3517 8.6754-2.949 18.2668-3.3894 9.075-.4096 12.5919-.5324 30.9264-.553zm61.3363 16.322c-6.5173 0-11.805 5.2776-11.805 11.792 0 6.5125 5.2877 11.7962 11.805 11.7962 6.5172 0 11.8049-5.2837 11.8049-11.7962 0-6.5124-5.2877-11.796-11.805-11.796zm-52.5113 13.7826c-27.8993 0-50.5191 22.6031-50.5191 50.4817 0 27.8786 22.6198 50.4714 50.5191 50.4714s50.511-22.5928 50.511-50.4714c0-27.8786-22.6137-50.4817-50.513-50.4817zm0 17.7147c18.109 0 32.7914 14.6694 32.7914 32.767 0 18.0956-14.6824 32.767-32.7914 32.767-18.111 0-32.7913-14.6714-32.7913-32.767 0-18.0976 14.6803-32.767 32.7913-32.767z" inkscape:connector-curvature="0" fill="#fff"/></g></svg>
+              </button>
+            </div>
+            <h1 style="color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);">${days}d ${hours}h ${minutes}m ${seconds}s</h1>
+            `;
+            }
+            updateCountdown();
+          const timer = setInterval(updateCountdown, 1000);
+          function close() {
+            document.body.removeChild(_overlay);
+          }
+          closeBtn.onclick = close;
+          _overlay.onclick = (e) => {
+            if (e.target === _overlay) close();
+          };
+          modal.appendChild(closeBtn);
+          modal.appendChild(content);
+          _overlay.appendChild(modal);
+          document.body.appendChild(_overlay);
+        
+
+        /////////////////////////////////
+        return;
+        const overlay = document.createElement('div');
+        overlay.id = 'spectrodraw-pro-iframe-overlay';
+        overlay.setAttribute('role','dialog');
+        overlay.setAttribute('aria-modal','true');
+        overlay.innerHTML = `
+          <div class="sd-pro__frame-wrap" role="document">
+            <div class="sd-pro__loading" aria-hidden="true">
+              <div class="sd-pro__spinner" aria-hidden="true"></div>
+              <div class="sd-pro__text">Loading SpectroDraw Pro…</div>
+            </div>
+            <iframe class="sd-pro__iframe" title="SpectroDraw Pro"></iframe>
+            <!--<button class="sd-pro__close" aria-label="Close SpectroDraw Pro">✕</button>-->
+          </div>
+          <style>
+            #spectrodraw-pro-iframe-overlay{
+              position:fixed;
+              inset:0;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              background: rgba(0,0,0,0.45);
+              z-index:2147483647;
+              -webkit-font-smoothing:antialiased;
+              -moz-osx-font-smoothing:grayscale;
+            }
+            .sd-pro__frame-wrap{
+              width:100%;
+              height:100%;
+              max-width:100%;
+              max-height:100%;
+              position:relative;
+            }
+            .sd-pro__iframe{
+              position:fixed;
+              inset:0;
+              width:100%;
+              height:100%;
+              border:0;
+              background: rgba(0,0,0,0.72);
+            }
+            .sd-pro__loading{
+              position: absolute;
+              left:50%;
+              top:48%;
+              transform:translate(-50%,-50%);
+              text-align:center;
+              z-index:2147483650;
+              pointer-events:none;
+            }
+            .sd-pro__spinner{
+              width:52px;
+              height:52px;
+              border-radius:50%;
+              border:6px solid rgba(255,255,255,0.08);
+              border-top-color: rgba(255,255,255,0.6);
+              animation: sd-spin 0.9s linear infinite;
+              margin:0 auto 12px;
+            }
+            @keyframes sd-spin{ to{ transform: rotate(360deg); } }
+            .sd-pro__text{ font-size:15px; color:#fff; 
+              font-family: 'Inter', 'Segoe UI', sans-serif;}
+          </style>
+        `;
+        try {
+          (document.documentElement || document.body || document).appendChild(overlay);
+        } catch (e) {
+          window.addEventListener('load', ()=> document.body.appendChild(overlay), { once: true });
+        }
+        const iframe = overlay.querySelector('.sd-pro__iframe');
+        const loadingEl = overlay.querySelector('.sd-pro__loading');
+        let token;
+        try {
+          const tkRes = await fetch('https://api.spectrodraw.com/api/pro-token', {
+            method: 'POST',
+            credentials: 'include',
+            headers
+          });
+          if (!tkRes || !tkRes.ok) {
+            try { overlay.remove(); } catch (e) {}
+            return;
+          }
+          const tkj = await tkRes.json().catch(()=>null);
+          token = tkj && tkj.token;
+          if (!token) {
+            try { overlay.remove(); } catch (e) {}
+            return;
+          }
+        } catch (err) {
+          try { overlay.remove(); } catch (e) {}
+          return;
+        }
+        iframe.src = 'https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv?t=' + encodeURIComponent(token);
+        iframe.addEventListener('load', () => {
+          if (loadingEl) loadingEl.style.display = 'none';
+        });
+        window.addEventListener('message', (ev) => {
+          try {
+            const allowedOrigin = new URL(iframe.src).origin;
+            if (ev.origin !== allowedOrigin) return;
+          } catch (e) { return; }
+          if (!ev.data) return;
+        }, false);
+      } catch (err) {
+        console.error('Error initializing SpectroDraw Pro overlay:', err);
+      }
+    })();
   </script>
 <div class="app">
   <header class="top-bar">

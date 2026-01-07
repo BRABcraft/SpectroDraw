@@ -267,6 +267,7 @@
         <li><span class="check">✔</span> Effect Automation</li>
         <li><span class="check">✔</span> Advanced Vocal Tools</li>
       </ul>
+      <div style="align-items: center; justify-content: center; display:flex;"><p id="countdown" style="font-size:25px;padding:0;margin:0;"></p></div>
       <a href="/buy-pro" class="btn btn-primary">Claim early access</a>
     </div>
   </div>
@@ -280,6 +281,24 @@
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script>
+    const targetDate = new Date("February 15, 2026 00:00:00").getTime();
+    const content = document.getElementById("countdown");
+    function updateCountdown() {
+      const now = Date.now();
+      let diff = targetDate - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      diff %= 1000 * 60 * 60 * 24;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      diff %= 1000 * 60 * 60;
+      const minutes = Math.floor(diff / (1000 * 60));
+      diff %= 1000 * 60;
+      const seconds = Math.floor(diff / 1000);
+      content.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>

@@ -384,15 +384,29 @@ function previewShape(cx, cy) {
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     drawCursor(true);
     if (changingNoiseProfile) {
-      noiseProfileMin = Math.min(noiseProfileMin,Math.floor(cx));
-      noiseProfileMax = Math.max(noiseProfileMax,Math.floor(cx));
+      if (currentPanel!=="2"){
+        noiseProfileMin = Math.min(noiseProfileMin,Math.floor(cx));
+        noiseProfileMax = Math.max(noiseProfileMax,Math.floor(cx));
+      } else {
+        const e = getSpriteById(selectedSpriteId).effect;
+        e.noiseProfileMin = Math.min(e.noiseProfileMin,Math.floor(cx));
+        e.noiseProfileMax = Math.max(e.noiseProfileMax,Math.floor(cx));
+      }
       updateNoiseProfile();
       const framesVisible = Math.max(1, iHigh - iLow);
       const overlayCanvas = document.getElementById("overlay-" + currentChannel);
       const ctx = overlayCanvas.getContext("2d");
       const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
-      const xPixel = mapX(noiseProfileMin);
-      const endPixel = mapX(noiseProfileMax);
+      let xPixel;
+      let endPixel; 
+      if (currentPanel==="2"){
+        const e = getSpriteById(selectedSpriteId).effect;
+        xPixel= mapX(e.noiseProfileMin);
+        endPixel= mapX(e.noiseProfileMax);
+      } else {
+        xPixel= mapX(noiseProfileMin);
+        endPixel= mapX(noiseProfileMax);
+      }
       const width = Math.max(1, Math.round(endPixel - xPixel));
       ctx.save();
       ctx.fillStyle = "rgba(255,0,0,0.15)";
@@ -713,9 +727,11 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* channels[ch].brushPressure;
   const po =  (tool === "eraser" ? 0 : (newEffect.phaseStrength  !== undefined) ? newEffect.phaseStrength  :  0);
   const _amp = newEffect.amp || amp;
-  const newMag =  (tool === "amplifier" || tool === "sample")    ? (oldMag * _amp)
-                : (currentTool === "noiseRemover") ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
-                :                             (oldMag * (1 - bo) + mag * bo);
+  const newMag =  (tool === "amplifier" || tool === "sample")
+                ? (oldMag * _amp)
+                : (currentTool === "noiseRemover")
+                ? Math.max(oldMag * (1 - bo) + (oldMag*(1 - (newEffect.noiseAgg * newEffect.noiseProfile[bin]) / oldMag)) * bo,0)
+                : (oldMag * (1 - bo) + mag * bo);
   const type = newEffect.phaseTexture;
   let $phase = computePhaseTexture(type, bin, x+0.5, phase, true);
   const newPhase = (tool === "sample")?(oldPhase+phase):(oldPhase * (1-po) + po * ($phase + phase*2));

@@ -32,8 +32,6 @@ function visibleToSpecY(visY) {
     const fullY = Math.round(visY + fStart);
     return Math.max(0, Math.min(specHeight - 1, fullY));
 }
-let snapshotMags = null;
-let snapshotPhases = null;
 
 function cxToFrame(cx) {
   return Math.floor((cx/canvas.width*(iWidth/specWidth)+iLow)*specWidth);
@@ -56,7 +54,9 @@ function newSprite(opts={}){
   for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
   currentSprite = {
     id: nextSpriteId++,
-    effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg, blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,refPhaseFrame,chirpRate,shape:currentShape},
+    effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg,
+      blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,
+      refPhaseFrame,chirpRate,shape:currentShape,noiseProfileMin,noiseProfileMax,noiseProfile,width:opts.width??0,height:opts.height??0},
     enabled: true,
     pixels: pixelmap,
     minCol: Infinity,
@@ -78,6 +78,7 @@ function canvasMouseDown(e,touch) {
   if (!touch) zooming=false;
   if (!touch && e.button !== 0) return;
   if (pendingHistory) return;
+  if (!hasSetNoiseProfile) autoSetNoiseProfile();
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   prevMouseX = cx; prevMouseY = cy; vr = 1;
   const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
@@ -86,7 +87,15 @@ function canvasMouseDown(e,touch) {
   startX = cx; startY = cy;
   if (currentTool==="cloner"&&changingClonerPos) {clonerX = cx; clonerY = cy;clonerCh=currentChannel;updateBrushPreview();}
   painting = true;
-  if (changingNoiseProfile) {noiseProfileMin = noiseProfileMax = Math.floor(cx); return;}
+  if (changingNoiseProfile) {
+    if (currentPanel!=="2"){
+      noiseProfileMin = noiseProfileMax = Math.floor(cx);
+    } else {
+      const e = getSpriteById(selectedSpriteId).effect;
+      e.noiseProfileMin = e.noiseProfileMax = Math.floor(cx);
+    }
+    return;
+  }
   if (movingSprite) {
     spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
     return;
@@ -242,7 +251,6 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
   if (zooming || !painting) return;
   renderSpritesTable();
   
-  if (!hasSetNoiseProfile) autoSetNoiseProfile();
   stopSource();
   if (sineOsc) {
     sineOsc.stop();
@@ -256,7 +264,13 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
   if(currentTool==="cloner"){changingClonerPos=false;updateBrushPreview();const ccp = document.getElementById("changeClonerPosBtn"); ccp.innerText ="Change Reference Point";ccp.classList.toggle('moving', false);}
   paintedPixels = null;
   mouseDown = false;
-  if (changingNoiseProfile) {document.getElementById("setNoiseProfile").click();return;}
+  if (changingNoiseProfile) {
+    if (currentPanel==="2"){
+      document.getElementById("ssetNoiseProfile").click();
+    } else {
+      document.getElementById("setNoiseProfile").click();
+    }
+    return;}
   const { cx, cy } = getCanvasCoords(e,touch);
   if (movingSprite) {handleMoveSprite(cx,cy);return;}
   if (currentShape === "select") {createNewSpriteFromSelection(startX, displayYToBin(visibleToSpecY(startY),specHeight,currentChannel), cx, displayYToBin(visibleToSpecY(cy),specHeight,currentChannel)); return;}
@@ -343,7 +357,7 @@ function autoRecomputePCM(min,max) {
   if (isFinite(minCol)) {
 
     try {
-      recomputePCMForCols(minCol, maxCol, { oldMags: snapshotMags, oldPhases: snapshotPhases });
+      recomputePCMForCols(minCol, maxCol);
 
       pendingRecomputeDone = true;
       pendingRecomputeMinCol = minCol;
@@ -362,6 +376,7 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
+  //console.log(channels[0].snapshotMags);
   if (dontChangeSprites) {dontChangeSprites=false; return;}
   let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
   for (let ch=$s;ch<$e;ch++){
@@ -673,8 +688,11 @@ async function playFrame(frameX) {
   pausedAtSample = null;
 }
 function updateNoiseProfile(){
-  document.getElementById("setNoiseProfileMin").value = noiseProfileMin;
-  document.getElementById("setNoiseProfileMax").value = noiseProfileMax;
+  const d = (currentPanel==="2");
+  const c = d?"s":"";
+  const e = d?getSpriteById(selectedSpriteId).effect:null;
+  document.getElementById(c+"setNoiseProfileMin").value = d?e.noiseProfileMin:noiseProfileMin;
+  document.getElementById(c+"setNoiseProfileMax").value = d?e.noiseProfileMax:noiseProfileMax;
 }
 
 function createNewSpriteFromSelection(startX, startY, endX, endY) {
@@ -682,7 +700,7 @@ function createNewSpriteFromSelection(startX, startY, endX, endY) {
   const minY = Math.floor(Math.min(startY, endY));
   const maxX = Math.floor(Math.max(startX, endX));
   const maxY = Math.floor(Math.max(startY, endY));
-  const opts = { name: "selection", tool: "n/a" };
+  const opts = { name: "selection", tool: "n/a",width:maxX-minX,height:maxY-minY };
   newSprite(opts);
   const s = sprites[sprites.length - 1];
   selectedSpriteId = sprites.length;

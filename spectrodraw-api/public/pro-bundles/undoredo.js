@@ -1,5 +1,5 @@
 
-function recomputePCMForCols(colStart, colEnd, opts = {}) {
+function recomputePCMForCols(colStart, colEnd) {
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;
@@ -112,8 +112,8 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
   //console.log(channels[ch]);
   const specCanvas = document.getElementById("spec-"+ch);
   const specCtx = specCanvas.getContext("2d");
-  colStart = Math.max(0, Math.floor(colStart));
-  colEnd = Math.min(specWidth - 1, Math.floor(colEnd));
+  colStart = Math.min(Math.max(0, Math.floor(colStart)),specWidth);
+  colEnd = Math.min(specWidth - 1, Math.max(0,Math.floor(colEnd)));
   if (!imageBuffer[ch] || !specCtx) return;
   const h = specHeight;
   const w = specWidth;
@@ -185,9 +185,8 @@ function doUndo() {
     const maxCol = Math.min(specWidth - 1, sprite.maxCol);
     renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
   }
-
-  recomputePCMForCols(minCol, maxCol);
-  //restartRender(false);
+  
+  autoRecomputePCM(-1,-1);
 
   // update UI scroll / view
   if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
@@ -234,7 +233,7 @@ function doRedo() {
     const maxCol = Math.min(specWidth - 1, sprite.maxCol);
     renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
   }
-  recomputePCMForCols(minCol, maxCol);
+  autoRecomputePCM(-1,-1);
 
   // remove from redo queue if tracked
   const rqidx = spriteRedoQueue.indexOf(sprite);

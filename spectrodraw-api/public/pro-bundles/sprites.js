@@ -160,7 +160,7 @@ function updateEditorSelection(spriteId) {
     enabledEl.checked = s.enabled;
     if (s.effect.tool==="sample"){toolEl.style.display="none";document.getElementById("stlb").innerText="Tool: sample"}else{toolEl.style.display="";toolEl.value = s.effect.tool;}
     sChannelEl.value = s.ch;
-    renderToolEditorSettings(s,s.effect);
+    renderToolEditorSettings(s.effect);
     renderSpriteFade();
     processSpriteFade();
   }
@@ -215,7 +215,7 @@ function onSpritePhaseSettingsChange(id) {
   }
 
   updateSpriteEffects(selectedSpriteId, s.effect);
-  renderToolEditorSettings(s, s.effect);
+  renderToolEditorSettings(s.effect);
 }
 
 // attach listeners (idempotent — safe to call even if they exist)
@@ -225,6 +225,17 @@ if (sphaseEl) sphaseEl.addEventListener("input", () => onSpritePhaseSettingsChan
 if (sphaseInputEl) sphaseInputEl.addEventListener("input", () => onSpritePhaseSettingsChange("sphaseSettingsInput"));
 
 
+document.getElementById("ssetNoiseProfile").addEventListener("click",()=>{
+  const s = getSpriteById(selectedSpriteId);
+  const e = s.effect;
+  changingNoiseProfile = !changingNoiseProfile;
+  document.getElementById("ssetNoiseProfile").classList.toggle('moving', changingNoiseProfile);
+  document.getElementById("ssetNoiseProfile").innerText = changingNoiseProfile?"Setting noise profile frames":"Set noise profile frames";
+  if (!changingNoiseProfile) {
+    e.noiseProfile = computeNoiseProfileFromFrames(currentChannel, e.noiseProfileMin, e.noiseProfileMax);
+    updateSpriteEffects(selectedSpriteId,e);
+  }
+});
 // ---------- config (top) ----------
 // [ rangeId, textId, assignFn, optionalExtraFn ]
 const sliderDefs = [
@@ -262,7 +273,7 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     if (!s.effect) s.effect = {};
     updateSpriteEffects(selectedSpriteId, s.effect);
     s.effect[effectsKey] = val;
-    renderToolEditorSettings(s,s.effect);
+    renderToolEditorSettings(s.effect);
   };
 
   const handleValueChange = val => {
@@ -313,10 +324,10 @@ function updateSpritePhaseTextureSettings(newEffect){
   else if (c("CopyFromRef")) d(newEffect.refPhaseFrame,0,framesTotal,1,"Reference Frame");
   else if (c("Chirp")) d(newEffect.chirpRate,0,0.1,0.0001,"Chirp Rate");
 }
-function renderToolEditorSettings(sprite,newEffect) {
-  const effects = newEffect?newEffect:sprite.effect;
+function renderToolEditorSettings(newEffect) {
+  const effects = newEffect;
   if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
-  function c(b){return sprite.effect.tool===b}
+  function c(b){return newEffect.tool===b}
   document.getElementById("samplifyDiv")   .style.display=(c("amplifier")||c("sample"))?"flex":"none";
   document.getElementById("snoiseAggDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("ssetNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
@@ -330,10 +341,15 @@ function renderToolEditorSettings(sprite,newEffect) {
   document.getElementById("sphaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";
   document.getElementById("sphaseStrengthDiv").style.display=(c("noiseRemover")||c("autotune")||c("sample"))?"none":"flex";
   document.getElementById("sbrushOpacityDiv").style.display=(c("n/a")||c("sample"))?"none":"flex";
-  if (!sprite) return;
+  document.getElementById("sWidthDiv").style.display=c("n/a")?"flex":"none";
+  document.getElementById("sHeightDiv").style.display=c("n/a")?"flex":"none";
+  updateNoiseProfile();
 
   // Ensure effects object exists to read from
-
+  if (newEffect.tool==="n/a") {
+    sWidth.value = sWidthI.value = newEffect.width;
+    sHeight.value = sHeightI.value = newEffect.height;
+  }
   // Load slider values from sprite.effect for each defined slider
   sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     const r = document.getElementById(rangeId);
@@ -428,11 +444,11 @@ async function updateSpriteEffects(spriteId, newEffect) {
 
     // compute local sig sprite once
     const z = (sprite.effect.tool==="sample"||sprite.effect.tool==="autotune"||sprite.effect.shape==="select");
-    const sigSprite = z?(sprite):(formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight })));
+    const sigSprite = (z||sprite.effect.tool==="noiseRemover")?(sprite):(formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight })));
     if (!sigSprite) return;
 
     // write new mags/phases for significant pixels
-    if (currentTool === "autotune") {
+    if (sprite.effect.tool === "autotune") {
       let pixels = Array.from({ length: specHeight }, () => []);
       const cols = Array.from(sigSprite.pixels[ch].keys()).sort((a,b)=>a-b);
       const rowH = Math.max(brushHeight,Math.abs(newEffect.aStartOnP-oldEffect.aStartOnP));
@@ -452,7 +468,9 @@ async function updateSpriteEffects(spriteId, newEffect) {
       forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, newMag, newPhase) => {
         if (x<sprite.maxCol&&x>sprite.minCol) {
           const id = x * specHeight + y;
-          const newPixel = (sprite.effect.shape==="select")?{mag:newMag,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift}:applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
+          const newPixel = (sprite.effect.shape==="select")?{mag:newMag,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift}
+          :applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
+          //console.log(newPixel.mag,z?newMag:prevMag);
           mags[id] = newPixel.mag;
           phases[id] = newPixel.phase;
         }
@@ -486,7 +504,8 @@ async function updateSpriteEffects(spriteId, newEffect) {
   }
   // Recompute PCM for the expanded area and restart render / audio
   dontChangeSprites = (sprite.effect.tool !== "autotune");
-  simpleRestartRender(recomputeMin,recomputeMax);
+  simpleRestartRender(-1,-1);
+  //console.log(recomputeMin,recomputeMax);
 
   // keep previous behaviour for audio restart
   if (spriteId < sprites.length && getSpriteById(spriteId+1).enabled) {
@@ -502,7 +521,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
 
 
 nameEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.name = nameEl.value;renderSpritesTable();});
-toolEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.effect.tool = toolEl.value;updateSpriteEffects(selectedSpriteId,c.effect);renderSpritesTable();renderToolEditorSettings(c,c.effect);});
+toolEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.effect.tool = toolEl.value;updateSpriteEffects(selectedSpriteId,c.effect);renderSpritesTable();renderToolEditorSettings(c.effect);});
 enabledEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.enabled = enabledEl.checked;toggleSpriteEnabled(selectedSpriteId,c.enabled);renderSpritesTable();});
 
 // Toggle sprite (apply prev or next values)
@@ -1240,7 +1259,14 @@ function toggleSection(btn) {
     btn.setAttribute('aria-expanded', 'true');
     btn.innerHTML = svgMinus;
     if (btn.id==="effectSettingsToggleBtn") {
-      renderToolEditorSettings(getSpriteById(selectedSpriteId));
+      const s = getSpriteById(selectedSpriteId);
+      let e;
+      if (s){
+        e=s.effect;
+      } else {
+        e={tool:"n/a"};
+      }
+      renderToolEditorSettings(e);
     }
     updateBrushSettingsDisplay();
   }
@@ -1769,3 +1795,165 @@ const removeFadePt = (cx,cy) => {
 // attach events
 fadeCanvas.style.touchAction = 'none';
 fadeCanvas.addEventListener('pointerdown', onFadePointerDown);
+
+
+
+sWidth.addEventListener("input",()=>{sWidthI.value = sWidth.value; updateSelectionSize();});
+sWidthI.addEventListener("input",()=>{sWidth.value = sWidthI.value; updateSelectionSize();});
+sHeightI.addEventListener("input",()=>{sHeight.value = sHeightI.value; updateSelectionSize();});
+sHeight.addEventListener("input",()=>{sHeightI.value = sHeight.value; updateSelectionSize();});
+function updateSelectionSize(){
+  const s = getSpriteById(selectedSpriteId);
+  const e = s.effect;
+  forEachSpritePixelInOrder(s, s.ch, (x, y, prevMag, prevPhase, nextMag, nextPhase) => {
+    channels[s.ch].mags[x * specHeight + y] = prevMag;
+    channels[s.ch].phases[x * specHeight + y] = prevPhase;
+  });
+
+  // Capture old bounds BEFORE changing them:
+  const oldMinCol = s.minCol;
+  const oldMaxCol = s.maxCol;
+  const oldMinY = s.minY;
+  const oldMaxY = s.maxY;
+  const oldWidth = oldMaxCol - oldMinCol;
+  const oldHeight = oldMaxY - oldMinY;
+
+  // Apply new width/height to effect and compute new bounding box:
+  e.width = sWidth.value; e.height = sHeight.value;
+  const centerX = (oldMaxCol + oldMinCol) / 2;
+  const centerY = (oldMaxY + oldMinY) / 2;
+  const newMinCol = centerX - e.width/2;
+  const newMinY = centerY - e.height/2;
+  const newMaxCol = centerX + e.width/2;
+  const newMaxY = centerY + e.height/2;
+
+  // Save new bounds into sprite:
+  s.minCol = newMinCol; s.minY = newMinY;
+  s.maxCol = newMaxCol; s.maxY = newMaxY;
+
+  // Helper linear map (handles degenerate oldWidth/oldHeight)
+  const mapX = (x) => {
+    if (oldWidth === 0) return (newMinCol + newMaxCol) / 2;
+    return newMinCol + ((x - oldMinCol) / oldWidth) * (newMaxCol - newMinCol);
+  };
+  const mapY = (y) => {
+    if (oldHeight === 0) return (newMinY + newMaxY) / 2;
+    return newMinY + ((y - oldMinY) / oldHeight) * (newMaxY - newMinY);
+  };
+
+  // Iterator you provided
+  function forEachSpritePixelInOrder(sprite, ch, cb) {
+    if (!sprite) return;
+    const cols = Array.from(sprite.pixels[ch].keys()).sort((a,b)=>a-b);
+    for (const x of cols) {
+      const col = sprite.pixels[ch].get(x);
+      const order = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
+      for (const entry of order) {
+        const i = entry.i;
+        cb(x, col.ys[i], col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+      }
+    }
+  }
+
+  // sanity / environment:
+  const specH = typeof specHeight !== 'undefined' ? specHeight : (oldHeight > 0 ? Math.ceil(oldHeight) : 1);
+
+  // Build colMaps for the new sprite pixel structure (one pass over all sprite pixels)
+  const colMaps = [];
+  for (let ch = 0; ch < s.pixels.length; ch++) colMaps.push(new Map());
+
+  // Iterate every pixel in every channel and map into new positions
+  for (let v = 0; v < s.pixels.length; v++) {
+    const mags = channels[currentChannel].mags;
+    const phases = channels[currentChannel].phases;
+    forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, nextMag, nextPhase) => {
+      // old id (source index into channels arrays)
+      const oldX = Math.round(x);
+      const oldY = Math.round(y);
+      const oldId = oldX * specH + oldY;
+
+      // new mapped integer coords
+      const mx = Math.round(mapX(x));
+      const my = Math.round(mapY(y));
+      
+      for (let xx = Math.floor(mapX(Math.floor(x)));xx<=Math.ceil(mapX(Math.ceil(x)));xx++){
+        for (let yy = Math.floor(mapY(Math.floor(y)));yy<=Math.ceil(mapY(Math.ceil(y)));yy++){
+          const newId = xx * specH + yy;
+          mags[newId] = nextMag;
+          phases[newId] = nextPhase;
+        }
+      }
+
+      // Also add entries into colMaps for each channel so the sprite pixel data is consistent.
+      // For v (owning channel) use the provided prev/next arrays; for other channels use the copied channel values.
+      for (let ch = 0; ch < colMaps.length; ch++) {
+        const colMap = colMaps[ch];
+        const colX = mx;
+        let col = colMap.get(colX);
+        if (!col) {
+          col = { entries: [] };
+          colMap.set(colX, col);
+        }
+
+        if (ch === v) {
+          col.entries.push({
+            y: my,
+            prevMag: prevMag,
+            prevPhase: prevPhase,
+            nextMag: nextMag,
+            nextPhase: nextPhase
+          });
+        } else {
+          // use the value we copied into newChannels as prev, and next from the owning channel (keeps painting propagation similar to your snippet)
+          const copiedMag = newChannelsMags[ch][newId];
+          const copiedPhase = newChannelsPhases[ch][newId];
+          // Use nextMag/nextPhase from the owning channel to follow the snippet pattern:
+          col.entries.push({
+            y: my,
+            prevMag: copiedMag,
+            prevPhase: copiedPhase,
+            nextMag: nextMag,
+            nextPhase: nextPhase
+          });
+        }
+      }
+    });
+  }
+
+  // Collapse entries in each column to unique y values (last-written wins), and produce s.pixels structure
+  const newPixels = [];
+  for (let ch = 0; ch < colMaps.length; ch++) {
+    const finalColMap = new Map();
+    for (const [colX, colObj] of colMaps[ch].entries()) {
+      const yMap = new Map(); // y -> entry (last wins)
+      for (const entry of colObj.entries) {
+        yMap.set(entry.y, entry);
+      }
+      const ysSorted = Array.from(yMap.keys()).sort((a,b)=>a-b);
+      const prevMags = [], prevPhases = [], nextMags = [], nextPhases = [];
+      for (const yy of ysSorted) {
+        const ent = yMap.get(yy);
+        prevMags.push(ent.prevMag);
+        prevPhases.push(ent.prevPhase);
+        nextMags.push(ent.nextMag);
+        nextPhases.push(ent.nextPhase);
+      }
+      finalColMap.set(colX, {
+        ys: ysSorted,
+        prevMags,
+        prevPhases,
+        nextMags,
+        nextPhases
+      });
+    }
+    newPixels.push(finalColMap);
+  }
+
+  // Assign remapped pixels and channels back to the sprite/global channels:
+  s.pixels = newPixels;
+
+  simpleRestartRender(-1,-1);
+
+  // If other dependent structures exist (cached extents, uv maps, etc.), update them here.
+  // e.g., s.recomputeMeta && s.recomputeMeta(); // uncomment if you have such a method
+}

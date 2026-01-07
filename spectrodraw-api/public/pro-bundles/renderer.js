@@ -311,8 +311,6 @@ function drawFrame(w,h) {
   if (x >= (maxCol==0?w:maxCol)) {
     uploadingSprite = false;
     if (recording) return false;
-    const c = channels[ch];
-    let snapshotMags = c.snapshotMags, snapshotPhases = c.snapshotPhases;
     rendering = false;
     if (pendingHistory) {
       pendingHistory = false;

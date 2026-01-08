@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="SpectroDraw for iPhone and iPad is coming soon. Join the waitlist to be the first to try the interactive spectrogram editor on iOS.">
-  <meta property="og:title" content="SpectroDraw for iOS - Coming Soon">
-  <meta property="og:description" content="Join the SpectroDraw iOS waitlist and be among the first to edit and draw on sound from your phone.">
-  <link rel="canonical" href="https://spectrodraw.com/ios">
-  <title>iOS App - SpectroDraw</title>
+  <meta name="description" content="SpectroDraw is a free, browser-based interactive spectrogram editor that lets you visually draw, edit, and sculpt audio directly in the frequency domain." />
+  <meta property="og:title" content="What is SpectroDraw? The Interactive Spectrogram Editor" />
+  <meta property="og:description" content="SpectroDraw is a free, browser-based interactive spectrogram editor that lets you visually draw, edit, and sculpt audio directly in the frequency domain." />
+  <link rel="canonical" href="https://spectrodraw.com/newsletters/what-is-spectrodraw" />
+  <title>What is SpectroDraw?</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
@@ -49,6 +49,7 @@
       line-height:1.6;
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
+      font-size:20px;
     }
 
     nav{
@@ -113,8 +114,7 @@
       margin:0 auto 36px;
     }
     .wrap{max-width:980px;margin:18px auto;padding:24px;}
-    p{margin:12px 0;color:#d0d9e9}
-    strong{color:#fff}
+    p{margin:12px 0;color:#000}
     .section{padding:18px 0;border-top:1px solid var(--soft-border);}
     .section:first-of-type{border-top:0;padding-top:8px}
 
@@ -131,6 +131,52 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
+    .btn-primary {
+  position: relative;
+  background: var(--cta-grad);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1.2rem 2.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  overflow: hidden;
+  transition: transform .4s ease, box-shadow .6s ease, background .4s ease;
+  box-shadow:
+    0 0 50px rgba(79,70,229,0.5),
+    0 0 70px rgba(147,51,234,0.45),
+    inset 0 0 50px rgba(147,51,234,0.3);
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: none;
+  border-radius: inherit;
+  z-index: 0;
+  backdrop-filter: blur(4px);
+  transition: background .5s ease, box-shadow .5s ease;
+}
+.btn-primary span {
+  position: relative;
+  z-index: 1;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 15px rgba(79,70,229,0.6),
+    0 0 25px rgba(147,51,234,0.7),
+    inset 0 0 60px rgba(147,51,234,0.8); 
+}
+.btn-primary:hover::before {
+  background: rgba(7, 8, 11, 0.3); 
+}
+img{
+  max-width:80%;
+  border-radius:12px;
+  margin:18px 0;
+}
   </style>
 </head>
 <body>
@@ -204,21 +250,45 @@
   <link rel="stylesheet" type="text/css" href="../../accounts.css">
   <script src="../../accounts.js"></script>
 
-  <header class="hero">
-    <div class="hero-inner fade-in">
-      <h1 class="title">What is SpectroDraw?</h1>
-    </div>
-  </header>
 
-  <main class="wrap">
+  <main class="wrap" style="margin-left:150px;">
+
+<h1 class="title">What is SpectroDraw?</h1>
+<p>SpectroDraw is a free, browser-based interactive spectrogram editor that lets you
+visually draw, edit, and sculpt audio directly in the frequency domain. Think of it
+as painting sound: use tools like brushes, lines, rectangles, erasers, and more to
+manipulate frequencies on a colorful spectrogram canvas. It's perfect for sound
+designers, music producers, audio repair tasks, and anyone experimenting with
+creative effects, all without needing to download software.</p>
+<p>Available at spectrodraw.com, the core app is completely free, with an optional
+Pro upgrade unlocking advanced features (currently available via early access).</p>
+<img src="assets/1.jpg">
+<h3>Key Features and Uses</h3>
+<p>SpectroDraw makes complex spectral editing intuitive by turning audio into a visual playground. Here's what you can do:</p>
+<li><strong>Precise Audio Repair and Cleanup:</strong> Easily remove unwanted noise, clicks, pops, or background hum. The built-in noise remover tool lets you scrub out artifacts directly on the spectrogram, which is far more targeted than traditional waveform editing. The free version uses a simple threshold-based remover, while Pro offers more advanced options.</li>
+<img src="assets/2.jpg">
+<li><strong>Vocal and Source Separation:</strong> Isolate or erase overlapping vocals, harmonies, or instruments. On a spectrogram, different sounds occupy distinct frequency bands and patterns, making it straightforward to erase one voice without affecting others (something AI stem splitters often struggle with).</li>
+<img src="assets/3.jpg">
+<li><strong>Creative Sound Design and Effects:</strong> Draw freehand with brushes, experiment with phase textures, and tweak FFT parameters to create glitchy, alien, or trippy sounds. Pro unlocks extras like the cloner tool, harmonics brush, and advanced texturing for even wilder effects. Mess around casually for fun "alien-ish" textures or carefully craft harmonics for professional results.</li>
+<img src="assets/4.jpg">
+<li><strong>MIDI Export and Transcription:</strong> Convert your edited spectrogram (or uploaded audio) to MIDI. Choose an AI-powered model (BasicPitch) for accurate polyphonic transcription of melodic content, or a non-AI heuristic mode for quirky MIDIs from percussion, SFX, or noise.</li>
+<img src="assets/5.jpg">
+<li><strong>Unique Color Representation:</strong> Unlike standard spectrograms that use only brightness for amplitude, SpectroDraw encodes phase (the waveform's timing offset) as hue/color. This allows lossless round-trip conversion (audio ↔ image ↔ audio) and adds an extra creative dimension: draw in different colors to influence the sound.</li>
+<img src="assets/6.jpg"><br>
+<a href="../../faq/fft/index.html" style="color:#0c6b8a;text-shadow:0 0 10px rgb(0,0,0,0.2);">Read more about phase</a>
+<h3>Why It Stands Out</h3>
+<p>Compared to traditional waveform editors or even advanced tools like SpectraLayers, SpectroDraw emphasizes playfulness and accessibility. It's great for learning audio concepts (e.g., seeing harmonics and overtones clearly) while being powerful enough for real production work. As one user (a producer) notes: "It's incredibly handy for quick noise removal in recordings and manual vocal separation when sampling".
+Upcoming additions include a VST/AU plugin for DAW integration and an iOS app for on-the-go editing.
+Dive in and start painting your sounds today!</p><br><br>
+<a class="btn btn-primary" href="../../app"><span>Launch App</span></a>
 
   </main>
-    
+   
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
-    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
-    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
-    <a href="/terms" style="color:white;">Terms</a>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener" style="color:#008">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:#008; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:#008;">Terms</a>
   </footer>
 
   <script>

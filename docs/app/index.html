@@ -888,21 +888,6 @@
           </select>
         </div>
       </div>
-      <div id="midiChannelSettings">
-        <label class="h1">Midi audio channels</label>
-        <div style="display:flex; gap:10px; margin-bottom:5px;" title="Channel mode">
-          <label class="h2" for="midiChannelMode">Mode</label>
-          <select id="midiChannelMode">
-            <option value="all">All channels</option>
-            <option value="allMixToMono">All channels mixed to mono</option>
-            <option value="single">Single channel</option>
-          </select>
-        </div>
-        <div class="slider-row" id="midiSingleChannelDiv" style="display:none;">
-          <label class="h2" for="midiSingleChannel">Channel</label>
-          <select id="midiSingleChannel"></select>
-        </div>
-      </div>
       <!--Export button-->
       <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>
     </div>

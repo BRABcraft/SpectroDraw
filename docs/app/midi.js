@@ -12,7 +12,7 @@ function setGlobalProgress(pct) {
   if (pct >= 0 && pct <= 1) pct = pct * 100;
   pct = Math.max(0, Math.min(100, Math.round(pct)));
   try {
-    if (gpfl) {gpfl.style.width = pct + '%';gpbl.style.display = "block";} else {mInfo.innerHTML = `Processing: ${pct}%<br><br>`}
+    if (gpfl&&gpbl) {gpfl.style.width = pct + '%';gpbl.style.display = "block";} else {mInfo.innerHTML = `Processing: ${pct}%<br><br>`}
   } catch (e) {  }
 }
 const DEFAULT_MODEL_URL = 'https://cdn.jsdelivr.net/gh/BRABcraft/SpectroDraw@main/node_modules/@spotify/basic-pitch/model/model.json';
@@ -910,7 +910,7 @@ async function getNotes() {
       const notes = await runBasicPitchAndReturnNotes({ pcmFloat32: pcm, sampleRate, hopSamples },
         (pct) => { try { setGlobalProgress(pct); } catch(e){} });
       try { setGlobalProgress(100); } catch(e){}
-      gpbl.style.display = "none";
+      if (gpbl) gpbl.style.display = "none";
       return notes;
     }
     const out = exportMidiLegacy();
@@ -922,7 +922,7 @@ async function getNotes() {
     return out.notes;
   }
 }
-function filterNotes() {
+function filterNotes(notes) {
   if (useMidiAI) {
     let i = 0;
     while (i < notes.length) if (notes[i].lengthSeconds < dCutoff) notes.splice(i, 1); else i++;
@@ -950,7 +950,7 @@ function filterNotes() {
 async function exportMidi(opts = {}) {
   const downloadName = opts.downloadName ?? "export.mid";
   let notes = await getNotes();
-  filterNotes();
+  filterNotes(notes);
   writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });
   return notes;
 }

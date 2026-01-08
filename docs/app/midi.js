@@ -923,6 +923,7 @@ async function getNotes() {
   }
 }
 function filterNotes(notes) {
+  if (!notes) return;
   if (useMidiAI) {
     let i = 0;
     while (i < notes.length) if (notes[i].lengthSeconds < dCutoff) notes.splice(i, 1); else i++;

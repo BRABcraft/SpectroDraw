@@ -77,7 +77,6 @@ nav{
   }
   .menu-item:hover { background: rgba(255,255,255,0.03); }
 
-  /* modal styles kept as before */
   .modal-overlay {
     position: fixed;
     inset: 0;

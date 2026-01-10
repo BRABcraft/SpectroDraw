@@ -541,12 +541,9 @@ body{
   <link rel="stylesheet" type="text/css" href="accounts.css">
   <script src="accounts.js"></script>
 
-  <!-- HERO -->
   <header class="hero" role="banner" aria-label="SpectroDraw hero" style="height: 700px;">
     <div class="hero-inner">
-      <!-- Top pretext (uppercase) -->
       <div class="hero-pre center">The World's First Spectrogram-Based Audio Editor</div>
-      <!-- main row with left SVG, headline in center, right SVG -->
       <div class="hero-row" role="presentation" aria-hidden="true">
         <div class="hero-title-wrap" style="padding:0 0.75rem;">
           <h1>
@@ -555,20 +552,16 @@ body{
           </h1>
         </div>
       </div>
-      <!-- descriptive subtext -->
       <p class="hero-sub center" style="margin-top:0.9rem;">
         SpectroDraw’s interactive spectrogram lets you paint frequency content directly, adding a new dimension to sound design. Create sound effects, convert to midi, and more.
       </p>
-      <!-- CTA -->
       <div class="cta-wrap" role="region" aria-label="primary actions">
         <a href="app" class="btn btn-primary" title="Try SpectroDraw for free"><span>Try it for free</span></a>
       </div>
     </div>
   </header>
-  <!-- CUSTOMIZE SECTION -->
   <section aria-labelledby="customize-heading" style="padding: 100px 30px;">
     <div style="display:flex; flex-direction:column; align-items:center; text-align:center; max-width:900px; margin:0 auto; gap:1.5rem;">
-      <!-- Text & Button -->
       <div>
         <div class="section-title">Edit &amp; Personalize</div>
         <h2 id="customize-heading" class="section-head">Fine-tune frequency content visually</h2>
@@ -577,7 +570,6 @@ body{
           <button class="btn btn-primary" onclick="location.href='app'"><span>Start Creating</span></button>
         </div>
       </div>
-      <!-- Video -->
       <video
         id="dbgVideo"
         playsinline
@@ -599,9 +591,7 @@ body{
       </video>
     </div>
   </section>
-<!-- ===== GENERATE / GRID SECTION (REPLACEMENT) ===== -->
 <section aria-labelledby="generate-heading"></section>
-<!-- ===== UPDATED MIDI SECTION (with per-canvas scrub + float16 pcm) ===== -->
 <section id="midiSection" aria-labelledby="generate-heading" style="padding:40px 30px;">
   <div class="container" style="max-width:1100px;margin:0 auto;">
     <div style="display:flex;gap:1rem;align-items:center;flex-direction:column">
@@ -609,24 +599,19 @@ body{
       <h3 id="generate-heading" class="section-head" style="text-align:center">Create Clean MIDIs with ease</h3>
       <p class="section-copy" style="text-align:center">Generate clean MIDIs from songs easily, powered by AI.</a></p>
     </div>
-    <!-- two canvases side-by-side + arrow img between -->
     <div class="midi-row" style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:20px;flex-wrap:wrap;">
-      <!-- LEFT: Original -->
       <div class="midi-panel glow-panel" style="flex:1 1 440px; padding:16px; display:flex;flex-direction:column;align-items:stretch;gap:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div style="font-weight:700">Original</div>
         </div>
-        <!-- original canvas -->
         <canvas id="originalCanvas" width="640" height="200"
           style="width:100%;height:200px;border-radius:8px;background:#06070a;border:1px solid rgba(255,255,255,0.02)">
         </canvas>
-        <!-- progress scrub for original -->
         <div style="display:flex;align-items:center;gap:8px;">
           <input id="originalScrub" type="range" min="0" max="10" step="0.01" value="0"
             style="flex:1" aria-label="Original scrub"/>
           <div style="width:75px;text-align:right;color:var(--muted)" id="originalTime">0:00</div>
         </div>
-        <!-- play + upload buttons side by side -->
         <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;">
           <label for="audioUpload" class="btn btn-primary" style="cursor:pointer;font-size:15px;">
             <span>Upload audio</span>
@@ -634,28 +619,21 @@ body{
           </label>
           <button id="playOriginalBtn" class="btn btn-primary" aria-label="Play Original" style="font-size:15px;"><span>Play original</span></button>
         </div>
-        <!-- upload note -->
         <div id="upload-note" style="color:var(--muted);font-size:0.9rem;text-align:center;"></div>
       </div>
-      <!-- placeholder arrow image between canvases (you said you'll update later) -->
       <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;">
         <img id="arrowImg" src="assets/arrow-white.svg" alt="arrow" style="width:56px;height:56px;object-fit:contain;"/>
       </div>
-      <!-- RIGHT: MIDI -->
       <div class="midi-panel glow-panel" style="flex:1 1 440px; padding:16px; display:flex;flex-direction:column;align-items:stretch;gap:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div style="font-weight:700">MIDI</div>
         </div>
-        <!-- midi canvas -->
         <canvas id="midiCanvas" width="640" height="200" style="width:100%;height:200px;border-radius:8px;background:#06070a;border:1px solid rgba(255,255,255,0.02)"></canvas>
-        <!-- progress scrub for midi -->
         <div style="display:flex;align-items:center;gap:8px;">
           <input id="midiScrub" type="range" min="0" max="10" step="0.01" value="0" style="flex:1" aria-label="MIDI scrub"/>
           <div style="width:75px;text-align:right;color:var(--muted)" id="midiTime">0:00</div>
         </div>
-        <!-- play/pause for midi -->
         <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-top:6px;">
-          <!-- This button now plays the notes returned from getNotes() using a piano synth -->
           <button id="midiPlayPause" class="btn btn-primary" aria-label="Play/Pause MIDI" style="font-size:15px;"><span>Play MIDI</span></button>
           <div id="midi-time" style="color:var(--muted);font-size:0.95rem">0:00 / 0:10</div>
         </div>
@@ -683,12 +661,10 @@ body{
         transition:width 0.1s linear;
       "></div>
     </div>
-    <!-- try it yourself CTA (placed below the two canvases) -->
     <div style="margin:68px 0 80px 0;display:flex;gap:1rem;align-items:center;justify-content:center;">
       <a class="btn btn-primary" href="app"><span>Try Yourself</span></a>
     </div>
   </div>
-  <!-- hidden audio elements used for playback / duration control -->
   <audio id="originalAudio" preload="metadata" src="assets/default.mp3"></audio>
   <audio id="midiAudio" preload="metadata" src="assets/default.mp3"></audio>
 </section>
@@ -700,7 +676,6 @@ body{
 <script src="homepageMidiDemo.js"></script>
 <link rel="stylesheet" type="text/css" href="homepageTimelineStyle.css">
 <script src="homepageTimeline.js"></script>
-  <!-- MADE FOR / LICENSE NOTE -->
   <section>
     <div class="container" style="display:flex;flex-direction:column;align-items:center;gap:1rem">
       <div class="section-title">Trusted By Creators</div>
@@ -711,7 +686,6 @@ body{
       </div>
     </div>
   </section>
-  <!-- OUR MISSION (styled like other sections) -->
 <section class="feature-section" aria-labelledby="mission-heading" id="mission">
   <div class="section-title">About</div>
   <h2 id="mission-heading" class="section-head">Our Mission</h2>
@@ -721,10 +695,7 @@ body{
   </p>
 
   <div class="feature-visual" role="img" aria-hidden="true">
-    <!-- decorative animated bar -->
     <div class="feature-animate" aria-hidden="true"></div>
-
-    <!-- large illustrative image (picsum placeholder) -->
     <img src="assets/mission.jpg" alt="Abstract representation of spectrogram" style="width:100%;max-width:1100px;margin-top:80px;border-radius:12px;box-shadow: 0 0 80px rgba(243, 242, 244,0.5),
                       0 0 120px rgba(174, 0, 255, 0.4);">
   </div>
@@ -824,7 +795,6 @@ body{
     <a class="btn btn-ghost" href="/pricing"><span>View Pricing</span></a>
   </div>
 </section>
-<!-- COMING SOON: VST plugin + iOS app (bigger side-by-side cards with images) -->
 <section class="feature-section" aria-labelledby="coming-heading" id="coming-soon">
   <div class="section-title">Coming Soon</div>
   <h2 id="coming-heading" class="section-head">DAW Plugin &amp; iOS App</h2>
@@ -833,7 +803,6 @@ body{
   </p>
 
   <div class="feature-grid" role="list">
-    <!-- VST card -->
     <article class="feature-card" role="listitem" aria-label="SpectroDraw VST plugin preview">
       <div class="card-media">
         <div class="card-badge">Desktop • VST</div>
@@ -843,14 +812,11 @@ body{
         <h2>DAW plugin</h2>
         <p>Bring SpectroDraw directly into your favorite DAW like Logic, Ableton, and FL Studio. Edit spectral content and create samples without leaving your DAW.</p>
         <div class="card-cta">
-          <!--Waitlist: email subscription-->
           <a class="btn btn-primary" href="/vst"><span>Join waitlist</span></a>
           <a class="btn btn-ghost" href="#learn-more-vst">Learn more</a>
         </div>
       </div>
     </article>
-
-    <!-- iOS card -->
     <article class="feature-card" role="listitem" aria-label="SpectroDraw iOS app preview">
       <div class="card-media">
         <div class="card-badge">Mobile • iOS</div>
@@ -867,7 +833,6 @@ body{
     </article>
   </div>
 </section>
-<!-- ===== LEARN MORE: VST PLUGIN ===== -->
 <section class="feature-section" id="learn-more-vst" aria-labelledby="learn-more-vst-heading">
   <div class="section-title">VST Plugin</div>
   <h2 id="learn-more-vst-heading" class="section-head">SpectroDraw VST — Bring visual editing into your DAW</h2>
@@ -894,9 +859,6 @@ body{
     <a class="btn btn-ghost" href="#coming-soon"><span>Back to Overview</span></a>
   </div>
 </section>
-
-
-<!-- ===== LEARN MORE: iOS APP ===== -->
 <section class="feature-section" id="learn-more-ios" aria-labelledby="learn-more-ios-heading">
   <div class="section-title">iOS App</div>
   <h2 id="learn-more-ios-heading" class="section-head">SpectroDraw iOS — Edit anywhere, anytime</h2>
@@ -924,26 +886,20 @@ body{
     <a class="btn btn-ghost" href="#coming-soon"><span>Back to Overview</span></a>
   </div>
 </section>
-
-  <!-- SOCIAL / FOOTER -->
   <section>
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.75rem;text-align:center">
     <h1>My YouTube Channel</h1>
-    <!-- Profile image circle -->
     <img src="assets/randommangos.jpg" alt="RandomMangos" 
         style="width:140px;height:140px;border-radius:999px;object-fit:cover;">
-    <!-- Name and subscriber count stacked -->
     <div style="display:flex;flex-direction:column;gap:0.15rem">
       <div style="font-weight:800;font-size:3rem">RandomMangos</div>
       <div style="color:var(--muted);font-size:1.5rem;">66,000 subscribers</div>
     </div>
-    <!-- Paragraph -->
     <p style="margin:0;color:#dbe8ff;max-width:680px;">
       I have been making beats, remixes, EDM, and phonk since 2020. One thing I've always wanted is a tool that makes audio editing less complicated and more intuitive.
       As a creator, I know how overwhelming traditional DAWs and audio editors can be, especially when you just want to experiment, remix, or shape sounds quickly.
       That's why I made SpectroDraw, which can let you interact with audio visually and creatively, making the process of editing, remixing, and designing music much more accessible and fun for everyone.
     </p>
-    <!-- Buttons (centered) -->
     <div style="display:flex;gap:1.7rem;justify-content:center;margin-top:20px;">
       <a class="btn btn-youtube" href="https://www.youtube.com/channel/UCGmPeEqdsLBMsfUK3DZOw2A" target="_blank" rel="noopener noreferrer">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="red" style="margin-right:8px;">

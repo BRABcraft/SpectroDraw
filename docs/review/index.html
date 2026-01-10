@@ -212,7 +212,6 @@
   <main class="wrap">
     <section id="inline-review" class="section" aria-label="Write a review" style="margin-top:18px;">
       <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
-        <!-- Left: image drag/upload square -->
         <div id="image-area" style="flex:0 0 220px;max-width:220px;">
           <label for="review-image-input" style="display:block;font-weight:700;margin-bottom:8px;text-align:center;">Upload images (Optional)</label>
           <div id="image-drop" tabindex="0" role="button"
@@ -220,12 +219,10 @@
             <div id="image-preview" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.95rem;padding:12px;box-sizing:border-box; text-align:center;">
               Drag & drop an image here or click to select
             </div>
-            <!-- hidden file input -->
             <input id="review-image" type="file" accept="image/*" multiple style="display:none" />
           </div>
         </div>
 
-        <!-- Right: stars top, text + actions below -->
         <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px;">
           <div>
             <label style="display:block;font-weight:700;margin-bottom:8px;">Your rating</label>
@@ -245,8 +242,6 @@
             <label for="review-text-inline" style="display:block;font-weight:700;margin-bottom:8px;">Your review</label>
             <textarea id="review-text" name="review" rows="6" placeholder="Share a few details to help others (and us) improve..." style="width:100%;height:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--soft-border);color:var(--text);resize:vertical;font-family:'Inter', 'Segoe UI', sans-serif;"></textarea>
           </div>
-
-          <!-- Actions area (moved here, aligned to right of image input) -->
           <div id="actions" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:4px;">
             <div style="flex:1;margin-top:-6px;">
               <div id="review-error" role="alert" style="display:none;color:#ffb4b4;align-self:center"></div>
@@ -274,8 +269,8 @@
       let progress = {
         loggedIn: false,
         reviewSubmitted: false,
-        shareSent: false,        // verified share
-        shareTentative: false,   // popup closed but not verified
+        shareSent: false,
+        shareTentative: false,
         claimed: false,
         rating: 0,
         reviewText: '',
@@ -295,22 +290,17 @@
           const raw = localStorage.getItem(key);
           if(raw){
             const parsed = JSON.parse(raw);
-            // merge parsed into progress (preserve missing fields)
             progress = Object.assign({
               loggedIn:false, reviewSubmitted:false, shareSent:false,
               shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
             }, parsed);
           } else {
-            // keep defaults but ensure loggedIn reflects currentUserId
             progress = Object.assign({
               loggedIn:false, reviewSubmitted:false, shareSent:false,
               shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
             }, progress);
           }
-        }catch(e){
-          // ignore error and keep defaults
-        }
-        // make sure loggedIn matches currentUserId presence
+        }catch(e){}
         progress.loggedIn = !!currentUserId;
       }
 
@@ -320,7 +310,9 @@
           localStorage.setItem(key, JSON.stringify(progress));
         }catch(e){}
       }
-      /* ---------- STAR / IMAGE / REVIEW ---------- */
+
+
+
       document.querySelectorAll('#stars-inline .star').forEach(s => {
         s.addEventListener('click', () => {
           const v = parseInt(s.dataset.value, 10);
@@ -421,13 +413,10 @@
 
       function checkAuth(){
         const newUserId = getCurrentUserId();
-        // if user changed, persist old user's state then load new user's state
         if(newUserId !== currentUserId){
-          // Save existing state for previous user
           if(currentUserId !== null){
             try{ localStorage.setItem(stateKeyFor(currentUserId), JSON.stringify(progress)); }catch(e){}
           }
-          // set new current user
           currentUserId = newUserId;
           loadStateForCurrentUser();
         }
@@ -438,14 +427,11 @@
           const raw = localStorage.getItem('spectrodraw_user');
           if (!raw) return null;
           const parsed = JSON.parse(raw);
-          // try common fields; fallback to raw string
           return parsed?.id || parsed?.user_id || parsed?.email || parsed || null;
         } catch (e) {
           return null;
         }
       }
-
-      // call this externally if your accounts.js performs sign-in/out
       window.sdAuthChanged = function(){
         checkAuth();
       };

@@ -471,10 +471,7 @@
   </footer>
 
   <script>
-    // Set year
     document.getElementById('year').textContent = new Date().getFullYear();
-
-    // small micro-interactions (no external libs)
     document.querySelectorAll('.tool-row').forEach((el,i)=>{
       el.style.animationDelay = (i*60)+'ms';
     });

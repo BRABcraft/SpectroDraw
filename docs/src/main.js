@@ -10,6 +10,5 @@ import '../app/recordingAndPresets.js';
 import '../app/axes.js';
 import '../app/brushPreview.js';
 
-// Optionally export BasicPitch to window for legacy loader in midi.js:
 import BasicPitch from '@spotify/basic-pitch';
 window.BasicPitch = BasicPitch;

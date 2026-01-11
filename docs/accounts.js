@@ -26,6 +26,10 @@
 
   let isSignup = false;
   let menuOpen = false;
+  function isLoggedIn() {
+    const wrap = document.getElementById('account-wrap');
+    return !!wrap && getComputedStyle(wrap).display !== 'none';
+  }
 
   function openOAuthPopup() {
     const width = 500, height = 600;
@@ -158,13 +162,16 @@
     let username = user.email && user.email.includes('@') ? user.email.substring(0,user.email.indexOf("@")) : (user.name || 'user');
     accountEmailSpan.textContent = username;
     accountEmailSpan.title = username || user.name || '';
+    try {if (typeof updateNav === 'function') updateNav();} catch (err) {}
   }
+
 
   function setLoggedOutState() {
     signupLink.style.display = '';
     signinLink.style.display = '';
     accountWrap.style.display = 'none';
     closeAccountMenu();
+    try{if (typeof updateNav === 'function') updateNav();} catch (err) {}
   }
 
   function onLoginSuccess(user) {
@@ -274,7 +281,289 @@
     } catch (e) {}
   });
   setSignupMode(false);
+  const tagline = document.querySelector('.tagline');
+  const navRight = document.querySelector('.nav-right');
+  if (!navRight) return;
+
+  const originalNavHTML = navRight.innerHTML;
+  let transformed = false;
+  let _outsideClickHandler = null;
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function buildMobileNav() {
+    if (transformed) return;
+
+    if (tagline) tagline.style.display = 'none';
+
+    const links = Array.from(navRight.querySelectorAll('a'));
+    const launchLink =
+      links.find(a => a.textContent.trim().toLowerCase() === 'launch app') ||
+      links[0] ||
+      null;
+
+    const launchHTML = launchLink ? launchLink.outerHTML : '';
+
+    const signupEl = document.getElementById('signup-link');
+    const signinEl = document.getElementById('signin-link');
+
+    const excludedIds = new Set(['my-products', 'review', 'account-logout']);
+    const excludedHrefs = new Set(['/products', '/review']);
+    const excludedTexts = new Set(['log out', 'logout']);
+
+    const otherLinks = links.filter(a => {
+      if (a === launchLink) return false;
+      if (a.id && excludedIds.has(a.id)) return false;
+      if (excludedHrefs.has((a.getAttribute('href') || '').trim())) return false;
+      if (excludedTexts.has(a.textContent.trim().toLowerCase())) return false;
+      if (a.id === 'signup-link' || a.id === 'signin-link') return false;
+      return true;
+    });
+
+    const itemsHTML = otherLinks.map(link => `
+      <li role="menuitem"
+          tabindex="-1"
+          data-href="${escapeHtml(link.getAttribute('href') || '#')}"
+          style="padding:8px 12px;cursor:pointer;white-space:nowrap;">
+        ${escapeHtml(link.textContent.trim())}
+      </li>
+    `).join('');
+
+    // Build mobile user menu items. If the user is logged in, reuse the items
+    // from the desktop accountMenu (anchors and logout button). Otherwise show
+    // the default Sign up / Sign in entries.
+    let userItemsHTML = '';
+
+    if (isLoggedIn() && accountMenu) {
+      // Grab anchors and buttons from desktop account menu
+      const accountItems = Array.from(accountMenu.querySelectorAll('a, button'));
+      userItemsHTML = accountItems.map(el => {
+        const text = escapeHtml(el.textContent.trim());
+        if (el.tagName.toLowerCase() === 'a') {
+          const href = escapeHtml(el.getAttribute('href') || '#');
+          return `
+            <li role="menuitem" tabindex="-1" data-href="${href}"
+                style="padding:8px 12px;cursor:pointer;white-space:nowrap;">
+              ${text}
+            </li>
+          `;
+        } else {
+          // button (e.g. logout). Preserve id so we can identify it on click.
+          const id = el.id ? escapeHtml(el.id) : '';
+          const action = id === 'account-logout' ? 'logout' : (id || 'action');
+          return `
+            <li role="menuitem" tabindex="-1" data-action="${action}" data-id="${id}"
+                style="padding:8px 12px;cursor:pointer;white-space:nowrap;">
+              ${text}
+            </li>
+          `;
+        }
+      }).join('');
+    } else {
+      // default when logged out
+      const su = { text: 'Sign up', href: '#' };
+      const si = { text: 'Sign in', href: '#' };
+      userItemsHTML = `
+        <li role="menuitem" tabindex="-1" data-href="${escapeHtml(su.href)}"
+            style="padding:8px 12px;cursor:pointer;white-space:nowrap;">
+          ${escapeHtml(su.text)}
+        </li>
+        <li role="menuitem" tabindex="-1" data-href="${escapeHtml(si.href)}"
+            style="padding:8px 12px;cursor:pointer;white-space:nowrap;">
+          ${escapeHtml(si.text)}
+        </li>
+      `;
+    }
+    if (isLoggedIn()) {
+      const emailToShow = (accountEmailSpan && (accountEmailSpan.title || accountEmailSpan.textContent))
+        ? (accountEmailSpan.title || accountEmailSpan.textContent)
+        : '';
+      if (emailToShow) {
+        const emailLine = `
+          <li role="presentation" tabindex="-1"
+              style="padding:8px 12px;white-space:nowrap;color:rgba(0,0,0,0.7);cursor:default;border-bottom:1px solid rgba(0,0,0,0.06);">
+            ${escapeHtml(emailToShow)}
+          </li>
+        `;
+        userItemsHTML = emailLine + userItemsHTML;
+      }
+    }
+
+
+    const userSVG = `
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+           stroke="white" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"></circle>
+        <path d="M4 20c0-3.3137 2.6863-6 6-6h4c3.3137 0 6 2.6863 6 6"></path>
+      </svg>
+    `;
+
+    const hamburgerSVG = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+           stroke="white" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    `;
+
+    navRight.innerHTML = `
+      ${launchHTML}
+      <button data-mobile-user-button="1"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-label="User menu"
+              style="margin-right:8px;background:transparent;border:none;padding:4px;cursor:pointer;display:inline-flex;">
+        ${userSVG}
+      </button>
+
+      <button data-mobile-button="1"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-label="More menu"
+              style="margin-left:8px;background:transparent;border:none;padding:4px;cursor:pointer;display:inline-flex;">
+        ${hamburgerSVG}
+      </button>
+
+      <ul data-mobile-user-menu="1" role="menu"
+          style="position:absolute;z-index:9999;min-width:140px;margin:0;padding:6px 0;
+                 list-style:none;box-shadow:0 6px 18px rgba(0,0,0,0.12);
+                 border-radius:6px;background:white;color:black;display:none;right:0;">
+        ${userItemsHTML}
+      </ul>
+
+      <ul data-mobile-menu="1" role="menu"
+          style="position:absolute;z-index:9999;min-width:160px;margin:0;padding:6px 0;
+                 list-style:none;box-shadow:0 6px 18px rgba(0,0,0,0.12);
+                 border-radius:6px;background:white;color:black;display:none;right:0;">
+        ${itemsHTML}
+      </ul>
+    `;
+
+    if (getComputedStyle(navRight).position === 'static') {
+      navRight.style.position = 'relative';
+    }
+
+    const userBtn = navRight.querySelector('[data-mobile-user-button]');
+    const userMenu = navRight.querySelector('[data-mobile-user-menu]');
+    const btn = navRight.querySelector('[data-mobile-button]');
+    const menu = navRight.querySelector('[data-mobile-menu]');
+
+    function positionMenu(button, menu) {
+      const b = button.getBoundingClientRect();
+      const n = navRight.getBoundingClientRect();
+      menu.style.right = "0";
+      menu.style.top = `${b.bottom - n.top + 6}px`;
+    }
+
+    function toggle(menu, btn) {
+      const open = menu.style.display === 'block';
+      menu.style.display = open ? 'none' : 'block';
+      btn.setAttribute('aria-expanded', String(!open));
+      if (!open) positionMenu(btn, menu);
+    }
+
+    userBtn.onclick = e => {
+      e.stopPropagation();
+      menu.style.display = 'none';
+      toggle(userMenu, userBtn);
+    };
+
+    btn.onclick = e => {
+      e.stopPropagation();
+      userMenu.style.display = 'none';
+      toggle(menu, btn);
+    };
+
+    document.addEventListener('click', _outsideClickHandler = e => {
+      if (!navRight.contains(e.target)) {
+        menu.style.display = 'none';
+        userMenu.style.display = 'none';
+      }
+    });
+
+    userMenu.addEventListener('click', e => {
+      const li = e.target.closest('[data-href],[data-action]');
+      if (!li) return;
+
+      const href = li.getAttribute('data-href');
+      const action = li.getAttribute('data-action');
+      const text = (li.textContent || '').trim().toLowerCase();
+
+      // Old behavior: sign in / sign up
+      if (text === 'sign in') {
+        e.preventDefault();
+        setSignupMode(false);
+        openPanel();
+        return;
+      }
+      if (text === 'sign up') {
+        e.preventDefault();
+        setSignupMode(true);
+        openPanel();
+        return;
+      }
+
+      // Account action (logout)
+      if (action === 'logout' || li.getAttribute('data-id') === 'account-logout') {
+        e.preventDefault();
+        // trigger the same logout logic used by the desktop account menu
+        if (typeof accountLogoutBtn !== 'undefined' && accountLogoutBtn) {
+          accountLogoutBtn.click();
+        } else if (typeof doLogout === 'function') {
+          doLogout();
+        }
+        return;
+      }
+
+      // Anchor navigation
+      if (href && href !== '#') {
+        window.location.href = href;
+      }
+    });
+
+    menu.addEventListener('click', e => {
+      const li = e.target.closest('[data-href]');
+      if (!li) return;
+
+      const href = li.getAttribute('data-href');
+      if (href && href !== '#') {
+        window.location.href = href;
+      }
+    });
+
+
+    transformed = true;
+  }
+
+  function teardownMobileNav() {
+    if (!transformed) return;
+    if (tagline) tagline.style.display = '';
+    if (_outsideClickHandler)
+      document.removeEventListener('click', _outsideClickHandler);
+    navRight.innerHTML = originalNavHTML;
+    navRight.style.position = '';
+    transformed = false;
+  }
+
+  function updateNav() {
+    window.innerWidth < 700 ? buildMobileNav() : teardownMobileNav();
+  }
+
+  window.addEventListener('resize', updateNav);
+  updateNav();
 })();
+
+
 window.addEventListener('message', async (ev) => {
   if (!ev.data || ev.data.type !== 'oauth-success') return;
   const user = ev.data.user;

@@ -1,12 +1,12 @@
 (function() {
     const transitionTime = 820; 
-    const testingTutorial = false;
+    const testingTutorial = true;
     const steps = [{
             id: 'spectrogram',
             label: 'Welcome to SpectroDraw!',
             subtitle: 'Click & drag to draw (mouseup to finish)',
             target: '#canvas, #timeline, #logscale, #freq',
-            dialog: "Welcome! This is the spectrogram. It’s a visual map of your sound. 👉 Click and drag your mouse across it to draw.",
+            dialog: "Welcome! This is the spectrogram. It’s a visual map of your\nsound. 👉 Click and drag your mouse across it to draw.",
             waitFor: {
                 type: 'mouseup',
                 selector: '#canvas'
@@ -14,7 +14,8 @@
             showNext: false,
             preAction: null,
             mouseLoop: true,
-            dialogOffset: { x: 600, y: 108 }
+            dialogOffset: { x: 600, y: 108 },
+            dialogOffsetMob: { x: 10, y: 300 }
         },
         {
             id: 'playPause',
@@ -35,7 +36,7 @@
             label: 'Add audio / presets',
             subtitle: 'Upload a file or choose a preset',
             target: '#fileB, #presets, #rec, #canvas, #timeline, #logscale, #freq, #midiv',
-            dialog: "Let’s add some sound! Upload an audio or video file, record with\nyour microphone, or pick one of the built-in presets.",
+            dialog: "Let’s add some sound! Upload an audio or video file, record\nwith your microphone, or pick one of the built-in presets.",
             waitFor: {
                 type: 'renderCycle',
                 varName: 'rendering'
@@ -50,7 +51,7 @@
             label: 'Tools: Rectangle, Line, Blur, Eraser, Amplify, Image',
             subtitle: 'Try one of the tools',
             target: '#colorBtn, #noiseRemoverBtn, #brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
-            dialog: "Check out the different tools: Brush, rectangle, line, and Image\nOverlay (turns pictures into sound)! Try the different tool\neffects: Color, Blur, Eraser, Amplifier, and Noise Removal! 🖌️🎶",
+            dialog: "Check out the different tools: Brush, rectangle, line, and\nImage Overlay (turns pictures into sound)! Try the different tool\neffects: Color, Blur, Eraser, Amplifier, and Noise Removal! 🖌️🎶",
             waitFor: {
                 type: 'oneToolClickOrNext',
                 selector: '.tool-btn'
@@ -281,13 +282,11 @@
         dialog.style.position = 'fixed';
         dialog.style.zIndex = '100001';
         dialog.style.maxWidth = '420px';
-        const off = (step && step.dialogOffset) ? step.dialogOffset : { x: 16, y: 16 };
-        const left = (typeof off.x === 'number') ? off.x : 16;
-        const top  = (typeof off.y === 'number') ? off.y : 16;
+        const off = (window.innerWidth<=700) ? step.dialogOffsetMob : step.dialogOffset;
         dialog.style.right = '';
         dialog.style.bottom = '';
-        dialog.style.left = `${left}px`;
-        dialog.style.top  = `${top}px`;
+        dialog.style.left = `${off.x}px`;
+        dialog.style.top  = `${off.y}px`;
     }
     function setupHighlightFor(step) {
         restoreHighlight();
@@ -626,7 +625,7 @@
                 pollers.push({
                     type: 'event',
                     node: loopTarget,
-                    ev: 'mousemove',
+                    ev: 'pointermove',
                     fn: (e) => {
                     }
                 });
@@ -644,20 +643,20 @@
                 pollers.push({
                     type: 'event',
                     node,
-                    ev: 'mouseup',
+                    ev: 'pointerup',
                     fn
                 });
             } else {
                 const fallback = document.getElementById('canvas');
                 if (fallback) {
                     const fn = () => stepCompleted(step);
-                    fallback.addEventListener('mouseup', fn, {
+                    fallback.addEventListener('pointerup', fn, {
                         once: true
                     });
                     pollers.push({
                         type: 'event',
                         node: fallback,
-                        ev: 'mouseup',
+                        ev: 'pointerup',
                         fn
                     });
                 } else {

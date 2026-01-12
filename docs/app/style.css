@@ -553,7 +553,7 @@ select {
   position: fixed;
   left: 10px;
   top: 30px;
-  width: 420px;
+  width: 380px;
   z-index: 990000000;
   background: #fff;
   color: #111;
@@ -651,6 +651,7 @@ select {
 #tutorialDialog {
     opacity: 0;
     transition: opacity 0.35s ease, transform 0.35s ease;
+  max-width:80%;
 }
 
 #tutorialDialog.show {
@@ -1071,5 +1072,6 @@ svg.tutorial-spotlight.hide {
   }
 }
 html, body {
-  overscroll-behavior: none;
+  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
 }

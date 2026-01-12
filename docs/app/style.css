@@ -1074,4 +1074,6 @@ svg.tutorial-spotlight.hide {
 html, body {
   overflow: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+  height: 100%;
 }

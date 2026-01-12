@@ -225,14 +225,15 @@ function queryIntegralSum(integral, x0, y0, x1, y1) {
   return { sumMag, sumPhase };
 }
 
-function previewShape(cx, cy) {
-  lastPreviewCoords = { cx, cy };
+function previewShape(__cx, __cy) {
+  lastPreviewCoords = { __cx, __cy };
   if (pendingPreview) return;
   pendingPreview = true;
-
+  
   requestAnimationFrame(() => {
     pendingPreview = false;
-    const { cx, cy } = lastPreviewCoords;
+    const cx=lastPreviewCoords.__cx;
+    const cy=lastPreviewCoords.__cy;
     const ctx = overlayCtx; // local ref
 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);

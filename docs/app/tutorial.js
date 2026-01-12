@@ -8,8 +8,7 @@
             target: '#canvas, #timeline, #logscale, #freq',
             dialog: "Welcome! This is the spectrogram. It’s a visual map of your\nsound. 👉 Click and drag your mouse across it to draw.",
             waitFor: {
-                type: 'mouseup',
-                selector: '#canvas'
+                type: 'mouseup'
             },
             showNext: false,
             preAction: null,
@@ -30,6 +29,7 @@
             preAction: null,
             mouseLoop: false,
             dialogOffset: { x: 208, y: 108 },
+            dialogOffsetMob: { x: 10, y: 300 }
         },
         {
             id: 'addSound',
@@ -44,29 +44,31 @@
             showNext: false,
             preAction: null,
             mouseLoop: false,
-            dialogOffset: { x: 258, y: 108 }
+            dialogOffset: { x: 258, y: 108 },
+            dialogOffsetMob: { x: 10, y: 500 }
         },
         {
             id: 'tools',
             label: 'Tools: Rectangle, Line, Blur, Eraser, Amplify, Image',
             subtitle: 'Try one of the tools',
             target: '#colorBtn, #noiseRemoverBtn, #brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
-            dialog: "Check out the different tools: Brush, rectangle, line, and\nImage Overlay (turns pictures into sound)! Try the different tool\neffects: Color, Blur, Eraser, Amplifier, and Noise Removal! 🖌️🎶",
+            dialog: "Check out the different tools: Brush, rectangle, line, and\nImage Overlay (turns pictures into sound)! Try the different\ntool effects: Color, Blur, Eraser, Amplifier, and Noise Removal! 🖌️🎶",
             waitFor: {
                 type: 'oneToolClickOrNext',
-                selector: '.tool-btn'
+                selector: '.tool-btn,.shape-btn'
             },
             showNext: true,
             preAction: null,
             mouseLoop: false,
-            dialogOffset: { x: 358, y: 58 }
+            dialogOffset: { x: 358, y: 58 },
+            dialogOffsetMob: { x: 10, y: 300 }
         },
         {
             id: 'brushSettings',
             label: 'Brush settings',
             subtitle: 'Try changing the brush settings',
             target: '#colorBtn, #noiseRemoverBtn, #brushBtn, #rectBtn, #lineBtn, #blurBtn, #eraserBtn, #amplifierBtn, #imageBtn, #playPause, #stop, #canvas, #timeline, #logscale, #freq, #overlay, #d1',
-            dialog: "Try changing the brush settings while using tools like Brush, Image, Line, or Amplify to discover different effects! 🔍🎨",
+            dialog: "Try changing the brush settings while using tools like Brush,\nImage, Line, or Amplify to discover different effects! 🔍🎨",
             waitFor: {
                 type: 'modifyBrush',
                 selectors: ['#brushSettings, #canvas, #timeline, #logscale, #freq']
@@ -74,7 +76,8 @@
             showNext: true,
             preAction: null,
             mouseLoop: false,
-            dialogOffset: { x: 368, y: 500 }
+            dialogOffset: { x: 368, y: 500 },
+            dialogOffsetMob: { x: 10, y: 500 }
         },
         {
             id: 'changeFFT',
@@ -88,7 +91,8 @@
             showNext: true,
             preAction: null,
             mouseLoop: false,
-            dialogOffset: { x: 378, y: 128 }
+            dialogOffset: { x: 378, y: 128 },
+            dialogOffsetMob: { x: 10, y: 500 }
         },
         {
             id: 'save',
@@ -103,7 +107,8 @@
             showNext: false,
             preAction: null,
             mouseLoop: false,
-            dialogOffset: { x: 718, y: 58 }
+            dialogOffset: { x: 718, y: 58 },
+            dialogOffsetMob: { x: 10, y: 200 }
         },
         {
             id: 'midi',
@@ -121,14 +126,15 @@
                 if (piano) piano.click(); 
             },
             mouseLoop: false,
-            dialogOffset: { x: 308, y: 500 }
+            dialogOffset: { x: 308, y: 500 },
+            dialogOffsetMob: { x: 10, y: 400 }
         },
         {
             id: 'equalizer',
             label: 'Equalizer',
             subtitle: 'Open EQ and tweak points',
             target: '#eqBtn, #eqCanvas, .left-panel',
-            dialog: "Finally, open the Equalizer and tweak some points — hear how it\nchanges your sound in real time.",
+            dialog: "Finally, open the Equalizer and tweak some points. Hear\nhow it changes your sound in real time.",
             preAction: function() {
                 const eq = document.getElementById('eqBtn');
                 if (eq) eq.click();
@@ -596,96 +602,76 @@
         };
         let mouseLoopEl = null;
         if (step.mouseLoop) {
-            const loopTarget = step.mouseLoopSelector 
-                ? document.querySelector(step.mouseLoopSelector) 
-                : document.querySelector(step.target);
-            if (loopTarget) {
-                mouseLoopEl = document.createElement('div');
-                mouseLoopEl.style.position = 'absolute';
-                mouseLoopEl.id = 'mouseloop';
-                mouseLoopEl.style.pointerEvents = 'auto';
-                mouseLoopEl.style.cursor = 'crosshair';
-                mouseLoopEl.style.zIndex = 1000000;
-                let mlLeft = 600, mlTop = 250;
-                mouseLoopEl.innerHTML = `
-                    <img src="mouseloop.gif" width="500" height="500"
-                    style="opacity:1; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
-                        position:fixed; left:${mlLeft}px; top:${mlTop}px" />`;
-                document.body.appendChild(mouseLoopEl);
-                mouseLoopEl.style.transition = 'opacity 0.8s ease';
-                const fadeHandler = (e) => {
-                    mouseLoopEl.style.pointerEvents = 'none';
-                    canvasMouseDown(e, false);
-                    setTimeout(() => {
-                        mouseLoopEl.style.opacity = '0';
-                        setTimeout(() => mouseLoopEl.remove(), 800);
-                    }, 3000); 
-                };
-                mouseLoopEl.addEventListener('pointerdown', (e) => fadeHandler(e), { once: true });
-                pollers.push({
-                    type: 'event',
-                    node: loopTarget,
-                    ev: 'pointermove',
-                    fn: (e) => {
-                    }
-                });
-            }
-        }
-        if (w.type === 'mouseup' && w.selector) {
-            const node = document.querySelector(w.selector);
-            if (node) {
-                const fn = () => {
-                    stepCompleted(step);
-                };
-                node.addEventListener('pointerup', fn, {
-                    once: true
-                });
-                pollers.push({
-                    type: 'event',
-                    node,
-                    ev: 'pointerup',
-                    fn
-                });
-            } else {
-                const fallback = document.getElementById('canvas');
-                if (fallback) {
-                    const fn = () => stepCompleted(step);
-                    fallback.addEventListener('pointerup', fn, {
-                        once: true
-                    });
-                    pollers.push({
-                        type: 'event',
-                        node: fallback,
-                        ev: 'pointerup',
-                        fn
-                    });
-                } else {
-                    const tid = setTimeout(() => stepCompleted(step), 900);
-                    pollers.push({
-                        type: 'interval',
-                        id: tid
-                    });
+            const loopTarget = document.querySelector(step.mouseLoopSelector);
+            mouseLoopEl = document.createElement('div');
+            mouseLoopEl.style.position = 'absolute';
+            mouseLoopEl.id = 'mouseloop';
+            mouseLoopEl.style.pointerEvents = 'auto';
+            mouseLoopEl.style.cursor = 'crosshair';
+            mouseLoopEl.style.zIndex = 1000000;
+            let mlLeft = 600, mlTop = 250;
+            mouseLoopEl.innerHTML = `
+                <img src="mouseloop.gif" width="500" height="500"
+                style="opacity:1; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
+                    position:fixed; left:${mlLeft}px; top:${mlTop}px" />`;
+            document.body.appendChild(mouseLoopEl);
+            mouseLoopEl.style.transition = 'opacity 0.8s ease';
+            const fadeHandler = (e) => {
+                mouseLoopEl.style.pointerEvents = 'none';
+                canvasMouseDown(e, false);
+                setTimeout(() => {
+                    mouseLoopEl.style.opacity = '0';
+                    setTimeout(() => mouseLoopEl.remove(), 800);
+                }, 3000); 
+            };
+            mouseLoopEl.addEventListener('pointerdown', (e) => fadeHandler(e), { once: true });
+            pollers.push({
+                type: 'event',
+                node: loopTarget,
+                ev: 'pointermove',
+                fn: (e) => {
                 }
-            }
+            });
+        }
+        if (w.type === 'mouseup') {
+            const fn = () => {stepCompleted(step);};
+            document.addEventListener('pointerup', fn, {once: true});
+            document.addEventListener('touchend', fn, {once: true});
+            pollers.push({type:'event',document,ev:'pointerup',fn});
+            pollers.push({type:'event',document,ev:'touchend',fn});
             return;
         }
         if (w.type === 'complexPlayback') {
-            const id = setInterval(() => {
+            let sawPlaying = false;
+            let id = null;
+
+            const check = () => {
                 try {
-                    if (typeof playing !== 'undefined' &&
-                        typeof currentCursorX !== 'undefined' &&
-                        typeof specWidth !== 'undefined') {
-                        if (playing && (currentCursorX > (specWidth * 0.9))) {
-                            clearInterval(id);
-                            stepCompleted(step);
-                        }
+                if (typeof playing !== 'undefined') {
+                    if (playing) {
+                    sawPlaying = true;
+                    if (typeof currentCursorX !== 'undefined' && typeof specWidth !== 'undefined' &&
+                        currentCursorX > (specWidth * 0.9)) {
+                        clearInterval(id);
+                        stepCompleted(step);
+                        return;
                     }
-                } catch (e) {
+                    } else {
+                    if (sawPlaying) {
+                        clearInterval(id);
+                        stepCompleted(step);
+                        return;
+                    }
+                    }
                 }
-            }, transitionTime + 40);
+                } catch (e) {}
+            };
+            id = setInterval(check, transitionTime + 40);
+            check();
             pollers.push({ type: 'interval', id });
             return;
         }
+
         if (w.type === 'renderCycle') {
             const varNames = ['rendering', 'recording'];
             const sawTrue = {};
@@ -744,6 +730,11 @@
         }
         if (w.type === 'modifyBrush') {
             const container = document.querySelector('#brushSettings');
+            container.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'nearest'
+            });
             if (container && step._nextBtn) {
                 const inputs = container.querySelectorAll('input, select, textarea, button');
                 const fn = () => {
@@ -760,6 +751,7 @@
             return;
         }
         if (w.type === 'awaitNext') {
+            document.getElementById("fftParameters").scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
             if (step._nextBtn) {
                 step._nextBtn.disabled = false;
                 step._nextBtn.classList.remove('disabled');
@@ -791,6 +783,7 @@
             return;
         }
         if (w.type === 'clickThenNext') {
+            document.getElementById("exportMIDI").scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
             const node = document.querySelector(w.clickSelector);
             if (node) {
                 const fn = () => {
@@ -816,6 +809,10 @@
                 };
                 node.addEventListener('click', fn, { once: true });
                 pollers.push({ type: 'event', node, ev: 'click', fn });
+                node.addEventListener('pointerdown', fn, { once: true });
+                pollers.push({ type: 'event', node, ev: 'pointerdown', fn });
+                node.addEventListener('touchstart', fn, { once: true });
+                pollers.push({ type: 'event', node, ev: 'touchstart', fn });
             }
             return;
         }

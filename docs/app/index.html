@@ -1560,14 +1560,14 @@ function getMouseXY(e,touch) {
     return [e.clientX, e.clientY];
   }
 }
-logscaleEl.addEventListener("mousedown", e=> {
+logscaleEl.addEventListener("pointerdown", e=> {
   logScaleMouseDown(e,false);
 });
 logscaleEl.addEventListener("touchstart", e=> {
-  logScaleMouseDown(e.true);
+  logScaleMouseDown(e,true);
 });
 function logScaleMouseDown(e,touch) {
-  if (e.button !== 0) return;
+  if (!e||e.button !== 0) return;
   const rect= logscaleEl.getBoundingClientRect();
   changingLogScale = true;
   [startX, startY] = getMouseXY(e,touch);
@@ -1575,12 +1575,6 @@ function logScaleMouseDown(e,touch) {
   renderFullSpectrogramToImage();
   drawLogScale();
 }
-logscaleEl.addEventListener("mousedown", e=> {
-  logScaleMouseDown(e,false);
-});
-logscaleEl.addEventListener("touchstart", e=> {
-  logScaleMouseDown(e,true);
-});
 
 function logScaleMouseMove(e,touch) {
   logscaleEl.style.cursor = "n-resize";

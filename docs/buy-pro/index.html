@@ -262,13 +262,13 @@ This early-access offer is limited and may end in about a month (exact date TBD)
 1. Make sure that you are signed into a SpectroDraw account.<br>
 2. In the section below, leave a review and create a social media post about SpectroDraw. *<br></p>
 <small>*This small step helps more people discover SpectroDraw and supports ongoing development.<br></small>
-<p>Once your account is activated, you’ll be automatically notified when Pro launches — and you’ll get full access to all new features at no cost, forever.
+<p>Once your account is activated, you’ll be automatically notified when Pro launches, and you’ll get full access to all new features at no cost, forever.
 We’ll never ask you to pay for Pro after your early acess activation.</p>
   </section>
   <!-- Progress / "checkout" style flow -->
   <section class="section" aria-labelledby="progress-title" style="margin-top:18px;">
     <div id="requireSignin" style="font-size:.95rem;color:var(--muted);">You must be signed in to claim Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signin-cta" href="#">Sign up</a></div>
-    <h3 id="progress-title" style="margin:0 0 20px 0;">Claim SpectroDraw Pro for Free — complete these 2 quick steps</h3>
+    <h3 id="progress-title" style="margin:0 0 20px 0;">Claim SpectroDraw Pro for Free</h3>
     <div id="progress-wrap" style="display:flex;flex-direction:column;gap:18px;align-items:stretch;">
       <!-- Visual progress bar (same as before) -->
       <div id="progress-bar" style="position:relative;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow2);">
@@ -383,7 +383,7 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
             <div id="social-status" style="margin-top:8px;color:var(--muted);font-size:.95rem"></div>
 
             <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <button id="manual-verify" type="button" >I shared — verify</button>
+              <button id="manual-verify" type="button" >I shared! Verify</button>
             </div>
           </div>
         </section>
@@ -688,7 +688,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
     // If shareTentative is true but shareSent is false, inform the status
     if(progress.shareTentative && !progress.shareSent){
       socialStatus.style.color = '';
-      socialStatus.textContent = 'Share popup closed — click "I shared — verify" or click Next to continue.';
+      socialStatus.textContent = 'Share popup closed. Click "I shared! Verify" or click Next to continue.';
     }
     try {
       const email = getCurrentUserEmail();
@@ -987,7 +987,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
           const popup = openPopup(url, 'Share to Pinterest', 800, 720);
           if (!popup) {
             socialStatus.style.color = '#ffb4b4';
-            socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
+            socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.';
             return;
           }
           const poll = setInterval(() => {
@@ -997,7 +997,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
                 progress.shareTentative = true;
                 saveStateForCurrentUser();
                 socialStatus.style.color = '#b7ffd6';
-                socialStatus.textContent = `Popup closed. If you completed a share on Pinterest, click "I shared — verify" or click Next.`;
+                socialStatus.textContent = `Popup closed. If you completed a share on Pinterest, click "I shared, Verify" or click Next.`;
                 render();
               }
             } catch (e) {
@@ -1036,16 +1036,16 @@ SpectroDraw bridges the gap between technical audio editing and creative express
         socialStatus.textContent = `Opening LinkedIn composer...`;
         const url = shareIntentUrl('linkedin', shareLinkInput, suggestedText, '', document.title);
         const popup = openPopup(url, `Share to LinkedIn`, 900, 700);
-        if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.'; return; }
+        if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.'; return; }
         try {
           const posted = await detectPopupPost(popup, 'linkedin'/*, { timeout: 30000 }*/);
           if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on LinkedIn. Unlocking...`; markShared(); }
-          else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on LinkedIn, click "I shared — verify" or click Next.`; render(); }
+          else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on LinkedIn, click "I shared! Verify" or click Next.`; render(); }
         } catch (err) {
           console.error('detectPopupPost error', err);
           progress.shareTentative = true; saveStateForCurrentUser();
           socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Popup closed. If you completed a share on LinkedIn, click "I shared — verify" or click Next.`;
+          socialStatus.textContent = `Popup closed. If you completed a share on LinkedIn, click "I shared! Verify" or click Next.`;
           render();
         }
       } catch (err) {
@@ -1100,17 +1100,17 @@ SpectroDraw bridges the gap between technical audio editing and creative express
           socialStatus.textContent = `Opening ${provider} composer... (remember to attach the video when posting)`;
           const url = shareIntentUrl(provider, shareLinkInput, body, mediaUrl, title || body.slice(0,120), 'IMAGE');
           const popup = openPopup(url, title, 900, 700);
-          if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.'; return; }
+          if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.'; return; }
 
           try {
             const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
             if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on v. Unlocking...`; markShared(); }
-            else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared — verify" or click Next.`; render(); }
+            else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared! Verify" or click Next.`; render(); }
           } catch (err) {
             console.error('detectPopupPost error', err);
             progress.shareTentative = true; saveStateForCurrentUser();
             socialStatus.style.color = '#b7ffd6';
-            socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+            socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
             render();
           }
           return;
@@ -1131,17 +1131,17 @@ SpectroDraw bridges the gap between technical audio editing and creative express
         socialStatus.textContent = 'Opening Reddit composer...';
         const url = shareIntentUrl(provider, shareLinkInput, combinedText, '', title || combinedText.slice(0,120));
         const popup = openPopup(url, `Share to ${provider}`, 900, 700);
-        if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.'; return; }
+        if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.'; return; }
 
         try {
           const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
           if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on ${provider}. Unlocking...`; markShared(); }
-          else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared — verify" or click Next.`; render(); }
+          else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared! Verify" or click Next.`; render(); }
         } catch (err) {
           console.error('detectPopupPost error', err);
           progress.shareTentative = true; saveStateForCurrentUser();
           socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
           render();
         }
 
@@ -1254,7 +1254,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
         } catch (err) {
           console.error('download error', err);
           socialStatus.style.color = '#ffb4b4';
-          socialStatus.textContent = 'Download failed — try right-click -> Save link as...';
+          socialStatus.textContent = 'Download failed. Try right-click -> Save link as...';
         }
       };
 
@@ -1298,7 +1298,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
       const popup = openPopup(url, `Share to ${provider}`, 850, 650);
       if (!popup) {
         socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Popup blocked — allow popups for this site and try again.';
+        socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.';
         return;
       }
 
@@ -1313,7 +1313,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
           progress.shareTentative = true;
           saveStateForCurrentUser();
           socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
           render();
         }
       } catch (err) {
@@ -1321,7 +1321,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
         progress.shareTentative = true;
         saveStateForCurrentUser();
         socialStatus.style.color = '#b7ffd6';
-        socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared — verify" or click Next.`;
+        socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
         render();
       }
 
@@ -1384,7 +1384,7 @@ function showTextCopyModal(opts = {}) {
         socialStatus.textContent = 'Copied text to clipboard.';
       } catch (err) {
         socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Unable to copy automatically — please highlight and copy manually.';
+        socialStatus.textContent = 'Unable to copy automatically. Please highlight and copy manually.';
         // still allow proceed
       }
     });
@@ -1534,7 +1534,7 @@ function showImageDownloadModal(images = [], opts = {}) {
         } catch (err) {
           console.error('Download error', err);
           socialStatus.style.color = '#ffb4b4';
-          socialStatus.textContent = 'Download failed — try right-click -> Save image as...';
+          socialStatus.textContent = 'Download failed. Try right-click -> Save image as...';
         }
 
         return;
@@ -1569,9 +1569,6 @@ function showImageDownloadModal(images = [], opts = {}) {
     }, 40);
   });
 }
-/* ---------- Helper: image-picker modal (returns a Promise that resolves to chosen image object or null) ---------- */
-// compact innerHTML-based image picker
-// replacement showImagePickerModal — compact, innerHTML, fixed delegation, upload button wired
 function showImagePickerModal(images, opts = {}) {
   const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
   return new Promise((resolve) => {
@@ -1736,7 +1733,6 @@ function showImagePickerModal(images, opts = {}) {
       }
     };
 
-    // NOTE: do NOT stop propagation on the box — delegation needs to see the clicks.
     root.addEventListener('click', onClick);
     document.addEventListener('keydown', onKey);
 
@@ -1833,7 +1829,7 @@ function detectPopupPost(popup, provider, opts = {}) {
     // No evidence a popup was opened
     if (!openedAt && !popup) {
       socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'No share popup detected — please click a social button to open the share window first.';
+      socialStatus.textContent = 'No share popup detected. Please click a social button to open the share window first.';
       return;
     }
 
@@ -1841,7 +1837,7 @@ function detectPopupPost(popup, provider, opts = {}) {
     try {
       if (popup && !popup.closed) {
         socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Share popup is still open — please complete the share and close the popup, then click "I shared — verify".';
+        socialStatus.textContent = 'Share popup is still open. Please complete the share and close the popup, then click "I shared! Verify".';
         return;
       }
     } catch (err) {
@@ -1860,7 +1856,7 @@ function detectPopupPost(popup, provider, opts = {}) {
         } catch(e){}
 
         socialStatus.style.color = '#b7ffd6';
-        socialStatus.textContent = 'Popup closed — verifying share...';
+        socialStatus.textContent = 'Popup closed. Verifying share...';
         markShared();
         return;
       } catch (err) {
@@ -1873,7 +1869,7 @@ function detectPopupPost(popup, provider, opts = {}) {
 
     // otherwise, we couldn't confirm a closed popup yet
     socialStatus.style.color = '#ffb4b4';
-    socialStatus.textContent = 'No closed share popup detected — please open the share window and close it, then click "I shared — verify".';
+    socialStatus.textContent = 'No closed share popup detected. Please open the share window and close it, then click "I shared! Verify".';
   });
 
 
@@ -1979,7 +1975,6 @@ function detectPopupPost(popup, provider, opts = {}) {
 
     // If review submitted but share not verified -> open the share panel for verification
     if(progress.reviewSubmitted && !progress.shareSent){
-      // Show share UI — user can verify or use Next to proceed
       shareSection.style.display = 'block';console.log('1988');
       reviewSection.style.display = 'none';
       shareSection.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -2165,7 +2160,7 @@ window.addEventListener('message', async (ev) => {
   } catch (err) {
     console.error('oauth message handler error', err);
     socialStatus.style.color = '#ffb4b4';
-    socialStatus.textContent = 'Sign-in error — try again.';
+    socialStatus.textContent = 'Sign-in error. Try again.';
   }
 });
 

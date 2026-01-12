@@ -1070,3 +1070,6 @@ svg.tutorial-spotlight.hide {
     padding: 6px;
   }
 }
+html, body {
+  overscroll-behavior: none;
+}

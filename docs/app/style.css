@@ -304,7 +304,7 @@ canvas {
 }
 
 /* numeric input on the right — guaranteed visible */
-.slider-row input[type="number"] {
+.slider-row input[type="number"], #masterVolumeInput {
   flex: 0 0 50px;      /* visible width */
   width: 50px;
   min-width: 50px;

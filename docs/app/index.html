@@ -424,6 +424,11 @@
         <path d="M4 20a9 9 0 0 1 15-6.7L19 10"/>
       </svg>
     </button>
+    <div title="Master Volume" style="display:flex;" id="masterVolumeDiv">
+        <label class="h2">Volume</label>
+        <input id="masterVolume" style="max-width:100px;" type="range" min="0" max="1" value="1" step="0.01">
+        <input id="masterVolumeInput" style="width:45px;"type="number" value="1" min="0" max="1">
+    </div>
   </header>
   <aside class="left-bar">
     <button class="panel-btn" id="settingsBtn" title="Project info (g)" data-tool="1">
@@ -517,8 +522,8 @@
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
       <div class="slider-row" title="Preview sound while drawing">
           <label class="h2">Playback volume</label>
-          <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
-          <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
+          <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
+          <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
       </div>
       <div class="slider-row" title="Preview sound while drawing">
           <label class="h2">Draw volume</label>
@@ -980,7 +985,7 @@
       height:100%;
   ">
     <h2>Pro Feature</h2>
-    <p id="proOverlayText">This feature is available for Pro users only.</p>
+    <p>This feature is available for Pro users only.</p>
     <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="https://spectrodraw.com/buy-pro/" style="color:black;text-decoration: none;">Get Pro for free, forever with the Early Access Deal!</a></button>
   </div>
 
@@ -1032,7 +1037,9 @@
                    [document.getElementById('amp'), document.getElementById('ampInput')],
                    [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
                    [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
-                   [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],];
+                   [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],
+                   [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
+                   [document.getElementById('masterVolume'), document.getElementById('masterVolumeInput')],];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -1301,7 +1308,30 @@ panelButtons.forEach(btn => {
     for (let i = 1; i < 7; i++){
       document.getElementById("d"+i).style.display = (parseInt(currentPanel) === i) ? "block" : "none";
     }
-    if (window.hasPro) document.getElementById("proOverlayText").innerText = "";
+    if (window.hasPro) {
+      document.getElementById("proOverlay").innerHTML = `
+      <h2>Pro Feature</h2>
+      <p>Thanks for claiming Pro! This feature will unlock for you in</p>
+      <p id="proOverlaycountdown" style="color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);"></p>
+      <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="https://spectrodraw.com/faq/pro-features/" style="color:black;text-decoration: none;">View Pro Features</a></button>
+      `;
+      const targetDate = new Date("February 15, 2026 00:00:00").getTime();
+      const content = document.getElementById("proOverlaycountdown");
+      function updateCountdown() {
+        const now = Date.now();
+        let diff = targetDate - now;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        diff %= 1000 * 60 * 60 * 24;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        diff %= 1000 * 60 * 60;
+        const minutes = Math.floor(diff / (1000 * 60));
+        diff %= 1000 * 60;
+        const seconds = Math.floor(diff / 1000);
+        content.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+      }
+      updateCountdown();
+      const timer = setInterval(updateCountdown, 1000);
+    }
     document.getElementById("proOverlay").style.display = (currentPanel == "2" || currentPanel == "3" || currentPanel == "6" || currentPanel == "7")?(window.innerWidth<=700?"block":"flex"):"none";
     if (currentPanel === "5") drawEQ();
   });
@@ -1368,6 +1398,9 @@ shapeButtons.forEach(btn => {
 fileB.addEventListener("click", () => {
   file.click();
 });
+function showOrHideMasterVolume(){document.getElementById("masterVolumeDiv").style.display=(window.innerWidth<1400)?"none":"";};
+showOrHideMasterVolume();
+window.addEventListener("resize",showOrHideMasterVolume);
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
 uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--accent-gradient)";});
@@ -2117,7 +2150,7 @@ function canvasMouseDown(e,touch) {
         sineOsc = audioCtx.createOscillator();
         sineOsc.type = "sine";
         sineGain = audioCtx.createGain();
-        sineGain.gain.value = 0.2 * document.getElementById("drawVolume").value;
+        sineGain.gain.value = 0.2 * document.getElementById("drawVolume").value*document.getElementById('masterVolume').value;
         sineOsc.connect(sineGain).connect(audioCtx.destination);
         setSineFreq(realY); 
         sineOsc.start();
@@ -2526,10 +2559,19 @@ async function playPCM(loop = true, startFrame = null) {
 
   try {
     const targetNode = _getPlaybackTarget();
-    sourceNode.connect(targetNode);
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.setValueAtTime(document.getElementById("playbackVolume").value*document.getElementById('masterVolume').value, audioCtx.currentTime);
+
+    sourceNode.connect(gainNode);
+    gainNode.connect(targetNode);
   } catch (e) {
-    try { sourceNode.connect(audioCtx.destination); } catch (e2) { console.warn("connect fallback failed", e2); }
+    try {
+      sourceNode.connect(audioCtx.destination);
+    } catch (e2) {
+      console.warn("connect fallback failed", e2);
+    }
   }
+
 
   const offsetSec = startSample / sampleRate;
   sourceStartTime = audioCtx.currentTime - offsetSec;

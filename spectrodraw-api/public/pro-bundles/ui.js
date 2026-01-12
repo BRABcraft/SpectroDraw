@@ -481,7 +481,7 @@ function keyBind(event) {
       }
     } else {
       if (key === 's') {
-        document.getElementById('downloadButton').click();
+        document.getElementById('downloadSpectrogram').click();
       }
     }
   }
@@ -622,7 +622,7 @@ async function saveProject() {
     fftSize,
     hop: hopSizeEl.value,
     bufferLength: emptyAudioLengthEl.value,
-    previewWhileDrawing: document.getElementById("previewWhileDrawing").checked,
+    drawVolume: document.getElementById("drawVolume").checked,
     logScaleVal,
     trueScaleVal,
     useHz,
@@ -717,9 +717,9 @@ function openProject(file) {
       if (parsed.channelCount !== undefined) channelCount = parsed.channelCount;
       if (parsed.hop !== undefined) hopSizeEl.value = parsed.hop;
       if (parsed.bufferLength !== undefined) emptyAudioLengthEl.value = parsed.bufferLength;
-      if (parsed.previewWhileDrawing !== undefined) {
-        const pEl = document.getElementById("previewWhileDrawing");
-        if (pEl) pEl.checked = !!parsed.previewWhileDrawing;
+      if (parsed.drawVolume !== undefined) {
+        const pEl = document.getElementById("drawVolume");
+        if (pEl) pEl.checked = !!parsed.drawVolume;
       }
       if (parsed.logScaleVal !== undefined) logScaleVal = parsed.logScaleVal;
       if (parsed.trueScaleVal !== undefined) window.trueScaleVal = parsed.trueScaleVal;

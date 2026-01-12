@@ -138,7 +138,7 @@ function canvasMouseDown(e,touch) {
     paint(cx + iLow, realY);
   }
   currentFrame = Math.floor(cx);
-  if (document.getElementById("previewWhileDrawing").checked) {
+  if (document.getElementById("drawVolume").checked) {
     ensureAudioCtx();
     mouseDown = true;
     playFrame(currentFrame);

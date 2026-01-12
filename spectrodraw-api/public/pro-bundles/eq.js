@@ -322,7 +322,7 @@ function getCanvasPos(evt) {
 
 EQcanvas.addEventListener('pointerdown', (evt) => {  
   ensureAudioCtx();
-  if (!sineOsc && !playing && document.getElementById("previewWhileDrawing").checked) {
+  if (!sineOsc && !playing && document.getElementById("drawVolume").checked) {
       sineOsc = audioCtx.createOscillator();
       sineOsc.type = "sine";
       sineGain = audioCtx.createGain();

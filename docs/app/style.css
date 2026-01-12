@@ -86,9 +86,7 @@ canvas {
 }
 
 /* ----------------- BUTTONS ----------------- */
-.tool-btn, .leftBtn, .shape-btn,
-#downloadWav, #downloadButton, #resetButton, #playPause, #stop,
-#trueScale, #fileB, #rec, #yAxisMode, #undoBtn, #redoBtn, #home {
+.tool-btn, .leftBtn, .shape-btn, .top-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -158,10 +156,7 @@ canvas {
 }
 
 /* neon glow hover */
-.tool-btn:hover,  
-#downloadWav:hover, #downloadButton:hover, #resetButton:hover,
-#playPause:hover, #stop:hover, #trueScale:hover,
-#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover, #home:hover{
+.tool-btn:hover, .top-btn:hover{
   transform: translateY(-2px);
   box-shadow: 0 0 8px #fff, 0 0 8px #9333ea,
               0 0 16px #ec4899, 0 0 16px #4f46e5;
@@ -273,7 +268,7 @@ canvas {
   display: flex;
   align-items: center;
   gap: 8px; /* space between label, slider, input */
-  margin: 6px 0;
+  margin: 4px 0;
   box-sizing: border-box;
   width: 100%;
   overflow: visible;

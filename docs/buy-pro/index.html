@@ -173,6 +173,16 @@
 .btn-primary:hover::before {
   background: rgba(7, 8, 11, 0.3); 
 }
+@media (max-width: 900px) {
+  #countdown{
+    font-size: 40px !important;
+    height: 50px !important;
+  }
+  #image-area{
+    display:none;
+  }
+}
+#signin-cta,#signup-cta{color:#800;}
   </style>
 </head>
 <body>
@@ -243,8 +253,8 @@
       </form>
     </div>
   </div>
-  <link rel="stylesheet" type="text/css" href="/accounts.css">
-  <script src="/accounts.js"></script>
+  <link rel="stylesheet" type="text/css" href="../accounts.css">
+  <script src="../accounts.js"></script>
 
   <header class="hero">
     <div class="hero-inner fade-in">
@@ -253,7 +263,7 @@
   </header>
 
 <main class="wrap">
-  <div style="align-items: center; justify-content: center; display:flex;"><h1 id="countdown" style="font-size:30px;padding:0;margin:0;height:140px;"></h1></div>
+  <div style="align-items: center; justify-content: center; display:flex;"><h1 id="countdown" style="font-size:50px;padding:0;margin:0;height:100px;color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);"></h1></div>
   <section class="section body-copy">
     <h1 id="body-placeholder">Congratulations, you made it here early! 🎉</h1>
 <p>SpectroDraw Pro is still in development and hasn’t been officially released yet, <strong>but as an early visitor, you can get lifetime access for free (no credit card required).</strong><br>
@@ -267,7 +277,7 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
   </section>
   <!-- Progress / "checkout" style flow -->
   <section class="section" aria-labelledby="progress-title" style="margin-top:18px;">
-    <div id="requireSignin" style="font-size:.95rem;color:var(--muted);">You must be signed in to claim Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signin-cta" href="#">Sign up</a></div>
+    <div id="requireSignin" style="font-size:2rem;color:red;">You must be signed in to claim Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signup-cta" href="#">Sign up</a></div>
     <h3 id="progress-title" style="margin:0 0 20px 0;">Claim SpectroDraw Pro for Free</h3>
     <div id="progress-wrap" style="display:flex;flex-direction:column;gap:18px;align-items:stretch;">
       <!-- Visual progress bar (same as before) -->
@@ -433,20 +443,15 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
     </div>
   </section>
 </main>
-
-  <!-- Updated JS for inline review (put before closing body tag) -->
-  <!-- REPLACE the old inline script with this one -->
 <script>
 (function(){
-  /* ---------- per-user state key handling ---------- */
   const stateKeyBase = 'sd_earlyAccess_progress_v1';
-  let currentUserId = null; // will be set in checkAuth/loadState
+  let currentUserId = null;
   function getCurrentUserId() {
     try {
       const raw = localStorage.getItem('spectrodraw_user');
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      // try common fields; fallback to raw string
       return parsed?.id || parsed?.user_id || parsed?.email || parsed || null;
     } catch (e) {
       return null;
@@ -464,20 +469,18 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
     } catch (e) { return null; }
   }
 
-
-  /* ---------- default progress structure ---------- */
   let progress = {
     loggedIn: false,
     reviewSubmitted: false,
-    shareSent: false,        // verified share
-    shareTentative: false,   // popup closed but not verified
+    shareSent: false,
+    shareTentative: false,
     claimed: false,
     rating: 0,
     reviewText: '',
-    inviteEmails: []
+    inviteEmails: [],
+    currentStep: 1
   };
 
-  /* ---------- elements ---------- */
   const reviewSection = document.getElementById('inline-review');
   const submitReviewBtn = document.getElementById('submit-review');
   const starsInline = document.querySelectorAll('#stars-inline .star');
@@ -507,53 +510,6 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
   const claimInput = document.getElementById('claim-input');
   const claimConfirmBtn = document.getElementById('claim-confirm');
   const claimHelp = document.getElementById('claim-help');
-
-  async function checkClaimedOnServer() {
-    try {
-      const email = getCurrentUserEmail();
-      if (!email) return; // no user logged in
-
-      const stored = (() => {
-        try { return localStorage.getItem('spectrodraw_user'); }
-        catch (e) { return null; }
-      })();
-
-      const headers = { 'Accept': 'application/json' };
-      if (stored) headers['X-Spectrodraw-User'] = stored;
-
-      const res = await fetch('https://api.spectrodraw.com/api/products', {
-        method: 'GET',
-        credentials: 'include',
-        headers
-      });
-
-      if (!res.ok) return;
-
-      const j = await res.json().catch(() => null);
-      if (!j || !Array.isArray(j.products)) return;
-
-      // ✅ check if current email is in the claims list
-      const found = j.products.some(entry =>
-        entry && typeof entry.email === 'string' &&
-        entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
-      );
-
-      if (found) {
-        progress.claimed = true;
-        saveStateForCurrentUser();
-
-        if (typeof setClaimedUI === 'function') {
-          try { setClaimedUI(); } catch (e) { console.warn('setClaimedUI failed', e); }
-        }
-        try { gotoStep(3); } catch (e) { console.log(e);/* ignore */ }
-        render();
-      }
-
-    } catch (err) {
-      console.warn('checkClaimedOnServer error', err);
-    }
-  }
-
 
   let mediaLink = '';
 
@@ -588,13 +544,13 @@ Hear your images as sound and see your sound as images. Use the "Overlay image" 
 Use amplify or erase to modify the harmonic overtones of an audio to change the timbre. Automatically remove all harmonic overtones with the push of a button, leaving behind just the base sine wave notes.
 
 ---- 🔎 Edit visually: 🔎 ----
-For sound designers, SpectroDraw simplifies complex tasks by revealing audio problems like noise or artifacts in a visually.
+For sound designers, SpectroDraw simplifies complex tasks by revealing audio problems like noise or artifacts visually.
 
 ---- 🎹 Export MIDI: 🎹 ----
 Spectrodraw features one of the cleanest audio-to-MIDI converting algorithms. Convert your spectrogram to MIDI using an AI optimized for music or an algorithm optimized for sound effects.
 
 ☑️ Accessible to anyone
-No login. No installs. No popups. Just open the app it in your browser - it’s 100% free.
+No login. No installs. No popups. Just open the app in your browser - it’s 100% free.
 
 ==== For sound designers and music creators ====
 SpectroDraw bridges the gap between technical audio editing and creative expression, offering a playful, intuitive, and visually driven approach to sound. By democratizing spectral editing, it aims to change how artists experiment, remix, and shape their audio, one brushstroke at a time. Try it free at https://spectrodraw.com
@@ -602,29 +558,23 @@ SpectroDraw bridges the gap between technical audio editing and creative express
   const shortPost = `I just claimed SpectroDraw Pro ($20) for free! Claim yours before the early access offer ends! \n SpectroDraw is the world's first interactive spectrogram editor for sound designers. \n\n https://spectrodraw.com`;
   let postText = '';
 
-  /* ---------- storage helpers (per-user) ---------- */
   function loadStateForCurrentUser(){
     const key = stateKeyFor(currentUserId);
     try{
       const raw = localStorage.getItem(key);
       if(raw){
         const parsed = JSON.parse(raw);
-        // merge parsed into progress (preserve missing fields)
         progress = Object.assign({
           loggedIn:false, reviewSubmitted:false, shareSent:false,
           shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
         }, parsed);
       } else {
-        // keep defaults but ensure loggedIn reflects currentUserId
         progress = Object.assign({
           loggedIn:false, reviewSubmitted:false, shareSent:false,
           shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
         }, progress);
       }
-    }catch(e){
-      // ignore error and keep defaults
-    }
-    // make sure loggedIn matches currentUserId presence
+    }catch(e){}
     progress.loggedIn = !!currentUserId;
   }
 
@@ -676,8 +626,8 @@ SpectroDraw bridges the gap between technical audio editing and creative express
     const statusEl = document.getElementById('requireSignin');
     if(!progress.loggedIn){
       if(statusEl) statusEl.style.display = "block";
-      const newSignin = document.getElementById('signin-cta');
-      if(newSignin) newSignin.addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signin-link').click(); });
+      document.getElementById('signin-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signin-link').click(); });
+      document.getElementById('signup-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signup-link').click(); });
     } else {
       if(statusEl) statusEl.style.display = "none";
     }
@@ -703,7 +653,6 @@ SpectroDraw bridges the gap between technical audio editing and creative express
         reviewSection.style.display = 'none';
         document.getElementById('inline-review').style.display = 'none';
       } else {
-        console.log('656');
         claimSection.style.display = 'none';
         shareSection.style.display = progress.reviewSubmitted?'block':'none';
         reviewSection.style.display = progress.reviewSubmitted?'none':'block';
@@ -1880,7 +1829,7 @@ function detectPopupPost(popup, provider, opts = {}) {
     saveStateForCurrentUser();
     render();
     // hide the share UI after short delay
-    setTimeout(()=>{ shareSection.style.display = 'none'; reviewSection.style.display = ''; }, 450);
+    setTimeout(()=>{ shareSection.style.display = 'none'; reviewSection.style.display = 'none'; }, 450);
   }
   function setClaimedUI() {
     try {
@@ -1910,7 +1859,6 @@ function detectPopupPost(popup, provider, opts = {}) {
       console.warn('Could not update claim section UI', e);
     }
   }
-  /* ---------- CLAIM logic (same flow but uses per-user state) ---------- */
   async function performClaim(){
     if(!progress.loggedIn) { alert('Please sign in before claiming.'); return; }
     claimBtn.disabled = true;
@@ -1936,33 +1884,25 @@ function detectPopupPost(popup, provider, opts = {}) {
         throw new Error(j.message || 'Unable to claim');
       }
       const j = await res.json();
-            if (j.claimed) {
-        // mark claimed in state (persist)
+      if (j.claimed) {
         progress.claimed = true;
         saveStateForCurrentUser();
-
-        // Keep the user on the claim section and replace its contents
         setClaimedUI();
-
-        // Update visual state (without calling render() which would hide the claim section)
         try {
           setNodeVisual(node3, true);
           connector1Fill.style.width = '100%';
           connector2Fill.style.width = '100%';
           progressPercentEl.textContent = '100%';
-        } catch (e) { /* ignore UI update errors */ }
-
-        // update claim button state (if it still exists)
+        } catch (e) {}
         try {
           claimBtn.textContent = 'Claimed ✓';
           claimBtn.disabled = true;
           claimBtn.style.cursor = 'default';
-        } catch (e) { /* ignore */ }
+        } catch (e) {}
 
       } else {
         throw new Error(j.message || 'Server denied claim');
       }
-
     }catch(err){
       alert('Claim failed: ' + err.message + '. Make sure you are signed in and completed the required steps.');
       claimBtn.disabled = false;
@@ -1972,22 +1912,18 @@ function detectPopupPost(popup, provider, opts = {}) {
 
   claimBtn.addEventListener('click', async ()=>{
     if(claimBtn.disabled) return;
-
-    // If review submitted but share not verified -> open the share panel for verification
     if(progress.reviewSubmitted && !progress.shareSent){
-      shareSection.style.display = 'block';console.log('1988');
+      shareSection.style.display = 'block';
       reviewSection.style.display = 'none';
       shareSection.scrollIntoView({ behavior:'smooth', block:'center' });
       return;
     }
 
-    // If review + share verified -> perform claim
     if(progress.shareSent && progress.loggedIn && !progress.claimed){
       await performClaim();
     }
   });
 
-  /* ---------- NODE navigation (click nodes to switch) ---------- */
   async function gotoStep(n){
     console.log('gotostep', n);
     if(n === 1){
@@ -1998,7 +1934,6 @@ function detectPopupPost(popup, provider, opts = {}) {
       return;
     }
     if(n === 2) {
-      // If user hasn't submitted review, move to review first
       if(!progress.reviewSubmitted){
         console.log('2014');
         reviewSection.style.display = '';
@@ -2014,7 +1949,6 @@ function detectPopupPost(popup, provider, opts = {}) {
       return;
     }
     if(n === 3){
-      // If already claimed - show message
       if(!progress.reviewSubmitted) return;
       claimSection.style.display = 'block';
       reviewSection.style.display = 'none';
@@ -2022,7 +1956,6 @@ function detectPopupPost(popup, provider, opts = {}) {
     }
   }
 
-  // attach listeners to nodes (the clickable circles)
   [node1, node2, node3].forEach((node, idx)=>{
     if(!node) return;
     const step = idx + 1;
@@ -2030,14 +1963,55 @@ function detectPopupPost(popup, provider, opts = {}) {
     node.addEventListener('click', ()=> gotoStep(step));
   });
 
-  /* ---------- init ---------- */
-  // load initial user and state
   currentUserId = getCurrentUserId();
   loadStateForCurrentUser();
   checkAuth();
   render();
+  async function checkClaimedOnServer() {
+    try {
+      const email = getCurrentUserEmail();
+      if (!email) return;
 
-  // Immediately confirm server-side claim state for this user (do not rely on local progress.claimed alone)
+      const stored = (() => {
+        try { return localStorage.getItem('spectrodraw_user'); }
+        catch (e) { return null; }
+      })();
+
+      const headers = { 'Accept': 'application/json' };
+      if (stored) headers['X-Spectrodraw-User'] = stored;
+
+      const res = await fetch('https://api.spectrodraw.com/api/products', {
+        method: 'GET',
+        credentials: 'include',
+        headers
+      });
+
+      if (!res.ok) return;
+
+      const j = await res.json().catch(() => null);
+      if (!j || !Array.isArray(j.products)) return;
+
+      // ✅ check if current email is in the claims list
+      const found = j.products.some(entry =>
+        entry && typeof entry.email === 'string' &&
+        entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
+      );
+
+      if (found) {
+        progress.claimed = true;
+        saveStateForCurrentUser();
+
+        if (typeof setClaimedUI === 'function') {
+          try { setClaimedUI(); } catch (e) { console.warn('setClaimedUI failed', e); }
+        }
+        try { gotoStep(3); } catch (e) { console.log(e);/* ignore */ }
+        render();
+      }
+
+    } catch (err) {
+      console.warn('checkClaimedOnServer error', err);
+    }
+  }
   (async () => {
     try {
       await checkClaimedOnServer();
@@ -2191,7 +2165,7 @@ window.addEventListener('message', async (ev) => {
       const minutes = Math.floor(diff / (1000 * 60));
       diff %= 1000 * 60;
       const seconds = Math.floor(diff / 1000);
-      content.innerHTML = `<h1 style="color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);">${days}d ${hours}h ${minutes}m ${seconds}s</h1>`;
+      content.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
     }
     updateCountdown();
     const timer = setInterval(updateCountdown, 1000);

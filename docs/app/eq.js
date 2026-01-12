@@ -324,11 +324,11 @@ function getCanvasPos(evt) {
 
 EQcanvas.addEventListener('pointerdown', (evt) => {  
   ensureAudioCtx();
-  if (!sineOsc && !playing && document.getElementById("previewWhileDrawing").checked) {
+  if (!sineOsc && !playing) {
       sineOsc = audioCtx.createOscillator();
       sineOsc.type = "sine";
       sineGain = audioCtx.createGain();
-      sineGain.gain.value = 0.2;
+      sineGain.gain.value = 0.2*document.getElementById("drawVolume").value;
       sineOsc.connect(sineGain).connect(audioCtx.destination);
       sineOsc.frequency.setTargetAtTime(yToFreq(getCanvasPos(evt).y, EQcanvas.height), audioCtx.currentTime, 0.01);
       sineOsc.start();

@@ -171,7 +171,7 @@ input[type="range"]::-moz-range-thumb:hover {
 
 /* neon glow hover */
 .tool-btn:hover,  
-#downloadWav:hover, #downloadButton:hover, #resetButton:hover,
+#downloadWav:hover, #downloadSpectrogram:hover, #resetButton:hover,
 #playPause:hover, #stop:hover, #trueScale:hover,
 #fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover, #home:hover {
   transform: translateY(-2px);

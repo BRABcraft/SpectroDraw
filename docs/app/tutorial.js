@@ -1,6 +1,6 @@
 (function() {
     const transitionTime = 820; 
-    const testingTutorial = true;
+    const testingTutorial = false;
     const steps = [{
             id: 'spectrogram',
             label: 'Welcome to SpectroDraw!',
@@ -98,11 +98,11 @@
             id: 'save',
             label: 'Download / Export',
             subtitle: 'Download Audio or Spectrogram',
-            target: '#downloadWav, #downloadButton',
+            target: '#downloadWav, #downloadSpectrogram',
             dialog: "Ready to save? Click Download Audio or Download Spectrogram to export your work.",
             waitFor: {
                 type: 'clickEither',
-                selectors: ['#downloadWav', '#downloadButton']
+                selectors: ['#downloadWav', '#downloadSpectrogram']
             },
             showNext: false,
             preAction: null,

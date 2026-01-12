@@ -167,7 +167,7 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 });
-document.getElementById('downloadButton').addEventListener('click', function() {
+document.getElementById('downloadSpectrogram').addEventListener('click', function() {
     let oil = iLow; oih = iHigh; ofl = fLow; ofh = fHigh;
     iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2; updateCanvasScroll();
     let canvasUrl = canvas.toDataURL('image/png');
@@ -177,4 +177,156 @@ document.getElementById('downloadButton').addEventListener('click', function() {
     downloadLink.click();
     downloadLink.remove();
     iLow = oil; iHigh = oih; fLow = ofl; fHigh = ofh;
+});
+document.getElementById('downloadVideo').addEventListener('click', async function() {
+  // --- Create Progress Overlay UI ---
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, {
+    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: '9999',
+    display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+    color: '#fff', fontFamily: 'sans-serif'
+  });
+
+  const label = document.createElement('div');
+  label.textContent = 'Exporting Video...';
+  label.style.marginBottom = '10px';
+
+  const progressBg = document.createElement('div');
+  Object.assign(progressBg.style, {
+    width: '300px', height: '12px', backgroundColor: '#333', borderRadius: '6px', overflow: 'hidden'
+  });
+
+  const progressBar = document.createElement('div');
+  Object.assign(progressBar.style, {
+    width: '0%', height: '100%', backgroundColor: '#00ff00', transition: 'width 0.1s linear'
+  });
+
+  progressBg.appendChild(progressBar);
+  overlay.appendChild(label);
+  overlay.appendChild(progressBg);
+  document.body.appendChild(overlay);
+  // ----------------------------------
+
+  const sourceCanvas = document.getElementById('canvas');
+  const WIDTH = 1280;
+  const HEIGHT = 720;
+  const FPS = 30;
+  const NEEDLE_W = 3; 
+  const NEEDLE_COLOR = '#00ff00';
+  const durationSec = pcm.length / sampleRate;
+
+  if (!isFinite(durationSec) || durationSec <= 0) {
+    overlay.remove();
+    return alert('Invalid PCM / sampleRate.');
+  }
+
+  const recordCanvas = document.createElement('canvas');
+  recordCanvas.width = WIDTH;
+  recordCanvas.height = HEIGHT;
+  const rctx = recordCanvas.getContext('2d');
+
+  function drawSpectrogramBase() {
+    const sw = sourceCanvas.width;
+    const sh = sourceCanvas.height;
+    rctx.clearRect(0, 0, WIDTH, HEIGHT);
+    rctx.drawImage(sourceCanvas, 0, 0, sw, sh, 0, 0, 1280, 720);
+  }
+
+  function drawFrame(progress) {
+    drawSpectrogramBase();
+    const x = Math.round(progress * (WIDTH - NEEDLE_W));
+    rctx.fillStyle = NEEDLE_COLOR;
+    rctx.fillRect(x, 0, NEEDLE_W, HEIGHT);
+  }
+
+  try {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) {
+      overlay.remove();
+      return alert('AudioContext not supported in this browser.');
+    }
+    const audioCtx = new AudioCtor({ sampleRate });
+    const audioBuffer = audioCtx.createBuffer(1, pcm.length, sampleRate);
+    audioBuffer.copyToChannel(pcm, 0, 0);
+
+    const sourceNode = audioCtx.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    const dest = audioCtx.createMediaStreamDestination();
+    sourceNode.connect(dest);
+
+    const videoStream = recordCanvas.captureStream(FPS);
+    const combined = new MediaStream();
+    videoStream.getVideoTracks().forEach(t => combined.addTrack(t));
+    dest.stream.getAudioTracks().forEach(t => combined.addTrack(t));
+
+    let mime = 'video/webm;codecs=vp8,opus';
+    if (!MediaRecorder.isTypeSupported(mime)) {
+      mime = 'video/webm';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = '';
+    }
+    const recorder = new MediaRecorder(combined, mime ? { mimeType: mime } : undefined);
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+
+    recorder.start();
+    drawFrame(0);
+
+    const leadSec = 0.06;
+    const startPerf = performance.now() + leadSec * 1000;
+    const audioStartTime = audioCtx.currentTime + leadSec;
+    sourceNode.start(audioStartTime);
+
+    let lastDraw = 0;
+    let stopped = false;
+
+    function rafTick(now) {
+      if (stopped) return;
+      const elapsed = (performance.now() - startPerf) / 1000;
+      const clamped = Math.max(0, Math.min(1, elapsed / durationSec));
+
+      // Update the progress bar UI
+      const percent = Math.round(clamped * 100);
+      progressBar.style.width = percent + '%';
+      label.textContent = `Exporting Video: ${percent}%`;
+
+      if (now - lastDraw >= (1000 / FPS) - 1) {
+        drawFrame(clamped);
+        lastDraw = now;
+      }
+
+      if (elapsed < durationSec + 0.12) {
+        requestAnimationFrame(rafTick);
+      } else {
+        stopped = true;
+        setTimeout(() => {
+          try { recorder.stop(); } catch (e) { console.warn('recorder.stop() failed', e); }
+        }, 120);
+      }
+    }
+    requestAnimationFrame(rafTick);
+
+    await new Promise((res) => { recorder.onstop = () => res(); });
+
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'spectrodraw.webm';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    // Final cleanup
+    overlay.remove();
+    try { sourceNode.disconnect(); } catch (e) {}
+    try { dest.disconnect(); } catch (e) {}
+    try { audioCtx.close(); } catch (e) {}
+    videoStream.getTracks().forEach(t => t.stop());
+    combined.getTracks().forEach(t => t.stop());
+
+  } catch (err) {
+    overlay.remove();
+    console.error('downloadVideo failed:', err);
+    alert('Failed to generate video: ' + (err && err.message ? err.message : String(err)));
+  }
 });

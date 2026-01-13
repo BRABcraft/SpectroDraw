@@ -35,14 +35,14 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function freqToY(freq, h) {
   const nyquist = sampleRate * 0.5;
   let nf = (freq <= 0) ? 0 : freq / nyquist;
-  if (nf <= 0) return 0;
-  if (nf >= 1) return h;
+  if (nf <= 0) return h;
+  if (nf >= 1) return 0;
   const mapped = Math.pow(nf, 1 / FREQ_LOG_SCALE);
-  return mapped * h;
+  return (1 - mapped) * h;
 }
 function yToFreq(y, h) {
   const nyquist = sampleRate * 0.5;
-  const ny = clamp(y / h, 0, 1);
+  const ny = clamp(1 - (y / h), 0, 1);
   return clamp(Math.pow(ny, FREQ_LOG_SCALE) * nyquist, 0, nyquist);
 }
 function gainToX(gain, w) {

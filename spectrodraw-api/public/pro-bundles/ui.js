@@ -80,6 +80,9 @@ const sliders = [
   [document.getElementById('astartOnPitch'), document.getElementById('astartOnPitchInput')],//25
   [document.getElementById('clonerScale'), document.getElementById('clonerScaleInput')],
   [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
+  [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],
+  [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
+  [document.getElementById('masterVolume'), document.getElementById('masterVolumeInput')],
 ];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
@@ -622,7 +625,9 @@ async function saveProject() {
     fftSize,
     hop: hopSizeEl.value,
     bufferLength: emptyAudioLengthEl.value,
-    drawVolume: document.getElementById("drawVolume").checked,
+    drawVolume: document.getElementById("drawVolume").value,
+    masterVolume: document.getElementById("masterVolume").value,
+    playbackVolume: document.getElementById("playbackVolume").value,
     logScaleVal,
     trueScaleVal,
     useHz,
@@ -717,10 +722,9 @@ function openProject(file) {
       if (parsed.channelCount !== undefined) channelCount = parsed.channelCount;
       if (parsed.hop !== undefined) hopSizeEl.value = parsed.hop;
       if (parsed.bufferLength !== undefined) emptyAudioLengthEl.value = parsed.bufferLength;
-      if (parsed.drawVolume !== undefined) {
-        const pEl = document.getElementById("drawVolume");
-        if (pEl) pEl.checked = !!parsed.drawVolume;
-      }
+      if (parsed.drawVolume !== undefined) document.getElementById("drawVolumeInput").value = document.getElementById("drawVolume").value = !!parsed.drawVolume;
+      if (parsed.playbackVolume !== undefined) document.getElementById("playbackVolumeInput").value = document.getElementById("playbackVolume").value = !!parsed.playbackVolume;
+      if (parsed.masterVolume !== undefined) document.getElementById("masterVolumeInput").value = document.getElementById("masterVolume").value = !!parsed.masterVolume;
       if (parsed.logScaleVal !== undefined) logScaleVal = parsed.logScaleVal;
       if (parsed.trueScaleVal !== undefined) window.trueScaleVal = parsed.trueScaleVal;
       if (parsed.useHz !== undefined) {
@@ -1227,7 +1231,10 @@ function autoSetNoiseProfile() {
   noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
   updateNoiseProfile();
 }
+function showOrHideMasterVolume(){document.getElementById("masterVolumeDiv").style.display=(window.innerWidth<1400)?"none":"";};
+showOrHideMasterVolume();
 window.addEventListener("resize",()=>{
   minCol = 0; maxCol = framesTotal;
   restartRender();
+  showOrHideMasterVolume();
 });

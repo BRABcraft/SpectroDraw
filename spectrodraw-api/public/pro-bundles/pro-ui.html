@@ -353,6 +353,11 @@
         <path d="M4 20a9 9 0 0 1 15-6.7L19 10"/>
       </svg>
     </button>
+    <div title="Master Volume" style="display:flex;" id="masterVolumeDiv">
+        <label class="h2">Volume</label>
+        <input id="masterVolume" style="max-width:100px;" type="range" min="0" max="1" value="1" step="0.01">
+        <input id="masterVolumeInput" style="width:45px;"type="number" value="1" min="0" max="1">
+    </div>
   </header>
   <aside class="left-bar">
     <!-- Project info -->
@@ -484,9 +489,15 @@
         <input id="emptyAudioLength" type="range" min="0.01" max="600" step="0.01" value="10">
         <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="600">
       </div>
-      <div class="slider-row" title="Preview sound while drawing">
-          <label class="h2">Sound while drawing</label>
-          <input id="drawVolume" type="checkbox" checked>
+      <div class="slider-row" title="Playback volume">
+          <label class="h2">Playback volume</label>
+          <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
+          <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
+      </div>
+      <div class="slider-row" title="Oscillator Volume while drawing">
+          <label class="h2">Draw volume</label>
+          <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
+          <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
       </div>
       <hr>
       <button class="leftBtn" id="saveProject">Save</button>

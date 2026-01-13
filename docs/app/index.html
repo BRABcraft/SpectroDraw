@@ -520,12 +520,12 @@
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <div id="d1">
       <h2 style="margin-bottom:10px;margin-top:10px;">General</h2>
-      <div class="slider-row" title="Preview sound while drawing">
+      <div class="slider-row" title="Playback volume">
           <label class="h2">Playback volume</label>
           <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
           <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
       </div>
-      <div class="slider-row" title="Preview sound while drawing">
+      <div class="slider-row" title="Oscillator Volume while drawing">
           <label class="h2">Draw volume</label>
           <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
           <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
@@ -651,15 +651,20 @@
             <input id="phaseShift"  type="range" min="0" max="6.283" value="0" step="0.0001">
             <input id="phaseShiftInput" type="number" value="0" min="0" max="6.283">
         </div>
+        <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
+            <label class="h2">Phase Strength</label>
+            <input id="phaseStrength"  type="range" min="0" max="100" value="100">
+            <input id="phaseStrengthInput" type="number" value="100" min="0" max="100">
+        </div>
         <div class="slider-row" title="Brightness strength">
             <label class="h2">Opacity</label>
             <input id="brushOpacity"  type="range" min="0" max="100" value="100">
             <input id="brushOpacityInput" type="number" value="100" min="0" max="100">
         </div>
-        <div class="slider-row" title="Phase strength" id="phaseStrengthDiv">
-            <label class="h2">Phase Strength</label>
-            <input id="phaseStrength"  type="range" min="0" max="100" value="100">
-            <input id="phaseStrengthInput" type="number" value="100" min="0" max="100">
+        <div class="slider-row" title="Softness" id="softnessDiv">
+            <label class="h2">Softness</label>
+            <input id="softness"  type="range" min="0" max="1" value="0" step="0.01">
+            <input id="softnessInput" type="number" value="0" min="0" max="1">
         </div>
       </div> 
     </div>
@@ -1017,29 +1022,32 @@
     });
   }
 
-  const sliders = [[document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
-                   [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
-                   [document.getElementById('brushBrightness'), document.getElementById('brushBrightnessInput')],
-                   [document.getElementById('phaseShift'), document.getElementById('phaseShiftInput')],
-                   [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
-                   [document.getElementById('phaseStrength'), document.getElementById('phaseStrengthInput')],
-                   [document.getElementById('npo'), document.getElementById('npoInput')],
-                   [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
-                   [document.getElementById('bpm'), document.getElementById('bpmInput')],
-                   [document.getElementById('startOnPitch'), document.getElementById('startOnPitchInput'), true],
-                   [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
-                   [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
-                   [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
-                   [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
-                   [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
-                   [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
-                   [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
-                   [document.getElementById('amp'), document.getElementById('ampInput')],
-                   [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
-                   [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
-                   [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],
-                   [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
-                   [document.getElementById('masterVolume'), document.getElementById('masterVolumeInput')],];
+  const sliders = [
+    [document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],
+    [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
+    [document.getElementById('brushBrightness'), document.getElementById('brushBrightnessInput')],
+    [document.getElementById('phaseShift'), document.getElementById('phaseShiftInput')],
+    [document.getElementById('brushOpacity'), document.getElementById('brushOpacityInput')],
+    [document.getElementById('phaseStrength'), document.getElementById('phaseStrengthInput')],
+    [document.getElementById('npo'), document.getElementById('npoInput')],
+    [document.getElementById('noiseFloorCutoff'), document.getElementById('noiseFloorCutoffInput'), true],
+    [document.getElementById('bpm'), document.getElementById('bpmInput')],
+    [document.getElementById('startOnPitch'), document.getElementById('startOnPitchInput'), true],
+    [document.getElementById('durationCutoff'), document.getElementById('durationCutoffInput'), true],
+    [document.getElementById('globalGain'), document.getElementById('globalGainInput'), true],
+    [document.getElementById('midiBpm'), document.getElementById('midiBpmInput'), true],
+    [document.getElementById('subBeat'), document.getElementById('subBeatInput'), true],
+    [document.getElementById('tQs'), document.getElementById('tQsInput'), true],
+    [document.getElementById('tQt'), document.getElementById('tQtInput'), true],
+    [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
+    [document.getElementById('amp'), document.getElementById('ampInput')],
+    [document.getElementById('noiseRemoveFloor'), document.getElementById('noiseRemoveFloorInput'),true],
+    [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
+    [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],
+    [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
+    [document.getElementById('masterVolume'), document.getElementById('masterVolumeInput')],
+    [document.getElementById('softness'), document.getElementById('softnessInput')],
+  ];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
 <script src="fft.js"></script>
@@ -1184,6 +1192,7 @@ let playingTutorial = false;
 let currentFrame = 0;
 let lockHop = false;
 let t0 = 0, tau = 1.0, sigma = 0.3, harmonicCenter = 8, userDelta = 0, refPhaseFrame = 0, chirpRate=0.0005;
+let softness = 0, mouseVelocity=0;
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
 sliders[0][1].addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
@@ -1243,6 +1252,8 @@ sliders[17][1].addEventListener("input", ()=>{amp  =  (sliders[17][1].value); up
 sliders[18][0].addEventListener('input', () => {noiseRemoveFloor = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseRemoveFloor;updateBrushPreview();});
 sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
     if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
+sliders[23][0].addEventListener("input", ()=>{softness  =  (sliders[23][0].value); updateBrushPreview();});
+sliders[23][1].addEventListener("input", ()=>{softness  =  (sliders[23][1].value); updateBrushPreview();});
 function onPhaseSettingsChange(idx) {
   const v = sliders[19][idx].valueAsNumber;
   switch (phaseTextureEl.value) {
@@ -2138,6 +2149,7 @@ function canvasMouseDown(e,touch) {
     }
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
     const realY = visibleToSpecY(cy);
+    mouseVelocity=9999;
     if (!(currentShape === "rectangle" || currentShape === "line")) {
         paint(cx + iLow, realY);
     }
@@ -2163,6 +2175,7 @@ canvas.addEventListener("touchstart", e=>{
     canvasMouseDown(e,true);
 });
 let previewingShape = false;
+let prevCx=0,prevCy=0;
 function canvasMouseMove(e,touch) {
     if (zooming) return;
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
@@ -2182,7 +2195,8 @@ function canvasMouseMove(e,touch) {
         return;
     }
     if(!painting && currentTool != "image") return;
-
+    
+    mouseVelocity = Math.sqrt(Math.pow(cx-prevCx,2)+Math.pow(cy-prevCy,2));
     if (currentShape !== "brush") {
         previewShape(cx, cy);
         previewingShape = true;
@@ -2200,6 +2214,7 @@ function canvasMouseMove(e,touch) {
     }
 
     currentCursorX = currentFrame;
+    prevCx=cx;prevCy=cy;
 }
 canvas.addEventListener("mousemove", e=>{
     canvasMouseMove(e,false);

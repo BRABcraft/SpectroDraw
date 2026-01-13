@@ -333,7 +333,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
       const px = x0;
       const py = y0 + dy;
       if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-        drawPixelFrame(px, py, brushMag, phaseShift, brushOpacity, phaseStrength); 
+        drawPixel(px, py, brushMag, phaseShift, brushOpacity, phaseStrength); 
       }
     }
     if (x0 === x1 && y0 === y1) break;
@@ -355,7 +355,7 @@ function buildBinDisplayLookup() {
   }
 }
 
-function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
+function drawPixel(xFrame, yDisplay, mag, phase, bo, po) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
 
@@ -396,7 +396,9 @@ function drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po) {
     if (idx < 0 || idx >= magsArr.length) continue;
     if (visited && visited[idx] === 1) continue;
     if (visited) visited[idx] = 1; 
-
+    
+    let velFactor = 1-Math.min(1,(3/(mouseVelocity===Infinity?3:mouseVelocity)));
+    bo=bo*(1-(softness*0.8))+(bo*velFactor)*(softness*0.8);
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     const newMag = (currentTool === "amplifier")
@@ -477,9 +479,9 @@ function commitShape(cx, cy) {
 
         const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
         const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-        drawPixelFrame(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po);
+        drawPixel(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po);
       } else {
-        drawPixelFrame(xFrame, yDisplay, mag, phase, bo, po);
+        drawPixel(xFrame, yDisplay, mag, phase, bo, po);
       }
     }
 
@@ -621,21 +623,23 @@ function paint(cx, cy) {
           const cyPix = oy + yy;
           if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
 
-            drawPixelFrame(cxPix, cyPix, mag, phase, brushOpacity * a, phaseStrength * a);
+            drawPixel(cxPix, cyPix, mag, phase, brushOpacity * a, phaseStrength * a);
           }
         }
       }
     } else if (currentTool === "color" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
-        const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
-        const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-        for (let yy = minY; yy <= maxY; yy++) {
-          for (let xx = minXFrame; xx <= maxXFrame; xx++) {
-              const dx = xx - cx;
-              const dy = yy - cy;
-              if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
-              drawPixelFrame(xx, yy, brushMag, brushPhase, bo, po);
-          }
-      } 
+      const brushMag = currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128;
+      const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
+      for (let yy = minY; yy <= maxY; yy++) {
+        for (let xx = minXFrame; xx <= maxXFrame; xx++) {
+          const dx = xx - cx;
+          const dy = yy - cy;
+          const dxsq = dx*dx, dysq = dy*dy;
+          if (dxsq / radiusXsq + dysq / radiusYsq > 1) continue;
+          //const factor = 1-(Math.abs(dx)/radiusXFrames*softness/(Math.abs(prevCx-cx)/10));
+          drawPixel(xx, yy, brushMag, brushPhase, bo, po);
+        }
+      }
     } else if (currentTool === "blur") {
         // Build integral for whole image (or a bounding region) once
         const integral = buildIntegral(fullW, fullH, mags, phases);
@@ -655,7 +659,7 @@ function paint(cx, cy) {
 
                 const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
                 const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-                drawPixelFrame(xx, yy, sumMag / count, sumPhase / count, bo, po);
+                drawPixel(xx, yy, sumMag / count, sumPhase / count, bo, po);
             }
         }
     }

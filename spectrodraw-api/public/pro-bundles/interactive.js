@@ -138,36 +138,29 @@ function canvasMouseDown(e,touch) {
     paint(cx + iLow, realY);
   }
   currentFrame = Math.floor(cx);
-  if (document.getElementById("drawVolume").checked) {
-    ensureAudioCtx();
-    mouseDown = true;
-    playFrame(currentFrame);
+  ensureAudioCtx();
+  mouseDown = true;
+  playFrame(currentFrame);
 
-    if (!sineOsc) {
-        // Use harmonics array (100 values 0..1) to build a PeriodicWave.
-        // If `harmonics` is missing or too short, fall back to a simple sine (fundamental only).
-        const real = new Float32Array(101); // index 0 = DC (leave 0)
-        const imag = new Float32Array(101); // index 1..100 -> harmonics 1..100
-
-        if (typeof harmonics !== 'undefined' && harmonics && harmonics.length >= 100) {
-          for (let i = 0; i < 100; i++) imag[i + 1] = harmonics[i];
-        } else {
-          // fallback: only the fundamental
-          imag[1] = 1.0;
-        }
-
-        const wave = audioCtx.createPeriodicWave(real, imag, { disableNormalization: false });
-
-        sineOsc = audioCtx.createOscillator();
-        sineOsc.setPeriodicWave(wave);
-        // create gain node after periodic wave so we can do clean fades later if needed
-        sineGain = audioCtx.createGain();
-        sineGain.gain.value = 0.2;
-
-        sineOsc.connect(sineGain).connect(audioCtx.destination);
-        setSineFreq(realY);
-        sineOsc.start();
+  if (!sineOsc) {
+    const real = new Float32Array(101);
+    const imag = new Float32Array(101);
+    if (typeof harmonics !== 'undefined' && harmonics && harmonics.length >= 100) {
+      for (let i = 0; i < 100; i++) imag[i + 1] = harmonics[i];
+    } else {
+      imag[1] = 1.0;
     }
+
+    const wave = audioCtx.createPeriodicWave(real, imag, { disableNormalization: false });
+
+    sineOsc = audioCtx.createOscillator();
+    sineOsc.setPeriodicWave(wave);
+    sineGain = audioCtx.createGain();
+    sineGain.gain.value = 0.2*document.getElementById("drawVolume").value*document.getElementById("masterVolume").value;
+
+    sineOsc.connect(sineGain).connect(audioCtx.destination);
+    setSineFreq(realY);
+    sineOsc.start();
   }
 }
 function setSineFreq(cy) {
@@ -548,71 +541,18 @@ async function playPCM(loop = true, startFrame = null) {
 
   try {
     const targetNode = _getPlaybackTarget();
-    sourceNode.connect(targetNode);
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.setValueAtTime(document.getElementById("playbackVolume").value*document.getElementById('masterVolume').value, audioCtx.currentTime);
+
+    sourceNode.connect(gainNode);
+    gainNode.connect(targetNode);
   } catch (e) {
     try { sourceNode.connect(audioCtx.destination); } catch (e2) { console.warn("connect fallback failed", e2); }
   }
 
   const offsetSec = startSample / sampleRate;
   sourceStartTime = audioCtx.currentTime - offsetSec;
-
-  try {
-    sourceNode.start(0, offsetSec);
-  } catch (e) {
-    // Fallback for when start with offset fails (create a shorter buffer that starts from startSample)
-    const remaining = Math.max(0, totalSamples - startSample);
-    if (remaining <= 0) {
-      console.warn("No remaining samples to play after start offset.");
-      return;
-    }
-
-    try { sourceNode.stop(); } catch(_) {}
-    try { sourceNode.disconnect(); } catch(_) {}
-
-    // Create a stereo short buffer and copy each channel's remaining samples according to audioDevice
-    const shortBuf = audioCtx.createBuffer(outChannels, remaining, sampleRate);
-    const sLeft = shortBuf.getChannelData(0);
-    const sRight = shortBuf.getChannelData(1);
-
-    for (let ch = 0; ch < nCh; ch++) {
-      const chObj = channels[ch];
-      if (!chObj || !chObj.pcm) continue;
-
-      const pcm = chObj.pcm;
-      const device = (chObj.audioDevice || "both").toLowerCase();
-      let vol = (typeof chObj.volume === "number") ? chObj.volume : 1;
-      if (vol < 0) vol = 0;
-      else if (vol > 1) vol = 1;
-
-      if (device === "none") continue;
-      if (startSample >= pcm.length) continue; // nothing left to copy
-
-      const slice = pcm.subarray(startSample, Math.min(pcm.length, startSample + remaining));
-      for (let i = 0; i < slice.length; i++) {
-        const s = slice[i] * vol;
-        if (device === "left") {
-          sLeft[i] += s;
-        } else if (device === "right") {
-          sRight[i] += s;
-        } else {
-          sLeft[i] += s;
-          sRight[i] += s;
-        }
-      }
-    }
-
-    sourceNode = audioCtx.createBufferSource();
-    sourceNode.buffer = shortBuf;
-    sourceNode.loop = !!loop;
-    try {
-      const targetNode = _getPlaybackTarget();
-      sourceNode.connect(targetNode);
-    } catch (e2) {
-      try { sourceNode.connect(audioCtx.destination); } catch (_) {}
-    }
-    sourceStartTime = audioCtx.currentTime;
-    sourceNode.start();
-  }
+  sourceNode.start(0, offsetSec);
 
   playing = true;
   pausedAtSample = null;

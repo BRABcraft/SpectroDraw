@@ -395,10 +395,9 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po) {
     // bounds check not needed if idxBase/bin clamped, but keep safe:
     if (idx < 0 || idx >= magsArr.length) continue;
     if (visited && visited[idx] === 1) continue;
-    if (visited) visited[idx] = 1; 
-    
+    if (visited) visited[idx] = 1;
     let velFactor = 1-Math.min(1,(3/(mouseVelocity===Infinity?3:mouseVelocity)));
-    bo=bo*(1-(softness*0.8))+(bo*velFactor)*(softness*0.8);
+    bo=bo*(1-(softness))+(bo*velFactor)*(softness*0.8);
     const oldMag = magsArr[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     const newMag = (currentTool === "amplifier")

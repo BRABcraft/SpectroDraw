@@ -1,9 +1,10 @@
 function updateTools(){
     toolButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tool === currentTool);
-        btn.style.background = (btn.dataset.tool === currentTool)?"#4af":"var(--accent-gradient)"
+        btn.style.background = (btn.dataset.tool === currentTool)?"#4af":(shouldHide(currentShape))?"#999":"";
     });
     if(currentTool === "image") overlayFile.click();
+    document.getElementById("brushEffectSelect").value=currentTool;
     updateBrushPreview();
 }
 function applyEQChanges(){
@@ -153,7 +154,7 @@ function buildMenu(items){
 
     itemEl.addEventListener('click', e => {
       e.stopPropagation();
-
+      if (itemEl.getAttribute("data-group")==="tool"&&shouldHide(currentShape)) return;
       if (it.type === 'toggle' || it.type === 'check'){
         it.checked = !it.checked;
         if (left) { left.classList.toggle('checked', it.checked); left.innerHTML = it.checked ? '✓' : ''; }
@@ -236,7 +237,7 @@ function onDocKey(e){ if (e.key === 'Escape') closeMenu(); }
 // -------------------------
 // Per-element menu definitions
 // -------------------------
-const TOOLS = ['brush','rectangle','line','blur','eraser','amplifier','image'];
+const TOOLS = ['fill','noiseRemover','cloner','autotune','amplifier','eraser','blur'];
 
 //Need to remove the up/down arrow in the inputs
 function makeCanvasMenu(cx0, cy0){
@@ -268,7 +269,7 @@ function makeCanvasMenu(cx0, cy0){
     { type:'input', label:'dB', value:db },
     { type:'input', label:'Phase', value:phaseVal },
     { type:'separator' },
-    ...TOOLS.map(t => ({ type:'radio', label: t[0].toUpperCase()+t.slice(1), group:'tool', value:t, checked:currentTool===t, onSelect: v => { currentTool=v; updateTools(); } })),
+    ...TOOLS.map(t => ({ type:'radio', label: t[0].toUpperCase()+t.slice(1), group:'tool', value:t, checked:currentTool===t, onSelect: v => { if (!shouldHide(currentShape)){currentTool=v;updateTools();}}})),
     { type:'separator' },
     { type:'toggle', label:'Align pitch', checked:alignPitch, onToggle:v=>{alignPitch=v;updateTools();} },
     { type:'toggle', label:'Align time', checked:alignTime, onToggle:v=>{alignTime=v;updateTools();} },

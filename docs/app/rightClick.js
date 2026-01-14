@@ -233,7 +233,7 @@ function onDocKey(e){ if (e.key === 'Escape') closeMenu(); }
 // -------------------------
 // Per-element menu definitions
 // -------------------------
-const TOOLS = ['brush','rectangle','line','blur','eraser','amplifier','image'];
+const TOOLS = ['blur','eraser','amplifier','noiseRemover','fill'];
 
 //Need to remove the up/down arrow in the inputs
 function makeCanvasMenu(cx0, cy0){

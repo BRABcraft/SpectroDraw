@@ -138,9 +138,9 @@ sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
 sliders[19][0].addEventListener('input', () => {layerCount = parseFloat(sliders[19][0].value); sliders[19][1].value = layerCount;updateLayers();});
 sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[19][1].value);const min = parseFloat(sliders[19][0].min);const max = parseFloat(sliders[19][0].max);
     if (isNaN(val)) val = layerCount;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;layerCount = val;updateLayers();}});
-sliders[20][0].addEventListener('input', () => {layerHeight = parseFloat(sliders[20][0].value); sliders[20][1].value = layerHeight;updateChannelHeight();});
+sliders[20][0].addEventListener('input', () => {layerHeight = parseFloat(sliders[20][0].value); sliders[20][1].value = layerHeight;updateLayerHeight();});
 sliders[20][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[20][1].value);const min = parseFloat(sliders[20][0].min);const max = parseFloat(sliders[20][0].max);
-    if (isNaN(val)) val = layerHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;layerHeight = val;updateChannelHeight();}});
+    if (isNaN(val)) val = layerHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;layerHeight = val;updateLayerHeight();}});
 function rs(){sliders[1][0].value = sliders[1][1].value = brushSize = Math.max(brushWidth, brushHeight);updateBrushPreview();}
 sliders[21][0].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
 sliders[21][1].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
@@ -294,6 +294,13 @@ document.getElementById("dragToDraw").addEventListener("input",()=>{updateBrushS
 //if stamp: hide cloner
 //if note: hide autotune
 //document.getElementById("clonerBtn").style.background = (d("image")||d("stamp"))?"#333":""
+function shouldHide(t){
+  function d(b){return currentShape===b;}
+  return (t==="cloner"      &&(d("image")||d("stamp")))
+       ||(t==="autotune"    &&(d("image")||d("note" )))
+       ||(t==="noiseRemover"&& d("image")
+       ||(d("select")));
+}
 function onToolChange(tool){
   function c(b){return tool===b;}
   function d(b){return currentShape===b;}
@@ -304,12 +311,7 @@ function onToolChange(tool){
   currentTool = tool;
   toolButtons.forEach(b => {
     const t = b.dataset.tool;
-    const shouldHide = 
-      (t==="cloner"      &&(d("image")||d("stamp")))
-    ||(t==="autotune"    &&(d("image")||d("note" )))
-    ||(t==="noiseRemover"&& d("image")
-    ||(d("select")))
-    b.style.background =(t===tool&&!d("select"))?"#4af":(shouldHide)?"#999":""});
+    b.style.background =(t===tool&&!d("select"))?"#4af":(shouldHide(t))?"#999":""});
   document.getElementById("brushEffectSelect").value=tool;
   updateBrushSettingsDisplay();
   updateBrushPreview();
@@ -970,8 +972,8 @@ document.getElementById("saveAndStart").addEventListener('click', async () => {
 window.addEventListener('click', e => {
   if (e.target === modal) modal.style.display = 'none';
 });
-midiChannelMode.addEventListener("change",(e)=>{
-  midiSingleLayerDiv.style.display = (midiChannelMode.value === "single") ? "block" : "none";
+midiLayerMode.addEventListener("change",(e)=>{
+  midiSingleLayerDiv.style.display = (midiLayerMode.value === "single") ? "block" : "none";
 });
 
 document.getElementById("syncLayers").addEventListener("change", (e)=>{

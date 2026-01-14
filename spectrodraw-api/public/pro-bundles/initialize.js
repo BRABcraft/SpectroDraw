@@ -33,7 +33,7 @@ const AIMidiOptions = document.getElementById("AiMidiDiv");
 const tQs = document.getElementById("tQs");
 const tQt = document.getElementById("tQt");
 const tQd = document.getElementById("tQd");
-const midiChannelMode = document.getElementById("midiChannelMode");
+const midiLayerMode = document.getElementById("midiLayerMode");
 const midiSingleLayerDiv = document.getElementById("midiSingleLayerDiv");
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {

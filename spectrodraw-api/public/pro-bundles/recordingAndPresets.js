@@ -97,6 +97,7 @@ function logScaleMouseDown(e,touch,logscaleEl) {
 
 async function logScaleMouseMove(e,touch) {
   const logscaleEl = document.getElementById("logscale-"+currentLayer);
+  if (!logscaleEl) return;
   logscaleEl.style.cursor = "n-resize";
   if (!changingLogScale) return;
   logScaleVal[currentLayer] -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
@@ -207,17 +208,17 @@ function countdown(seconds) {
 let workletRegistered = false;  // <- new
 let workletNode = null;         // you already had this
 let silentGain = null;          // make silentGain global so you can disconnect it
-let updatingChannel = false;
+let updatingLayer = false;
 
 /* -------- startRecording (updated) -------- */
 async function startRecording() {
-  updatingChannel = true;
+  updatingLayer = true;
   layerCount++;
   sliders[19][0].value = sliders[19][1].value = layerCount;
   updateLayers();
   currentLayer = layerCount-1;
   let ch = currentLayer;
-  await waitFor(() => x>=maxCol && !updatingChannel);
+  await waitFor(() => x>=maxCol && !updatingLayer);
   recording = true;
 
   ensureAudioCtx();
@@ -403,7 +404,8 @@ async function updateLayers(){
     for (let i = 0; i < length; i++) {
       pcm[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
     }
-
+    if (layerCount>1&&layers.length===1)layers[0].audioDevice="left";
+    let ch = layers.length;
     // create layer object and push
     layers.push({
       pcm,
@@ -419,7 +421,7 @@ async function updateLayers(){
       sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,
       uuid:crypto.randomUUID(),
       hasCanvases:false,
-      ch:layers.length-1
+      ch
     });
     logScaleVal.push(1.12);
   }
@@ -436,7 +438,7 @@ async function updateLayers(){
     wrapper.dataset.layer = ch;
     wrapper.innerHTML = `
       <div style="display:flex;gap:10px;margin-top:5px;">
-        <b>Channel ${ch}</b>
+        <b>Layer ${ch}</b>
         <input id="layerEnable-${ch}" type="checkbox" checked aria-label="Enable layer ${ch}">
         <label class="h2" style="margin-left:60px;" id="speakerLabel${ch}">Speaker</label>
         <select id="audioDevices-${ch}" class="layer-audio-devices" aria-label="Audio device for layer ${ch}">
@@ -447,12 +449,12 @@ async function updateLayers(){
         </select>
       </div>
       <div id="chsliders${ch}">
-        <div class="slider-row" title="Channel Volume">
+        <div class="slider-row" title="Layer Volume">
           <label class="h2">Volume</label>
           <input id="layerVolume-${ch}" type="range" min="0" max="1.25" step="0.01" value="${layers[ch].volume}">
           <input id="layerVolumeInput-${ch}" type="number" value="${layers[ch].volume}" min="0" max="1.25" step="0.01">
         </div>
-        <div class="slider-row" title="Channel Brush Pressure">
+        <div class="slider-row" title="Layer Brush Pressure">
           <label class="h2">Brush Pressure</label>
           <input id="layerBrushPressure-${ch}" type="range" min="0" max="1" step="0.01" value="${layers[ch].brushPressure}">
           <input id="layerBrushPressureInput-${ch}" type="number" value="${layers[ch].brushPressure}" min="0" max="1" step="0.01">
@@ -524,14 +526,14 @@ async function updateLayers(){
   });
   const selectElement0 = document.getElementById("midiSingleLayer");
   const selectElement1 = document.getElementById("spriteLayer");
-  document.getElementById("midiChannelSettings").style.display = document.getElementById("spriteLayerDiv").style.display = (layerCount>1)?"block":"none";
+  document.getElementById("midiLayerSettings").style.display = document.getElementById("spriteLayerDiv").style.display = (layerCount>1)?"block":"none";
   selectElement0.innerHTML = selectElement1.innerHTML = "";
-  for (let ch = 0; ch<layerCount;ch++) {
+  for (let l = 0; l<layerCount;l++) {
     const newOption = document.createElement("option");
-    newOption.textContent = "Layer "+ch;
-    newOption.value = ch;
+    newOption.textContent = "Layer "+l;
+    newOption.value = l;
     selectElement0.appendChild(newOption);
-    newOption.textContent = ch;
+    newOption.textContent = l;
     selectElement1.appendChild(newOption);
   }
   const newOption = document.createElement("option");
@@ -539,17 +541,17 @@ async function updateLayers(){
   newOption.value = "all";
   selectElement1.appendChild(newOption);
   layerHeight = (window.innerHeight - 70)/layerCount;
-  updateChannelHeightInputs();
+  updateLayerHeightInputs();
   minCol = 0; maxCol = framesTotal;
   restartRender(false);
   await waitFor(() => !rendering);
-  for (let ch=0;ch<layerCount;ch++) renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
+  for (let l=0;l<layerCount;l++) renderSpectrogramColumnsToImageBuffer(0,framesTotal,l);
   //renderFullSpectrogramToImage();
   if (currentTool==="cloner")updateBrushPreview();
-  updatingChannel = false;
+  updatingLayer = false;
 }
 
-function updateChannelHeightInputs(){
+function updateLayerHeightInputs(){
   const layerHeightEl = document.getElementById('layerHeight');
   layerHeightEl.value = layerHeight; layerHeightEl.max = window.innerHeight - 70;
   const layerHeightElInput = document.getElementById('layerHeightInput');
@@ -557,8 +559,8 @@ function updateChannelHeightInputs(){
 }
 
 layerHeight = window.innerHeight - 70;
-updateChannelHeightInputs();
-function updateChannelHeight(newch = null){
+updateLayerHeightInputs();
+function updateLayerHeight(newch = null){
   if (newch !== null) layerHeight = newch;
   function doChangeHeight(name,ch) {
     let style = document.getElementById(name+ch).style;

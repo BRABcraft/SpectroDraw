@@ -561,18 +561,18 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
 let binToTopDisplay = new Array(layerCount);
 let binToBottomDisplay = new Array(layerCount);
 function buildBinDisplayLookup() {
-  for (let ch=0;ch<layerCount;ch++){
-    binToTopDisplay[ch] = new Float32Array(specHeight);
-    binToBottomDisplay[ch] = new Float32Array(specHeight);
+  for (let l=0;l<layerCount;l++){
+    binToTopDisplay[l] = new Float32Array(specHeight);
+    binToBottomDisplay[l] = new Float32Array(specHeight);
     for (let b = 0; b < specHeight; b++) {
-      binToTopDisplay[ch][b] = binToDisplayY(b - 0.5, specHeight,ch);
-      binToBottomDisplay[ch][b] = binToDisplayY(b + 0.5, specHeight,ch);
+      binToTopDisplay[l][b] = binToDisplayY(b - 0.5, specHeight,l);
+      binToBottomDisplay[l][b] = binToDisplayY(b + 0.5, specHeight,l);
     }
   }
 }
-function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,ch) {
+function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,l) {
   let col;
-  try{col=sprite.pixels[ch].get(x);}catch(e){col=null};
+  try{col=sprite.pixels[l].get(x);}catch(e){col=null};
   if (!col) {
     col = {
       ys: [],
@@ -581,7 +581,7 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,c
       nextMags: [],
       nextPhases: []
     };
-    if (sprite.pixels[ch]) sprite.pixels[ch].set(x, col);
+    if (sprite.pixels[l]) sprite.pixels[l].set(x, col);
   }
   if (col.ys.includes(y)){
     const idx = col.ys.indexOf(y);
@@ -598,7 +598,7 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,c
   }
   if (x < sprite.minCol) sprite.minCol = x;
   if (x > sprite.maxCol) sprite.maxCol = x;
-  if (sprite.effect.shape!=="select")updateSelections(x,y,ch,prevMag,prevPhase,nextMag,nextPhase);
+  if (sprite.effect.shape!=="select")updateSelections(x,y,l,prevMag,prevPhase,nextMag,nextPhase);
 }
 function updateSelections(x,y,ch,prevMag,prevPhase,nextMag,nextPhase){
   for (let s of sprites){

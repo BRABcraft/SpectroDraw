@@ -3,7 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FAQ - SpectroDraw</title>
+  <meta name="description" content="SpectroDraw is a free, browser-based interactive spectrogram editor that lets you visually draw, edit, and sculpt audio directly in the frequency domain." />
+  <meta property="og:title" content="What is SpectroDraw? The Interactive Spectrogram Editor" />
+  <meta property="og:description" content="SpectroDraw is a free, browser-based interactive spectrogram editor that lets you visually draw, edit, and sculpt audio directly in the frequency domain." />
+  <link rel="canonical" href="https://spectrodraw.com/newsletters/what-is-spectrodraw" />
+  <title>What is SpectroDraw?</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
@@ -16,10 +20,10 @@
   </script>
   <style>
     :root{
-      --bg:#07080b;
-      --panel:#0f1720;
-      --muted:#9aa4b2;
-      --text:#e6eefc;
+      --bg:#fff;
+      --panel:#ccc;
+      --muted:#222;
+      --text:#000;
       --accent1:#4f46e5;
       --accent2:#9333ea;
       --accent3:#ec4899;
@@ -33,12 +37,19 @@
     html,body{
       height:100%;
       margin:0;
-      background: radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
+      background:
+        linear-gradient(
+          0deg,
+          var(--bg) 0%,
+          #eee 50%,
+          var(--bg) 100%
+        );
       color:var(--text);
       font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
       line-height:1.6;
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
+      font-size:20px;
     }
 
     nav{
@@ -54,18 +65,18 @@
       border-bottom: 1px solid var(--soft-border);
     }
     .nav-left{display:flex;align-items:center;gap:1rem}
-    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;font-size:1.05rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:#9333ea;text-decoration:none;font-size:1.05rem}
     .nav-right{display:flex;gap:1rem;align-items:center}
     .nav-right a{
       font-weight:600;
       text-decoration:none;
-      color:#dfe7ff;
+      color:#000 !important;
       opacity:0.95;
       padding:.45rem .6rem;
       border-radius:8px
     }
     .nav-right a:hover{
-      color:white;
+      color:black;
       background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
       box-shadow:0 8px 30px rgba(79,70,229,0.12);
     }
@@ -74,18 +85,17 @@
       position:relative;
       padding:56px 20px;
       display:flex;
-      justify-content:center;
-      align-items:center;
+      justify-content:left;
+      align-items:left;
       overflow:hidden;
     }
     .hero-inner{
       max-width:980px;
       width:100%;
-      text-align:center;
+      text-align:left;
       padding:28px;
       border-radius:14px;
       background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
-      box-shadow:var(--card-glow);
       border:1px solid var(--glass-2);
     }
     .title{
@@ -104,52 +114,12 @@
       margin:0 auto 36px;
     }
     .wrap{max-width:980px;margin:18px auto;padding:24px;}
-    p{margin:12px 0;color:#d0d9e9}
+    p{margin:12px 0;color:#000}
+    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
+    .section:first-of-type{border-top:0;padding-top:8px}
 
-    /* FAQ Cards */
-    .faq-grid{
-      display:flex;
-      flex-direction:column;
-      gap:20px;
-    }
-    .faq-card{
-      display:flex;
-      align-items:center;
-      gap:20px;
-      text-decoration:none;
-      color:inherit;
-      padding:16px;
-      border-radius:12px;
-      background:rgba(255,255,255,0.02);
-      border:1px solid var(--soft-border);
-      transition:transform .25s ease, box-shadow .25s ease, background .25s ease;
-    }
-    .faq-card:hover{
-      background:rgba(255,255,255,0.04);
-      box-shadow:var(--card-glow);
-      transform:translateY(-3px);
-    }
-    .faq-card img{
-      width:110px;
-      height:80px;
-      border-radius:10px;
-      object-fit:cover;
-      flex-shrink:0;
-    }
-    .faq-card-content{
-      flex:1;
-    }
-    .faq-card h3{
-      margin:0;
-      font-size:1.1rem;
-      font-weight:700;
-      color:white;
-    }
-    .faq-card p{
-      margin:.3rem 0 0;
-      color:var(--muted);
-      font-size:.95rem;
-    }
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
     footer{
       padding:2rem 1rem;
@@ -161,6 +131,54 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
+    .btn-primary {
+  position: relative;
+  background: var(--cta-grad);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1.2rem 2.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  overflow: hidden;
+  transition: transform .4s ease, box-shadow .6s ease, background .4s ease;
+  box-shadow:
+    0 0 50px rgba(79,70,229,0.5),
+    0 0 70px rgba(147,51,234,0.45),
+    inset 0 0 50px rgba(147,51,234,0.3);
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: none;
+  border-radius: inherit;
+  z-index: 0;
+  backdrop-filter: blur(4px);
+  transition: background .5s ease, box-shadow .5s ease;
+}
+.btn-primary span {
+  position: relative;
+  z-index: 1;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 15px rgba(79,70,229,0.6),
+    0 0 25px rgba(147,51,234,0.7),
+    inset 0 0 60px rgba(147,51,234,0.8); 
+}
+.btn-primary:hover::before {
+  background: rgba(7, 8, 11, 0.3); 
+}
+img{
+  max-width:80%;
+  border-radius:12px;
+  margin:18px 0;
+}
+th, td { border: 1px solid black; text-align:left;}
+table{border-collapse: collapse;border-spacing:0;}
   </style>
 </head>
 <body>
@@ -170,9 +188,9 @@
       <div class="tagline">Interactive Spectrogram Editor</div>
     </div>
     <div class="nav-right">
-      <a href="/app" class="nav-link">Launch App</a>
-      <a href="/faq" class="nav-link">FAQ</a>
-      <a href="/pricing" class="nav-link">Pricing</a>
+      <a href="../../app" class="nav-link">Launch App</a>
+      <a href="../../faq" class="nav-link">FAQ</a>
+      <a href="../../pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
       <div id="account-wrap" style="display:none; position:relative;">
@@ -231,62 +249,85 @@
       </form>
     </div>
   </div>
-  <link rel="stylesheet" type="text/css" href="/accounts.css">
-  <script src="/accounts.js"></script>
+  <link rel="stylesheet" type="text/css" href="../../accounts.css">
+  <script src="../../accounts.js"></script>
 
-  <header class="hero">
-    <div class="hero-inner fade-in">
-      <h1 class="title">Frequently Asked Questions</h1>
-    </div>
-  </header>
 
-  <main class="wrap">
-    <div class="faq-grid">
-      <a href="/faq/basic-features/" class="faq-card">
-        <img src="/assets/features/amplify.jpg" alt="Basic features">
-        <div class="faq-card-content">
-          <h3>Basic features</h3>
-          <p>A description of SpectroDraw's tools and how to use them.</p>
-        </div>
-      </a>
+  <main class="wrap" style="margin-left:150px;font-size:15px;">
+    <h1>Expressions Documentation</h1>
+    <p>A reference for SpectroDraw Pro's javascript expressions.</p>
+    <h3>Global variables</h3>
+    <table style="font-family:'Consolas';align-content:left;justify-content:left;border: 1px solid black;">
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>brush.tool.size</td><td></td></tr>
+        <tr><td>brush.tool.width</td><td></td></tr>
+        <tr><td>brush.tool.height</td><td></td></tr>
+        <tr><td>brush.tool.opacity</td><td></td></tr>
+        <tr><td>brush.tool.harmonics</td><td></td></tr>
+        <tr><td>brush.tool.clonerRefX</td><td></td></tr>
+        <tr><td>brush.tool.clonerRefY</td><td></td></tr>
+        <tr><td>brush.tool.clonerScale</td><td></td></tr>
 
-      <a href="/faq/pro-features/" class="faq-card">
-        <img src="/assets/vstdemo2.jpg" alt="Pro features">
-        <div class="faq-card-content">
-          <h3>Pro features</h3>
-          <p>Explore advanced features exclusive to SpectroDraw Pro, including stereo editing and automation.</p>
-        </div>
-      </a>
-      <a href="/faq/fft/" class="faq-card">
-        <img src="/assets/fft3.jpg" alt="How does SpectroDraw work">
-        <div class="faq-card-content">
-          <h3>How does SpectroDraw work?</h3>
-          <p>Learn the basics of how the FFT converts sound into a visual spectrogram that you can draw on.</p>
-        </div>
-      </a>
+        <tr><td>brush.effect.brightness</td><td></td></tr>
+        <tr><td>brush.effect.blurRadius</td><td></td></tr>
+        <tr><td>brush.effect.amplify</td><td></td></tr>
+        <tr><td>brush.effect.aggressiveness</td><td></td></tr>
+        <tr><td>brush.effect.autotuneStrength</td><td></td></tr>
+        <tr><td>brush.effect.baseHz</td><td></td></tr>
+        <tr><td>brush.effect.notesPerOctave</td><td></td></tr>
+        <tr><td>brush.effect.phaseTexture</td><td></td></tr>
+        <tr><td>brush.effect.phaseSettings</td><td></td></tr>
+        <tr><td>brush.effect.phaseStrength</td><td></td></tr>
+        <tr><td>brush.effect.phaseShift</td><td></td></tr>
 
-      <a href="/faq/about-the-creator/" class="faq-card">
-        <img src="/assets/randommangos.jpg" alt="About the creator">
-        <div class="faq-card-content">
-          <h3>About the creator</h3>
-          <p>Meet Bradley (RandomMangos), the developer behind SpectroDraw, and learn what inspired the project.</p>
-        </div>
-      </a>
-      <a href="/faq/expressions-documentation/" class="faq-card">
-        <img src="/assets/expressions.jpg" alt="Expressions documentation">
-        <div class="faq-card-content">
-          <h3>Expressions documentation</h3>
-          <p>A reference for SpectroDraw Pro's javascript expressions</p>
-        </div>
-      </a>
-    </div>
+        <tr><td>eqBands</td><td></td></tr>
+
+        <tr><td>mouse.frame</td><td>Mouse X, raging from 0 to specWidth</td></tr>
+        <tr><td>mouse.bin</td><td>Mouse Y, ranging from 0 to specHeight, log scale does not apply</td></tr>
+
+        <tr><td>zoom.x.min</td><td></td></tr>
+        <tr><td>zoom.x.max</td><td></td></tr>
+        <tr><td>zoom.y.min</td><td></td></tr>
+        <tr><td>zoom.y.max</td><td></td></tr>
+
+        <tr><td>currentLayer.logScale</td><td></td></tr>
+        <tr><td>sampleRate</td><td></td></tr>
+        <tr><td>specHeight</td><td>Equal to (pitch resolution)/2</td></tr>
+        <tr><td>specWidth</td><td>Spectrogram width in frames, equal to (buffer length) * sampleRate/hop</td></tr>
+        <tr><td>currentTool</td><td></td></tr>
+        <tr><td>currentEffect</td><td></td></tr>
+
+        <tr><td>pixel.frame</td><td>X position of a particular pixel. Use this if you need a very smooth gradient. Warning: may cause lag</td></tr>
+        <tr><td>pixel.bin</td><td>Y position of pixel. Does not follow log scale.</td></tr>
+
+        <tr><td>hop</td><td>Equal to the time resolution</td></tr>
+
+        <tr><td>brush.effect.phaseSettings.t0</td><td></td></tr>
+        <tr><td>brush.effect.phaseSettings.tau</td><td></td></tr>
+        <tr><td>brush.effect.phaseSettings.sigma</td><td></td></tr>
+        <tr><td>brush.effect.phaseSettings.harmonicCenter</td><td></td></tr>
+        <tr><td>brush.effect.phaseSettings.userDelta</td><td></td></tr>
+        <tr><td>brush.effect.phaseSettings.refPhaseFrame</td><td></td></tr>
+        <tr><td>brush.effect.phaseSettings.chirpRate</td><td></td></tr>
+
+        <tr><td>currentLayer</td><td></td></tr>
+        <tr><td>layers</td><td></td></tr>
+      </tbody>
+    </table>
+
   </main>
-    
+   
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
-    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
-    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
-    <a href="/terms" style="color:white;">Terms</a>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener" style="color:#008">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:#008; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:#008;">Terms</a>
   </footer>
 
   <script>

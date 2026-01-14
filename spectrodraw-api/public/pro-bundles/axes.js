@@ -217,8 +217,8 @@ let fDmode = -1;
 let oldY = null;
 
 function drawYAxis() {
-  for (let ch=0;ch<layerCount;ch++){
-    const yAxis = document.getElementById("freq-"+ch);
+  for (let l=0;l<layerCount;l++){
+    const yAxis = document.getElementById("freq-"+l);
     const yctx = yAxis.getContext("2d");
 
     if (yAxis.height <= 0 || yAxis.width <= 0) continue;
@@ -240,7 +240,7 @@ function drawYAxis() {
     const yFactor = specHeight/parseInt(yAxis.style.height); 
     function fToVisY(f) {
       const h = specHeight;
-      const s = parseFloat(logScaleVal[ch]);
+      const s = parseFloat(logScaleVal[l]);
       let bin = f / (sampleRate / fftSize);
       let cy;
       if (s <= 1.0000001) {

@@ -218,7 +218,7 @@ function renderUploads() {
   for (let i = 0; i < layers.length; i++) {
     const ch = layers[i];
     if (!Number.isFinite(ch.samplePos)) ch.samplePos = 0;
-    layersHtml += buildSampleRow("Channel " + i, ch.pcm || new Float32Array(0), ch.samplePos, ch.sampleRate || sampleRate, "c" + i);
+    layersHtml += buildSampleRow("Layer " + i, ch.pcm || new Float32Array(0), ch.samplePos, ch.sampleRate || sampleRate, "c" + i);
   }
 
   // 2) Set HTML once
@@ -344,7 +344,7 @@ function renderUploads() {
         if (ch._wasPlayingDuringDrag) { ch._wasPlayingDuringDrag = false; startItem(layers, i); }
       });
     }
-    let chs = [], name=[]; for (let c =0;c<layerCount;c++) if (layers[c].uuid === ch.uuid){layers[c].ch=c; chs.push(layers[c]); name.push("Channel "+c);}
+    let chs = [], name=[]; for (let c =0;c<layerCount;c++) if (layers[c].uuid === ch.uuid){layers[c].ch=c; chs.push(layers[c]); name.push("Layer "+c);}
     sampleReplace.addEventListener("pointerdown", (ev) => {startDrag(syncLayers?chs:[ch], ev, name,false)});
     sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncLayers?chs:[ch], ev, name,true));
 

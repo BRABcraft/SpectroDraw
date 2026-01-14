@@ -620,13 +620,13 @@ function determinePcm(ch) {
   let pcm;
   if (layerCount == 1) {
     pcm = layers[0].pcm;
-  } else if (midiChannelMode.value==="single") {
+  } else if (midiLayerMode.value==="single") {
     pcm = layers[parseInt(document.getElementById("midiSingleLayer").value)].pcm;
-  } else if (midiChannelMode.value==="allMixToMono") {
+  } else if (midiLayerMode.value==="allMixToMono") {
     const pcs = layers.map(ch => ch.pcm);
     const len = pcs[0].length;
     pcm = Float32Array.from({ length: len },(_, i) => pcs.reduce((sum, a) => sum + a[i], 0) / pcs.length);
-  } else if (midiChannelMode.value==="all") {
+  } else if (midiLayerMode.value==="all") {
     pcm = layers[ch].pcm;
   }
   return pcm;
@@ -968,7 +968,7 @@ function filterNotes(notes) {
 }
 async function exportMidi(opts = {}) {
   const downloadName = opts.downloadName ?? "export.mid";
-  if (midiChannelMode.value==="all" && layerCount>1){
+  if (midiLayerMode.value==="all" && layerCount>1){
     for (let ch=0;ch<layerCount;ch++){
       let notes = filterNotes(await getNotes(ch));
       writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });

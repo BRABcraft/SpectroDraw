@@ -782,7 +782,7 @@
           <option value="eraser">Eraser</option>
           <option value="blur">Blur</option>
         </select></div>
-        <div class="slider-row" id="spriteLayerDiv" style="display:none;"><label for="spriteLayer">Channel:</label><select id="spriteLayer">
+        <div class="slider-row" id="spriteLayerDiv" style="display:none;"><label for="spriteLayer">Layer:</label><select id="spriteLayer">
           <option value="0">0</option>
           <option value="all">All</option>
         </select></div>
@@ -1053,18 +1053,18 @@
           </select>
         </div>
       </div>
-      <div id="midiChannelSettings">
+      <div id="midiLayerSettings">
         <label class="h1">Midi audio layers</label>
-        <div style="display:flex; gap:10px; margin-bottom:5px;" title="Channel mode">
-          <label class="h2" for="midiChannelMode">Mode</label>
-          <select id="midiChannelMode">
+        <div style="display:flex; gap:10px; margin-bottom:5px;" title="Layer mode">
+          <label class="h2" for="midiLayerMode">Mode</label>
+          <select id="midiLayerMode">
             <option value="all">All layers</option>
             <option value="allMixToMono">All layers mixed to mono</option>
             <option value="single">Single layer</option>
           </select>
         </div>
         <div class="slider-row" id="midiSingleLayerDiv" style="display:none;">
-          <label class="h2" for="midiSingleLayer">Channel</label>
+          <label class="h2" for="midiSingleLayer">Layer</label>
           <select id="midiSingleLayer"></select>
         </div>
       </div>
@@ -1102,8 +1102,8 @@
         <input type="range" id="layers" min="1" max="16" value="1">
         <input id="layersInput" type="number" value="1" min="1" max="16">
       </input></div>
-      <div class="slider-row" title="Channel Display Height" id="chdiv">
-        <label class="h2">Channel height</label>
+      <div class="slider-row" title="Layer Display Height" id="chdiv">
+        <label class="h2">Layer height</label>
         <input id="layerHeight" type="range" min="0" max="500" step="1" value="500">
         <input id="layerHeightInput" type="number" value="500" min="0" max="500">
       </div>

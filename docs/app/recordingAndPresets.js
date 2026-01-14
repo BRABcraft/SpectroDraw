@@ -107,7 +107,7 @@ async function startRecording() {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [1],
-      channelCount: 1
+      layerCount: 1
     });
 
     pcmChunks = [];

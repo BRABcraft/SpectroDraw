@@ -7,7 +7,7 @@ function renderHarmonicsCanvas(){
   const h = canvas.height;
 
   const bars = 100;
-  const ch = currentChannel;
+  const ch = currentLayer;
   const s = logScaleVal[ch];
 
   // index -> x position using same log mapping idea as ftvsy but for 0..bars-1 -> 0..w-1
@@ -64,7 +64,7 @@ function _handleHarmonicsPointer(e) {
   const w = canvas.width;
   const h = canvas.height;
   const bars = 100;
-  const ch = currentChannel;
+  const ch = currentLayer;
   const s = logScaleVal[ch];
 
   function idxToX(i) {

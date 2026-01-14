@@ -502,8 +502,8 @@
       </svg>
     </button>
 
-    <!--Channels-->
-    <button class="panel-btn" id="channelsBtn" title="Channels" data-tool="6">
+    <!--Layers-->
+    <button class="panel-btn" id="layersBtn" title="Layers" data-tool="6">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="6"  y1="3" x2="6"  y2="21" />
         <line x1="12" y1="3" x2="12" y2="21" />
@@ -698,7 +698,7 @@
           <option value="amplifier">Amplify</option>
           <option value="noiseRemover">Noise Remover</option>
         </select></div>
-        <div class="slider-row" id="spriteChannelDiv" style="display:none;"><label for="spriteChannel">Channel:</label><select id="spriteChannel">
+        <div class="slider-row" id="spriteLayerDiv" style="display:none;"><label for="spriteLayer">Channel:</label><select id="spriteLayer">
           <option value="0">0</option>
           <option value="all">All</option>
         </select></div>
@@ -801,17 +801,17 @@
       </section>
 
       <section class="sample-section">
-        <div class="section-content" id="channelsSection">
+        <div class="section-content" id="layersSection">
           <h3>
-            Channels
+            Layers
             <button type="button"
                     class="section-toggle"
-                    data-target="channelsSection"
+                    data-target="layersSection"
                     aria-expanded="true"
-                    aria-label="Toggle channels">
+                    aria-label="Toggle layers">
             </button>
           </h3>
-          <div id="channelsSampleWrapper"></div>
+          <div id="layersSampleWrapper"></div>
         </div>
       </section>
 
@@ -944,35 +944,35 @@
       <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     </div>
     <div id="d6" style="display:none;">
-      <h2 style="margin-bottom:10px;margin-top:10px;">Channels</h2>
-      <div class="slider-row" title="Channel Display Height" id="chdiv">
-        <label class="h2">Channel height</label>
-        <input id="channelHeight" type="range" min="0" max="500" step="1" value="500">
-        <input id="channelHeightInput" type="number" value="500" min="0" max="500">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Layers</h2>
+      <div class="slider-row" title="Layer Display Height" id="chdiv">
+        <label class="h2">Layer height</label>
+        <input id="layerHeight" type="range" min="0" max="500" step="1" value="500">
+        <input id="layerHeightInput" type="number" value="500" min="0" max="500">
       </div>
-      <div class="slider-row" title="Sync actions to all channels">
-          <label class="h2">Sync channels</label>
-          <input id="syncChannels" type="checkbox">
+      <div class="slider-row" title="Sync actions to all layers">
+          <label class="h2">Sync layers</label>
+          <input id="syncLayers" type="checkbox">
       </div>
-      <div id="channelsMixerDiv" class="channelWrapper">
+      <div id="layersMixerDiv" class="layerWrapper">
         <div style="display:flex;gap:10px;margin-top:5px;">
-          <b>Channel 0</b>
-          <input id="channelEnable-0" type="checkbox" checked aria-label="Enable channel 0">
+          <b>Layer 0</b>
+          <input id="layerEnable-0" type="checkbox" checked aria-label="Enable layer 0">
           <label class="h2" style="margin-left:60px;" id="speakerLabel0">Speaker</label>
-          <select id="audioDevices-0" class="channel-audio-devices" aria-label="Audio device for channel 0">
+          <select id="audioDevices-0" class="layer-audio-devices" aria-label="Audio device for layer 0">
             <option value="both">Both</option>
           </select>
         </div>
         <div id="chsliders0">
-          <div class="slider-row" title="Channel Volume">
+          <div class="slider-row" title="Layer Volume">
             <label class="h2">Volume</label>
-            <input id="channelVolume-0" type="range" min="0" max="1.25" step="0.01" value="1">
-            <input id="channelVolumeInput-0" type="number" value="1" min="0" max="1.25" step="0.01">
+            <input id="layerVolume-0" type="range" min="0" max="1.25" step="0.01" value="1">
+            <input id="layerVolumeInput-0" type="number" value="1" min="0" max="1.25" step="0.01">
           </div>
-          <div class="slider-row" title="Channel Brush Pressure">
+          <div class="slider-row" title="Layer Brush Pressure">
             <label class="h2">Brush Pressure</label>
-            <input id="channelBrushPressure-0" type="range" min="0" max="1" step="0.01" value="1">
-            <input id="channelBrushPressureInput-0" type="number" value="1" min="0" max="1" step="0.01">
+            <input id="layerBrushPressure-0" type="range" min="0" max="1" step="0.01" value="1">
+            <input id="layerBrushPressureInput-0" type="number" value="1" min="0" max="1" step="0.01">
           </div>
         </div>
       </div>

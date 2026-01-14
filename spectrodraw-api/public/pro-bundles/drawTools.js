@@ -1,5 +1,5 @@
 function computeNoiseProfileFromFrames(ch, startFrame, endFrame) {
-  const mags = channels[ch].mags;
+  const mags = layers[ch].mags;
   const frameCount = Math.max(1, endFrame - startFrame);
 
   // median per-bin (robust)
@@ -116,7 +116,7 @@ function computePhaseTexture(type, bin, frameIndex, basePhase, isSprite) {
   const FFT = fftSize;
   const fs = sampleRate;
   const hopLocal = hop;
-  const ch = currentChannel;
+  const ch = currentLayer;
   const twoPi = 2 * Math.PI;
   const k = bin | 0; 
   const fk = (k * fs) / FFT; 
@@ -145,8 +145,8 @@ function computePhaseTexture(type, bin, frameIndex, basePhase, isSprite) {
     case 'PhasePropagate': {
       const prevIdx = (frameIndex - 1) * specHeight + k;
       let prevPhase = null;
-      if (frameIndex > 0 && channels[ch] && channels[ch].phases && channels[ch].phases[prevIdx] !== undefined) {
-        prevPhase = channels[ch].phases[prevIdx];
+      if (frameIndex > 0 && layers[ch] && layers[ch].phases && layers[ch].phases[prevIdx] !== undefined) {
+        prevPhase = layers[ch].phases[prevIdx];
       }
       if (prevPhase !== null && isFinite(prevPhase)) {
         const expected = prevPhase + twoPi * fk * (hopLocal / fs);
@@ -170,7 +170,7 @@ function computePhaseTexture(type, bin, frameIndex, basePhase, isSprite) {
       break;
     case 'CopyFromRef': {
       const refIx = (e.refPhaseFrame * specHeight + k) | 0;
-      phi = (channels[ch] && channels[ch].phases) ? channels[ch].phases[refIx] || 0 : 0;
+      phi = (layers[ch] && layers[ch].phases) ? layers[ch].phases[refIx] || 0 : 0;
     } break;
     case 'HopArtifact': {
       const srcBins = Math.max(1, hopLocal | 0);
@@ -226,7 +226,7 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
   if (!img || !img.complete || img.naturalWidth === 0) return;
   const fullW = specWidth;
   const fullH = specHeight;
-  let integral = (currentTool === "blur")?buildIntegral(fullW, fullH, channels[ch].mags, channels[ch].phases):null;
+  let integral = (currentTool === "blur")?buildIntegral(fullW, fullH, layers[ch].mags, layers[ch].phases):null;
   const ox = Math.floor(dstOx);
   const oy = Math.floor(dstOy);
   const drawW = Math.max(0, Math.min(fullW - ox, Math.max(0, Math.round(dstW))));
@@ -239,7 +239,7 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
   tctx.imageSmoothingEnabled = false;
   tctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, drawW, drawH);
   const imgData = tctx.getImageData(0, 0, drawW, drawH);
-  const chPressure = (channels[ch] && channels[ch].brushPressure) ? channels[ch].brushPressure : 1;
+  const chPressure = (layers[ch] && layers[ch].brushPressure) ? layers[ch].brushPressure : 1;
   for (let yy = 0; yy < drawH; yy++) {
     for (let xx = 0; xx < drawW; xx++) {
       const pix = (yy * drawW + xx) * 4;
@@ -317,7 +317,7 @@ function queryIntegralSum(integral, x0, y0, x1, y1) {
   return { sumMag, sumPhase };
 }
 function drawSpriteOutline(useDelta,cx,cy){
-  let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?channelCount:spritePath.ch+1;
+  let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?layerCount:spritePath.ch+1;
   for (let ch=$s;ch<$e;ch++){
     const overlayCanvas = document.getElementById("overlay-"+ch);
     const canvas = document.getElementById("canvas-"+ch);
@@ -351,8 +351,8 @@ function drawSpriteOutline(useDelta,cx,cy){
 }
 function drawSampleRegion(cx) {
   const framesVisible = Math.max(1, iHigh - iLow);
-  let $s = syncChannels ? 0 : currentChannel;
-  let $e = syncChannels ? channelCount : currentChannel + 1;
+  let $s = syncLayers ? 0 : currentLayer;
+  let $e = syncLayers ? layerCount : currentLayer + 1;
   for (let ch = $s; ch < $e; ch++) {
     const overlayCanvas = document.getElementById("overlay-" + ch);
     if (!overlayCanvas) continue;
@@ -378,9 +378,9 @@ function previewShape(cx, cy) {
   requestAnimationFrame(() => {
     pendingPreview = false;
     const { cx, cy } = lastPreviewCoords;
-    const overlayCanvas = document.getElementById("overlay-"+currentChannel); 
+    const overlayCanvas = document.getElementById("overlay-"+currentLayer); 
     const ctx = overlayCanvas.getContext("2d"); 
-    const canvas = document.getElementById("canvas-"+currentChannel); 
+    const canvas = document.getElementById("canvas-"+currentLayer); 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     drawCursor(true);
     if (changingNoiseProfile) {
@@ -394,7 +394,7 @@ function previewShape(cx, cy) {
       }
       updateNoiseProfile();
       const framesVisible = Math.max(1, iHigh - iLow);
-      const overlayCanvas = document.getElementById("overlay-" + currentChannel);
+      const overlayCanvas = document.getElementById("overlay-" + currentLayer);
       const ctx = overlayCanvas.getContext("2d");
       const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
       let xPixel;
@@ -527,7 +527,7 @@ function previewShape(cx, cy) {
   });
 }
 function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
-  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
     let x0 = (startFrame <= endFrame) ? startFrame : endFrame;
     let x1 = (startFrame <= endFrame) ? endFrame : startFrame;
@@ -548,7 +548,7 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
         const px = x0;
         const py = y0 + dy;
         if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
-          drawPixel(px, py, brushMag, phaseShift, brushOpacity* channels[ch].brushPressure, phaseStrength, ch); 
+          drawPixel(px, py, brushMag, phaseShift, brushOpacity* layers[ch].brushPressure, phaseStrength, ch); 
         }
       }
       if (x0 === x1 && y0 === y1) break;
@@ -558,10 +558,10 @@ function line(startFrame, endFrame, startSpecY, endSpecY, lineWidth) {
     }
   }
 }
-let binToTopDisplay = new Array(channelCount);
-let binToBottomDisplay = new Array(channelCount);
+let binToTopDisplay = new Array(layerCount);
+let binToBottomDisplay = new Array(layerCount);
 function buildBinDisplayLookup() {
-  for (let ch=0;ch<channelCount;ch++){
+  for (let ch=0;ch<layerCount;ch++){
     binToTopDisplay[ch] = new Float32Array(specHeight);
     binToBottomDisplay[ch] = new Float32Array(specHeight);
     for (let b = 0; b < specHeight; b++) {
@@ -612,8 +612,8 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   if (xI < 0 || xI >= specWidth) return;
   const idxBase = xI * specHeight;
   const imgData = imageBuffer[ch].data;
-  const magsArr = channels[ch].mags;
-  const phasesArr = channels[ch].phases;
+  const magsArr = layers[ch].mags;
+  const phasesArr = layers[ch].phases;
   let displayYFloat = yDisplay;
   const f = getSineFreq(yDisplay);
   if (alignPitch) {
@@ -641,7 +641,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
                 : (currentTool === "noiseRemover")
                 ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
                 : (currentTool === "cloner")
-                ? channels[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
+                ? layers[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
     const type = phaseTextureEl.value;
     parseExpression.vars["pixel.frame"]= xI;
@@ -650,7 +650,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     if (currentTool === "fill" || currentTool === "eraser") {
       let $phase;
       if (currentTool === "cloner") {
-        $phase = channels[clonerCh].phases[clonerPos];
+        $phase = layers[clonerCh].phases[clonerPos];
       } else {
         if (type==="HopArtifact") {
           $phase = computePhaseTexture(type, bin, xI, phase, false);
@@ -664,7 +664,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     }
     const clampedMag = Math.min(newMag, 255);
     magsArr[idx] = clampedMag;
-    channels[ch].mags = magsArr;
+    layers[ch].mags = magsArr;
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
@@ -711,7 +711,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   const tool = newEffect.tool || currentTool;
   let mag, phase;
   if (tool === "blur") {
-    const binCenter = Math.round(displayYToBin(bin, specHeight, currentChannel));
+    const binCenter = Math.round(displayYToBin(bin, specHeight, currentLayer));
     const r = newEffect.blurRadius;
     const x0 = Math.max(0, x - r);
     const x1 = Math.min(specWidth - 1, x + r);
@@ -724,7 +724,7 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
     mag = (tool === "eraser" ? 0 : (newEffect.brushBrightness  !== undefined) ? newEffect.brushBrightness  :128);
     phase=(tool === "eraser" ? 0 : (newEffect.phaseShift!== undefined) ? newEffect.phaseShift:  0);
   }
-  const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* channels[ch].brushPressure;
+  const bo =  (tool === "eraser" ? 1 : (newEffect.brushOpacity   !== undefined) ? newEffect.brushOpacity   :  1)* layers[ch].brushPressure;
   const po =  (tool === "eraser" ? 0 : (newEffect.phaseStrength  !== undefined) ? newEffect.phaseStrength  :  0);
   const _amp = newEffect.amp || amp;
   const newMag =  (tool === "amplifier" || tool === "sample")
@@ -739,23 +739,23 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   return { mag: clampedMag, phase: newPhase};
 }
 function commitShape(cx, cy) {
-  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = channels[ch].mags, phases = channels[ch].phases;
+    let mags = layers[ch].mags, phases = layers[ch].phases;
     if (!mags || !phases) return;
     const fullW = specWidth;
     const fullH = specHeight;
     const gpo = currentTool === "eraser" ? 1 : phaseStrength;
     const expressionpo = getExpressionById("phaseStrengthDiv");
     function po() { return expressionpo.expression.includes("pixel.")?(currentTool === "eraser" ? 1 : parseExpression(expressionpo)):gpo; }
-    const gbo = (currentTool === "eraser" ? 1 : brushOpacity)* channels[ch].brushPressure;
+    const gbo = (currentTool === "eraser" ? 1 : brushOpacity)* layers[ch].brushPressure;
     const expressionbo = getExpressionById("opacityDiv");
-    function bo(){return expressionbo.expression.includes("pixel.")?(currentTool === "eraser" ? 1 : parseExpression(expressionbo)* channels[ch].brushPressure):gbo;}
+    function bo(){return expressionbo.expression.includes("pixel.")?(currentTool === "eraser" ? 1 : parseExpression(expressionbo)* layers[ch].brushPressure):gbo;}
     const gBrushMag = (currentTool === "eraser" ? 0 : (brushBrightness / 255) * 128);
     const expressionBrushMag = getExpressionById("brushBrightnessDiv");
     function brushMag(){return expressionBrushMag.expression.includes("pixel.")?(currentTool === "eraser" ? 0 : (parseExpression(expressionBrushMag) / 255) * 128):gBrushMag;}
     const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-    const visitedLocal = Array.from({ length: channelCount }, () => new Uint8Array(fullW * fullH));
+    const visitedLocal = Array.from({ length: layerCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
     visited = visitedLocal;
     let integral = null;
@@ -932,14 +932,14 @@ function ftvsy(f,ch,l) {
 }
 let vr = 1;
 function paint(cx, cy) {
-  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
-    const mags = channels[ch].mags, phases = channels[ch].phases;
+    const mags = layers[ch].mags, phases = layers[ch].phases;
     const canvas = document.getElementById("canvas-"+ch);
     const fullW = specWidth;
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : parseExpression(getExpressionById("phaseStrengthDiv"));
-    const bo = (currentTool === "eraser") ? channels[ch].brushPressure : parseExpression(getExpressionById("opacityDiv"))*channels[ch].brushPressure;
+    const bo = (currentTool === "eraser") ? layers[ch].brushPressure : parseExpression(getExpressionById("opacityDiv"))*layers[ch].brushPressure;
     vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
     const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
     const radiusXFrames = Math.floor((brushWidth/2/canvas.getBoundingClientRect().width*canvas.width)*vr);
@@ -1114,8 +1114,8 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
   const startOnPLocal = opts.startOnP ?? aStartOnP;
   const binFreqStep = sampleRateLocal / fftSizeLocal;
   const pixBuf = imageBuffer[ch].data; 
-  const magsArr = channels[ch].mags;     
-  const phasesArr = channels[ch].phases; 
+  const magsArr = layers[ch].mags;     
+  const phasesArr = layers[ch].phases; 
   const visitedArr = visited;
   minBin = fullH; maxBin = 0;
   for (let i = 0; i < pixels.length; i++) {

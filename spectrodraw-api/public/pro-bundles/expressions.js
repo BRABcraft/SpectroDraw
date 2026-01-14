@@ -264,7 +264,7 @@ function addExpressionBtns(){
     div.appendChild(btn);
   }
 }
-const predefinedConstVars = new Set([ "brush", "tool", "size", "width", "height", "opacity", "harmonics", "effect", "brightness", "blurRadius", "amplify", "aggressiveness", "autotuneStrength", "baseHz", "notesPerOctave", "phaseTexture", "phaseSettings", "phaseStrength", "phaseShift", "eqBands", "mouse", "frame", "bin", "zoom", "x", "min", "max", "y", "currentChannel", "logScale", "sampleRate", "specHeight", "specWidth", "clonerScale", "currentTool", "currentEffect","pixel"]);
+const predefinedConstVars = new Set([ "brush", "tool", "size", "width", "height", "opacity", "harmonics", "effect", "brightness", "blurRadius", "amplify", "aggressiveness", "autotuneStrength", "baseHz", "notesPerOctave", "phaseTexture", "phaseSettings", "phaseStrength", "phaseShift", "eqBands", "mouse", "frame", "bin", "zoom", "x", "min", "max", "y", "currentLayer", "logScale", "sampleRate", "specHeight", "specWidth", "clonerScale", "currentTool", "currentEffect","pixel"]);
 
 // ------------ Editor core (per-instance) ----------------
 function initEditor(expr){

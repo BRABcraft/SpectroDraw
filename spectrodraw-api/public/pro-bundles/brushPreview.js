@@ -374,7 +374,7 @@ function updateBrushPreview() {
       pctx.textAlign = "center";
       pctx.fillText("No reference point set", centerX, centerY + 4);
     } else {
-      // Determine source canvas (prefer visible channel canvas)
+      // Determine source canvas (prefer visible layer canvas)
       let srcCanvas = document.getElementById("canvas-" + clonerCh);
       if (!srcCanvas) {
         pctx.font = "12px Arial";

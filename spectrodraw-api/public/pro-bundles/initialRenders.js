@@ -5,4 +5,4 @@ drawTimeline();
 drawYAxis();
 drawLogScale();
 renderFullSpectrogramToImage();
-updateChannels();
+updateLayers();

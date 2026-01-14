@@ -14,7 +14,7 @@ let sineOsc = null;
 let sineGain = null;
 function getSineFreq(cy) {
     const h = specHeight;
-    const s = (currentTool === "autotune")?2:parseFloat(logScaleVal[currentChannel]); 
+    const s = (currentTool === "autotune")?2:parseFloat(logScaleVal[currentLayer]); 
     let bin;
     if (s <= 1.0000001) {
         bin = h - 1 - cy;
@@ -51,7 +51,7 @@ function newSprite(opts={}){
   }
   let name = (opts.name??currentTool) + `_${count}`;
   let pixelmap=[];
-  for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
+  for(let c=0;c<layerCount;c++) pixelmap.push((syncLayers||c==currentLayer)?(new Map()):null);
   currentSprite = {
     id: nextSpriteId++,
     effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg,
@@ -66,7 +66,7 @@ function newSprite(opts={}){
     spriteFade: [],
     prevSpriteFade: [],
     name,
-    ch: syncChannels?"all":currentChannel
+    ch: syncLayers?"all":currentLayer
   };
   sprites.push(currentSprite);
 }
@@ -81,11 +81,11 @@ function canvasMouseDown(e,touch) {
   if (!hasSetNoiseProfile) autoSetNoiseProfile();
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   prevMouseX = cx; prevMouseY = cy; vr = 1;
-  const mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
-  const overlayCanvas = document.getElementById("overlay-"+currentChannel)
+  const mags = layers[currentLayer].mags, phases = layers[currentLayer].phases;
+  const overlayCanvas = document.getElementById("overlay-"+currentLayer)
   const overlayCtx = overlayCanvas.getContext("2d");
   startX = cx; startY = cy;
-  if (currentTool==="cloner"&&changingClonerPos) {clonerX = cx; clonerY = cy;clonerCh=currentChannel;updateBrushPreview();}
+  if (currentTool==="cloner"&&changingClonerPos) {clonerX = cx; clonerY = cy;clonerCh=currentLayer;updateBrushPreview();}
   painting = true;
   if (changingNoiseProfile) {
     if (currentPanel!=="2"){
@@ -101,13 +101,13 @@ function canvasMouseDown(e,touch) {
     return;
   }
   if (currentShape === "select") return;
-  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
-    channels[ch].snapshotMags = new Float32Array(channels[ch].mags);
-    channels[ch].snapshotPhases = new Float32Array(channels[ch].phases);
+    layers[ch].snapshotMags = new Float32Array(layers[ch].mags);
+    layers[ch].snapshotPhases = new Float32Array(layers[ch].phases);
   }
 
-  visited = Array.from({ length: channelCount }, () => new Uint8Array(mags.length));
+  visited = Array.from({ length: layerCount }, () => new Uint8Array(mags.length));
   stopSource();
   paintedPixels = new Set();
   
@@ -123,7 +123,7 @@ function canvasMouseDown(e,touch) {
 
 
   // --- CREATE NEW SPRITE FOR THIS STROKE ---
-  startCh = currentChannel;
+  startCh = currentLayer;
   newSprite();
 
   const isRectangle = currentShape === "rectangle";
@@ -168,17 +168,17 @@ function setSineFreq(cy) {
 }
 function setClonerYShift(){
   if (currentTool==="cloner") {
-    rcY = displayYToBin(visibleToSpecY(clonerY),specHeight,currentChannel);
-    rsY = displayYToBin(visibleToSpecY(startY),specHeight,currentChannel);
+    rcY = displayYToBin(visibleToSpecY(clonerY),specHeight,currentLayer);
+    rsY = displayYToBin(visibleToSpecY(startY),specHeight,currentLayer);
   }
 }
 
 let previewingShape = false;
 let mouseVelocity = 0;
 function canvasMouseMove(e,touch,el) {
-  currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);
+  currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
-  let mags = channels[currentChannel].mags; //change to channel that mouse is touching
+  let mags = layers[currentLayer].mags; //change to layer that mouse is touching
   if (painting && (movingSprite||changingNoiseProfile||currentShape==="select") || draggingSample.length>0) {previewShape(cx, cy);return;}
   if (changingNoiseProfile) return;
   if (zooming) return;
@@ -202,7 +202,7 @@ function canvasMouseMove(e,touch,el) {
       previewShape(cx, cy);
       previewingShape = true;
       clonerX = cx; clonerY = cy;
-      clonerCh=currentChannel;
+      clonerCh=currentLayer;
       updateBrushPreview();
       return;
     } else {
@@ -216,8 +216,8 @@ function canvasMouseMove(e,touch,el) {
     previewShape(cx, cy);
     previewingShape = true;
   } else {
-    if (currentChannel !== startCh) return;
-    let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+    if (currentLayer !== startCh) return;
+    let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
     for (let ch=$s;ch<$e;ch++){
       const overlayCanvas = document.getElementById("overlay-"+ch);
       const overlayCtx = overlayCanvas.getContext("2d");
@@ -266,8 +266,8 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
     return;}
   const { cx, cy } = getCanvasCoords(e,touch);
   if (movingSprite) {handleMoveSprite(cx,cy);return;}
-  if (currentShape === "select") {createNewSpriteFromSelection(startX, displayYToBin(visibleToSpecY(startY),specHeight,currentChannel), cx, displayYToBin(visibleToSpecY(cy),specHeight,currentChannel)); return;}
-  const overlayCanvas = document.getElementById("overlay-"+currentChannel);
+  if (currentShape === "select") {createNewSpriteFromSelection(startX, displayYToBin(visibleToSpecY(startY),specHeight,currentLayer), cx, displayYToBin(visibleToSpecY(cy),specHeight,currentLayer)); return;}
+  const overlayCanvas = document.getElementById("overlay-"+currentLayer);
   const overlayCtx = overlayCanvas.getContext("2d");
   if (currentShape === "rectangle" || (document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image")) || currentShape === "line") {
     commitShape(cx, cy);
@@ -312,7 +312,7 @@ function simpleRestartRender(min=-1,max=-1){
 let minCol = Infinity; maxCol = -Infinity;
 function calcMinMaxCol() {
   if (isFinite(minCol) && isFinite(maxCol)) {return {minCol,maxCol};}
-  const mags = channels[currentChannel].mags, snapshotMags = channels[currentChannel].snapshotMags;
+  const mags = layers[currentLayer].mags, snapshotMags = layers[currentLayer].snapshotMags;
   if (snapshotMags === null || snapshotMags.length !== mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
   const epsMag = 1e-2;
   const h = specHeight;
@@ -369,12 +369,12 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
-  //console.log(channels[0].snapshotMags);
+  //console.log(layers[0].snapshotMags);
   if (dontChangeSprites) {dontChangeSprites=false; return;}
-  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = channels[ch].mags, phases = channels[ch].phases;
-    let snapshotMags = channels[ch].snapshotMags, snapshotPhases = channels[ch].snapshotPhases;
+    let mags = layers[ch].mags, phases = layers[ch].phases;
+    let snapshotMags = layers[ch].snapshotMags, snapshotPhases = layers[ch].snapshotPhases;
     const startF = minCol*specHeight;
     const endF = maxCol*specHeight;
     let totalDiff = 0;
@@ -412,21 +412,21 @@ let wasPlayingDuringDrag = false;
 initEmptyPCM(false);
 
 function updateCursorLoop() {
-  const specCanvas = document.getElementById("spec-"+currentChannel);
+  const specCanvas = document.getElementById("spec-"+currentLayer);
   if (!specCanvas) return;
   const specCtx = specCanvas.getContext("2d");
-  if (playing && !painting && channels[currentChannel].pcm && sourceNode) {
+  if (playing && !painting && layers[currentLayer].pcm && sourceNode) {
     const elapsed = audioCtx.currentTime - sourceStartTime; 
     let samplePos = elapsed * sampleRate;
 
     if (sourceNode.loop) {
-      samplePos = samplePos % channels[currentChannel].pcm.length; 
+      samplePos = samplePos % layers[currentLayer].pcm.length; 
     }
 
     const frame = Math.floor(samplePos / hop);
     currentCursorX = Math.min(frame, specWidth - 1);
 
-    specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+    specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
     renderView();
     drawCursor(false);
     drawEQ();
@@ -466,13 +466,13 @@ async function playPCM(loop = true, startFrame = null) {
 
   //stopSource(true);
 
-  if (!channels || channels.length === 0) {
-    console.warn("No channels to play.");
+  if (!layers || layers.length === 0) {
+    console.warn("No layers to play.");
     return;
   }
 
-  // Determine total length (use longest channel)
-  const totalSamples = channels.reduce((max, ch) => {
+  // Determine total length (use longest layer)
+  const totalSamples = layers.reduce((max, ch) => {
     const len = ch && ch.pcm ? ch.pcm.length : 0;
     return Math.max(max, len);
   }, 0);
@@ -496,18 +496,18 @@ async function playPCM(loop = true, startFrame = null) {
 
   sourceNode = audioCtx.createBufferSource();
 
-  // We mix all logical channels into a stereo output buffer according to channels[ch].audioDevice
+  // We mix all logical layers into a stereo output buffer according to layers[ch].audioDevice
   const outChannels = 2; // stereo: 0 = left, 1 = right
   const buffer = audioCtx.createBuffer(outChannels, totalSamples, sampleRate);
 
-  // get direct access to channel arrays
+  // get direct access to layer arrays
   const left = buffer.getChannelData(0);
   const right = buffer.getChannelData(1);
 
-  // Mix channels into left/right
-  const nCh = channels.length;
+  // Mix layers into left/right
+  const nCh = layers.length;
   for (let ch = 0; ch < nCh; ch++) {
-    const chObj = channels[ch];
+    const chObj = layers[ch];
     if (!chObj || !chObj.pcm) continue;
 
     const pcm = chObj.pcm;
@@ -565,8 +565,8 @@ async function playFrame(frameX) {
   currentCursorX = frameX;
   ensureAudioCtx();
 
-  if (!channels || channels.length === 0) {
-    console.warn("No channels available to play.");
+  if (!layers || layers.length === 0) {
+    console.warn("No layers available to play.");
     return;
   }
 
@@ -578,8 +578,8 @@ async function playFrame(frameX) {
 
   const start = Math.floor(frameX * hop);
 
-  // Compute how many samples are available per channel after start, and use the maximum (so we don't cut off any channel).
-  const maxRemaining = channels.reduce((max, ch) => {
+  // Compute how many samples are available per layer after start, and use the maximum (so we don't cut off any layer).
+  const maxRemaining = layers.reduce((max, ch) => {
     const len = (ch && ch.pcm) ? Math.max(0, ch.pcm.length - start) : 0;
     return Math.max(max, len);
   }, 0);
@@ -588,13 +588,13 @@ async function playFrame(frameX) {
   const frameLen = Math.min(fftSize, maxRemaining);
   if (frameLen <= 0) return;
 
-  const buffer = audioCtx.createBuffer(channelCount, frameLen, sampleRate);
+  const buffer = audioCtx.createBuffer(layerCount, frameLen, sampleRate);
 
-  // Copy each channel's slice (or leave as silence if not available)
-  for (let ch = 0; ch < channelCount; ch++) {
-    const pcm = (channels[ch] && channels[ch].pcm) ? channels[ch].pcm : null;
+  // Copy each layer's slice (or leave as silence if not available)
+  for (let ch = 0; ch < layerCount; ch++) {
+    const pcm = (layers[ch] && layers[ch].pcm) ? layers[ch].pcm : null;
     if (!pcm || pcm.length <= start) {
-      // leave channel silent
+      // leave layer silent
       continue;
     }
     const available = pcm.length - start;
@@ -648,14 +648,14 @@ function createNewSpriteFromSelection(startX, startY, endX, endY) {
   s.maxCol = maxX;
   s.minY = minY;
   s.maxY = maxY;
-  const mags = channels[currentChannel].mags;
-  const phases = channels[currentChannel].phases;
+  const mags = layers[currentLayer].mags;
+  const phases = layers[currentLayer].phases;
   for (let x = minX; x <= maxX; x++) {
     for (let y = minY; y <= maxY; y++) {
       const idx = x * specHeight + y;
       const mag = mags[idx];
       const phase = phases[idx];
-      addPixelToSprite(s, x, y, 0, 0, mag, phase, currentChannel);
+      addPixelToSprite(s, x, y, 0, 0, mag, phase, currentLayer);
     }
   }
   renderSpritesTable();

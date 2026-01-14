@@ -18,17 +18,17 @@ function restartRender(autoPlay){
   iHigh = framesTotal;
   const freqBins = Math.floor(fftSize / 2);
   
-  const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (window.innerHeight - 70) / freqBins, 1) : channelHeight;
+  const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (window.innerHeight - 70) / freqBins, 1) : layerHeight;
   if (trueScaleVal) {
     document.getElementById("chdiv").setAttribute('disabled', 'disabled');
   } else {
     document.getElementById("chdiv").removeAttribute('disabled');
   }
-  if (imageBuffer === null) imageBuffer = new Array(channelCount);
-  if (currentChannel >= channelCount) currentChannel = channelCount-1;
-  for (let ch = 0; ch < channelCount; ch++){
+  if (imageBuffer === null) imageBuffer = new Array(layerCount);
+  if (currentLayer >= layerCount) currentLayer = layerCount-1;
+  for (let ch = 0; ch < layerCount; ch++){
     let timeline, canvas, overlayCanvas, yAxis, specCanvas, logscaleEl;
-    if (!channels[ch].hasCanvases) {
+    if (!layers[ch].hasCanvases) {
       let w = document.getElementById("canvasWrapper-"+ch);
       const wrapper = (w!==null)?w:document.createElement("div");
       wrapper.innerHTML = "";
@@ -72,7 +72,7 @@ function restartRender(autoPlay){
       specCanvas.style.display = "none";
       specCanvas.id = `spec-${ch}`;
       wrapper.appendChild(specCanvas);
-      channels[ch].hasCanvases = true;
+      layers[ch].hasCanvases = true;
       document.getElementById("canvasWrapper").appendChild(wrapper);
       
       for (const prefix in handlers) {
@@ -115,7 +115,7 @@ function restartRender(autoPlay){
       // we compute CSS width from parent element
       const parentClientW = Math.max(1, canvas.parentElement.clientWidth - 40);
       displayW = parentClientW;
-      displayH = Math.max(1, channelHeight - 40);
+      displayH = Math.max(1, layerHeight - 40);
 
       canvas.style.width = displayW + "px";
       canvas.style.height = displayH + "px";
@@ -151,8 +151,8 @@ function restartRender(autoPlay){
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
     specCtx.putImageData(imageBuffer[ch], 0, 0);
 
-    if (!channels[ch].mags) channels[ch].mags = new Float32Array(specWidth * specHeight).fill(0);
-    if (!channels[ch].phases) channels[ch].phases = new Float32Array(specWidth * specHeight).fill(0);
+    if (!layers[ch].mags) layers[ch].mags = new Float32Array(specWidth * specHeight).fill(0);
+    if (!layers[ch].phases) layers[ch].phases = new Float32Array(specWidth * specHeight).fill(0);
 
     // IMPORTANT: after (re)setting canvas.width/height the context is reset, so re-obtain it
     const ctx = canvas.getContext("2d");
@@ -261,10 +261,10 @@ function displayYToBin(y, h, ch) {
 }
 
 function drawFrame(w,h) {
-  if (pos + fftSize > channels[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
-  let _s = recording?currentChannel:0; _e = recording?currentChannel+1:channelCount;
+  if (pos + fftSize > layers[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
+  let _s = recording?currentLayer:0; _e = recording?currentLayer+1:layerCount;
   for (let ch = _s; ch<_e; ch++){
-    const c = channels[ch];
+    const c = layers[ch];
     let mags = c.mags, phases = c.phases, pcm = c.pcm;
     const re = new Float32Array(fftSize);
     const im = new Float32Array(fftSize);
@@ -288,7 +288,7 @@ function drawFrame(w,h) {
         }
       }
     }
-    const skipY = (recording?8:1)*channelCount;
+    const skipY = (recording?8:1)*layerCount;
     for (let yy = 0; yy < h; yy+=skipY) {
       const mappedBin = displayYToBin(yy, h, ch);
       const idx = x * h + mappedBin;
@@ -307,7 +307,7 @@ function drawFrame(w,h) {
   
   pos += hop; x++;
   audioProcessed += hop;
-  ch = currentChannel;
+  ch = currentLayer;
   if (x >= (maxCol==0?w:maxCol)) {
     uploadingSprite = false;
     if (recording) return false;
@@ -381,7 +381,7 @@ function drawLoop() {
   const framesPerTick = 200;
   const h = specHeight;
   const w = specWidth;
-  let $s = syncChannels?0:currentChannel, $e = syncChannels?channelCount:currentChannel+1;
+  let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let f = 0; f < framesPerTick; f++) if (!drawFrame(w,h)) break;
   for (let ch=$s;ch<$e;ch++) {
     document.getElementById("spec-"+ch).getContext("2d").putImageData(imageBuffer[ch], 0, 0);
@@ -393,7 +393,7 @@ function drawLoop() {
   const elapsedMS = performance.now() - startTime;
   const elapsedSec = elapsedMS / 1000;
   const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
-  let pcm = channels[currentChannel].pcm;
+  let pcm = layers[currentLayer].pcm;
   const audioSec = pcm.length / sampleRate; 
   const processedSec = audioProcessed / sampleRate;
   status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
@@ -407,7 +407,7 @@ function drawLoop() {
 }
 
 function drawCursor(clear){
-  for (let ch=0;ch<channelCount;ch++){
+  for (let ch=0;ch<layerCount;ch++){
     const canvas = document.getElementById("canvas-"+ch);
     const overlayCanvas = document.getElementById("overlay-"+ch);
     const overlayCtx = overlayCanvas.getContext("2d");
@@ -438,10 +438,10 @@ function updateCanvasScroll() {
   const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
   const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
   const viewHeight = Math.max(1, fEnd - fStart);
-  let _s = recording?currentChannel:0; _e = recording?currentChannel+1:channelCount;
+  let _s = recording?currentLayer:0; _e = recording?currentLayer+1:layerCount;
   for (let ch = _s; ch<_e; ch++){
     const specCanvas=document.getElementById("spec-"+ch);
-    if (!imageBuffer[currentChannel] || !specCanvas) return;
+    if (!imageBuffer[currentLayer] || !specCanvas) return;
     const canvas = document.getElementById("canvas-"+ch);
     const ctx = canvas.getContext("2d");
     // always ensure nearest-neighbour for drawImage operations
@@ -485,10 +485,10 @@ function renderView() {
   const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
   const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
   const viewHeight = Math.max(1, fEnd - fStart);
-  let _s = recording?currentChannel:0; _e = recording?currentChannel+1:channelCount;
+  let _s = recording?currentLayer:0; _e = recording?currentLayer+1:layerCount;
   for (let ch = _s; ch<_e; ch++){
     const specCanvas=document.getElementById("spec-"+ch);
-    if (!specCanvas || !imageBuffer[currentChannel]) continue;
+    if (!specCanvas || !imageBuffer[currentLayer]) continue;
     const canvas = document.getElementById("canvas-"+ch);
     const ctx = canvas.getContext("2d");
     // nearest-neighbor for drawImage
@@ -522,7 +522,7 @@ let painting=false;
 let paintedPixels=null;
 
 function getCanvasCoords(e,touch){
-  const canvas = document.getElementById("canvas-"+currentChannel);
+  const canvas = document.getElementById("canvas-"+currentLayer);
   const rect=canvas.getBoundingClientRect();
   const scaleX=canvas.width/rect.width;
   const scaleY=canvas.height/rect.height;
@@ -538,36 +538,36 @@ function getCanvasCoords(e,touch){
 }
 function processPendingFramesLive(){
   let count=0;
-  while (pos + fftSize <= channels[currentChannel].pcm.length) {
+  while (pos + fftSize <= layers[currentLayer].pcm.length) {
     if (!drawFrame(specWidth, specHeight)) break;
   }
   
-  const specCanvas=document.getElementById("spec-"+currentChannel);
+  const specCanvas=document.getElementById("spec-"+currentLayer);
   const specCtx = specCanvas.getContext("2d");
-  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+  specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
   renderView();
   drawCursor(true);
 }
 function renderFullSpectrogramToImage() {
-  const specCanvas=document.getElementById("spec-"+currentChannel);
+  const specCanvas=document.getElementById("spec-"+currentLayer);
   const specCtx = specCanvas.getContext("2d");
-  let mags = channels[currentChannel].mags, phases = channels[currentChannel].phases;
-  if (!imageBuffer[currentChannel] || !mags || !phases) return;
+  let mags = layers[currentLayer].mags, phases = layers[currentLayer].phases;
+  if (!imageBuffer[currentLayer] || !mags || !phases) return;
   const w = specWidth, h = specHeight;
   for(let xx=0; xx<w; xx++){
     for(let yy=0; yy<h; yy++){
-      const bin = displayYToBin(yy, h, currentChannel);
+      const bin = displayYToBin(yy, h, currentLayer);
       const idx = xx * h + bin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;
       const [r,g,b] = magPhaseToRGB(mag, phase);
       const pix = (yy * w + xx) * 4;
-      imageBuffer[currentChannel].data[pix] = r;
-      imageBuffer[currentChannel].data[pix+1] = g;
-      imageBuffer[currentChannel].data[pix+2] = b;
-      imageBuffer[currentChannel].data[pix+3] = 255;
+      imageBuffer[currentLayer].data[pix] = r;
+      imageBuffer[currentLayer].data[pix+1] = g;
+      imageBuffer[currentLayer].data[pix+2] = b;
+      imageBuffer[currentLayer].data[pix+3] = 255;
     }
   }
-  specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+  specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
   renderView();
 }

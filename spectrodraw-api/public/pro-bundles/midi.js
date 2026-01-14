@@ -618,16 +618,16 @@ function normalizeNoteFromModel(n) {
 }
 function determinePcm(ch) {
   let pcm;
-  if (channelCount == 1) {
-    pcm = channels[0].pcm;
+  if (layerCount == 1) {
+    pcm = layers[0].pcm;
   } else if (midiChannelMode.value==="single") {
-    pcm = channels[parseInt(document.getElementById("midiSingleChannel").value)].pcm;
+    pcm = layers[parseInt(document.getElementById("midiSingleLayer").value)].pcm;
   } else if (midiChannelMode.value==="allMixToMono") {
-    const pcs = channels.map(ch => ch.pcm);
+    const pcs = layers.map(ch => ch.pcm);
     const len = pcs[0].length;
     pcm = Float32Array.from({ length: len },(_, i) => pcs.reduce((sum, a) => sum + a[i], 0) / pcs.length);
   } else if (midiChannelMode.value==="all") {
-    pcm = channels[ch].pcm;
+    pcm = layers[ch].pcm;
   }
   return pcm;
 }
@@ -968,8 +968,8 @@ function filterNotes(notes) {
 }
 async function exportMidi(opts = {}) {
   const downloadName = opts.downloadName ?? "export.mid";
-  if (midiChannelMode.value==="all" && channelCount>1){
-    for (let ch=0;ch<channelCount;ch++){
+  if (midiChannelMode.value==="all" && layerCount>1){
+    for (let ch=0;ch<layerCount;ch++){
       let notes = filterNotes(await getNotes(ch));
       writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });
     }
@@ -982,7 +982,7 @@ async function exportMidi(opts = {}) {
 function writeMidiFile(notes, opts = {}) {
   const ppq = opts.ppq ?? 480;
   const tempoBPM = opts.tempoBPM ?? 120;
-  const channel = opts.channel ?? 0;
+  const layer = opts.layer ?? 0;
   const a4 = opts.a4 ?? 440;
   const pitchBendRange = opts.pitchBendRange ?? 2; 
   const downloadName = opts.downloadName ?? "output.mid";
@@ -1011,10 +1011,10 @@ function writeMidiFile(notes, opts = {}) {
   writeVarLen(0, track);
   track.push(0xFF, 0x51, 0x03);
   track.push((microsecondsPerQuarter >> 16) & 0xff, (microsecondsPerQuarter >> 8) & 0xff, microsecondsPerQuarter & 0xff);
-  writeVarLen(0, track); track.push(0xC0 | channel, 0);
+  writeVarLen(0, track); track.push(0xC0 | layer, 0);
   function pushControl(changeController, value) {
     writeVarLen(0, track);
-    track.push(0xB0 | (channel & 0x0f), changeController & 0x7f, value & 0x7f);
+    track.push(0xB0 | (layer & 0x0f), changeController & 0x7f, value & 0x7f);
   }
   pushControl(0x65, 0x00);
   pushControl(0x64, 0x00);
@@ -1096,13 +1096,13 @@ function writeMidiFile(notes, opts = {}) {
     writeVarLen(delta, track);
     const type = ev[2];
     if (type === 'pb') {
-      track.push(0xE0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+      track.push(0xE0 | (layer & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     } else if (type === 'on') {
-      track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+      track.push(0x90 | (layer & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     } else if (type === 'off') {
-      track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, 0x00);
+      track.push(0x90 | (layer & 0x0f), ev[3] & 0x7f, 0x00);
     } else if (type === 'cc') {
-      track.push(0xB0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+      track.push(0xB0 | (layer & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     }
     lastTick = ev[0];
   }
@@ -1129,96 +1129,80 @@ function writeMidiFile(notes, opts = {}) {
   return out;
 }
 function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultiplier = 4} = {}) {
-  if (typeof snapshotMags !== "undefined") {
-    snapshotMags = new Float32Array(mags);
-    snapshotPhases = new Float32Array(phases);
-    pos = 0;
-    x = 0;
-    audioProcessed = 0;
-  }
-  const h = specHeight;
-  function median(arr) {
-    const a = Array.from(arr).sort((a, b) => a - b);
-    const mid = Math.floor(a.length / 2);
-    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
-  }
-  function mad(arr, med) {
-    const diffs = arr.map(v => Math.abs(v - med));
-    return median(diffs);
-  }
-  const factor = sampleRate / fftSize; 
-  for (let frame = 0; frame < specWidth; frame++) {
-    const re = new Float32Array(fftSize);
-    const im = new Float32Array(fftSize);
-    for (let j = 0; j < fftSize; j++) {
-      re[j] = (pcm[pos + j] || 0) * win[j];
-      im[j] = 0;
+  for (let ch=0;ch<layerCount;ch++){
+    let pcm = layers[ch].pcm, mags=layers[ch].mags;
+    const h = specHeight;
+    function median(arr) {
+      const a = Array.from(arr).sort((a, b) => a - b);
+      const mid = Math.floor(a.length / 2);
+      return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
     }
-    fft_inplace(re, im);
-    const fmags = new Float32Array(h);
-    for (let bin = 0; bin < h; bin++) {
-      fmags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0) / 256;
+    function mad(arr, med) {
+      const diffs = arr.map(v => Math.abs(v - med));
+      return median(diffs);
     }
-    const med = median(fmags);
-    const m = mad(fmags, med) || 1e-12;
-    const threshold = med + peakMadMultiplier * m;
-    const peaks = [];
-    for (let bin = 1; bin < h; bin++) {
-      const mag = fmags[bin];
-      if (mag > threshold) {
-        peaks.push({ bin, mag, freq: factor * bin });
+    const factor = sampleRate / fftSize; 
+    for (let frame = 0; frame < specWidth; frame++) {
+      const re = new Float32Array(fftSize);
+      const im = new Float32Array(fftSize);
+      for (let j = 0; j < fftSize; j++) {
+        re[j] = (pcm[frame*h + j] || 0) * win[j];
+        im[j] = 0;
       }
-    }
-    peaks.sort((a, b) => b.mag - a.mag);
-    const suppressed = new Array(h).fill(false);
-    const suppressedBinsThisFrame = [];
-    function suppressBin(binIndex) {
-      if (suppressed[binIndex]) return;
-      const mirror = (fftSize - binIndex) % fftSize;
-      const scale = 1 / 10000;
-      re[binIndex] *= scale; im[binIndex] *= scale;
-      re[mirror] *= scale;  im[mirror] *= scale;
-      suppressed[binIndex] = true;
-      if (mirror < h) suppressed[mirror] = true;
-      suppressedBinsThisFrame.push(binIndex);
-    }
-    for (const peak of peaks) {
-      if (suppressed[peak.bin]) continue; 
-      const baseFreq = peak.freq;
-      for (const q of peaks) {
-        if (q.bin === peak.bin) continue;
-        if (suppressed[q.bin]) continue;
-        for (let k = 2; k <= maxHarmonic; k++) {
-          if (Math.abs(q.freq - k * baseFreq) <= harmonicTolerance * baseFreq) {
-            suppressBin(q.bin);
-            break;
+      fft_inplace(re, im);
+      const fmags = new Float32Array(h);
+      for (let bin = 0; bin < h; bin++) {
+        fmags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0) / 256;
+      }
+      const med = median(fmags);
+      const m = mad(fmags, med) || 1e-12;
+      const threshold = med + peakMadMultiplier * m;
+      const peaks = [];
+      for (let bin = 1; bin < h; bin++) {
+        const mag = fmags[bin];
+        if (fmags[bin] > threshold) {
+          peaks.push({ bin, mag, freq: factor * bin });
+        }
+      }
+      peaks.sort((a, b) => b.mag - a.mag);
+      const suppressed = new Array(h).fill(false);
+      const suppressedBinsThisFrame = [];
+      function suppressBin(binIndex) {
+        if (suppressed[binIndex]) return;
+        const mirror = (fftSize - binIndex) % fftSize;
+        const scale = 1 / 10000;
+        re[binIndex] *= scale; im[binIndex] *= scale;
+        re[mirror] *= scale;  im[mirror] *= scale;
+        suppressed[binIndex] = true;
+        if (mirror < h) suppressed[mirror] = true;
+        suppressedBinsThisFrame.push(binIndex);
+      }
+      for (const peak of peaks) {
+        if (suppressed[peak.bin]) continue; 
+        const baseFreq = peak.freq;
+        for (const q of peaks) {
+          if (q.bin === peak.bin) continue;
+          if (suppressed[q.bin]) continue;
+          for (let k = 2; k <= maxHarmonic; k++) {
+            if (Math.abs(q.freq - k * baseFreq) <= harmonicTolerance * baseFreq) {
+              suppressBin(q.bin);
+              break;
+            }
           }
         }
       }
-    }
-    const processedMags = new Float32Array(h);
-    for (let bin = 0; bin < h; bin++) {
-      if (suppressed[bin]) {
-        processedMags[bin] = 0
-      } else {
-        processedMags[bin] = Math.hypot(re[bin] || 0, im[bin] || 0);
+      for (let bin = 0; bin < h; bin++) {
+        let idx = bin*specWidth+frame;
+        if (suppressed[bin]) {
+          mags[frame*specHeight+bin] = 0;
+          imageBuffer[ch].data[idx*4+0]=0;
+          imageBuffer[ch].data[idx*4+1]=0;
+          imageBuffer[ch].data[idx*4+2]=0;
+        }
       }
     }
-    mags.set(processedMags,frame*specHeight);
-    pos += hop;
-    x++;
-    audioProcessed += hop;
-    if (x >= specWidth) break;
   }
-  if (typeof newHistory === "function") {
-    newHistory();
-    recomputePCMForCols(0, specWidth);
-    restartRender();
-    startTime = performance.now();
-    audioProcessed = 0;
-    playPCM();
-    document.getElementById("playPause").innerHTML=pauseHtml;
-  }
+  simpleRestartRender(-1,-1);
 }
 (function attachExports() {
   const api = {

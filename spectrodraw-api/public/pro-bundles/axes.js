@@ -8,7 +8,7 @@ let oldX = null;
 let iWidth = iHigh - iLow;
 
 function drawTimeline() {
-  for (let ch =0 ; ch<channelCount;ch++) {
+  for (let ch =0 ; ch<layerCount;ch++) {
     const timeline = document.getElementById("timeline-"+ch);
     const tctx = timeline.getContext("2d");
     tctx.clearRect(0, 0, timeline.width, timeline.height);
@@ -79,12 +79,12 @@ function drawTimeline() {
 }
 
 function timelineXToFrame(clientXLeft) {
-  let timeline = document.getElementById("timeline-"+currentChannel);//CHANGE LATER
+  let timeline = document.getElementById("timeline-"+currentLayer);//CHANGE LATER
   return iLow + clientXLeft/timeline.getBoundingClientRect().width*iWidth;
 }
 function timelineMousedown(e,touch) {
     if (e.button !== 0) return;
-    let timeline = document.getElementById("timeline-"+currentChannel);//CHANGE LATER
+    let timeline = document.getElementById("timeline-"+currentLayer);//CHANGE LATER
     const rect = timeline.getBoundingClientRect();
     if ((touch ? e.touches[0].clientY : e.clientY)- rect.top>20) {
       draggingTimeline = true;
@@ -112,7 +112,7 @@ function timelineMousemove(e,touch) {
   else if (beatSize > 1/4) subBeat = 2;
   else if (beatSize > 1/8) subBeat = 1;
   else subBeat = 1/2;
-  const timeline = document.getElementById("timeline-"+currentChannel);//CHANGE LATER
+  const timeline = document.getElementById("timeline-"+currentLayer);//CHANGE LATER
   const rect = timeline.getBoundingClientRect();
   const mouseY = (touch ? e.touches[0].clientY : e.clientY)- rect.top;
   const mouseX = (touch ? e.touches[0].clientX : e.clientX)- rect.left;
@@ -192,9 +192,9 @@ function timelineMouseup(e) {
     </svg>
     `;
   } else {
-    const specCanvas = document.getElementById("spec-"+currentChannel);
+    const specCanvas = document.getElementById("spec-"+currentLayer);
     const specCtx = specCanvas.getContext("2d");
-    specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+    specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
     renderView();
     drawCursor(true);
   }
@@ -217,7 +217,7 @@ let fDmode = -1;
 let oldY = null;
 
 function drawYAxis() {
-  for (let ch=0;ch<channelCount;ch++){
+  for (let ch=0;ch<layerCount;ch++){
     const yAxis = document.getElementById("freq-"+ch);
     const yctx = yAxis.getContext("2d");
 
@@ -314,7 +314,7 @@ function drawYAxis() {
 
 
 function yAxisMousedown(e,touch) {
-  let yAxis = document.getElementById("freq-"+currentChannel);//CHANGE LATER
+  let yAxis = document.getElementById("freq-"+currentLayer);//CHANGE LATER
   if (e.button !== 0) return;
   const rect = yAxis.getBoundingClientRect();
   const x = touch ? e.touches[0].clientX : e.clientX;
@@ -327,7 +327,7 @@ function yAxisMousedown(e,touch) {
 }
 
 function yAxisMousemove(e,touch) {
-  const yAxis = document.getElementById("freq-"+currentChannel);
+  const yAxis = document.getElementById("freq-"+currentLayer);
   const rect = yAxis.getBoundingClientRect();
   const mouseY = (touch ? e.touches[0].clientY : e.clientY) - rect.top;
   const mouseX = (touch ? e.touches[0].clientX : e.clientX) - rect.left;
@@ -391,9 +391,9 @@ function playPause() {
       const elapsed = audioCtx.currentTime - sourceStartTime;
       let samplePos = Math.floor(elapsed * sampleRate);
       if (sourceNode && sourceNode.loop) {
-          samplePos = samplePos % channels[0].pcm.length;
+          samplePos = samplePos % layers[0].pcm.length;
       }
-      pausedAtSample = Math.max(0, Math.min(channels[0].pcm.length - 1, samplePos));
+      pausedAtSample = Math.max(0, Math.min(layers[0].pcm.length - 1, samplePos));
       stopSource(true);
       playPauseBtn.innerHTML = playHtml;
   } else {
@@ -429,12 +429,12 @@ stopBtn.addEventListener("click", () => {
 });
 
 function updateTimelineCursor() {
-    if (playing && !draggingTimeline && channels[0].pcm && sourceNode) {
+    if (playing && !draggingTimeline && layers[0].pcm && sourceNode) {
         const elapsed = audioCtx.currentTime - sourceStartTime;
         let samplePos = elapsed * sampleRate;
 
         if (sourceNode.loop) {
-            samplePos = samplePos % channels[0].pcm.length;
+            samplePos = samplePos % layers[0].pcm.length;
         }
 
         const frame = Math.floor(samplePos / hop);
@@ -456,7 +456,7 @@ function _clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
 // Zoom timeline centered at clientX (relative to element rect)
 function zoomTimelineAt(clientX, elem, scaleFactor){
-  let canvas = document.getElementById("canvas-"+currentChannel);//CHANGE LATER
+  let canvas = document.getElementById("canvas-"+currentLayer);//CHANGE LATER
   zooming = true;
   const rect = canvas.getBoundingClientRect();
   const centerFrac = _clamp((clientX - rect.left) / rect.width, 0, 1);
@@ -476,13 +476,13 @@ function zoomTimelineAt(clientX, elem, scaleFactor){
 
 // Zoom y-axis centered at clientY (relative to element rect)
 function zoomYAxisAt(clientY, elem, scaleFactor){
-  let canvas = document.getElementById("canvas-"+currentChannel);//CHANGE LATER
+  let canvas = document.getElementById("canvas-"+currentLayer);//CHANGE LATER
   zooming = true;
   const yf = (sampleRate/specHeight/2);
   const rect = canvas.getBoundingClientRect();
   const cy = (clientY - rect.top) * canvas.height/rect.height;
   // console.log(getSineFreq(visibleToSpecY(0)))
-  const centerFrame = (lsc(getSineFreq(visibleToSpecY(cy)),sampleRate/2,logScaleVal[currentChannel]))/yf;
+  const centerFrame = (lsc(getSineFreq(visibleToSpecY(cy)),sampleRate/2,logScaleVal[currentLayer]))/yf;
   const centerFrac = centerFrame/specHeight;
   const newHeight = _clamp((fWidth)/yf / scaleFactor, 1, specHeight);
   let newLow = centerFrame - centerFrac * newHeight;
@@ -505,9 +505,9 @@ const PAN_SENSITIVITY = 1.0; // >1 = pan more per swipe, <1 = pan less
 function makeWheelZoomHandler(elem, opts){
   return function(e){
     // get some geometry early
-    let timeline = document.getElementById("timeline-"+currentChannel);//CHANGE LATER
-    let yAxis = document.getElementById("freq-"+currentChannel);//CHANGE LATER
-    let canvas = document.getElementById("canvas-"+currentChannel);//CHANGE LATER
+    let timeline = document.getElementById("timeline-"+currentLayer);//CHANGE LATER
+    let yAxis = document.getElementById("freq-"+currentLayer);//CHANGE LATER
+    let canvas = document.getElementById("canvas-"+currentLayer);//CHANGE LATER
     const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false); $x=cx;$y=cy;
     const rectElem = elem.getBoundingClientRect();
     const rectTimeline = timeline ? timeline.getBoundingClientRect() : null;

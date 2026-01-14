@@ -1,5 +1,5 @@
 
-// ---------- Generic helpers (works for channels OR uploads) ----------
+// ---------- Generic helpers (works for layers OR uploads) ----------
 
 function createBufferForItem(item) {
   const outChannels = 2;
@@ -31,7 +31,7 @@ function createBufferForItem(item) {
 }
 
 /**
- * Stop playback for arr[idx]. arr must be the array (channels or uploads).
+ * Stop playback for arr[idx]. arr must be the array (layers or uploads).
  */
 function stopItem(arr, idx, preserveSamplePos = true) {
   const it = arr[idx];
@@ -65,8 +65,8 @@ async function startItem(arr, idx) {
     try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume failed", e); }
   }
 
-  // Stop any playing items in both arrays (channels and uploads)
-  for (let k = 0; k < channels.length; k++) if (channels[k] && channels[k]._isPlaying) stopItem(channels, k, true);
+  // Stop any playing items in both arrays (layers and uploads)
+  for (let k = 0; k < layers.length; k++) if (layers[k] && layers[k]._isPlaying) stopItem(layers, k, true);
   for (let k = 0; k < uploads.length; k++) if (uploads[k] && uploads[k]._isPlaying) stopItem(uploads, k, true);
 
   // Build buffer/source
@@ -118,7 +118,7 @@ async function startItem(arr, idx) {
   }
 }
 
-// ---------- Unified UI update loop (channels + uploads) ----------
+// ---------- Unified UI update loop (layers + uploads) ----------
 function updateAllPlayUI() {
   const updateForArray = (arr, prefix) => {
     for (let i = 0; i < arr.length; i++) {
@@ -146,7 +146,7 @@ function updateAllPlayUI() {
     }
   };
 
-  if (channels) updateForArray(channels, "c");
+  if (layers) updateForArray(layers, "c");
   if (uploads) updateForArray(uploads, "u");
   requestAnimationFrame(updateAllPlayUI);
 }
@@ -200,9 +200,9 @@ function renderUploads() {
 
   // 1) Build HTML strings for both sections (do not set innerHTML repeatedly)
   const uploadsContainer = document.getElementById("uploadsWrapper");
-  const channelsContainer = document.getElementById("channelsSampleWrapper");
-  if (!uploadsContainer || !channelsContainer) {
-    console.warn("Missing containers: uploadsWrapper or channelsSampleWrapper");
+  const layersContainer = document.getElementById("layersSampleWrapper");
+  if (!uploadsContainer || !layersContainer) {
+    console.warn("Missing containers: uploadsWrapper or layersSampleWrapper");
     return;
   }
 
@@ -214,16 +214,16 @@ function renderUploads() {
     uploadsHtml += buildSampleRow(u.name || `Upload ${i}`, u.pcm || new Float32Array(0), u.samplePos, u.sampleRate || sampleRate, "u" + i);
   }
 
-  let channelsHtml = "";
-  for (let i = 0; i < channels.length; i++) {
-    const ch = channels[i];
+  let layersHtml = "";
+  for (let i = 0; i < layers.length; i++) {
+    const ch = layers[i];
     if (!Number.isFinite(ch.samplePos)) ch.samplePos = 0;
-    channelsHtml += buildSampleRow("Channel " + i, ch.pcm || new Float32Array(0), ch.samplePos, ch.sampleRate || sampleRate, "c" + i);
+    layersHtml += buildSampleRow("Channel " + i, ch.pcm || new Float32Array(0), ch.samplePos, ch.sampleRate || sampleRate, "c" + i);
   }
 
   // 2) Set HTML once
   uploadsContainer.innerHTML = uploadsHtml;
-  channelsContainer.innerHTML = channelsHtml;
+  layersContainer.innerHTML = layersHtml;
 
   // 3) Attach listeners for uploads
   for (let i = 0; i < uploads.length; i++) {
@@ -279,9 +279,9 @@ function renderUploads() {
         }
       });
     }
-    let us = [], name=[]; for (let c =0;c<channelCount;c++) if (uploads[c].uuid === u.uuid){us.push(uploads[c]); name.push(uploads[c].name);}
-    sampleReplace.addEventListener("pointerdown", (ev) => startDrag(syncChannels?us:[u], ev, name,false));
-    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncChannels?us:[u], ev, name,true));
+    let us = [], name=[]; for (let c =0;c<layerCount;c++) if (uploads[c].uuid === u.uuid){us.push(uploads[c]); name.push(uploads[c].name);}
+    sampleReplace.addEventListener("pointerdown", (ev) => startDrag(syncLayers?us:[u], ev, name,false));
+    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncLayers?us:[u], ev, name,true));
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
@@ -299,9 +299,9 @@ function renderUploads() {
     }
   }
 
-  // 4) Attach listeners for channels
-  for (let i = 0; i < channels.length; i++) {
-    const ch = channels[i];
+  // 4) Attach listeners for layers
+  for (let i = 0; i < layers.length; i++) {
+    const ch = layers[i];
     const playbackBtn = document.getElementById("samplePlayback_c" + i);
     const timeSlider = document.getElementById("timeSlider_c" + i);
     const sampleReplace = document.getElementById("sampleReplace_c" + i);
@@ -327,8 +327,8 @@ function renderUploads() {
         }
 
         if (ch._isPlaying) {
-          stopItem(channels, i, true);
-          startItem(channels, i);
+          stopItem(layers, i, true);
+          startItem(layers, i);
         } else {
           timeSlider.value = String(ch.samplePos);
         }
@@ -336,23 +336,23 @@ function renderUploads() {
 
       timeSlider.addEventListener("pointerdown", () => {
         ch._dragging = true;
-        if (ch._isPlaying) { ch._wasPlayingDuringDrag = true; stopItem(channels, i, true); }
+        if (ch._isPlaying) { ch._wasPlayingDuringDrag = true; stopItem(layers, i, true); }
         else ch._wasPlayingDuringDrag = false;
       });
       timeSlider.addEventListener("pointerup", () => {
         ch._dragging = false;
-        if (ch._wasPlayingDuringDrag) { ch._wasPlayingDuringDrag = false; startItem(channels, i); }
+        if (ch._wasPlayingDuringDrag) { ch._wasPlayingDuringDrag = false; startItem(layers, i); }
       });
     }
-    let chs = [], name=[]; for (let c =0;c<channelCount;c++) if (channels[c].uuid === ch.uuid){chs.push(channels[c]); name.push("Channel "+c);}
-    sampleReplace.addEventListener("pointerdown", (ev) => {startDrag(syncChannels?chs:[ch], ev, name,false)});
-    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncChannels?chs:[ch], ev, name,true));
+    let chs = [], name=[]; for (let c =0;c<layerCount;c++) if (layers[c].uuid === ch.uuid){layers[c].ch=c; chs.push(layers[c]); name.push("Channel "+c);}
+    sampleReplace.addEventListener("pointerdown", (ev) => {startDrag(syncLayers?chs:[ch], ev, name,false)});
+    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncLayers?chs:[ch], ev, name,true));
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
         if (!ch.pcm || ch.pcm.length === 0) return;
-        if (ch._isPlaying) stopItem(channels, i, true);
-        else await startItem(channels, i);
+        if (ch._isPlaying) stopItem(layers, i, true);
+        else await startItem(layers, i);
       });
     }
     const moreBtn = document.getElementById("moreBtn_c" + i);
@@ -431,70 +431,70 @@ function shiftSpritesForInsert(ch, start, insertLen) {
 
 async function commitSample(sample, X, insert = false) {
   if (draggingSample.length === 0 || !sample || !sample[0].pcm || X < -30) {draggingSample = []; return;}
-  let $s = syncChannels ? 0 : currentChannel;
-  let $e = syncChannels ? channelCount : currentChannel + 1;
+  let $s = syncLayers ? 0 : currentLayer;
+  let $e = syncLayers ? layerCount : currentLayer + 1;
   let idx = 0;
   for (let ch = $s; ch < $e; ch++) {
     const start = Math.max(0, X * hop);
     const end = start + sample[idx].pcm.length;
-    if (!channels[ch].pcm || channels[ch].pcm.length === 0) {
-      channels[ch].pcm = sample[idx].pcm.slice(0);
-      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+    if (!layers[ch].pcm || layers[ch].pcm.length === 0) {
+      layers[ch].pcm = sample[idx].pcm.slice(0);
+      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
     } else if (insert) {
-      const existing = channels[ch].pcm;
+      const existing = layers[ch].pcm;
       const newLen = Math.max(existing.length, start) + sample[idx].pcm.length;
       const newPCM = new Float32Array(newLen);
       newPCM.set(existing.subarray(0, Math.min(existing.length, start)), 0);
       newPCM.set(sample[idx].pcm, start);
       if (start < existing.length) newPCM.set(existing.subarray(start), start + sample[idx].pcm.length);
-      channels[ch].pcm = newPCM;
-      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+      layers[ch].pcm = newPCM;
+      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
       shiftSpritesForInsert(ch, X, Math.floor(sample[idx].pcm.length/hop));
-    } else if (sample[idx].pcm.length > channels[ch].pcm.length) {
-      channels[ch].pcm = sample[idx].pcm;
-      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+    } else if (sample[idx].pcm.length > layers[ch].pcm.length) {
+      layers[ch].pcm = sample[idx].pcm;
+      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
-    } else if (channels[ch].pcm.length < end) {
+    } else if (layers[ch].pcm.length < end) {
       const newPCM = new Float32Array(end);
-      newPCM.set(channels[ch].pcm, 0);
+      newPCM.set(layers[ch].pcm, 0);
       newPCM.set(sample[idx].pcm, start);
-      channels[ch].pcm = newPCM;
-      emptyAudioLengthEl.value = channels[ch].pcm.length / sampleRate;
+      layers[ch].pcm = newPCM;
+      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
       document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
       drawTimeline();
     } else {
-      channels[ch].pcm.set(sample[idx].pcm, start);
+      layers[ch].pcm.set(sample[idx].pcm, start);
     }
-    framesTotal = Math.max(Math.floor(channels[ch].pcm.length / hop), framesTotal);
+    framesTotal = Math.max(Math.floor(layers[ch].pcm.length / hop), framesTotal);
     maxCol = framesTotal;
-    if (syncChannels) idx++;
-    channels[ch].snapshotMags = new Float32Array(channels[ch].mags);
-    channels[ch].snapshotPhases = new Float32Array(channels[ch].phases);
+    if (syncLayers) idx++;
+    layers[ch].snapshotMags = new Float32Array(layers[ch].mags);
+    layers[ch].snapshotPhases = new Float32Array(layers[ch].phases);
   }
   //simpleRestartRender(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hop));
   uploadingSprite = true;
   restartRender(false);
   // await waitFor(() => !rendering);
   // rendering=true;
-  // for (let ch = 0; ch < channelCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
+  // for (let ch = 0; ch < layerCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
   autoSetNoiseProfile();
   draggingSample = [];
   idx = 0;
   for (let ch = $s; ch < $e; ch++) {
-    console.log("Creating sprite for channel", ch);
+    console.log("Creating sprite for layer", ch);
     newUploadSprite({
       ch,
       minCol:Math.floor(X),
       maxCol:Math.floor(X+sample[0].pcm.length/hop),
-      name:sample[idx].name,
+      name:sample[idx].name??("layer "+sample[idx].ch),
       pcm:sample[idx].pcm
     });
-    if (syncChannels) idx++;
+    if (syncLayers) idx++;
   }
 }
 
@@ -503,7 +503,7 @@ function newUploadSprite(data) {
   const width = (data.maxCol-data.minCol);
   const size = width * fftSize;
   let mags = new Float32Array(size), phases = new Float32Array(size);
-  for(let c=0;c<channelCount;c++) pixelmap.push((syncChannels||c==currentChannel)?(new Map()):null);
+  for(let c=0;c<layerCount;c++) pixelmap.push((syncLayers||c==currentLayer)?(new Map()):null);
   sprites.push({
     id: nextSpriteId++,
     effect: {tool: "sample", phaseShift:0, amp:1},

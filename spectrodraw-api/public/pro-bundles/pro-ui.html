@@ -440,8 +440,8 @@
       </svg>
     </button>
 
-    <!--Channels-->
-    <button class="panel-btn" id="channelsBtn" title="Channels (ctrl+q)" data-tool="6">
+    <!--Layers-->
+    <button class="panel-btn" id="layersBtn" title="Layers (ctrl+q)" data-tool="6">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="6"  y1="3" x2="6"  y2="21" />
         <line x1="12" y1="3" x2="12" y2="21" />
@@ -782,7 +782,7 @@
           <option value="eraser">Eraser</option>
           <option value="blur">Blur</option>
         </select></div>
-        <div class="slider-row" id="spriteChannelDiv" style="display:none;"><label for="spriteChannel">Channel:</label><select id="spriteChannel">
+        <div class="slider-row" id="spriteLayerDiv" style="display:none;"><label for="spriteLayer">Channel:</label><select id="spriteLayer">
           <option value="0">0</option>
           <option value="all">All</option>
         </select></div>
@@ -936,17 +936,17 @@
       </section>
 
       <section class="sample-section">
-        <div class="section-content" id="channelsSection">
+        <div class="section-content" id="layersSection">
           <h3>
-            Channels
+            Layers
             <button type="button"
                     class="section-toggle"
-                    data-target="channelsSection"
+                    data-target="layersSection"
                     aria-expanded="true"
-                    aria-label="Toggle channels">
+                    aria-label="Toggle layers">
             </button>
           </h3>
-          <div id="channelsSampleWrapper"></div>
+          <div id="layersSampleWrapper"></div>
         </div>
       </section>
 
@@ -1054,18 +1054,18 @@
         </div>
       </div>
       <div id="midiChannelSettings">
-        <label class="h1">Midi audio channels</label>
+        <label class="h1">Midi audio layers</label>
         <div style="display:flex; gap:10px; margin-bottom:5px;" title="Channel mode">
           <label class="h2" for="midiChannelMode">Mode</label>
           <select id="midiChannelMode">
-            <option value="all">All channels</option>
-            <option value="allMixToMono">All channels mixed to mono</option>
-            <option value="single">Single channel</option>
+            <option value="all">All layers</option>
+            <option value="allMixToMono">All layers mixed to mono</option>
+            <option value="single">Single layer</option>
           </select>
         </div>
-        <div class="slider-row" id="midiSingleChannelDiv" style="display:none;">
-          <label class="h2" for="midiSingleChannel">Channel</label>
-          <select id="midiSingleChannel"></select>
+        <div class="slider-row" id="midiSingleLayerDiv" style="display:none;">
+          <label class="h2" for="midiSingleLayer">Channel</label>
+          <select id="midiSingleLayer"></select>
         </div>
       </div>
       <!--Export button-->
@@ -1095,23 +1095,23 @@
       </div>
       <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     </div>
-    <!--Channels-->
+    <!--Layers-->
     <div id="d6" style="display:none;">
-      <h2 style="margin-bottom:10px;margin-top:10px;">Channels</h2>
-      <div class="slider-row"><label for="channels">Channels:</label>
-        <input type="range" id="channels" min="1" max="16" value="1">
-        <input id="channelsInput" type="number" value="1" min="1" max="16">
+      <h2 style="margin-bottom:10px;margin-top:10px;">Layers</h2>
+      <div class="slider-row"><label for="layers">Layers:</label>
+        <input type="range" id="layers" min="1" max="16" value="1">
+        <input id="layersInput" type="number" value="1" min="1" max="16">
       </input></div>
       <div class="slider-row" title="Channel Display Height" id="chdiv">
         <label class="h2">Channel height</label>
-        <input id="channelHeight" type="range" min="0" max="500" step="1" value="500">
-        <input id="channelHeightInput" type="number" value="500" min="0" max="500">
+        <input id="layerHeight" type="range" min="0" max="500" step="1" value="500">
+        <input id="layerHeightInput" type="number" value="500" min="0" max="500">
       </div>
-      <div class="slider-row" title="Sync actions to all channels">
-        <label class="h2">Sync channels</label>
-        <input id="syncChannels" type="checkbox">
+      <div class="slider-row" title="Sync actions to all layers">
+        <label class="h2">Sync layers</label>
+        <input id="syncLayers" type="checkbox">
       </div>
-      <div id="channelsMixerDiv"></div>
+      <div id="layersMixerDiv"></div>
     </div>
   </aside>
   <main class="main-area"><div id="canvasWrapper" style="width:100%; top:0px"></div></main>

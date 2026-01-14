@@ -34,7 +34,7 @@ const tQs = document.getElementById("tQs");
 const tQt = document.getElementById("tQt");
 const tQd = document.getElementById("tQd");
 const midiChannelMode = document.getElementById("midiChannelMode");
-const midiSingleChannelDiv = document.getElementById("midiSingleChannelDiv");
+const midiSingleLayerDiv = document.getElementById("midiSingleLayerDiv");
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {
   process(inputs) {
@@ -85,7 +85,7 @@ const nameEl = document.getElementById('spriteName');
 const toolEl = document.getElementById('spriteTool');
 const enabledEl = document.getElementById('spriteEnabled');
 const spriteEditorDiv = document.getElementById('spriteEditor');
-const sChannelEl = document.getElementById('spriteChannel');
+const sChannelEl = document.getElementById('spriteLayer');
 
 const sWidth = document.getElementById("sWidth");
 const sWidthI = document.getElementById("sWidthInput");
@@ -153,12 +153,12 @@ let currentSprite = null;
 let spriteRedoQueue = [];
 let movingSprite = false;
 let spritePath = null;
-let channelCount = 1;
-let channels = null;
-let channelHeight = window.innerHeight - 70;
+let layerCount = 1;
+let layers = null;
+let layerHeight = window.innerHeight - 70;
 let $x = 0, $y = 0;
-let currentChannel = 0;
-let syncChannels = false;
+let currentLayer = 0;
+let syncLayers = false;
 let uploads = [], images = []; startCh = 0;
 let draggingSample = [], dragInsert = false;
 let showToolSettings = true;
@@ -221,7 +221,7 @@ let handlers = {
   "logscale-": (el) => {
     el.addEventListener("mousedown", e=> {logScaleMouseDown(e,false,el);});
     el.addEventListener("touchstart", e=> {logScaleMouseDown(e,true,el);});
-    el.addEventListener("mousemove", e=> {currentChannel = parseInt(el.id.match(/(\d+)$/)[1], 10);el.title = "Log scale: " + logScaleVal[currentChannel];});
+    el.addEventListener("mousemove", e=> {currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);el.title = "Log scale: " + logScaleVal[currentLayer];});
     el.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
   }
 }

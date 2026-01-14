@@ -442,7 +442,7 @@ parseExpression.vars = {
   "zoom.x.max": () => iHigh,
   "zoom.y.min": () => fLow,
   "zoom.y.max": () => fHigh,
-  "currentChannel.logScale": () => logScaleVal[currentChannel],
+  "currentLayer.logScale": () => logScaleVal[currentLayer],
   "sampleRate": () => sampleRate,
   "specHeight": () => specHeight,
   "specWidth": () => framesTotal,
@@ -458,8 +458,8 @@ parseExpression.vars = {
   "brush.effect.phaseSettings.userDelta": () => userDelta,
   "brush.effect.phaseSettings.refPhaseFrame": () => refPhaseFrame,
   "brush.effect.phaseSettings.chirpRate": () => chirpRate,
-  "currentChannel": () => currentChannel,
-  "channels": () => channels,
+  "currentLayer": () => currentLayer,
+  "layers": () => layers,
 };
 // keep helper to set vars
 parseExpression.setVars = function(map) {

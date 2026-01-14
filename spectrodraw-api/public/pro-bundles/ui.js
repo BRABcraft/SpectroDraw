@@ -71,8 +71,8 @@ const sliders = [
   [document.getElementById('blurRadius'), document.getElementById('blurRadiusInput')],
   [document.getElementById('amp'), document.getElementById('ampInput')],
   [document.getElementById('noiseAgg'), document.getElementById('noiseAggInput'),true],
-  [document.getElementById('channels'), document.getElementById('channelsInput'),true],
-  [document.getElementById('channelHeight'), document.getElementById('channelHeightInput'),true],//20
+  [document.getElementById('layers'), document.getElementById('layersInput'),true],
+  [document.getElementById('layerHeight'), document.getElementById('layerHeightInput'),true],//20
   [document.getElementById('brushWidth'), document.getElementById('brushWidthInput')],
   [document.getElementById('brushHeight'), document.getElementById('brushHeightInput')],
   [document.getElementById('autoTuneStrength'), document.getElementById('autoTuneStrengthInput')],
@@ -86,7 +86,7 @@ const sliders = [
 ];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
-sliders[0][0].addEventListener('mouseup', ()=>{/*for(let ch=0;ch<channelCount;ch++){channels[ch].hasCanvases=false;}*/initEmptyPCM(false);});
+sliders[0][0].addEventListener('mouseup', ()=>{/*for(let ch=0;ch<layerCount;ch++){layers[ch].hasCanvases=false;}*/initEmptyPCM(false);});
 sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[0][1].value);const min = parseFloat(sliders[0][0].min);const max = parseFloat(sliders[0][0].max);
     if (isNaN(val)) val = 0;if (val < min) val = min;if (val > max) val = max;sliders[0][1].value = val;sliders[0][0].value = val;initEmptyPCM(false);}});
 function rs_(i){const v = sliders[1][i].value; const f = v/brushSize; sliders[21][0].value=sliders[21][1].value=Math.round(brushWidth *= f); sliders[22][0].value=sliders[22][1].value=Math.round(brushHeight *= f); brushSize=v; updateBrushPreview();}
@@ -135,12 +135,12 @@ sliders[17][1].addEventListener("input", ()=>{val=(sliders[17][1].value); curren
 sliders[18][0].addEventListener('input', () => {noiseAgg = parseFloat(sliders[18][0].value); sliders[18][1].value = noiseAgg;updateBrushPreview();});
 sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[18][1].value);const min = parseFloat(sliders[18][0].min);const max = parseFloat(sliders[18][0].max);
     if (isNaN(val)) val = noiseAgg;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseAgg = val;updateBrushPreview();}});
-sliders[19][0].addEventListener('input', () => {channelCount = parseFloat(sliders[19][0].value); sliders[19][1].value = channelCount;updateChannels();});
+sliders[19][0].addEventListener('input', () => {layerCount = parseFloat(sliders[19][0].value); sliders[19][1].value = layerCount;updateLayers();});
 sliders[19][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[19][1].value);const min = parseFloat(sliders[19][0].min);const max = parseFloat(sliders[19][0].max);
-    if (isNaN(val)) val = channelCount;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;channelCount = val;updateChannels();}});
-sliders[20][0].addEventListener('input', () => {channelHeight = parseFloat(sliders[20][0].value); sliders[20][1].value = channelHeight;updateChannelHeight();});
+    if (isNaN(val)) val = layerCount;if (val < min) val = min;if (val > max) val = max;sliders[19][1].value = val;sliders[19][0].value = val;layerCount = val;updateLayers();}});
+sliders[20][0].addEventListener('input', () => {layerHeight = parseFloat(sliders[20][0].value); sliders[20][1].value = layerHeight;updateChannelHeight();});
 sliders[20][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[20][1].value);const min = parseFloat(sliders[20][0].min);const max = parseFloat(sliders[20][0].max);
-    if (isNaN(val)) val = channelHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;channelHeight = val;updateChannelHeight();}});
+    if (isNaN(val)) val = layerHeight;if (val < min) val = min;if (val > max) val = max;sliders[20][1].value = val;sliders[20][0].value = val;layerHeight = val;updateChannelHeight();}});
 function rs(){sliders[1][0].value = sliders[1][1].value = brushSize = Math.max(brushWidth, brushHeight);updateBrushPreview();}
 sliders[21][0].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
 sliders[21][1].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
@@ -397,7 +397,7 @@ async function toggleLockHop() {
   minCol = 0; maxCol = Math.floor(len/hopSizeEl.value);
   restartRender(false);
   await waitFor(() => !rendering);
-  for(let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
+  for(let ch=0;ch<layerCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
   lockHop = !lockHop;
 }
 document.addEventListener('mousemove', e=>{
@@ -467,7 +467,7 @@ function keyBind(event) {
       } else if (key === 'e') {
         document.getElementById("eqBtn").click();
       } else if (key === 'q') {
-        document.getElementById("channelsBtn").click();
+        document.getElementById("layersBtn").click();
       } else if (key === 'b') {
         document.getElementById("spritesBtn").click();
       } else if (key === 'u') {
@@ -589,17 +589,17 @@ async function saveProject() {
     return out;
   }
 
-  // Build channels array to save. Prefer existing global `channels` if present,
-  // otherwise fall back to using top-level mags/phases for channel 0.
-  const outChannels = new Array(Math.max(0, channelCount || 0));
-  const srcChannels = (typeof channels !== "undefined" && Array.isArray(channels)) ? channels : null;
+  // Build layers array to save. Prefer existing global `layers` if present,
+  // otherwise fall back to using top-level mags/phases for layer 0.
+  const outChannels = new Array(Math.max(0, layerCount || 0));
+  const srcChannels = (typeof layers !== "undefined" && Array.isArray(layers)) ? layers : null;
 
   for (let i = 0; i < outChannels.length; ++i) {
     let src = null;
     if (srcChannels && srcChannels[i]) {
       src = srcChannels[i];
     } else {
-      // fallback: place top-level mags/phases into channel 0
+      // fallback: place top-level mags/phases into layer 0
       if (i === 0 && typeof mags !== "undefined" && (mags || phases)) {
         src = { mags: mags || null, phases: phases || null };
       } else {
@@ -607,7 +607,7 @@ async function saveProject() {
       }
     }
 
-    // Quantize & delta-encode per-channel (keep only mags & phases in saved file)
+    // Quantize & delta-encode per-layer (keep only mags & phases in saved file)
     const encoded = {
       mags: src.mags ? deltaEncode(src.mags, 8) : null,
       phases: src.phases ? deltaEncode(src.phases, 3) : null,
@@ -621,7 +621,7 @@ async function saveProject() {
 
   const project = {
     name: document.getElementById("projectName").value,
-    channelCount,
+    layerCount,
     fftSize,
     hop: hopSizeEl.value,
     bufferLength: emptyAudioLengthEl.value,
@@ -637,7 +637,7 @@ async function saveProject() {
     images: null,
     currentTool,
     currentShape,
-    channels: outChannels,
+    layers: outChannels,
     deltaEncoded: true,
     sprites: serializeSprites(sprites),
     expressions
@@ -719,7 +719,7 @@ function openProject(file) {
         if (nameEl) nameEl.value = parsed.name;
       }
       if (parsed.fftSize !== undefined) fftSize = parsed.fftSize;
-      if (parsed.channelCount !== undefined) channelCount = parsed.channelCount;
+      if (parsed.layerCount !== undefined) layerCount = parsed.layerCount;
       if (parsed.hop !== undefined) hopSizeEl.value = parsed.hop;
       if (parsed.bufferLength !== undefined) emptyAudioLengthEl.value = parsed.bufferLength;
       if (parsed.drawVolume !== undefined) document.getElementById("drawVolumeInput").value = document.getElementById("drawVolume").value = !!parsed.drawVolume;
@@ -761,13 +761,13 @@ function openProject(file) {
         return out;
       }
 
-      // Reconstruct channels from parsed data
+      // Reconstruct layers from parsed data
       const reconstructedChannels = [];
 
-      if (Array.isArray(parsed.channels)) {
-        // New format: channels array present
-        for (let i = 0; i < parsed.channels.length; i++) {
-          const src = parsed.channels[i];
+      if (Array.isArray(parsed.layers)) {
+        // New format: layers array present
+        for (let i = 0; i < parsed.layers.length; i++) {
+          const src = parsed.layers[i];
           reconstructedChannels[i] = {
             mags: deltaDecodeToFloat32(src.mags),
             phases: deltaDecodeToFloat32(src.phases),
@@ -785,8 +785,8 @@ function openProject(file) {
         }
       }
 
-      // Ensure reconstructedChannels length matches parsed.channelCount (fill with empty channels if needed)
-      const desiredCount = parsed.channelCount || reconstructedChannels.length || 1;
+      // Ensure reconstructedChannels length matches parsed.layerCount (fill with empty layers if needed)
+      const desiredCount = parsed.layerCount || reconstructedChannels.length || 1;
       while (reconstructedChannels.length < desiredCount) {
         reconstructedChannels.push({ mags: null, phases: null, pcm: [], snapshotMags: [], snapshotPhases: []});
       }
@@ -794,12 +794,12 @@ function openProject(file) {
         reconstructedChannels.length = desiredCount;
       }
 
-      // Expose reconstructed channels to app globals
-      channels = reconstructedChannels;
+      // Expose reconstructed layers to app globals
+      layers = reconstructedChannels;
       if (parsed.sprites !== undefined) sprites = deserializeSprites(parsed.sprites);
       if (parsed.expressions !== undefined) expressions = parsed.expressions;
       recomputePCMForCols(0, Math.floor(parsed.bufferLength * sampleRate / parsed.hop));
-      updateChannels();
+      updateLayers();
 
       images = []; // reset local images array
 
@@ -942,19 +942,19 @@ document.getElementById("saveAndStart").addEventListener('click', async () => {
     if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
     const ab = await resp.arrayBuffer();
     const decoded = await audioCtx.decodeAudioData(ab.slice(0));
-    channels[0].pcm = new Float32Array(decoded.getChannelData(0));
+    layers[0].pcm = new Float32Array(decoded.getChannelData(0));
     sampleRate = decoded.sampleRate || sampleRate;
 
-    status.textContent = `Loaded preset "${val}", ${channels[0].pcm.length} samples @ ${sampleRate} Hz`;
-    let t = channels[0].pcm.length / sampleRate;
+    status.textContent = `Loaded preset "${val}", ${layers[0].pcm.length} samples @ ${sampleRate} Hz`;
+    let t = layers[0].pcm.length / sampleRate;
     hopSizeEl.value = lockHop?Math.pow(2,fftSizeEl.value):(t<0.5?128:(t<5?512:1024));
     emptyAudioLengthEl.value = Math.ceil(t);
     document.getElementById("emptyAudioLengthInput").value = Math.ceil(t);
-    minCol = 0; maxCol = Math.floor(channels[0].pcm.length/hopSizeEl.value);
+    minCol = 0; maxCol = Math.floor(layers[0].pcm.length/hopSizeEl.value);
     iLow = 0;
     iHigh = framesTotal;
-    channelCount = 1;
-    updateChannels();
+    layerCount = 1;
+    updateLayers();
     await waitFor(() => !rendering);
     renderSpectrogramColumnsToImageBuffer(0,framesTotal,0);
     uploads=[]; images=[]; sprites=[]; renderUploads(); renderSpritesTable();
@@ -971,11 +971,11 @@ window.addEventListener('click', e => {
   if (e.target === modal) modal.style.display = 'none';
 });
 midiChannelMode.addEventListener("change",(e)=>{
-  midiSingleChannelDiv.style.display = (midiChannelMode.value === "single") ? "block" : "none";
+  midiSingleLayerDiv.style.display = (midiChannelMode.value === "single") ? "block" : "none";
 });
 
-document.getElementById("syncChannels").addEventListener("change", (e)=>{
-  syncChannels = document.getElementById("syncChannels").checked;
+document.getElementById("syncLayers").addEventListener("change", (e)=>{
+  syncLayers = document.getElementById("syncLayers").checked;
 });
 
 
@@ -1041,7 +1041,7 @@ function updatePhaseTextureSettings(){
     document.getElementById("phaseSettingsLabel").innerText = label;
     div.style.display = "flex";
   }
-       if (c("ImpulseAlign")) d(t0,0,channels[0].pcm.length/sampleRate,0.001,"t0");
+       if (c("ImpulseAlign")) d(t0,0,layers[0].pcm.length/sampleRate,0.001,"t0");
   else if (c("LinearDelay")) d(tau,0,10,0.01,"tau");
   else if (c("RandomSmall")) d(sigma,0,1,0.01,"sigma");
   else if (c("HarmonicStack")) d(harmonicCenter,0,128,0.01,"Harmonic Center");
@@ -1080,8 +1080,8 @@ return brush.effect.phaseShift - (Math.PI * k * sampleRate * t0f) / specHeight;`
     case 'PhasePropagate':
       expr=`const prevIdx = (pixel.frame - 1) * specHeight + k;
 let prevPhase = null;
-if (pixel.frame > 0 && channels[currentChannel].phases[prevIdx] !== undefined) {
-  prevPhase = channels[currentChannel].phases[prevIdx];
+if (pixel.frame > 0 && layers[currentLayer].phases[prevIdx] !== undefined) {
+  prevPhase = layers[currentLayer].phases[prevIdx];
 }
 if (prevPhase !== null && isFinite(prevPhase)) {
   const expected = prevPhase + (Math.PI * k * hop) / specHeight;
@@ -1105,7 +1105,7 @@ return brush.effect.phaseShift - (Math.PI * k * sampleRate * brush.effect.phaseS
       break;
     case 'CopyFromRef': 
       expr = `const refIx = (brush.effect.phaseSettings.refPhaseFrame * specHeight + k) | 0;
-phi = channels[currentChannel].phases[refIx];`;
+phi = layers[currentLayer].phases[refIx];`;
       break;
     case 'HopArtifact':
       expr = "//Expressions disabled for HopArtifact";
@@ -1131,7 +1131,7 @@ document.getElementById("setNoiseProfile").addEventListener("click",()=>{
   document.getElementById("setNoiseProfile").classList.toggle('moving', changingNoiseProfile);
   document.getElementById("setNoiseProfile").innerText = changingNoiseProfile?"Setting noise profile frames":"Set noise profile frames";
   if (!changingNoiseProfile) {
-    noiseProfile = computeNoiseProfileFromFrames(currentChannel, noiseProfileMin, noiseProfileMax);
+    noiseProfile = computeNoiseProfileFromFrames(currentLayer, noiseProfileMin, noiseProfileMax);
   }
 });
 const noprmi = document.getElementById("setNoiseProfileMin")
@@ -1141,7 +1141,7 @@ noprma.addEventListener("input",()=>{noprma.value = noiseProfileMax = Math.floor
 
 function autoSetNoiseProfile() {
   if (currentTool !== "noiseRemover") return;
-  const mags = channels[currentChannel].mags;
+  const mags = layers[currentLayer].mags;
 
   const BIN_STEP = 8; // skip bins for speed
   const MIN_REGION_FRAMES = 8; // don't accept tiny regions

@@ -958,7 +958,7 @@ async function exportMidi(opts = {}) {
 function writeMidiFile(notes, opts = {}) {
   const ppq = opts.ppq ?? 480;
   const tempoBPM = opts.tempoBPM ?? 120;
-  const channel = opts.channel ?? 0;
+  const layer = opts.layer ?? 0;
   const a4 = opts.a4 ?? 440;
   const pitchBendRange = opts.pitchBendRange ?? 2; 
   const downloadName = opts.downloadName ?? "output.mid";
@@ -987,10 +987,10 @@ function writeMidiFile(notes, opts = {}) {
   writeVarLen(0, track);
   track.push(0xFF, 0x51, 0x03);
   track.push((microsecondsPerQuarter >> 16) & 0xff, (microsecondsPerQuarter >> 8) & 0xff, microsecondsPerQuarter & 0xff);
-  writeVarLen(0, track); track.push(0xC0 | channel, 0);
+  writeVarLen(0, track); track.push(0xC0 | layer, 0);
   function pushControl(changeController, value) {
     writeVarLen(0, track);
-    track.push(0xB0 | (channel & 0x0f), changeController & 0x7f, value & 0x7f);
+    track.push(0xB0 | (layer & 0x0f), changeController & 0x7f, value & 0x7f);
   }
   pushControl(0x65, 0x00);
   pushControl(0x64, 0x00);
@@ -1072,13 +1072,13 @@ function writeMidiFile(notes, opts = {}) {
     writeVarLen(delta, track);
     const type = ev[2];
     if (type === 'pb') {
-      track.push(0xE0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+      track.push(0xE0 | (layer & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     } else if (type === 'on') {
-      track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+      track.push(0x90 | (layer & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     } else if (type === 'off') {
-      track.push(0x90 | (channel & 0x0f), ev[3] & 0x7f, 0x00);
+      track.push(0x90 | (layer & 0x0f), ev[3] & 0x7f, 0x00);
     } else if (type === 'cc') {
-      track.push(0xB0 | (channel & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
+      track.push(0xB0 | (layer & 0x0f), ev[3] & 0x7f, ev[4] & 0x7f);
     }
     lastTick = ev[0];
   }

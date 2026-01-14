@@ -176,10 +176,10 @@ function drawEQ() {
 function drawSpectrals() {
   const bandCount = 128;
   const pos = currentCursorX * hop;
-  if (pos + fftSize > channels[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
+  if (pos + fftSize > layers[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
-  for (let i = 0; i < fftSize;i++) { re[i] = (channels[0].pcm[pos + i] || 0) * win[i]; im[i] = 0; }
+  for (let i = 0; i < fftSize;i++) { re[i] = (layers[0].pcm[pos + i] || 0) * win[i]; im[i] = 0; }
   fft_inplace(re, im);
 
   let bands = [];

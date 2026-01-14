@@ -24,7 +24,7 @@ function writeWavHeader(view, sampleRate, numChannels, numFrames) {
     writeString(view, 12, 'fmt ');
     view.setUint32(16, 16, true);       // PCM chunk size
     view.setUint16(20, 1, true);        // audio format = PCM
-    view.setUint16(22, numChannels, true);  // number of channels
+    view.setUint16(22, numChannels, true);  // number of layers
     view.setUint32(24, sampleRate, true);   // sample rate
     view.setUint32(28, byteRate, true);     // byte rate
     view.setUint16(32, blockAlign, true);   // block align
@@ -33,7 +33,7 @@ function writeWavHeader(view, sampleRate, numChannels, numFrames) {
     view.setUint32(40, dataByteLength, true); // data chunk length
 }
 async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' && curveEQ && curveEQ.bandCount) ? curveEQ.bandCount : 24) {
-  let pcm = channels[0].pcm;
+  let pcm = layers[0].pcm;
   if (!pcm) throw new Error("No PCM to render.");
   const nyquist = sampleRate * 0.5;
   const fMin = 20;
@@ -121,18 +121,18 @@ async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' &&
 
 document.getElementById('downloadWav').addEventListener('click', async () => {
   let view;
-    if (channelCount>1) {
+    if (layerCount>1) {
       // find longest PCM length
       let maxLen = 0;
-      for (let ch = 0; ch < channelCount; ch++) if (channels[ch].pcm.length > maxLen) maxLen = channels[ch].pcm.length;
+      for (let ch = 0; ch < layerCount; ch++) if (layers[ch].pcm.length > maxLen) maxLen = layers[ch].pcm.length;
       maxLen = Math.min(maxLen, Math.floor(emptyAudioLengthEl*sampleRate));
 
       // create left/right mixing buffers
       const left = new Float32Array(maxLen);
       const right = new Float32Array(maxLen);
 
-      for (let ch = 0; ch < channelCount; ch++) {
-          const c = channels[ch];
+      for (let ch = 0; ch < layerCount; ch++) {
+          const c = layers[ch];
           if (!c || !c.pcm) continue;
           const device = (c.audioDevice || 'both').toString().toLowerCase();
           const pcmCh = c.pcm;
@@ -161,9 +161,9 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
       }
 
       // create stereo interleaved 16-bit WAV
-      const numChannelsOut = 2;
+      const numlayerOut = 2;
       const numFrames = maxLen;
-      const dataByteLength = numFrames * numChannelsOut * 2; // 2 bytes per sample
+      const dataByteLength = numFrames * numlayerOut * 2; // 2 bytes per sample
       const buffer = new ArrayBuffer(44 + dataByteLength);
       view = new DataView(buffer);
       writeWavHeader(view, sampleRate, numChannelsOut, numFrames);
@@ -193,7 +193,7 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
       const buffer = new ArrayBuffer(44 + numSamples * 2);
       view = new DataView(buffer);
 
-      // WAV header: sampleRate, channels=1, frames=numSamples
+      // WAV header: sampleRate, layers=1, frames=numSamples
       writeWavHeader(view, sampleRate, 1, numSamples);
 
       // convert ONLY the clamped PCM
@@ -209,7 +209,7 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'output_'+channelCount+'_channel'+((channelCount>1)?'s':'')+'.wav';
+    a.download = 'output_'+layerCount+'_layer'+((layerCount>1)?'s':'')+'.wav';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
@@ -218,8 +218,8 @@ document.getElementById('downloadSpectrogram').addEventListener('click', functio
     iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2;
     updateCanvasScroll();
 
-    const totalChannels = channelCount;
-    for (let ch = 0; ch < totalChannels; ch++) {
+    const totalLayers = layerCount;
+    for (let ch = 0; ch < totalLayers; ch++) {
         const canvas = document.getElementById(`canvas-${ch}`);
         if (!canvas) continue;
         try {
@@ -230,7 +230,7 @@ document.getElementById('downloadSpectrogram').addEventListener('click', functio
             downloadLink.click();
             downloadLink.remove();
         } catch (e) {
-            console.warn(`Failed to export canvas for channel ${ch}:`, e);
+            console.warn(`Failed to export canvas for layer ${ch}:`, e);
         }
     }
 
@@ -278,18 +278,18 @@ document.getElementById('downloadVideo').addEventListener('click', async functio
   let numFramesOut = 0;
 
   try {
-    if (channelCount > 1) {
+    if (layerCount > 1) {
       // find longest PCM length
       let maxLen = 0;
-      for (let ch = 0; ch < channelCount; ch++) if (channels[ch] && channels[ch].pcm && channels[ch].pcm.length > maxLen) maxLen = channels[ch].pcm.length;
+      for (let ch = 0; ch < layerCount; ch++) if (layers[ch] && layers[ch].pcm && layers[ch].pcm.length > maxLen) maxLen = layers[ch].pcm.length;
       maxLen = Math.min(maxLen, Math.floor(emptyAudioLengthEl.value * sampleRate));
 
       // create left/right mixing buffers
       const left = new Float32Array(maxLen);
       const right = new Float32Array(maxLen);
 
-      for (let ch = 0; ch < channelCount; ch++) {
-        const c = channels[ch];
+      for (let ch = 0; ch < layerCount; ch++) {
+        const c = layers[ch];
         if (!c || !c.pcm) continue;
         const device = (c.audioDevice || 'both').toString().toLowerCase();
         const pcmCh = c.pcm;
@@ -372,17 +372,17 @@ document.getElementById('downloadVideo').addEventListener('click', async functio
 
   function drawSpectrogramBase() {
     rctx.clearRect(0, 0, WIDTH, HEIGHT);
-    for (let ch = 0; ch < channelCount; ch++) {
+    for (let ch = 0; ch < layerCount; ch++) {
       const sourceCanvas = document.getElementById('canvas-' + ch);
       if (!sourceCanvas) continue;
       const sw = sourceCanvas.width;
       const sh = sourceCanvas.height;
-      if (channelCount>1){ 
-        rctx.drawImage(sourceCanvas, 0, 0, sw, sh, 0, ch * (HEIGHT / channelCount), WIDTH, HEIGHT / channelCount)-5;
+      if (layerCount>1){ 
+        rctx.drawImage(sourceCanvas, 0, 0, sw, sh, 0, ch * (HEIGHT / layerCount), WIDTH, HEIGHT / layerCount)-5;
         rctx.fillStyle = "#888";
-        rctx.fillRect(0,(ch+1) * (HEIGHT / channelCount)-5,WIDTH,5);
+        rctx.fillRect(0,(ch+1) * (HEIGHT / layerCount)-5,WIDTH,5);
       } else {
-        rctx.drawImage(sourceCanvas, 0, 0, sw, sh, 0, ch * (HEIGHT / channelCount), WIDTH, HEIGHT / channelCount);
+        rctx.drawImage(sourceCanvas, 0, 0, sw, sh, 0, ch * (HEIGHT / layerCount), WIDTH, HEIGHT / layerCount);
       }
     }
   }

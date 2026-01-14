@@ -11,19 +11,19 @@ function recomputePCMForCols(colStart, colEnd) {
   const h = specHeight;
   const window = win;
 
-  // Re / Im arrays reused across channels/columns to avoid repeated allocation
+  // Re / Im arrays reused across layers/columns to avoid repeated allocation
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
 
   const EPS = 1e-8;
   const fadeCap = Infinity;
 
-  // Process each channel independently
-  for (let ch = 0; ch < channelCount; ch++) {
-    const channel = channels[ch];
-    if (!channel) continue;
-    const pcm = channel.pcm || new Float32Array(0);
-    // compute sample range for this channel
+  // Process each layer independently
+  for (let ch = 0; ch < layerCount; ch++) {
+    const layer = layers[ch];
+    if (!layer) continue;
+    const pcm = layer.pcm || new Float32Array(0);
+    // compute sample range for this layer
     const sampleStart = Math.max(0, colFirst * hop);
     const sampleEnd   = Math.min(pcm.length, (colLast * hop) + fftSize);
     const segmentLen  = sampleEnd - sampleStart;
@@ -32,14 +32,14 @@ function recomputePCMForCols(colStart, colEnd) {
     const newSegment = new Float32Array(segmentLen);
     const overlapCount = new Float32Array(segmentLen);
 
-    // For each spectrogram column in range, build an IFFT frame from mags/phases for this channel
+    // For each spectrogram column in range, build an IFFT frame from mags/phases for this layer
     for (let xCol = colFirst; xCol <= colLast; xCol++) {
       re.fill(0);
       im.fill(0);
 
-      // populate frequency bins from this channel's mags/phases
-      const mags = channel.mags;
-      const phases = channel.phases;
+      // populate frequency bins from this layer's mags/phases
+      const mags = layer.mags;
+      const phases = layer.phases;
       for (let bin = 0; bin < h && bin < fftSize; bin++) {
         const idx = xCol * h + bin;
         const mag = mags[idx];
@@ -92,14 +92,14 @@ function recomputePCMForCols(colStart, colEnd) {
       }
     }
 
-    // write back into channel PCM
-    channel.pcm.set(newSegment, sampleStart);
+    // write back into layer PCM
+    layer.pcm.set(newSegment, sampleStart);
     // Re-render the spectrogram columns affected
     //renderSpectrogramColumnsToImageBuffer(colFirst, colLast, ch);
-  } // end channel loop
+  } // end layer loop
 
 
-  // restart playback if currently playing (playPCM supports multi-channel)
+  // restart playback if currently playing (playPCM supports multi-layer)
   if (playing) {
     stopSource(true);
     playPCM(true);
@@ -108,8 +108,8 @@ function recomputePCMForCols(colStart, colEnd) {
 
 
 function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
-  let mags = channels[ch].mags, phases = channels[ch].phases;
-  //console.log(channels[ch]);
+  let mags = layers[ch].mags, phases = layers[ch].phases;
+  //console.log(layers[ch]);
   const specCanvas = document.getElementById("spec-"+ch);
   const specCtx = specCanvas.getContext("2d");
   colStart = Math.min(Math.max(0, Math.floor(colStart)),specWidth);
@@ -165,9 +165,9 @@ function doUndo() {
   }
   if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
   const sprite = sprites[idx];
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = channels[ch].mags, phases = channels[ch].phases;
+    let mags = layers[ch].mags, phases = layers[ch].phases;
     console.log("Undoing sprite:", sprite);
     // restore sprite's prev values (iterate left->right, top->bottom)
     forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
@@ -214,9 +214,9 @@ function doRedo() {
   if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
   const sprite = sprites[idx];
 
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = channels[ch].mags, phases = channels[ch].phases;
+    let mags = layers[ch].mags, phases = layers[ch].phases;
 
     // apply sprite's recorded "next" values
     forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {

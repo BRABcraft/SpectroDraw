@@ -106,7 +106,7 @@ function renderSpritesTable() {
 
     tr.addEventListener("mouseout", () => {
       if (sprite.ch==="all") {
-        for (let ch=0;ch<channelCount;ch++){
+        for (let ch=0;ch<layerCount;ch++){
           const overlayCanvas = document.getElementById("overlay-"+ch);
           const overlayCtx = overlayCanvas.getContext("2d");
           overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -232,7 +232,7 @@ document.getElementById("ssetNoiseProfile").addEventListener("click",()=>{
   document.getElementById("ssetNoiseProfile").classList.toggle('moving', changingNoiseProfile);
   document.getElementById("ssetNoiseProfile").innerText = changingNoiseProfile?"Setting noise profile frames":"Set noise profile frames";
   if (!changingNoiseProfile) {
-    e.noiseProfile = computeNoiseProfileFromFrames(currentChannel, e.noiseProfileMin, e.noiseProfileMax);
+    e.noiseProfile = computeNoiseProfileFromFrames(currentLayer, e.noiseProfileMin, e.noiseProfileMax);
     updateSpriteEffects(selectedSpriteId,e);
   }
 });
@@ -316,7 +316,7 @@ function updateSpritePhaseTextureSettings(newEffect){
     document.getElementById("sphaseSettingsLabel").innerText = label;
     div.style.display = "flex";
   }
-       if (c("ImpulseAlign")) d(newEffect.t0,0,channels[0].pcm.length/sampleRate,0.001,"t0");
+       if (c("ImpulseAlign")) d(newEffect.t0,0,layers[0].pcm.length/sampleRate,0.001,"t0");
   else if (c("LinearDelay")) d(newEffect.tau,0,10,0.01,"tau");
   else if (c("RandomSmall")) d(newEffect.sigma,0,1,0.01,"sigma");
   else if (c("HarmonicStack")) d(newEffect.harmonicCenter,0,128,0.01,"Harmonic Center");
@@ -381,15 +381,15 @@ function renderToolEditorSettings(newEffect) {
   document.getElementById('sphaseTexture').value = effects.phaseTexture || 'none';
 }
 
-document.getElementById("spriteChannel").addEventListener("change",()=>{updateSpriteChannels();});
+document.getElementById("spriteLayer").addEventListener("change",()=>{updateSpriteChannels();});
 
 async function updateSpriteChannels(){
-  const type = document.getElementById("spriteChannel").value;
+  const type = document.getElementById("spriteLayer").value;
   const s = getSpriteById(selectedSpriteId);
   if (type === "all"){
     s.ch = "all";
     let v = -1;
-    for (let c=0;c<channelCount;c++){
+    for (let c=0;c<layerCount;c++){
       if (s.pixels[c] instanceof Map && s.pixels[c].size !== 0) {
         if (v<0) v = c;
       } else {
@@ -398,26 +398,26 @@ async function updateSpriteChannels(){
     }
     forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
       const id = x * specHeight + y;
-      for (let ch=0;ch<channelCount;ch++) {
+      for (let ch=0;ch<layerCount;ch++) {
         if (ch==v) continue;
-        addPixelToSprite(s, x, y, channels[ch].mags[id], channels[ch].phases[id], nextMag, nextPhase, ch);
-        channels[ch].mags[id] = nextMag;
-        channels[ch].phases[id] = nextPhase;
+        addPixelToSprite(s, x, y, layers[ch].mags[id], layers[ch].phases[id], nextMag, nextPhase, ch);
+        layers[ch].mags[id] = nextMag;
+        layers[ch].phases[id] = nextPhase;
       }
     });
   } else {
     const ch = parseInt(type);
     if (s.ch!=="all")s.pixels[ch] = new Map();
-    let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?channelCount:s.ch+1;
+    let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?layerCount:s.ch+1;
     for (let c = $s;c<$e;c++){
       if (c==ch) continue;
       forEachSpritePixelInOrder(s, c, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
         const id = x * specHeight + y;
-        if (s.ch!=="all")addPixelToSprite(s, x, y, channels[ch].mags[id], channels[ch].phases[id], nextMag, nextPhase, ch);
-        channels[ch].mags[id] = nextMag;
-        channels[c].mags[id] = prevMag;
-        channels[ch].phases[id] = nextPhase;
-        channels[c].phases[id] = prevPhase;
+        if (s.ch!=="all")addPixelToSprite(s, x, y, layers[ch].mags[id], layers[ch].phases[id], nextMag, nextPhase, ch);
+        layers[ch].mags[id] = nextMag;
+        layers[c].mags[id] = prevMag;
+        layers[ch].phases[id] = nextPhase;
+        layers[c].phases[id] = prevPhase;
       });
       s.pixels[c] = null;
     }
@@ -426,7 +426,7 @@ async function updateSpriteChannels(){
   recomputePCMForCols(s.minCol, s.maxCol);
   restartRender(false);
   await waitFor(()=>!rendering);
-  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
+  for (let ch=0;ch<layerCount;ch++)renderSpectrogramColumnsToImageBuffer(0,framesTotal,ch);
 } 
 
 
@@ -435,10 +435,10 @@ async function updateSpriteEffects(spriteId, newEffect) {
   if (!sprite) return;
   let recomputeMin = Infinity, recomputeMax = -Infinity;
 
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
-  visited = Array.from({ length: channelCount }, () => new Uint8Array(channels[0].mags.length));
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
+  visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
   for (let ch=$s;ch<$e;ch++){
-    const mags = channels[ch].mags, phases = channels[ch].phases;
+    const mags = layers[ch].mags, phases = layers[ch].phases;
     // keep a copy of the old effect to detect instant zeroing
     const oldEffect = Object.assign({}, sprite.effect || {});
 
@@ -530,9 +530,9 @@ function toggleSpriteEnabled(spriteId, enable) {
   if (!sprite) return;
   let minCol = Math.max(0, sprite.minCol || 0);
   let maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = channels[ch].mags, phases = channels[ch].phases;
+    let mags = layers[ch].mags, phases = layers[ch].phases;
 
     // apply prev (disable) or next (enable)
     if (enable) {
@@ -553,7 +553,7 @@ function toggleSpriteEnabled(spriteId, enable) {
       sprite.enabled = false;
     }
   }
-  for (let ch=0;ch<channelCount;ch++)renderSpectrogramColumnsToImageBuffer(minCol,maxCol,ch);
+  for (let ch=0;ch<layerCount;ch++)renderSpectrogramColumnsToImageBuffer(minCol,maxCol,ch);
   recomputePCMForCols(minCol, maxCol);
   if (playing) {
     stopSource(true);
@@ -570,9 +570,9 @@ async function moveSprite(spriteId, dx, dy) {
   // old range (may be Infinity if empty)
   const oldMinCol = sprite.minCol;
   const oldMaxCol = sprite.maxCol;
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?channelCount:sprite.ch+1;
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = channels[ch].mags, phases = channels[ch].phases;
+    let mags = layers[ch].mags, phases = layers[ch].phases;
 
     // 1) restore prev values at old positions (keep same behaviour)
     forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
@@ -668,7 +668,7 @@ async function moveSprite(spriteId, dx, dy) {
   }
   restartRender(false);
   await waitFor(() => !rendering);
-  for (let ch = 0; ch < channelCount; ch++) {
+  for (let ch = 0; ch < layerCount; ch++) {
     renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
   }
 
@@ -686,9 +686,9 @@ async function deleteSprite(spriteId) {
   const idx = getSpriteIndexById(spriteId);
   if (idx === -1) return;
   const sprite = sprites[idx];
-  let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?channelCount:spritePath.ch+1;
+  let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?layerCount:spritePath.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    const mags = channels[ch].mags, phases = channels[ch].phases;
+    const mags = layers[ch].mags, phases = layers[ch].phases;
     forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
       const id = x * specHeight + y;
       mags[id] = prevMag;
@@ -721,10 +721,10 @@ mvsbtn.addEventListener('click', () => {
   movingSprite = !movingSprite;
   mvsbtn.classList.toggle('moving', movingSprite);
   if (movingSprite) {
-    document.getElementById("canvas-"+currentChannel).style.cursor = 'grabbing';
+    document.getElementById("canvas-"+currentLayer).style.cursor = 'grabbing';
     mvsbtn.innerText = 'Moving Sprite';
   } else {
-    document.getElementById("canvas-"+currentChannel).style.cursor = 'crosshair';
+    document.getElementById("canvas-"+currentLayer).style.cursor = 'crosshair';
     mvsbtn.innerText = 'Move Sprite';
   }
 });
@@ -734,7 +734,7 @@ function formatSignificantAsSprite(origSprite, sig) {
   const { minX, maxX, clusterY0, maskHeight, filled } = sig;
   const W = (maxX - minX + 1);
   let pixelmap=[];
-  for(let c=0;c<channelCount;c++) pixelmap.push((origSprite.ch==="all"||c==origSprite.ch)?(new Map()):null);
+  for(let c=0;c<layerCount;c++) pixelmap.push((origSprite.ch==="all"||c==origSprite.ch)?(new Map()):null);
   let out = {
     pixels: pixelmap,
     minCol: Infinity,
@@ -743,7 +743,7 @@ function formatSignificantAsSprite(origSprite, sig) {
     name: origSprite.name,
     ch: origSprite.ch,
   };
-  let $s = origSprite.ch==="all"?0:origSprite.ch, $e = origSprite.ch==="all"?channelCount:origSprite.ch+1;
+  let $s = origSprite.ch==="all"?0:origSprite.ch, $e = origSprite.ch==="all"?layerCount:origSprite.ch+1;
   for (let ch=$s;ch<$e;ch++) {
     for (let xr = 0; xr < W; xr++) {
         const colArr = filled[xr]; if (!colArr) continue;
@@ -1560,9 +1560,9 @@ function processSpriteFade() {
   const s = getSpriteById(selectedSpriteId);
   if (!s) return;
 
-  let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?channelCount:s.ch+1;
+  let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?layerCount:s.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    const mags = channels[ch].mags;
+    const mags = layers[ch].mags;
     const z=(s.effect.tool==="sample"||s.effect.tool==="autotune");
     const sigSprite = z?s:formatSignificantAsSprite(s, getSignificantPixels(s, { height: specHeight }));
     if (!sigSprite) return;
@@ -1806,8 +1806,8 @@ function updateSelectionSize(){
   const s = getSpriteById(selectedSpriteId);
   const e = s.effect;
   forEachSpritePixelInOrder(s, s.ch, (x, y, prevMag, prevPhase, nextMag, nextPhase) => {
-    channels[s.ch].mags[x * specHeight + y] = prevMag;
-    channels[s.ch].phases[x * specHeight + y] = prevPhase;
+    layers[s.ch].mags[x * specHeight + y] = prevMag;
+    layers[s.ch].phases[x * specHeight + y] = prevPhase;
   });
 
   // Capture old bounds BEFORE changing them:
@@ -1862,12 +1862,12 @@ function updateSelectionSize(){
   const colMaps = [];
   for (let ch = 0; ch < s.pixels.length; ch++) colMaps.push(new Map());
 
-  // Iterate every pixel in every channel and map into new positions
+  // Iterate every pixel in every layer and map into new positions
   for (let v = 0; v < s.pixels.length; v++) {
-    const mags = channels[currentChannel].mags;
-    const phases = channels[currentChannel].phases;
+    const mags = layers[currentLayer].mags;
+    const phases = layers[currentLayer].phases;
     forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, nextMag, nextPhase) => {
-      // old id (source index into channels arrays)
+      // old id (source index into layers arrays)
       const oldX = Math.round(x);
       const oldY = Math.round(y);
       const oldId = oldX * specH + oldY;
@@ -1884,8 +1884,8 @@ function updateSelectionSize(){
         }
       }
 
-      // Also add entries into colMaps for each channel so the sprite pixel data is consistent.
-      // For v (owning channel) use the provided prev/next arrays; for other channels use the copied channel values.
+      // Also add entries into colMaps for each layer so the sprite pixel data is consistent.
+      // For v (owning layer) use the provided prev/next arrays; for other layers use the copied layer values.
       for (let ch = 0; ch < colMaps.length; ch++) {
         const colMap = colMaps[ch];
         const colX = mx;
@@ -1904,10 +1904,10 @@ function updateSelectionSize(){
             nextPhase: nextPhase
           });
         } else {
-          // use the value we copied into newChannels as prev, and next from the owning channel (keeps painting propagation similar to your snippet)
+          // use the value we copied into newChannels as prev, and next from the owning layer (keeps painting propagation similar to your snippet)
           const copiedMag = newChannelsMags[ch][newId];
           const copiedPhase = newChannelsPhases[ch][newId];
-          // Use nextMag/nextPhase from the owning channel to follow the snippet pattern:
+          // Use nextMag/nextPhase from the owning layer to follow the snippet pattern:
           col.entries.push({
             y: my,
             prevMag: copiedMag,
@@ -1949,7 +1949,7 @@ function updateSelectionSize(){
     newPixels.push(finalColMap);
   }
 
-  // Assign remapped pixels and channels back to the sprite/global channels:
+  // Assign remapped pixels and layers back to the sprite/global layers:
   s.pixels = newPixels;
 
   simpleRestartRender(-1,-1);

@@ -14,11 +14,11 @@ function applyEQChanges(){
 function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
     const idx = x*specHeight + y
     
-    let mags = channels[currentChannel].mags,phases = channels[currentChannel].phases;
+    let mags = layers[currentLayer].mags,phases = layers[currentLayer].phases;
     mags[idx] = mag;
     phases[idx] = phase;
-    const topEdge = binToDisplayY(y - 0.5, specHeight,currentChannel);
-    const botEdge = binToDisplayY(y + 0.5, specHeight,currentChannel);
+    const topEdge = binToDisplayY(y - 0.5, specHeight,currentLayer);
+    const botEdge = binToDisplayY(y + 0.5, specHeight,currentLayer);
 
     // ensure proper ordering (display coordinates may invert with freq mapping)
     const yTopF = Math.min(topEdge, botEdge);
@@ -33,10 +33,10 @@ function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
 
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + x) * 4;
-      imageBuffer[currentChannel].data[pix]     = r;
-      imageBuffer[currentChannel].data[pix + 1] = g;
-      imageBuffer[currentChannel].data[pix + 2] = b;
-      imageBuffer[currentChannel].data[pix + 3] = 255;
+      imageBuffer[currentLayer].data[pix]     = r;
+      imageBuffer[currentLayer].data[pix + 1] = g;
+      imageBuffer[currentLayer].data[pix + 2] = b;
+      imageBuffer[currentLayer].data[pix + 3] = 255;
     }
 }
 function zoomTimelineFit(){
@@ -240,11 +240,11 @@ const TOOLS = ['brush','rectangle','line','blur','eraser','amplifier','image'];
 
 //Need to remove the up/down arrow in the inputs
 function makeCanvasMenu(cx0, cy0){
-  const canvas = document.getElementById("canvas-"+currentChannel);
+  const canvas = document.getElementById("canvas-"+currentLayer);
   const rect = canvas.getBoundingClientRect();
   const cx = cx0 * canvas.width / rect.width + iLow;
   const cy = cy0 * canvas.height / rect.height;
-  const specCanvas = document.getElementById("spec-"+currentChannel);
+  const specCanvas = document.getElementById("spec-"+currentLayer);
   const specCtx = specCanvas.getContext("2d");
 
   let hz = 0, secs = 0, i = -1, normalizedMag = 0, db = -200, phaseVal = 0;
@@ -253,7 +253,7 @@ function makeCanvasMenu(cx0, cy0){
     secs = Math.floor(cx / (Number(sampleRate)/Number(hopSizeEl.value)) * 10000) / 10000;
     const hx = Math.floor(cx);
     const hy = Math.floor(hz / (sampleRate/fftSize));
-    let mags = channels[currentChannel].mags,phases = channels[currentChannel].phases;
+    let mags = layers[currentLayer].mags,phases = layers[currentLayer].phases;
     i = hx*(specHeight||1) + hy;
     normalizedMag = Math.min(1, mags[i]/256);
     db = (normalizedMag > 0) ? (20 * Math.log10(normalizedMag)) : -200;
@@ -333,7 +333,7 @@ function makeCanvasMenu(cx0, cy0){
     const phaseClamped = Math.max(-Math.PI, Math.min(Math.PI, Number(phaseInput.value)||0));
     const bin = Math.floor(hz/(sampleRate/fftSize));
     setPixelMagPhaseAtCursor(Math.floor(cx), bin, magVal, phaseClamped);
-    specCtx.putImageData(imageBuffer[currentChannel], 0, 0);
+    specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
     pos = Math.floor(cx) * hop;
     autoRecomputePCM(Math.floor(cx), Math.floor(cx));
     drawFrame(specWidth, specHeight);
@@ -444,7 +444,7 @@ function makeYAxisMenu(){
     { type:'input', label:'Set min', value: invlsc(fLow) },
     { type:'input', label:'Set max', value: invlsc(fHigh) },
     { type:'separator' },
-    { type:'input', label:'Logscale', value: Number(logScaleVal[currentChannel]) }
+    { type:'input', label:'Logscale', value: Number(logScaleVal[currentLayer]) }
   ];
 
   const menu = buildMenu(items);
@@ -471,11 +471,11 @@ function makeYAxisMenu(){
   }
 
   // replace min/max rows
-  if(minItem) minItem.innerHTML = makeSliderRow('Set min', invlsc(fLow, sampleRate/2, logScaleVal[currentChannel]), 0, fHigh, 1);
-  if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', invlsc(fHigh, sampleRate/2, logScaleVal[currentChannel]), fLow, sampleRate/2, 1); // assume 20kHz upper limit
+  if(minItem) minItem.innerHTML = makeSliderRow('Set min', invlsc(fLow, sampleRate/2, logScaleVal[currentLayer]), 0, fHigh, 1);
+  if(maxItem) maxItem.innerHTML = makeSliderRow('Set max', invlsc(fHigh, sampleRate/2, logScaleVal[currentLayer]), fLow, sampleRate/2, 1); // assume 20kHz upper limit
 
   // replace log scale row
-  if(logItem) logItem.innerHTML = makeSliderRow('Log scale', Number(logScaleVal[currentChannel]), 1, 2, 0.01);
+  if(logItem) logItem.innerHTML = makeSliderRow('Log scale', Number(logScaleVal[currentLayer]), 1, 2, 0.01);
 
   // wiring helpers
   function wireSliderRow(itemEl, getValue, setValue, minVal, maxVal){
@@ -484,7 +484,7 @@ function makeYAxisMenu(){
     const input = itemEl.querySelector('.ctx-input');
     const apply = (v)=>{
       let val = Math.max(minVal, Math.min(maxVal, Number(v)));
-      setValue(lsc(val, sampleRate/2, logScaleVal[currentChannel]));
+      setValue(lsc(val, sampleRate/2, logScaleVal[currentLayer]));
       slider.value = input.value = val;
       drawYAxis();
     };
@@ -499,10 +499,10 @@ function makeYAxisMenu(){
 
   wireSliderRow(minItem, ()=>fLow, v=>{ fLow=v; if(v>fHigh) fHigh=v; }, 0, fHigh);
   wireSliderRow(maxItem, ()=>fHigh, v=>{ fHigh=v; if(v<fLow) fLow=v; }, fLow, sampleRate/2);
-  wireSliderRow(logItem, ()=>Number(document.getElementById("logscale-"+currentChannel).value), v=>{
-    const logscaleEl = document.getElementById("logscale-"+currentChannel);
+  wireSliderRow(logItem, ()=>Number(document.getElementById("logscale-"+currentLayer).value), v=>{
+    const logscaleEl = document.getElementById("logscale-"+currentLayer);
     logscaleEl.value = v;
-    logScaleVal[currentChannel] = v;
+    logScaleVal[currentLayer] = v;
     logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
     buildBinDisplayLookup();
     restartRender();
@@ -555,7 +555,7 @@ function wireSliderRow(itemEl, getValue, setValue, minVal, maxVal){
 }
 
 function makeLogscaleMenu() {
-  const value = logScaleVal[currentChannel];
+  const value = logScaleVal[currentLayer];
   const items = [
     { type: 'input', label: 'Logscale', value: value },
     { label:'Reset', onClick:()=>apply(1.12) }
@@ -586,15 +586,15 @@ function makeLogscaleMenu() {
 
   const apply = (v) => {
     const val = Math.max(1, Math.min(2, Number(v)));
-    const logscaleEl = document.getElementById("logscale-"+currentChannel);
+    const logscaleEl = document.getElementById("logscale-"+currentLayer);
     logscaleEl.value = val;
-    logScaleVal[currentChannel] = val;
+    logScaleVal[currentLayer] = val;
     slider.value = numberInput.value = val;
     logscaleEl.dispatchEvent && logscaleEl.dispatchEvent(new Event('change'));
     buildBinDisplayLookup();
     drawYAxis();
     restartRender();
-    renderSpectrogramColumnsToImageBuffer(0,framesTotal,currentChannel);
+    renderSpectrogramColumnsToImageBuffer(0,framesTotal,currentLayer);
   };
 
   slider.addEventListener('input', e => apply(e.target.value));
@@ -676,7 +676,7 @@ window.addEventListener('scroll', closeMenu, true);
 
 // Prevent native menu globally on targets (optional)
 let rightClickPreventList = [];
-for (let ch=0;ch<channelCount;ch++){
+for (let ch=0;ch<layerCount;ch++){
   rightClickPreventList.push(document.getElementById("canvas-"+ch));
   rightClickPreventList.push(document.getElementById("timeline-"+ch));
   rightClickPreventList.push(document.getElementById("freq-"+ch));

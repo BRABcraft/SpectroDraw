@@ -82,7 +82,7 @@ const lockHopBtn = document.getElementById("lockHopBtn");
 const spriteEffectSettingsDiv = document.getElementById("spriteEffectSettings");
 
 const nameEl = document.getElementById('spriteName');
-const toolEl = document.getElementById('spriteTool');
+const toolEl = document.getElementById('spriteEffect');
 const enabledEl = document.getElementById('spriteEnabled');
 const spriteEditorDiv = document.getElementById('spriteEditor');
 const sChannelEl = document.getElementById('spriteLayer');

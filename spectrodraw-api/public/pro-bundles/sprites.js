@@ -144,8 +144,8 @@ function renderSpritesTable() {
 
 // Update editor info for selected sprite
 function updateEditorSelection(spriteId) {
-  document.getElementById("spriteToolDiv").style.display = currentShape==="select"?"none":"flex";
-  document.getElementById("stlb").innerText="Tool:"
+  document.getElementById("spriteEffectDiv").style.display = currentShape==="select"?"none":"flex";
+  document.getElementById("stlb").innerText="Effect:"
   if (spriteId === null || selectedSpriteId === null) {
     selectedSpriteId = null;
     spriteEditorDiv.setAttribute('disabled', 'disabled');
@@ -158,7 +158,7 @@ function updateEditorSelection(spriteId) {
     spriteEditorDiv.removeAttribute('disabled');
     nameEl.value = s.name;
     enabledEl.checked = s.enabled;
-    if (s.effect.tool==="sample"){toolEl.style.display="none";document.getElementById("stlb").innerText="Tool: sample"}else{toolEl.style.display="";toolEl.value = s.effect.tool;}
+    if (s.effect.tool==="sample"){toolEl.style.display="none";document.getElementById("stlb").innerText="Effect: sample"}else{toolEl.style.display="";toolEl.value = s.effect.tool;}
     sChannelEl.value = s.ch;
     renderToolEditorSettings(s.effect);
     renderSpriteFade();
@@ -309,6 +309,7 @@ function updateSpritePhaseTextureSettings(newEffect){
   const u = document.getElementById("sphaseSettingsInput");
   const div = document.getElementById("sphaseSettingsDiv");
   div.style.display = "none";
+  if (document.getElementById("sphaseTextureDiv").style.display==="none")return;
   function c(v) {return newEffect.phaseTexture === v}
   function d(variable,min,max,step,label) {
     t.min = min; t.max = max; t.step = step; t.value = variable;
@@ -1577,7 +1578,7 @@ function processSpriteFade() {
       const id = x * specHeight + y;
       if (z) mags[id]*=factor; else mags[id] = nextMag * factor;
     });
-    recomputePCMForCols(s.minCol, s.maxCol);
+    simpleRestartRender(s.minCol,s.maxCol);
   }
 }
 

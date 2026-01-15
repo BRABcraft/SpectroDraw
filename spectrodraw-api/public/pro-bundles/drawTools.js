@@ -641,7 +641,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
                 : (currentTool === "noiseRemover")
                 ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
                 : (currentTool === "cloner")
-                ? layers[clonerCh].mags[clonerPos] * (((cAmp-1)*bo)+1)
+                ? (oldMag * (1 - bo) + (layers[clonerCh].mags[clonerPos] * cAmp) * bo)
                 : (oldMag * (1 - boScaled) + mag * boScaled);
     const type = phaseTextureEl.value;
     parseExpression.vars["pixel.frame"]= xI;

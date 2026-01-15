@@ -254,6 +254,7 @@ function updateBrushSettingsDisplay(){
     s("phaseStrengthDiv",  !(c("noiseRemover")||c("autotune")));
     s(0,                   c("cloner"),"changeClonerPosDiv");
     s("clonerScaleDiv",    c("cloner"));
+    s("opacityDiv",        !c("autotune"));
     sliders[17][0].value=sliders[17][1].value=c("cloner")?cAmp:amp;
   }
   const bs = document.getElementById("brushSizeDiv");
@@ -1036,6 +1037,7 @@ function updatePhaseTextureSettings(){
   const u = document.getElementById("phaseSettingsInput");
   const div = document.getElementById("phaseSettingsDiv");
   div.style.display = "none";
+  if (document.getElementById("phaseTextureDiv").style.display==="none")return;
   function c(v) {return phaseTextureEl.value === v}
   function d(variable,min,max,step,label) {
     t.min = min; t.max = max; t.step = step; t.value = variable;

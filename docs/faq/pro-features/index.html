@@ -449,7 +449,7 @@
           </div>
         </div>
         <div class="tool-right">
-          <p><strong>Cloner</strong> – Only clones magnitudes, not phases, in the logscale space. The reference point is the starting point of cloning each time you begin drawing. You can change the cloner scale, amplifier, and phase shift.</p>
+          <p><strong>Cloner</strong> – Clones magnitudes and phases in the logscale space. The reference point is the starting point of cloning each time you begin drawing. You can change the cloner scale, amplifier, and phase strength.</p>
           <div class="media-row">
             <img src="../../assets/features/cloner.jpg" alt="Cloner example" class="illustration">
           </div>
@@ -522,8 +522,8 @@
           <p><strong>Sync layers</strong> - When this is checked, you will edit all layers simultaneously.</p>
           <div class="media-row"><img src="../../assets/features/syncLayers.jpg" alt="Sync layers" class="illustration"></div>
           
-          <p><strong>Layer settings</strong> - </p>
-          <div class="media-row"><img src="../../assets/features/layerSettings.jpg" alt="Layer settings" class="illustration"> Disable/enable to mute/unmute the layer, or adjust the volume slider. Pick between left, right, or both speakers for the layer. The brush pressure affects the brush opacity when drawing on the particular layer. This feature is useful with sync layers as you can draw the same thing on different layers with different volumes.</div>
+          <p><strong>Layer settings</strong> - Disable/enable to mute/unmute the layer, or adjust the volume slider. Pick between left, right, or both speakers for the layer. The brush pressure affects the brush opacity when drawing on the particular layer. This feature is useful with sync layers as you can draw the same thing on different layers with different volumes.</p>
+          <div class="media-row"><img src="../../assets/features/layerSettings.jpg" alt="Layer settings" class="illustration"></div>
         </div>
       </div>
     </section>
@@ -548,11 +548,14 @@
           <p><strong>Upload samples</strong> - Use the upload box to upload your own audio samples. Stereo audio is split into two uploads. Delete uploads by clicking the ... button and clicking delete.</p>
           <div class="media-row"><img src="../../assets/features/uploadUploads.jpg" alt="Upload uploads" class="illustration"></div>
           
-          <p><strong>Insertion / replacement into the spectrogram</strong> - lick on either the replace or insert button to the right of each audio sample and drag it onto the spectrogram. Release your mouse on the spectrogram to apply, or to the left of the spectrogram to cancel. The insert feature inserts the sample at the cursor position, adding to the buffer length; while the replace feature overwrites the spectrogram. Both will create a new sprite, which you can move around, adjust amplitude, and shift phase. When "sync layers" is checked and there is more than one layer, it will attempt to insert all channels of a particular sample onto the multi-layer spectrogram.</p>
+          <p><strong>Insertion / replacement into the spectrogram</strong> - click on either the replace or insert button to the right of each audio sample and drag it onto the spectrogram. Release your mouse on the spectrogram to apply, or to the left of the spectrogram to cancel. The insert feature inserts the sample at the cursor position, adding to the buffer length; while the replace feature overwrites the spectrogram. Both will create a new sprite, which you can move around, adjust amplitude, and shift phase. When "sync layers" is checked and there is more than one layer, it will attempt to insert all channels of a particular sample onto the multi-layer spectrogram.</p>
+          <div class="media-row"><img src="../../assets/features/replace.jpg" alt="Insert/replace" class="illustration"></div>
+          <small>Replacing using stereo audio with sync channels on</small>
           <div class="media-row"><img src="../../assets/features/insertion.jpg" alt="Insert/replace" class="illustration"></div>
+          <small>Insertion</small>
           
           <p><strong>Images</strong> -  Overlay images are stored here. Upload more images using the same upload box. While using the image overlay tool, you can switch between different images in the image gallery. Delete images by clicking the ... button and clicking delete</p>
-          <div class="media-row"><img src="../../assets/features/imageoverlayd.jpg" alt="Image gallery" class="illustration"></div>
+          <div class="media-row"><img src="../../assets/features/images.jpg" alt="Image gallery" class="illustration"></div>
         </div>
       </div>
     </section>
@@ -560,6 +563,11 @@
     <!-- Expressions -->
     <section class="section fade-in">
       <h2>Expressions</h2>
+      <p>Many brush settings feature Javascript expressions that let you plug in any value or variable from the app. It is useful for automation, such as creating gradients by plugging in the pixel's X position. The editor supports ctrl+f and ctrl+h.</p>
+      <a href="../expressions-documentation/" style="color:rgb(127, 240, 255)">See documentation here</a>
+      <div class="media-row"><img src="../../assets/features/expressions.jpg" alt="Image gallery" class="illustration"></div>
+      <p><strong>Reset expression</strong> - Right click the squiggle and click "Reset expression" to reset the expression.</p>
+      <div class="media-row"><img src="../../assets/features/resetExpression.jpg" alt="Image gallery" class="illustration"></div>
     </section>
 
     <!-- Sprites -->
@@ -577,6 +585,13 @@
         </div>
         <div class="tool-right">
           <h2>Sprites</h2>
+          <p>A sprite is created for each action on the spectrogram. Pressing undo (or redo) disables (or disables) the last sprite.</p>
+          <p><strong>Move sprite</strong> - Move the sprite around the spectrogram in log scale space. You can also move it across layers. Warning: The sprite will be cropped if you move it off the screen.</p>
+          <div class="media-row"><img src="../../assets/features/moveSprite.jpg" alt="Image gallery" class="illustration"></div>
+          <p><strong>Edit sprite effect</strong> - Change the sprite's effect (fill, noise remover, autotune, amplifier, eraser, blur) and modify all effect settings. The changes will apply to the region of the sprite's shape.</p>
+          <div class="media-row"><img src="../../assets/features/editSpriteEffect.jpg" alt="Image gallery" class="illustration"></div>
+          <p><strong>Edit sprite fade</strong> - Adjust the fade window of the sprite by moving the points on the curve and adjusting tangent lines.</p>
+          <div class="media-row"><img src="../../assets/features/editSpriteFade.jpg" alt="Image gallery" class="illustration"></div>
         </div>
       </div>
     </section>

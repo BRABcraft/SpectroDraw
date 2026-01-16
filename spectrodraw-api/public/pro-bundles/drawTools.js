@@ -647,7 +647,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
     parseExpression.vars["pixel.frame"]= xI;
     parseExpression.vars["pixel.bin"]= bin;
 
-    if (currentTool === "fill" || currentTool === "eraser") {
+    if (currentTool === "fill" || currentTool === "eraser"|| currentTool === "cloner") {
       let $phase;
       if (currentTool === "cloner") {
         $phase = layers[clonerCh].phases[clonerPos];

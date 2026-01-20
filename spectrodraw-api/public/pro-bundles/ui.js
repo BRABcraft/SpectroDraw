@@ -462,7 +462,6 @@ function keyBind(event) {
     }
   } else {
     if (!event.shiftKey) {
-      event.preventDefault();
       if (key === 'p') {
         document.getElementById("pianoBtn").click();
       } else if (key === 'd') {
@@ -484,7 +483,8 @@ function keyBind(event) {
         exportMidi();
       } else if (key === ' ') {
         recordBtn.click();
-      }
+      } else {return;}
+      event.preventDefault();
     } else {
       if (key === 's') {
         document.getElementById('downloadSpectrogram').click();

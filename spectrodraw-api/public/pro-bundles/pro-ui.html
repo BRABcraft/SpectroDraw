@@ -9,34 +9,17 @@
   <title>SpectroDraw - Interactive spectrogram editor</title>
 
 <script>
-/*
-  Manifest-driven loader.
-  - Place this at the top of <head> (before any <img>, <link>, <script src>, etc.)
-  - manifestUrl should point to the manifest JSON published to KV/site (see sample manifest above)
-  - Elements may also be annotated with data-manifest="<logical-name>" to override the detected name.
-  - For safety you can set loaderTimeoutMs to a small value to not block page too long.
-*/
-(async function () {
+(async function () {if (true) return;
   try {
-    if (window.parent && window.parent.location.host === "127.0.0.1:5500") {
-      return;
-    }
+    if (window.parent && window.parent.location.host === "127.0.0.1:5500") return;
   } catch (e) {}
-  const manifestUrl = 'https://api.spectrodraw.com/spectrodraw-pro/manifest.json'; // adjust if needed
+  const manifestUrl = 'https://api.spectrodraw.com/spectrodraw-pro/manifest.json';
   const loaderTimeoutMs = 3000;
-
-  function isAbsolute(u) {
-    return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(u) || u.startsWith('//');
-  }
-
-  // Utility: canonicalize path used as key into manifest
+  function isAbsolute(u) {return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(u) || u.startsWith('//');}
   function normalizeKey(ref) {
     if (!ref) return null;
-    // remove leading ./ or /
     return ref.replace(/^[.\/]+/, '');
   }
-
-  // Fetch manifest (with timeout)
   const manifestPromise = (async () => {
     try {
       const controller = new AbortController();
@@ -50,29 +33,18 @@
       return null;
     }
   })();
-
   const manifest = await manifestPromise;
-  if (!manifest) return; // fallback to regular behavior (existing src/href will load)
-
-  // Convert manifest keys to normalized form for lookup
+  if (!manifest) return;
   const map = {};
   for (const k of Object.keys(manifest)) map[normalizeKey(k)] = manifest[k];
-  //console.log(map);
-
-  // Helper to map a logical ref -> actual served path
   function resolveManifestUrl(ref) {
     if (!ref) return null;
-    if (isAbsolute(ref)) return null; // skip external URLs
+    if (isAbsolute(ref)) return null;
     const key = normalizeKey(ref);
     const hashed = map[key];
     if (!hashed) return null;
-    // Adjust prefix if your assets live under a different base path:
     return 'https://api.spectrodraw.com/spectrodraw-pro/' + hashed;
   }
-
-  // --- Rewrite logic for many element types ---
-
-  // 1) Replace src/href attributes for common elements (img, script, audio, video, source, track, iframe)
   const selectors = [
     'img[src]',
     'script[src]',
@@ -82,39 +54,26 @@
     'source[src]',
     'track[src]',
     'iframe[src]',
-    'img[data-src]',         // also support data-src usage
+    'img[data-src]',
     'script[data-src]',
     'link[data-href]',
-    '[data-manifest]'        // any element with data-manifest attribute
+    '[data-manifest]'
   ];
   const elems = Array.from(document.querySelectorAll(selectors.join(',')));
-
-  // For scripts we need to preserve execution order. Collect scripts and handle separately.
   const scriptsToLoad = [];
-
   for (const el of elems) {
-    // Determine original reference: data-manifest > data-src/data-href > src/href
     const manifestName = el.getAttribute('data-href') ||
                          el.getAttribute('data-src') ||
                          el.getAttribute('data-manifest') ||
                          el.getAttribute('src') ||
                          el.getAttribute('href');
     let ref = manifestName;
-
     if (!ref) continue;
-    // if absolute URL, skip
     if (isAbsolute(ref)) continue;
-
     const resolved = resolveManifestUrl(ref);
-    if (!resolved) {
-      // no mapping: don't modify, let the browser try original path (may 404)
-      continue;
-    }
-
-    // special handling for different element types
+    if (!resolved) continue;
     const tag = el.tagName && el.tagName.toLowerCase();
     if (tag === 'script') {
-      // prevent the browser from immediately loading original src by removing attribute if present
       el.removeAttribute('src');
       scriptsToLoad.push({
         original: el,
@@ -125,22 +84,18 @@
         module: el.getAttribute('type') === 'module'
       });
     } else if (tag === 'link') {
-      // set href to resolved
       el.setAttribute('href', resolved);
     } else if (tag === 'img' || tag === 'iframe' || tag === 'video' || tag === 'audio' || tag.tagName === undefined) {
-      // for img/iframe/video/audio/source/track just set src (or data-src -> src)
       if (el.hasAttribute('src') || el.hasAttribute('data-src')) {
         el.setAttribute('src', resolved);
       } else if (el.hasAttribute('href') || el.hasAttribute('data-href')) {
         el.setAttribute('href', resolved);
       } else {
-        // fallback
         try { el.src = resolved; } catch (e) {}
       }
     } else if (tag === 'source' || tag === 'track') {
       el.setAttribute('src', resolved);
     } else {
-      // apply to generic elements with background-image inline style
       const bg = el.style && (el.style.backgroundImage || el.style.background);
       if (bg && bg.indexOf('url(') !== -1) {
         el.style.cssText = el.style.cssText.replace(/url\((['"]?)([^)'"]+)\1\)/g, (m, q, u) => {
@@ -150,9 +105,6 @@
       }
     }
   }
-
-  // 2) Rewrite CSS url(...) inside <style> elements and in document.styleSheets where accessible
-  // Note: cross-origin stylesheets may be inaccessible (skip those).
   const styleEls = Array.from(document.querySelectorAll('style'));
   for (const s of styleEls) {
     let text = s.textContent;
@@ -164,8 +116,6 @@
     });
     s.textContent = text;
   }
-
-  // Try to patch accessible stylesheet rules (may throw on CORS'd sheets)
   for (const sheet of Array.from(document.styleSheets)) {
     try {
       const rules = sheet.cssRules || [];
@@ -178,18 +128,12 @@
           return r ? `url('${r}')` : m;
         });
         if (newText !== rule.cssText) {
-          // replace the whole rule
           sheet.deleteRule(i);
           sheet.insertRule(newText, i);
         }
       }
-    } catch (e) {
-      // ignore CORS / read-only stylesheets
-    }
+    } catch (e) {}
   }
-
-  // 3) Load scripts sequentially to preserve order. We replaced original script src attributes earlier.
-  // scriptsToLoad is in document order.
   async function loadScriptsSequentially(items) {
     for (const it of items) {
       const original = it.original;
@@ -197,31 +141,21 @@
       if (it.module) newScript.type = 'module'; else newScript.type = it.type;
       if (it.async) newScript.async = true;
       if (it.defer) newScript.defer = true;
-      // copy other common attributes
       if (original.getAttribute('nonce')) newScript.setAttribute('nonce', original.getAttribute('nonce'));
       if (original.id) newScript.id = original.id;
-
       await new Promise((resolve, reject) => {
         newScript.onload = () => resolve();
         newScript.onerror = (e) => {
           console.warn('Failed to load managed script', it.src, e);
-          resolve(); // don't break the chain; continue gracefully
+          resolve();
         };
         newScript.src = it.src;
-        // replace original with new script node so DOM order is maintained
         original.parentNode && original.parentNode.replaceChild(newScript, original);
-        // If async, the onload may fire out-of-order; we still await resolve for sequential guarantee
-        if (it.async) {
-          // async scripts run independently; resolve immediately (so chain doesn't block)
-          resolve();
-        }
+        if (it.async) resolve();
       });
     }
   }
-
-  // Start loading scripts (but don't block the rest of the page)
   loadScriptsSequentially(scriptsToLoad).catch(e => console.warn('Script loader error', e));
-
 })();
 </script>
 
@@ -359,8 +293,7 @@
         <input id="masterVolumeInput" style="width:45px;"type="number" value="1" min="0" max="1">
     </div>
   </header>
-  <aside class="left-bar">
-    <!-- Project info -->
+  <!-- <aside id="left-bar" class="window">
     <button class="panel-btn" id="settingsBtn" title="Project (ctrl+d)" data-tool="0">
       <svg xmlns="http://www.w3.org/2000/svg" 
           width="20" height="20" viewBox="0 0 24 24" 
@@ -391,7 +324,6 @@
       </svg>
     </button>
     
-    <!--Tool editor-->
     <button class="panel-btn" id="toolEditBtn" title="Tool Editor" data-tool="1">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12.58,11.21 C11.62,12.17 10.91,12.66 10.36,12.85 C10.19,12.35 9.92,11.88 9.52,11.49 C9.12,11.10 8.65,10.82 8.15,10.64 C8.35,10.09 8.84,9.38 9.79,8.43 C12.06,6.15 16.10,3.36 16.87,4.13 C17.64,4.90 14.85,8.94 12.58,11.21 Z 
@@ -399,7 +331,6 @@
       </svg>
     </button>
 
-    <!--Sprite-->
     <button class="panel-btn" id="spritesBtn" title="Sprites (ctrl+b)" data-tool="2">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12,3 20,7 20,17 12,21 4,17 4,7" />
@@ -409,7 +340,6 @@
       </svg>
     </button>
 
-    <!--Uploads-->
     <button class="panel-btn" id="uploadsBtn" title="Uploads (ctrl+u)" data-tool="3">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 22 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M2 6h18v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z" />
@@ -417,7 +347,6 @@
       </svg>
     </button>
 
-    <!-- Midi -->
     <button class="panel-btn" id="pianoBtn" title="Piano (ctrl+p)" data-tool="4">
       <svg xmlns="http://www.w3.org/2000/svg" 
           width="24" height="24" viewBox="0 0 24 22" 
@@ -430,7 +359,6 @@
       </svg>
     </button>
 
-    <!-- EQ curve -->
     <button class="panel-btn" id="eqBtn" title="Equalizer (ctrl+e)" data-tool="5">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 17c2-4 4-6 8-6s6 4 10 4"/>
@@ -440,7 +368,6 @@
       </svg>
     </button>
 
-    <!--Layers-->
     <button class="panel-btn" id="layersBtn" title="Layers (ctrl+q)" data-tool="6">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="6"  y1="3" x2="6"  y2="21" />
@@ -452,7 +379,8 @@
       </svg>
     </button>
   </aside>
-  <aside class="left-panel">
+-->
+  <div id="tools" class="window">
     <div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>
     <!--Project settings-->
     <div id="d0">
@@ -1113,15 +1041,17 @@
       </div>
       <div id="layersMixerDiv"></div>
     </div>
-  </aside>
-  <main class="main-area"><div id="canvasWrapper" style="width:100%; top:0px"></div></main>
+  </div>
+  <div id="rightPanel" class="window"></div>
+  <main id="main-area" class="window"><div id="canvasWrapper" style="width:100%; top:0px"></div></main>
 </div>
 <div id="status" style="position:absolute;bottom:0px;"></div>
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
 
-<!-- <script data-manifest="fft.js"></script>
+<!-- <script data-manifest="windows.js"></script>
+<script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="ui.js"></script>
 <script data-manifest="harmonics.js"></script>
@@ -1146,6 +1076,7 @@
 <!--Comment out on deploy-->
 
 <link rel="stylesheet" type="text/css" href="style.css">
+<script src="windows.js"></script>
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
 <script src="ui.js"></script>

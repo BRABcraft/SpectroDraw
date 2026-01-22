@@ -1,10 +1,12 @@
 :root {
-  --slider-length: 30px;    /* vertical length in screen px */
   --track-color: #444;
   --thumb-color: #fff;
   --thumb-size: 12px;
   --accent-gradient: linear-gradient(90deg, #c8c5fb, #d4c3fc, #f5bdd9);
   --font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+html{
+  font-size:14px;
 }
 
 body {
@@ -80,13 +82,13 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 /* ----------------- BUTTONS ----------------- */
-.tool-btn, .leftBtn, .shape-btn, #downloadWav, #resetButton, #playPause, #stop, #rec, #undoBtn, #redoBtn, #home {
+.tool-btn, .shape-btn, #downloadWav, #resetButton, #playPause, #stop, #rec, #undoBtn, #redoBtn, #home {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 20px;
   height: 20px;
-  padding: 2px;
+  padding: 0;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -148,9 +150,13 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
  .leftBtn {
-  color: black;
+  background: #444;
   width: 70%;
-  margin-bottom: 10px;
+  transform:translateX(-5px);
+  border-radius:2px;
+  border: 1px solid #444;
+  color: white;
+  margin-bottom: 5px;
  }
 
 /* ensure adjoining buttons have no extra spacing */
@@ -158,16 +164,7 @@ input[type="range"]::-moz-range-thumb:hover {
   margin-top: 0;
   border-top: none;
 }
-
-/* neon glow hover */
-.tool-btn:hover,  
-#downloadWav:hover, #downloadSpectrogram:hover, #resetButton:hover,
-#playPause:hover, #stop:hover, #trueScale:hover,
-#fileB:hover, #rec:hover, #yAxisMode:hover, #undoBtn:hover, #redoBtn:hover, #home:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 8px #fff, 0 0 8px #9333ea,
-              0 0 16px #ec4899, 0 0 16px #4f46e5;
-}
+button{cursor:pointer;}
 .lock-btn svg {
   transition: filter 0.2s ease, transform 0.2s ease;
 }
@@ -198,7 +195,6 @@ input[type="range"]::-moz-range-thumb:hover {
 .app {
   display: grid;
   grid-template-rows: 24px 1fr;
-  grid-template-columns: 40px 330px 1fr; /* NEW: left-bar column */
   height: 100vh;
   gap: 0px;
   box-sizing: border-box;
@@ -295,7 +291,6 @@ input[type="range"]::-moz-range-thumb:hover {
 
 /* left label fixed but compact so row fits in left-panel */
 .slider-row > label {
-  flex: 0 0 150px;     /* reduced from 120px to fit 260px panel */
   font-size: 0.9rem;
   color: #eee;
   white-space: nowrap;
@@ -305,26 +300,24 @@ input[type="range"]::-moz-range-thumb:hover {
 
 /* range slider fixed width — change this width to make sliders shorter/longer */
 .slider-row input[type="range"] {
-  flex: 0 0 76px;      /* explicit fixed value */
-  width: 76px;
-  min-width: 70px;
-  max-width: 100px;
+  margin-left:auto;
+  transform: translateX(-15px);
+  width: 70px;
   box-sizing: border-box;
   background: transparent;
   display: inline-block;
   -webkit-appearance: none; /* ensure consistent sizing */
   appearance: none;
 }
+#brushSize,#brushSizeInput{transform: translateX(-35px);}
 
-/* small tweak so vertical class (if used) doesn't break layout visually in rows */
 .slider-row input[type="range"].vertical {
-  /* keep same visual behaviour but use the horizontal width in the row */
   height: 4px;
 }
 
 /* numeric input on the right — guaranteed visible */
 .slider-row input[type="number"], #masterVolumeInput {
-  flex: 0 0 50px;      /* visible width */
+  transform: translateX(-15px);
   width: 50px;
   min-width: 50px;
   text-align: left;
@@ -492,7 +485,7 @@ select {
 }
 
   #spriteTableWrap {
-    height: 240px; /* fixed height as requested */
+    height: 120px; /* fixed height as requested */
     overflow: auto;
     border: 1px solid #666;
     border-radius: 6px;
@@ -572,7 +565,9 @@ select {
   border: 1px solid #aaa;
   border-radius: 5px;
   height: 1.0rem;
-  width:100%;
+  width:calc(100% - 100px);
+  transform: translateX(-15px);
+  margin-left:auto;
   color: white;
 }
 
@@ -657,7 +652,6 @@ select {
 .sample-row {
   border: 1px solid #444;
   border-radius: 6px;
-  padding: 5px;
   margin-bottom: 5px;
 }
 
@@ -803,9 +797,55 @@ select {
 .findBox button{margin-left:6px;padding:2px;background:#222;border:1px solid #777; color:#fff}
 .sr-only{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
 .expHeaderButtons{padding:0;width:20px;height:20px;background:var(--accent-gradient);border:1px solid #444;border-radius:2px;cursor:pointer;}
-.expBtn{background:none;width:14px;height:14px;padding:0;margin-left:-3px;border:none;}
+.expBtn{background:none;width:14px;height:14px;padding:0;border:none;transform: translateX(-15px);}
 
-.window{background:#111;}
 .toggleWindowButtons{
   background:linear-gradient(90deg,orange,yellow);
 }
+
+.toolsWrapper{
+  background:none;
+  color: #fff;
+}
+.toolSection-header{
+  display:flex;
+  cursor:pointer;
+  user-select:none;
+  z-index:2;
+}
+.toggle-btn{
+  width:20px;
+  height:20px;
+  display:inline-grid;
+  border:none;
+  background:transparent;
+  color:#fff;
+  font-weight:700;
+  font-size:15px;
+  transition: transform 260ms cubic-bezier(.3,.9,.2,1);
+  transform-origin:center center;
+}
+.toolSection.open .toggle-btn{
+  transform: rotate(90deg);
+  color: #fff;
+}
+.toolSection-title{
+  font-weight:600;
+  color: #fff;
+  font-size:15px;
+  display:flex;
+}
+.content-wrapper{
+  overflow:hidden;
+  max-height:0; 
+  transition: max-height 360ms ease;
+}
+.panel-body{
+  opacity:0;
+  transition: transform 360ms ease, opacity 320ms ease;
+}
+.toolSection.open .panel-body{
+  opacity:1;
+}
+
+#toolsWindow,#brushSettingsWindow,#spritesEditorWindow{padding-left:5px;}

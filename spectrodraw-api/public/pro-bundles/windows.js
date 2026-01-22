@@ -1,10 +1,17 @@
 (function() {
+  const waveformHeight = 35;
+  const infoHeight = 67.2;
+  const rightWidth = 310;
+  const leftWidth = 250;
+  const middleWidth = window.innerWidth-leftWidth-rightWidth;
+  const brushSettingsHeight = (window.innerHeight-30)*0.6;
+  const spritesHeight = (window.innerHeight-30)*0.4;
   let panels = [];
   let baseTop = 30;
   let edgeThickness = 5;
   let edgeDocks = [
-    { left: 0,                             top: baseTop, axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:2, size:75},{panelIndex:1, size:window.innerHeight-105}]), thickness: [200], name:"left" }, 
-    { left: window.innerWidth - edgeThickness, top: baseTop, axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([]), thickness: [300], name:"right" }, 
+    { left: 0,                             top: baseTop, axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:2, size:infoHeight},{panelIndex:1, size:window.innerHeight-30-infoHeight}]), thickness: [leftWidth], name:"left" }, 
+    { left: window.innerWidth - edgeThickness, top: baseTop, axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:0, size:brushSettingsHeight},{panelIndex:6, size:spritesHeight}]), thickness: [rightWidth], name:"right" }, 
     { left: 0,                             top: baseTop, axis: "horizontal", length: window.innerWidth,            panels: new Array([]), thickness: [200], name:"top" }, 
     { left: 0,    top: window.innerHeight - edgeThickness, axis: "horizontal", length: window.innerWidth,            panels: new Array([]), thickness: [200], name:"bottom" }, 
   ];
@@ -18,9 +25,9 @@
     panelObj.style.top = opts.top+"px";
     panelObj.style.background = "#111";
     panelObj.style.position = "absolute";
-    panelObj.style.boxShadow = opts.docked?"none":"0 0 20px rgba(0,0,0,0.5)";
+    panelObj.style.boxShadow = "0 0 20px rgba(0,0,0,0.9)";
     panelObj.style.overflow = "hidden";
-    panelObj.style.border = opts.useBorders?"1px solid #555":"none";
+    panelObj.style.border = "1px solid #555";
     panelObj.style.zIndex=opts.docked?"0":"999999";
     panelObj.setAttribute("idx",panels.length);
     const topbar = 15;
@@ -57,22 +64,17 @@
             <line x1="16" y1="16" x2="4" y2="4" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
             <line x1="16" y1="4" x2="4" y2="16" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
           </svg>`;
-    panelObj.innerHTML = opts.useBorders?`
-    <div style="height:${topbar}px;border-bottom:1px solid #888;display:flex;flex-direction:row;">
-      <p style="color:white;font-family:'Inter',system-ui,sans-serif;margin:0;align-self:center;margin-left:5px;">
+    panelObj.innerHTML = `
+    <div id="${opts.id}header" style="height:${topbar}px;border-bottom:1px solid #888;display:${opts.showHeader?"flex":"none"};flex-direction:row;">
+      <p style="color:white;font-family:'Inter',system-ui,sans-serif;margin:0;align-self:center;margin-left:5px;">${opts.name}</p>
       <div style="display:flex;margin-left:auto;">
-        <button id="${panels.length}popOut" style="background:none;border:none;display:${opts.docked?"block":"none"};">${popOutSVGs[opts.dockEdge]}</button>
-        <button id="${panels.length}minimize" style="background:none;border:none;display:${opts.docked?"none":"block"}">${minimizeSvg}</svg></button>
-        <button id="${panels.length}close" style="background:none;border:none;">${closeSVG}</button>
+        <button id="${opts.id}popOut" style="background:none;border:none;display:${opts.docked?"block":"none"};">${popOutSVGs[opts.dockEdge]}</button>
+        <button id="${opts.id}minimize" style="background:none;border:none;display:${opts.docked?"none":"block"}">${minimizeSvg}</svg></button>
+        <button id="${opts.id}close" style="background:none;border:none;">${closeSVG}</button>
       </div>
     </div>
     ${opts.innerHTML}
-    `:` ${opts.innerHTML}
-    <div style="position:absolute;top:0px;display:flex;flex-direction:row;z-index:999999999999;right:0px;">
-        <button id="${panels.length}popOut" style="background:none;border:none;display:${opts.docked?"block":"none"};">${popOutSVGs[opts.dockEdge]}</button>
-        <button id="${panels.length}minimize" style="background:none;border:none;display:${opts.docked?"none":"block"}">${minimizeSvg}</svg></button>
-        <button id="${panels.length}close" style="background:none;border:none;">${closeSVG}</button>
-        </div>`;
+    `
     opts.obj = panelObj;
     panels.push(opts);
     document.body.appendChild(panelObj);
@@ -80,12 +82,14 @@
     function setX(panel,x){
       if (x>window.innerWidth-120) x = window.innerWidth-120;
       if (x<120-panel.width) x = 120-panel.width;
-      panel.obj.style.left=panel.left=(x+"px");
+      panel.obj.style.left=(x+"px");
+      panel.left=x;
     }
     function setY(panel,y){
       if (y>window.innerHeight-50) y = window.innerHeight-50;
       if (y<50-panel.height) y = 50-panel.height;
-      panel.obj.style.top=panel.top=(y+"px");
+      panel.obj.style.top=(y+"px");
+      panel.top=y;
     }
     function goTo(panel,x,y){
       setX(panel,x);
@@ -93,16 +97,18 @@
     }
     function setWidth(panel,w){
       if (w<120) w = 120;
-      panel.obj.style.width=panel.width=w;
+      panel.obj.style.width=w+"px";
+      panel.width=w;
     }
     function setHeight(panel,h){
       if (h<topbar) h = topbar;
-      panel.obj.style.height=panel.height=h;
+      panel.obj.style.height=h+"px";
+      panel.height=h;
     }
     function hitEdge(panel,hitX,hitY){
       const w = panel.width;
       const h = panel.height;
-      const tolerance = 5;
+      const tolerance = 7;
       const l = hitX < tolerance;
       const r = hitX > w-tolerance;
       const t = hitY < tolerance;
@@ -116,10 +122,28 @@
       if (hitY<topbar) return "default";
       return "";
     }
-    const popOutEl = document.getElementById(getPanelId(panelObj)+"popOut");
-    const minimizeEl = document.getElementById(getPanelId(panelObj)+"minimize");
-    const closeEl = document.getElementById(getPanelId(panelObj)+"close");
+    const popOutEl = document.getElementById(opts.id+"popOut");
+    const minimizeEl = document.getElementById(opts.id+"minimize");
+    const closeEl = document.getElementById(opts.id+"close");
+    const headerEl = document.getElementById(opts.id+"header");
     const toggleButton = document.getElementById(opts.id+"Toggle");
+    if(opts.id!=="main-area"){
+      panelObj.style.display = "flex";
+      panelObj.style.flexDirection = "column";
+      panelObj.style.overflow = "hidden";
+      const contentWrapper = document.createElement("div");
+      contentWrapper.className = "window-content";
+      contentWrapper.style.flex = "1 1 auto";
+      contentWrapper.style.minHeight = "0";
+      contentWrapper.style.overflowY = "auto";
+      contentWrapper.style.overflowX = "hidden";
+      while (headerEl && headerEl.nextSibling) {
+        contentWrapper.appendChild(headerEl.nextSibling);
+      }
+      panelObj.appendChild(contentWrapper);
+      if (headerEl) headerEl.style.flex = "0 0 auto";
+    }
+
     panelObj.addEventListener("pointerdown",(e)=>{
       const id = getPanelId(panelObj);
       const panel = panels[id];
@@ -209,10 +233,11 @@
     function popOut(){
       const id=getPanelId(panelObj);
       const panel = panels[id];
+      headerEl.style.display = "flex";
       if (panel.dockTo) {
         const dock = panel.dockTo;
         const {idx, layer} = findDockEntry(dock, id);
-        const preCount = dock.panels[layer].length;
+        //const preCount = dock.panels[layer].length;
         if (idx !== -1) {
           dock.panels[layer].splice(idx, 1);
           if (layer>0&&dock.panels[layer].length===0){
@@ -222,14 +247,13 @@
           recomputeEdgeBounds();
           layoutDock(dock);
         }
-        if (panel.dockEdge === "left" || panel.dockEdge === "right") { setHeight(panel, panel.height * 0.8); setY(panel, panel.top + 50); }
-        if (panel.dockEdge === "top" || panel.dockEdge === "bottom") { setWidth(panel, panel.width * 0.8); setX(panel, panel.left + 50); }
+        if (panel.dockEdge === "left" || panel.dockEdge === "right") { setHeight(panel, Math.min(panel.height+topbar, window.innerHeight * 0.8)); setY(panel, panel.top + 50); }
+        if (panel.dockEdge === "top" || panel.dockEdge === "bottom") { setWidth(panel, Math.min(panel.width, window.innerWidth.width * 0.8)); setX(panel, panel.left + 50); }
         if (panel.dockEdge === "left") setX(panel, panel.left + 250);
         if (panel.dockEdge === "right") setX(panel, panel.left - 250);
         if (panel.dockEdge === "top") setY(panel, panel.top + 250);
         if (panel.dockEdge === "bottom") setY(panel, panel.top - 250);
         panelObj.style.zIndex = "999999";
-        panelObj.style.boxShadow = "0 0 20px rgba(0,0,0,0.5)";
         panel.dockTo = null;
         panel.dockEdge = null;
         panel.docked = false;
@@ -276,7 +300,6 @@
       panel.docked = true;
       panel.dockEdge = (sd.type === 0) ? ((dock.axis === "vertical") ? "left" : "top") : ((dock.axis === "vertical") ? "right" : "bottom");
       popOutEl.innerHTML = popOutSVGs[panel.dockEdge];
-      panel.obj.style.boxShadow = "none";
       recomputeEdgeBounds();
       for (let d of edgeDocks) if (d.panels[0].length) {layoutDock(d);}
       panel._savedDock = null;
@@ -519,7 +542,6 @@
       if (dockObj.type === 0) { panel.dockEdge = (dock.axis === "vertical") ? "left" : "top"; }
       else { panel.dockEdge = (dock.axis === "vertical") ? "right" : "bottom"; }
       popOutEl.innerHTML = popOutSVGs[panel.dockEdge];
-      panel.obj.style.boxShadow = "none";
       recomputeEdgeBounds();
       for (let d of edgeDocks) {
         for (let p of d.panels) {
@@ -656,8 +678,8 @@
   newWindow({
       name:"Brush Settings",
       id:"brushSettingsWindow",
-      width:300,
-      height:window.innerHeight-30,
+      width:rightWidth,
+      height:brushSettingsHeight,
       docked:true,
       dockEdge:"right",
       dockTo:edgeDocks[1],
@@ -666,11 +688,11 @@
       moving:false,
       resizing:false,
       minimized:false,
-      left:window.innerWidth-300,
+      left:window.innerWidth-rightWidth,
       top:30,
       showing:true,
-      useBorders:true,
-      innerHTML:`<h2 style="margin:10px 0 10px 0;">Brush settings</h2>
+      showHeader:true,
+      innerHTML:`<div style="overflow-y:auto;overflow-x:hidden;">
     <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
     <!--Tool select: Common: {Note brush (harmonics), Stamp, Cloner, Line}, Special: {Pressure brush, Rectangle, Image overlay} -->
     <div class="slider-row" title="Size" id="brushToolSelectDiv">
@@ -758,7 +780,7 @@
                   data-target="brushHarmonicsEditorDiv"
                   aria-expanded="false"
                   aria-label="Toggle Harmonics editor settings"
-                  id="brushHarmonicsEditorDivToggleBtn"></button>
+                  id="brushHarmonicsEditorDivToggleBtn"style="margin-right:15px;"></button>
         </h3>
         <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
       </div>
@@ -827,7 +849,7 @@
       </div>
       <div id="phaseTextureDiv" class="slider-row" title="Phase texture">
         <label class="h2" for="phaseTexture">Phase texture</label>
-        <select id="phaseTexture" style="width:137.5px;">
+        <select id="phaseTexture" style="width:117.5px;margin-right:15px;margin-left:50px;">
           <option value="Static" selected>Static</option>
           <option value="Harmonics">Harmonics</option>
           <option value="Flat">Flat</option>
@@ -861,13 +883,14 @@
           <input id="phaseStrengthInput" type="number" value="1" min="0" max="1">
       </div>
     </div>
+    </div>
     `,
   });
   newWindow({
       name:"Tools",
       id:"toolsWindow",
-      width:300,
-      height:window.innerHeight-105,
+      width:leftWidth,
+      height:window.innerHeight-infoHeight-30,
       docked:true,
       dockEdge:"left",
       dockTo:edgeDocks[0],
@@ -877,109 +900,142 @@
       resizing:false,
       minimized:false,
       left:0,
-      top:105,
+      top:30+infoHeight,
       showing:true,
-      useBorders:true,
-      innerHTML:`<h2 style="margin:10px 0 10px 0;">Project</h2>
-      <div class="slider-row"><label for="projectName">Name:</label><input type="text" id="projectName" value="Untitled"></input></div>
-      <div id="fftParameters">
-        <label class="h1">FFT Parameters
-          <a id="fftLearnMore" class="learn-more" href="/faq/fft/#notes" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
-        </label>
-        <div class="slider-row">
-          <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
-          <select id="fftSize" style="margin-left:87px;">
-            <option value="16384">16384</option>
-            <option value="8192">8192</option>
-            <option value="4096" selected>4096</option>
-            <option value="2048">2048</option>
-            <option value="1024">1024</option>
-            <option value="512">512</option>
-            <option value="256">256</option>
-            <option value="128">128</option>
-            <option value="64">64</option>
-          </select>
-        </div>
-        <div class="slider-row" style="align-items:center;">
-          <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
-          <button id="lockHopBtn" class="lock-btn" aria-pressed="true" title="Lock time resolution to prevent phase interference" style="background:none; border:none; margin-left:55px;" onclick="toggleLockHop();"></button>
-          <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
+      showHeader:true,
+      innerHTML:`<div class="toolsWrapper">
+    <section class="toolSection" id="section-1">
+      <div class="toolSection-header" role="button" aria-controls="content-1" aria-expanded="false">
+        <button class="toggle-btn">
+          <span class="char gt">&gt;</span>
+        </button>
+        <div>
+          <div class="toolSection-title">Project</div>
         </div>
       </div>
-      <hr>
-      </label>
-      <div id ="emptyAudioLengthDiv" class="slider-row" title="Buffer length">
-        <label class="h2">Buffer length</label>
-        <input id="emptyAudioLength" type="range" min="0.01" max="600" step="0.01" value="10">
-        <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="600">
-      </div>
-      <div class="slider-row" title="Playback volume">
-          <label class="h2">Playback volume</label>
-          <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
-          <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
-      </div>
-      <div class="slider-row" title="Oscillator Volume while drawing">
-          <label class="h2">Draw volume</label>
-          <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
-          <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
-      </div>
-      <hr>
-      <button class="leftBtn" id="saveProject">Save</button>
-      <button class="leftBtn" id="startNewProjectBtn">Save and start new project</button>
-      <button class="leftBtn" id="saveAndOpenProject">Open project</button>
-      <input type="file" id="openProject" accept=".zip*" style="display:none;">
-      <div id="presetsModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center;z-index:69420;">
-        <div class="modal-content" style="background:#222; padding:20px; border-radius:8px; max-width:300px; width:90%;">
-          <h2>New Project</h2>
-          <label class="h2" for="presets">Use preset...</label>
-          <select id="presets">
-            <option value="silence">Silence</option>
-            <option value="male">Male sing</option>
-            <option value="female">Female sing</option>
-            <option value="dog">Dog</option>
-            <option value="birdChirp">Bird chirp</option>
-            <option value="lionRoar">Lion roar</option>
-            <option value="seaLion">Sea lion</option>
-            <option value="violin">Violin</option>
-            <option value="trumpet">Trumpet</option>
-            <option value="timpani">Timpani</option>
-            <option value="piano">Piano</option>
-            <option value="flute">Flute</option>
-            <option value="cymbal">Cymbal</option>
-            <option value="computerBeeps">Computer beeps</option>
-            <option value="scream">Scream</option>
-            <option value="bomb">Bomb</option>
-            <option value="engine">Engine</option>
-            <option value="fullSpectra">Loud noise</option>
-            <option value="bass808">808 bass</option>
-            <option value="hardstyle">Hardstyle</option>
-            <option value="kick">Kick</option>
-            <option value="hihat">Hihat</option>
-            <option value="clap">Clap</option>
-            <option value="cave14">Cave14.ogg</option>
-            <option value="sine">Sine wave</option>
-            <option value="triangle">Triangle wave</option>
-            <option value="square">Square wave</option>
-            <option value="saw">Saw wave</option>
-          </select>
-          <div style="margin-top:15px; text-align:right;">
-            <button id="closeProjectModalBtn" class="leftBtn" style="width:40%;padding:5px;height:1.5rem;">Cancel</button>
-            <button id="saveAndStart" class="leftBtn" style="width:40%;padding:5px;height:1.5rem;">Save and start</button>
+      <div class="content-wrapper" id="content-1">
+        <div class="panel-body">
+          <div class="slider-row"><label for="projectName">Name:</label><input type="text" id="projectName" value="Untitled"></input></div>
+          <div id="fftParameters">
+            <label class="h1">FFT Parameters
+              <a id="fftLearnMore" class="learn-more" href="/faq/fft/#notes" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
+            </label>
+            <div class="slider-row">
+              <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
+              <select id="fftSize" style="margin-left:80px;">
+                <option value="16384">16384</option>
+                <option value="8192">8192</option>
+                <option value="4096" selected>4096</option>
+                <option value="2048">2048</option>
+                <option value="1024">1024</option>
+                <option value="512">512</option>
+                <option value="256">256</option>
+                <option value="128">128</option>
+                <option value="64">64</option>
+              </select>
+            </div>
+            <div class="slider-row" style="align-items:center;">
+              <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
+              <button id="lockHopBtn" class="lock-btn" aria-pressed="true" title="Lock time resolution to prevent phase interference" style="background:none; border:none; margin-left:50px;" onclick="toggleLockHop();"></button>
+              <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
+            </div>
+          </div>
+          <hr>
+          </label>
+          <div id ="emptyAudioLengthDiv" class="slider-row" title="Buffer length">
+            <label class="h2">Buffer length</label>
+            <input id="emptyAudioLength" type="range" min="0.01" max="600" step="0.01" value="10">
+            <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="600">
+          </div>
+          <div class="slider-row" title="Playback volume">
+              <label class="h2">Playback volume</label>
+              <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Oscillator Volume while drawing">
+              <label class="h2">Draw volume</label>
+              <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
+          </div>
+          <hr>
+          <div style="align-items:center;display:flex;flex-direction:column;">
+            <button class="leftBtn" id="saveProject">Save</button>
+            <button class="leftBtn" id="startNewProjectBtn">Save and start new project</button>
+            <button class="leftBtn" id="saveAndOpenProject">Open project</button>
+            <input type="file" id="openProject" accept=".zip*" style="display:none;">
+            <hr>
+            <button id="trueScale" title="Use true aspect ratio" class="leftBtn">Use true scale</button>
+            <button id="downloadSpectrogram" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
+            <button id="downloadVideo" title="Download video" class="leftBtn">Download video</button>
+            <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>
           </div>
         </div>
       </div>
-      <hr>
-      <button id="trueScale" title="Use true aspect ratio" class="leftBtn">Use true scale</button>
-      <button id="downloadSpectrogram" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
-      <button id="downloadVideo" title="Download video" class="leftBtn">Download video</button>
-      <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>`,
+    </section>
+    <section class="toolSection" id="section-2">
+      <div class="toolSection-header" role="button" aria-controls="content-2" aria-expanded="false">
+        <button class="toggle-btn">
+          <span class="char gt">&gt;</span>
+        </button>
+        <div>
+          <div class="toolSection-title">Tools</div>
+        </div>
+      </div>
+      <div class="content-wrapper" id="content-2">
+        <div class="panel-body">
+        </div>
+      </div>
+    </section>
+    <section class="toolSection" id="section-3">
+      <div class="toolSection-header" role="button" aria-controls="content-3" aria-expanded="false">
+        <button class="toggle-btn">
+          <span class="char gt">&gt;</span>
+        </button>
+        <div>
+          <div class="toolSection-title">Effects</div>
+        </div>
+      </div>
+      <div class="content-wrapper" id="content-3">
+        <div class="panel-body">
+        </div>
+      </div>
+    </section>
+    <section class="toolSection" id="section-4">
+      <div class="toolSection-header" role="button" aria-controls="content-3" aria-expanded="false">
+        <button class="toggle-btn">
+          <span class="char gt">&gt;</span>
+        </button>
+        <div>
+          <div class="toolSection-title">Pitch Align</div>
+        </div>
+      </div>
+      <div class="content-wrapper" id="content-4">
+        <div class="panel-body">
+        </div>
+      </div>
+    </section>
+    <section class="toolSection" id="section-5">
+      <div class="toolSection-header" role="button" aria-controls="content-3" aria-expanded="false">
+        <button class="toggle-btn">
+          <span class="char gt">&gt;</span>
+        </button>
+        <div>
+          <div class="toolSection-title">Filters</div>
+        </div>
+      </div>
+      <div class="content-wrapper" id="content-5">
+        <div class="panel-body">
+        </div>
+      </div>
+    </section>
+  </div>`,
   });
   
   newWindow({
       name:"Info",
       id:"infoWindow",
-      width:300,
-      height:75,
+      width:leftWidth,
+      height:infoHeight,
       docked:true,
       dockEdge:"left",
       dockTo:edgeDocks[0],
@@ -991,14 +1047,14 @@
       left:0,
       top:30,
       showing:true,
-      useBorders:false,
-      innerHTML:`<div style="border:1px solid #888; padding: 4px; margin-top:-11px" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>`,
+      showHeader:false,
+      innerHTML:`<div style="border:1px solid #888; padding: 4px;" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>`,
   });
   newWindow({
       name:"Waveform",
       id:"waveformWindow",
-      width:window.innerWidth-600,
-      height:80,
+      width:middleWidth,
+      height:waveformHeight,
       docked:true,
       dockEdge:"top",
       dockTo:edgeDocks[3],
@@ -1007,17 +1063,17 @@
       moving:false,
       resizing:false,
       minimized:false,
-      left:300,
+      left:leftWidth,
       top:30,
       showing:true,
-      useBorders:false,
-      innerHTML:``,
+      showHeader:false,
+      innerHTML:`<canvas id="waveform" width="${middleWidth}" height=${waveformHeight}>`,
   });
   newWindow({
       name:"mainArea",
       id:"main-area",
-      width:window.innerWidth-600,
-      height:window.innerHeight-190,
+      width:window.innerWidth-rightWidth-leftWidth,
+      height:window.innerHeight-waveformHeight-80-30,
       docked:true,
       dockEdge:"top",
       dockTo:edgeDocks[3],
@@ -1026,16 +1082,16 @@
       moving:false,
       resizing:false,
       minimized:false,
-      left:300,
-      top:110,
+      left:leftWidth,
+      top:waveformHeight+30,
       showing:true,
-      useBorders:false,
+      showHeader:false,
       innerHTML:`<div id="canvasWrapper" style="width:100%; top:0px"></div>`,
   });
   newWindow({
       name:"bottomBar",
       id:"bottom-bar",
-      width:window.innerWidth-600,
+      width:window.innerWidth-rightWidth-leftWidth,
       height:80,
       docked:true,
       dockEdge:"bottom",
@@ -1045,10 +1101,173 @@
       moving:false,
       resizing:false,
       minimized:false,
-      left:300,
+      left:leftWidth,
       top:window.innerHeight-80,
       showing:true,
-      useBorders:false,
-      innerHTML:`<p>PPPPPPPPPPPPPPPPPPP</p>`,
+      showHeader:false,
+      innerHTML:`PPPPPPPPPP`,
+  });
+  newWindow({
+      name:"Sprites Editor",
+      id:"spritesEditorWindow",
+      width:rightWidth,
+      height:spritesHeight,
+      docked:true,
+      dockEdge:"right",
+      dockTo:edgeDocks[1],
+      layer:0,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:window.innerWidth-rightWidth,
+      top:30+brushSettingsHeight,
+      showing:true,
+      showHeader:true,
+      innerHTML:`<div id="spriteTableWrap">
+        <table id="spriteTable" role="grid" aria-label="Sprites table">
+          <thead>
+            <tr>
+              <th style="width:55%;">Name</th>
+              <th style="width:15%;">Enabled</th>
+              <th style="width:30%;">Effect</th>
+            </tr>
+          </thead>
+          <tbody id="spriteTableBody">
+            <!-- rows inserted dynamically -->
+          </tbody>
+        </table>
+      </div>
+      <div id="spriteEditor" disabled>
+        <div class="spriteEditorRow" style="gap: 12px;align-items: center;height:3rem;">
+          <button id="moveSpriteBtn" class="leftBtn">Move Sprite</button>
+          <button id="deleteSpriteBtn" class="leftBtn" style="color:Red;">Delete Sprite</button>
+        </div>
+        <div class="slider-row"><label for="spriteName">Name:</label><input type="text" id="spriteName" value="No sprite selected"></input></div>
+        <div class="slider-row"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
+        <div class="slider-row" id="spriteEffectDiv"><label for="spriteEffect" id="stlb">Effect:</label><select id="spriteEffect">
+          <option value="fill">Fill</option>
+          <option value="noiseRemover">Noise Remover</option>
+          <option value="autotune">Autotune</option>
+          <option value="amplifier">Amplifier</option>
+          <option value="eraser">Eraser</option>
+          <option value="blur">Blur</option>
+        </select></div>
+        <div class="slider-row" id="spriteLayerDiv" style="display:none;"><label for="spriteLayer">Layer:</label><select id="spriteLayer">
+          <option value="0">0</option>
+          <option value="all">All</option>
+        </select></div>
+        <div id="spriteEffectSettings">
+          <h3>
+            Effect settings
+            <button type="button"
+                    class="section-toggle"
+                    data-target="spriteEffectSettings"
+                    aria-expanded="true"
+                    aria-label="Toggle Effect settings"
+                    id="effectSettingsToggleBtn"></button>
+          </h3>
+          <div class="slider-row" title="Brightness" id="sbrushBrightnessDiv">
+              <label class="h2">Brush Brightness</label>
+              <input id="sbrushBrightness" type="range" min="0" max="255" value="255">
+              <input id="sbrushBrightnessInput" type="number" value="255" min="0" max="255">
+          </div>
+          <div class="slider-row" title="Blur Radius" id="sblurRadiusDiv">
+              <label class="h2">Blur Radius</label>
+              <input id="sblurRadius"  type="range" min="0" max="10" value="1.5" step="0.1">
+              <input id="sblurRadiusInput" type="number" value="1.5" min="0" max="10">
+          </div>
+          <div class="slider-row" title="Blur Radius" id="samplifyDiv">
+              <label class="h2">Amplifier</label>
+              <input id="samp"  type="range" min="0" max="2" value="2" step="0.01">
+              <input id="sampInput" type="number" value="2" min="0" max="2">
+          </div>
+          <div class="slider-row" title="Noise remover aggressiveness" id="snoiseAggDiv">
+              <label class="h2">Aggressiveness</label>
+              <input id="snoiseAgg"  type="range" min="0" max="8" value="5" step="0.1">
+              <input id="snoiseAggInput" type="number" value="5" min="0" max="8">
+          </div>
+          <div class="slider-row" id="ssetNoiseProfileDiv" style="display:none;">
+            <button id="ssetNoiseProfile" class="leftBtn">Set noise profile frames</button>
+            <input id="ssetNoiseProfileMin" type="number" value="0" min="0" max="435">
+            <input id="ssetNoiseProfileMax" type="number" value="0" min="0" max="435">
+          </div>
+          <div class="slider-row" title="Autotune strength" style="display:none;" id="sautoTuneStrengthDiv">
+              <label class="h2">Autotune strength</label>
+              <input id="sautoTuneStrength"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="sautoTuneStrengthInput" type="number" value="1" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Base Pitch" id="sstartOnPitchDiv" style="display:none;">
+            <label class="h2">Base Hz</label>
+            <input id="sstartOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
+            <input id="sstartOnPitchInput" type="number" value="440">
+          </div>
+          <div class="slider-row" title="Notes Per Octave" id="snpoDiv" style="display:none;">
+            <label class="h2">Notes per octave</label>
+            <input id="snpo" type="range" min="1" max="48" step="1" value="12">
+            <input id="snpoInput" type="number" value="12" min="1" max="384">
+          </div>
+          <div id="sphaseTextureDiv" class="slider-row" title="Phase texture">
+            <label class="h2" for="sphaseTexture">Phase texture</label>
+            <select id="sphaseTexture">
+              <option value="Static" selected>Static</option>
+              <option value="Harmonics">Harmonics</option>
+              <option value="Flat">Flat</option>
+              <option value="ImpulseAlign">Custom Impulse</option>
+              <option value="FrameAlignedImpulse">Frame Impulse</option>
+              <option value="ExpectedAdvance">Expected Advance</option>
+              <option value="PhasePropagate">Phase Propagate</option>
+              <option value="RandomSmall">Random Small</option>
+              <option value="HarmonicStack">Harmonic Stack</option>
+              <option value="LinearDelay">Linear Delay</option>
+              <option value="Chirp">Chirp</option>
+              <option value="CopyFromRef">Reference frame</option>
+              <option value="HopArtifact">Hop Artifact</option>
+              <option value="HopArtifact">Custom</option>
+            </select>
+          </div>
+          <div class="slider-row" title="Phase" id="sphaseSettingsDiv">
+              <label class="h2" id="sphaseSettingsLabel"></label>
+              <input id="sphaseSettings"  type="range" min="0" max="0" value="0" step="0.01">
+              <input id="sphaseSettingsInput" type="number" value="0" min="0" max="0">
+          </div>
+          <div class="slider-row" title="Phase" id="sphaseDiv">
+              <label class="h2">Phase shift</label>
+              <input id="sphaseShift"  type="range" min="0" max="6.283" value="0" step="0.0001">
+              <input id="sphaseShiftInput" type="number" value="0" min="0" max="6.283">
+          </div>
+          <div class="slider-row" title="Brightness strength" id="sbrushOpacityDiv">
+              <label class="h2">Opacity</label>
+              <input id="sbrushOpacity"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="sbrushOpacityInput" type="number" value="1" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Phase strength" id="sphaseStrengthDiv">
+              <label class="h2">Phase Strength</label>
+              <input id="sphaseStrength"  type="range" min="0" max="1" value="0" step="0.01">
+              <input id="sphaseStrengthInput" type="number" value="0" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Width" id="sWidthDiv">
+              <label class="h2">Selection Width</label>
+              <input id="sWidth"  type="range" min="0" max="468" value="0" step="1">
+              <input id="sWidthInput" type="number" value="0" min="0" max="468">
+          </div>
+          <div class="slider-row" title="Height" id="sHeightDiv">
+              <label class="h2">Selection Height</label>
+              <input id="sHeight"  type="range" min="0" max="2048" value="0" step="1">
+              <input id="sHeightInput" type="number" value="0" min="0" max="2048">
+          </div>
+        </div>
+        <div id="spriteFadeDiv">
+          <h3>
+            Fade
+            <button type="button"
+                    class="section-toggle"
+                    data-target="spriteFadeDiv"
+                    aria-expanded="true"
+                    aria-label="Toggle Fade"></button>
+          </h3>
+          <canvas id="spriteFadeCanvas" style="border:1px solid #ccc; display:block; margin-top:10px;width:100%;"></canvas>
+        </div>
+      </div>`,
   });
 })();

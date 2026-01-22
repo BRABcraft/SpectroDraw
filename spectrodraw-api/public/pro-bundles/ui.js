@@ -189,27 +189,27 @@ panelButtons.forEach(btn => {
     btn.style.background = "#4af"; 
   }
 });
-panelButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    currentPanel = btn.dataset.tool;
-    if (movingSprite)document.getElementById('moveSpriteBtn').click();
-    // Reset all button backgrounds
-    panelButtons.forEach(b => b.style.background = "");
-    btn.style.background = "#4af";
+// panelButtons.forEach(btn => {
+//   btn.addEventListener("click", () => {
+//     currentPanel = btn.dataset.tool;
+//     if (movingSprite)document.getElementById('moveSpriteBtn').click();
+//     // Reset all button backgrounds
+//     panelButtons.forEach(b => b.style.background = "");
+//     btn.style.background = "#4af";
 
-    // Hide all panels and show only the current one
-    let i = 0;
-    while (true) {
-      const panel = document.getElementById("d" + i);
-      if (!panel) break; // stop when no more panels
-      panel.style.display = (i == currentPanel) ? "block" : "none";
-      i++;
-    }
-    if (currentPanel == "2") renderSpritesTable();
-    if (currentPanel == "5") drawEQ();
-    if (currentPanel == "3") renderUploads();
-  });
-});
+//     // Hide all panels and show only the current one
+//     let i = 0;
+//     while (true) {
+//       const panel = document.getElementById("d" + i);
+//       if (!panel) break; // stop when no more panels
+//       panel.style.display = (i == currentPanel) ? "block" : "none";
+//       i++;
+//     }
+//     if (currentPanel == "2") renderSpritesTable();
+//     if (currentPanel == "5") drawEQ();
+//     if (currentPanel == "3") renderUploads();
+//   });
+// });
 
 toolButtons.forEach(btn => {
   if(btn.dataset.tool === currentTool) {
@@ -308,7 +308,6 @@ function onToolChange(tool){
   if (c("cloner")&&(d("image")||d("stamp"))) tool = "fill";
   else if (c("autotune")&&(d("image")||d("note"))) tool = "fill";
   else if (c("noiseRemover")&&d("image")) tool = "fill";
-  else {if (currentShape==="select")document.getElementById("spritesBtn").click(); else document.getElementById("toolEditBtn").click();}
   currentTool = tool;
   toolButtons.forEach(b => {
     const t = b.dataset.tool;
@@ -332,7 +331,7 @@ shapeButtons.forEach(btn => {
 });
 function onShapeChange(shape){
   if (shape!=="image" || images.length>0) {
-    if (shape==="select")document.getElementById("spritesBtn").click(); else document.getElementById("toolEditBtn").click();
+    //if (shape==="select")document.getElementById("spritesBtn").click(); else document.getElementById("toolEditBtn").click();
     document.getElementById("brushToolSelect").value=currentShape = shape;
     shapeButtons.forEach(b => b.style.background = (b.dataset.shape===shape)?"#4af":"");
     document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
@@ -471,7 +470,7 @@ function keyBind(event) {
       } else if (key === 'q') {
         document.getElementById("layersBtn").click();
       } else if (key === 'b') {
-        document.getElementById("spritesBtn").click();
+        //document.getElementById("spritesBtn").click();
       } else if (key === 'u') {
         document.getElementById("uploadsBtn").click();
       } else if (key === 'o') {
@@ -1241,4 +1240,46 @@ window.addEventListener("resize",()=>{
   minCol = 0; maxCol = framesTotal;
   restartRender();
   showOrHideMasterVolume();
+});
+
+
+
+document.querySelectorAll('.toolSection').forEach(section => {
+  const header = section.querySelector('.toolSection-header');
+  const btn = section.querySelector('.toggle-btn');
+  const wrapper = section.querySelector('.content-wrapper');
+  const body = section.querySelector('.panel-body');
+  const controlId = wrapper.id;
+  function open(){
+    section.classList.add('open');
+    header.setAttribute('aria-expanded','true');
+    const h = body.scrollHeight;
+    wrapper.style.maxHeight = h + 'px';
+  }
+  function close(){
+    section.classList.remove('open');
+    header.setAttribute('aria-expanded','false');
+    wrapper.style.maxHeight = 0;
+  }
+  header.addEventListener('click', (e)=>{
+    if (section.classList.contains('open')) close(); else open();
+  });
+  header.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      header.click();
+    }
+  });
+  const ro = new ResizeObserver(()=>{
+    if (section.classList.contains('open')){
+      wrapper.style.maxHeight = body.scrollHeight + 'px';
+    }
+  });
+  ro.observe(body);
+  window.addEventListener('resize', ()=>{
+    if (section.classList.contains('open')) wrapper.style.maxHeight = body.scrollHeight + 'px';
+  });
+  wrapper.style.maxHeight = 0;
+  header.setAttribute('tabindex', 0);
+  header.setAttribute('role','button');
 });

@@ -293,6 +293,46 @@
         <input id="masterVolumeInput" style="width:45px;"type="number" value="1" min="0" max="1">
     </div>
   </header>
+  <div id="presetsModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center;z-index:9999999999969420;">
+    <div class="modal-content" style="background:#222; padding:20px; border-radius:8px; max-width:300px; width:90%;">
+      <h2 style="margin:0;margin-bottom:5px;">New Project</h2>
+      <label class="h2" for="presets">Use preset...</label>
+      <select id="presets">
+        <option value="silence">Silence</option>
+        <option value="male">Male sing</option>
+        <option value="female">Female sing</option>
+        <option value="dog">Dog</option>
+        <option value="birdChirp">Bird chirp</option>
+        <option value="lionRoar">Lion roar</option>
+        <option value="seaLion">Sea lion</option>
+        <option value="violin">Violin</option>
+        <option value="trumpet">Trumpet</option>
+        <option value="timpani">Timpani</option>
+        <option value="piano">Piano</option>
+        <option value="flute">Flute</option>
+        <option value="cymbal">Cymbal</option>
+        <option value="computerBeeps">Computer beeps</option>
+        <option value="scream">Scream</option>
+        <option value="bomb">Bomb</option>
+        <option value="engine">Engine</option>
+        <option value="fullSpectra">Loud noise</option>
+        <option value="bass808">808 bass</option>
+        <option value="hardstyle">Hardstyle</option>
+        <option value="kick">Kick</option>
+        <option value="hihat">Hihat</option>
+        <option value="clap">Clap</option>
+        <option value="cave14">Cave14.ogg</option>
+        <option value="sine">Sine wave</option>
+        <option value="triangle">Triangle wave</option>
+        <option value="square">Square wave</option>
+        <option value="saw">Saw wave</option>
+      </select>
+      <div style="margin-top:15px; text-align:right;">
+        <button id="closeProjectModalBtn" class="leftBtn" style="width:40%;height:1.5rem;">Cancel</button>
+        <button id="saveAndStart" class="leftBtn" style="width:40%;height:1.5rem;">Save and start</button>
+      </div>
+    </div>
+  </div>
   <!-- <aside id="left-bar" class="window">
     <button class="panel-btn" id="settingsBtn" title="Project (ctrl+d)" data-tool="0">
       <svg xmlns="http://www.w3.org/2000/svg" 
@@ -381,155 +421,6 @@
   </aside>
 -->
   <div id="tools" class="window">
-    <!--Sprites-->
-    <div id="d2" style="display:none;">
-      <h2 style="margin:10px 0 10px 0;">Sprites</h2>
-      <div id="spriteTableWrap">
-        <table id="spriteTable" role="grid" aria-label="Sprites table">
-          <thead>
-            <tr>
-              <th style="width:55%;">Name</th>
-              <th style="width:15%;">Enabled</th>
-              <th style="width:30%;">Effect</th>
-            </tr>
-          </thead>
-          <tbody id="spriteTableBody">
-            <!-- rows inserted dynamically -->
-          </tbody>
-        </table>
-      </div>
-      <div id="spriteEditor" disabled>
-        <div class="spriteEditorRow" style="gap: 12px;align-items: center;height:3rem;">
-          <button id="moveSpriteBtn" class="leftBtn">Move Sprite</button>
-          <button id="deleteSpriteBtn" class="leftBtn" style="color:Red;">Delete Sprite</button>
-        </div>
-        <div class="slider-row"><label for="spriteName">Name:</label><input type="text" id="spriteName" value="No sprite selected"></input></div>
-        <div class="slider-row"><label for="spriteEnabled">Enabled:</label><input type="checkbox" id="spriteEnabled"></input></div>
-        <div class="slider-row" id="spriteEffectDiv"><label for="spriteEffect" id="stlb">Effect:</label><select id="spriteEffect">
-          <option value="fill">Fill</option>
-          <option value="noiseRemover">Noise Remover</option>
-          <option value="autotune">Autotune</option>
-          <option value="amplifier">Amplifier</option>
-          <option value="eraser">Eraser</option>
-          <option value="blur">Blur</option>
-        </select></div>
-        <div class="slider-row" id="spriteLayerDiv" style="display:none;"><label for="spriteLayer">Layer:</label><select id="spriteLayer">
-          <option value="0">0</option>
-          <option value="all">All</option>
-        </select></div>
-        <div id="spriteEffectSettings">
-          <h3>
-            Effect settings
-            <button type="button"
-                    class="section-toggle"
-                    data-target="spriteEffectSettings"
-                    aria-expanded="true"
-                    aria-label="Toggle Effect settings"
-                    id="effectSettingsToggleBtn"></button>
-          </h3>
-          <div class="slider-row" title="Brightness" id="sbrushBrightnessDiv">
-              <label class="h2">Brush Brightness</label>
-              <input id="sbrushBrightness" type="range" min="0" max="255" value="255">
-              <input id="sbrushBrightnessInput" type="number" value="255" min="0" max="255">
-          </div>
-          <div class="slider-row" title="Blur Radius" id="sblurRadiusDiv">
-              <label class="h2">Blur Radius</label>
-              <input id="sblurRadius"  type="range" min="0" max="10" value="1.5" step="0.1">
-              <input id="sblurRadiusInput" type="number" value="1.5" min="0" max="10">
-          </div>
-          <div class="slider-row" title="Blur Radius" id="samplifyDiv">
-              <label class="h2">Amplifier</label>
-              <input id="samp"  type="range" min="0" max="2" value="2" step="0.01">
-              <input id="sampInput" type="number" value="2" min="0" max="2">
-          </div>
-          <div class="slider-row" title="Noise remover aggressiveness" id="snoiseAggDiv">
-              <label class="h2">Aggressiveness</label>
-              <input id="snoiseAgg"  type="range" min="0" max="8" value="5" step="0.1">
-              <input id="snoiseAggInput" type="number" value="5" min="0" max="8">
-          </div>
-          <div class="slider-row" id="ssetNoiseProfileDiv" style="display:none;">
-            <button id="ssetNoiseProfile" class="leftBtn">Set noise profile frames</button>
-            <input id="ssetNoiseProfileMin" type="number" value="0" min="0" max="435">
-            <input id="ssetNoiseProfileMax" type="number" value="0" min="0" max="435">
-          </div>
-          <div class="slider-row" title="Autotune strength" style="display:none;" id="sautoTuneStrengthDiv">
-              <label class="h2">Autotune strength</label>
-              <input id="sautoTuneStrength"  type="range" min="0" max="1" value="1" step="0.01">
-              <input id="sautoTuneStrengthInput" type="number" value="1" min="0" max="1">
-          </div>
-          <div class="slider-row" title="Base Pitch" id="sstartOnPitchDiv" style="display:none;">
-            <label class="h2">Base Hz</label>
-            <input id="sstartOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
-            <input id="sstartOnPitchInput" type="number" value="440">
-          </div>
-          <div class="slider-row" title="Notes Per Octave" id="snpoDiv" style="display:none;">
-            <label class="h2">Notes per octave</label>
-            <input id="snpo" type="range" min="1" max="48" step="1" value="12">
-            <input id="snpoInput" type="number" value="12" min="1" max="384">
-          </div>
-          <div id="sphaseTextureDiv" class="slider-row" title="Phase texture">
-            <label class="h2" for="sphaseTexture">Phase texture</label>
-            <select id="sphaseTexture">
-              <option value="Static" selected>Static</option>
-              <option value="Harmonics">Harmonics</option>
-              <option value="Flat">Flat</option>
-              <option value="ImpulseAlign">Custom Impulse</option>
-              <option value="FrameAlignedImpulse">Frame Impulse</option>
-              <option value="ExpectedAdvance">Expected Advance</option>
-              <option value="PhasePropagate">Phase Propagate</option>
-              <option value="RandomSmall">Random Small</option>
-              <option value="HarmonicStack">Harmonic Stack</option>
-              <option value="LinearDelay">Linear Delay</option>
-              <option value="Chirp">Chirp</option>
-              <option value="CopyFromRef">Reference frame</option>
-              <option value="HopArtifact">Hop Artifact</option>
-              <option value="HopArtifact">Custom</option>
-            </select>
-          </div>
-          <div class="slider-row" title="Phase" id="sphaseSettingsDiv">
-              <label class="h2" id="sphaseSettingsLabel"></label>
-              <input id="sphaseSettings"  type="range" min="0" max="0" value="0" step="0.01">
-              <input id="sphaseSettingsInput" type="number" value="0" min="0" max="0">
-          </div>
-          <div class="slider-row" title="Phase" id="sphaseDiv">
-              <label class="h2">Phase shift</label>
-              <input id="sphaseShift"  type="range" min="0" max="6.283" value="0" step="0.0001">
-              <input id="sphaseShiftInput" type="number" value="0" min="0" max="6.283">
-          </div>
-          <div class="slider-row" title="Brightness strength" id="sbrushOpacityDiv">
-              <label class="h2">Opacity</label>
-              <input id="sbrushOpacity"  type="range" min="0" max="1" value="1" step="0.01">
-              <input id="sbrushOpacityInput" type="number" value="1" min="0" max="1">
-          </div>
-          <div class="slider-row" title="Phase strength" id="sphaseStrengthDiv">
-              <label class="h2">Phase Strength</label>
-              <input id="sphaseStrength"  type="range" min="0" max="1" value="0" step="0.01">
-              <input id="sphaseStrengthInput" type="number" value="0" min="0" max="1">
-          </div>
-          <div class="slider-row" title="Width" id="sWidthDiv">
-              <label class="h2">Selection Width</label>
-              <input id="sWidth"  type="range" min="0" max="468" value="0" step="1">
-              <input id="sWidthInput" type="number" value="0" min="0" max="468">
-          </div>
-          <div class="slider-row" title="Height" id="sHeightDiv">
-              <label class="h2">Selection Height</label>
-              <input id="sHeight"  type="range" min="0" max="2048" value="0" step="1">
-              <input id="sHeightInput" type="number" value="0" min="0" max="2048">
-          </div>
-        </div>
-        <div id="spriteFadeDiv">
-          <h3>
-            Fade
-            <button type="button"
-                    class="section-toggle"
-                    data-target="spriteFadeDiv"
-                    aria-expanded="true"
-                    aria-label="Toggle Fade"></button>
-          </h3>
-          <canvas id="spriteFadeCanvas" style="border:1px solid #ccc; display:block; margin-top:10px;width:100%;"></canvas>
-        </div>
-      </div>
-    </div>
     <!--Samples-->
     <div id="d3" style="display:none;">
       <div style="display:flex;">

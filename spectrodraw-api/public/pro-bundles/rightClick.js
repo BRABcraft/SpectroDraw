@@ -1,4 +1,4 @@
-function updateTools(){
+(function updateTools(){
     toolButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tool === currentTool);
         btn.style.background = (btn.dataset.tool === currentTool)?"#4af":(shouldHide(currentShape))?"#999":"";
@@ -6,12 +6,13 @@ function updateTools(){
     if(currentTool === "image") overlayFile.click();
     document.getElementById("brushEffectSelect").value=currentTool;
     updateBrushPreview();
-}
+})
 function applyEQChanges(){
     updateGlobalGain();
     updateEQ();
     scheduleDraw();
 }
+const mainAreaPopOutEl = document.getElementById("main-areapopOut");
 function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
     const idx = x*specHeight + y
     
@@ -273,7 +274,9 @@ function makeCanvasMenu(cx0, cy0){
     { type:'separator' },
     { type:'toggle', label:'Align pitch', checked:alignPitch, onToggle:v=>{alignPitch=v;updateTools();} },
     { type:'toggle', label:'Align time', checked:alignTime, onToggle:v=>{alignTime=v;updateTools();} },
-    { label:'Remove harmonics', onClick:()=>removeHarmonics() }
+    { label:'Remove harmonics', onClick:()=>removeHarmonics() },
+    { type:'separator' },
+    { label: '↗ Pop out', onClick: ()=>{mainAreaPopOutEl.click()} }
   ];
 
   const menu = buildMenu(items);
@@ -365,6 +368,8 @@ function makeTimelineMenu(){
     { type:'separator' },
     { type:'input', label: 'Set min', value: currentMinSec },
     { type:'input', label: 'Set max', value: currentMaxSec },
+    { type:'separator' },
+    { label: '↗ Pop out', onClick: ()=>{mainAreaPopOutEl.click()} }
   ];
 
   const menu = buildMenu(items);
@@ -445,7 +450,9 @@ function makeYAxisMenu(){
     { type:'input', label:'Set min', value: invlsc(fLow) },
     { type:'input', label:'Set max', value: invlsc(fHigh) },
     { type:'separator' },
-    { type:'input', label:'Logscale', value: Number(logScaleVal[currentLayer]) }
+    { type:'input', label:'Logscale', value: Number(logScaleVal[currentLayer]) },
+    { type:'separator' },
+    { label: '↗ Pop out', onClick: ()=>{mainAreaPopOutEl.click()} }
   ];
 
   const menu = buildMenu(items);
@@ -559,7 +566,9 @@ function makeLogscaleMenu() {
   const value = logScaleVal[currentLayer];
   const items = [
     { type: 'input', label: 'Logscale', value: value },
-    { label:'Reset', onClick:()=>apply(1.12) }
+    { label:'Reset', onClick:()=>apply(1.12) },
+    { type:'separator' },
+    { label: '↗ Pop out', onClick: ()=>{mainAreaPopOutEl.click()} }
   ];
 
   const menu = buildMenu(items);
@@ -639,6 +648,9 @@ function makeEQMenu(cx,cy){
   ];
   return buildMenu(items);
 }
+function makePopOutMenu(i){
+  return buildMenu([{ label: '↗ Pop out', onClick: ()=>{document.getElementById(i+"popOut").click()} }]);
+}
 
 function makeFadeMenu(cx,cy){
   const h = fadeCanvas.height;
@@ -689,4 +701,16 @@ rightClickPreventList.forEach(el=> {
   el.addEventListener('mousedown', (ev)=> {
     ev.preventDefault();
   });
+});
+document.getElementById("midiv").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();
+  preventAndOpen(e, ()=> makePopOutMenu("infoWindow"));
+});
+document.getElementById("waveformWindow").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();
+  preventAndOpen(e, ()=> makePopOutMenu("waveformWindow"));
+});
+document.getElementById("bottom-bar").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();
+  preventAndOpen(e, ()=> makePopOutMenu("bottom-bar"));
 });

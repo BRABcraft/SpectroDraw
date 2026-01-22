@@ -27,7 +27,6 @@ function getSpriteById(id) {
 
 // Render the sprites table
 function renderSpritesTable() {
-  if (currentPanel !== "2") return;
   const tbody = document.getElementById('spriteTableBody');
   tbody.innerHTML = '';
   if (sprites.length == 0) {

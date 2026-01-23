@@ -238,7 +238,21 @@ function updateBrushPreview() {
 
   // If useImageMethod is true and we are in a shape that can use masks, draw image with mask + hue-shift
   const shapeUsesImageMask = (currentShape === "brush" || currentShape === "rectangle" || currentShape === "image" || currentShape === "stamp" || currentShape === "line");
-
+  
+  if (currentShape === "image") {
+    // Draw image stretched to brushWidth x brushHeight (no aspect preservation) - original behavior
+    if (images[selectedImage] && images[selectedImage].img && images[selectedImage].img.complete) {
+      const srcImg = images[selectedImage].img;
+      if (!srcImg.width || !srcImg.height) {
+        return;
+      }
+      const dx = centerX - brushWidth / 2;
+      const dy = centerY - brushHeight / 2;
+      pctx.imageSmoothingEnabled = false;
+      pctx.drawImage(srcImg, dx, dy, brushWidth, brushHeight);
+    }
+    return;
+  }
   // For tools that explicitly used the old special drawing behavior, handle these first:
   if (currentShape === "line" && !useImageMethod) {
     // original line logic (existing method)
@@ -624,23 +638,6 @@ function updateBrushPreview() {
         pctx.strokeRect(dx + 0.5, dy + 0.5, destW - 1, destH - 1);
       }
     });
-    return;
-  }
-
-  // If we reached here: either no image method or shape doesn't support it -> fall back to original simple shapes
-
-  if (currentShape === "image") {
-    // Draw image stretched to brushWidth x brushHeight (no aspect preservation) - original behavior
-    if (images[selectedImage] && images[selectedImage].img && images[selectedImage].img.complete) {
-      const srcImg = images[selectedImage].img;
-      if (!srcImg.width || !srcImg.height) {
-        return;
-      }
-      const dx = centerX - brushWidth / 2;
-      const dy = centerY - brushHeight / 2;
-      pctx.imageSmoothingEnabled = false;
-      pctx.drawImage(srcImg, dx, dy, brushWidth, brushHeight);
-    }
     return;
   }
 

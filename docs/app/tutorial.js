@@ -35,7 +35,7 @@
             id: 'addSound',
             label: 'Add audio / presets',
             subtitle: 'Upload a file or choose a preset',
-            target: '#fileB, #presets, #rec, #canvas, #timeline, #logscale, #freq, #midiv',
+            target: '#uploadBtn, #presets, #rec, #canvas, #timeline, #logscale, #freq, #midiv',
             dialog: "Let’s add some sound! Upload an audio or video file, record\nwith your microphone, or pick one of the built-in presets.",
             waitFor: {
                 type: 'renderCycle',
@@ -347,7 +347,7 @@
             window.addEventListener('scroll', reposition, true);
             step._reposition = reposition;
             if (step.id === 'addSound') {
-                document.querySelector('#fileB').classList.add('tutorial-pulse-glow');
+                document.querySelector('#uploadBtn').classList.add('tutorial-pulse-glow');
                 document.querySelector('#presets').classList.add('tutorial-pulse-glow');
                 document.querySelector('#rec').classList.add('tutorial-pulse-glow');
             } else if (step.id === 'midi') {
@@ -550,7 +550,7 @@
             try { updateSpotlightMask([]); } catch (e) {}
         }
         document.querySelectorAll(
-            '#fileB, #presets, #rec, #exportMIDI, #playPause, #stop, #resetButton, #fftSize, #hopSize'
+            '#uploadBtn, #presets, #rec, #exportMIDI, #playPause, #stop, #resetButton, #fftSize, #hopSize'
         ).forEach(el => el.classList.remove('tutorial-pulse-glow'));
         steps.forEach(s => {
             if (s._reposition) {

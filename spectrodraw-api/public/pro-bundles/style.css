@@ -4,6 +4,7 @@
   --thumb-size: 12px;
   --accent-gradient: linear-gradient(90deg, #c8c5fb, #d4c3fc, #f5bdd9);
   --font-family: 'Inter', 'Segoe UI', sans-serif;
+  --button: #444;
 }
 html{
   font-size:14px;
@@ -82,15 +83,16 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 /* ----------------- BUTTONS ----------------- */
-.tool-btn, .shape-btn, #downloadWav, #resetButton, #playPause, #stop, #rec, #undoBtn, #redoBtn, #home {
+.tool-btn, .shape-btn, .topBar-btn, #home {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
+  margin:0;
   cursor: pointer;
   font-family: var(--font-family);
   font-weight: 700;
@@ -101,6 +103,8 @@ input[type="range"]::-moz-range-thumb:hover {
   position: relative;
   z-index: 6000;
 }
+
+.top-leftBtn{background:none;border:none;padding-right:8px;color:white;height:30px;}
 
 .sampleButton{
   min-width:24px;min-height:24px;max-width:24px;max-height:24px;background:linear-gradient(180deg, #666, #555);
@@ -192,9 +196,9 @@ button{cursor:pointer;}
 }
 
 /* ----------------- LAYOUT ----------------- */
-.app {
+/* .app {
   display: grid;
-  grid-template-rows: 24px 1fr;
+  grid-template-rows: 30px 1fr;
   height: 100vh;
   gap: 0px;
   box-sizing: border-box;
@@ -202,17 +206,17 @@ button{cursor:pointer;}
   margin: 0;
   overflow: hidden;
   font-family: var(--font-family);
-}
+} */
 
 .top-bar {
-  grid-column: 1 / -1;
-  grid-row: 1;
+  height:30px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap:4px;
   background: transparent;
   z-index: 7000;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 #tools {
@@ -320,6 +324,9 @@ button{cursor:pointer;}
   transform: translateX(-15px);
   width: 50px;
   min-width: 50px;
+}
+
+input[type="number"],input[type="text"] {
   text-align: left;
   box-sizing: border-box;
   background-color: #333;
@@ -849,3 +856,40 @@ select {
 }
 
 #toolsWindow,#brushSettingsWindow,#spritesEditorWindow{padding-left:5px;}
+
+.dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown {
+  position: absolute;
+  top: 30px;
+  background: #222;
+  padding: 0;
+  min-width: 160px;
+  box-shadow: 0 8px 20px #000;
+  display: none;
+  z-index: 100;
+}
+
+.dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background:none;
+  color:white;
+  border:none;
+  height:1.5rem;
+}
+.dropdown hr{margin:0;}
+
+.dropdown button:hover {
+  background: #444;
+}
+
+.dropdown.show {
+  display: block;
+}
+.viewDropdownRow{display:flex;flex-direction:row;}
+.viewDropdownRow p{width:15px;margin:0;line-height:1.5rem;}

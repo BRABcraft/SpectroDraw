@@ -6,6 +6,10 @@
   const middleWidth = window.innerWidth-leftWidth-rightWidth;
   const brushSettingsHeight = (window.innerHeight-30)*0.6;
   const spritesHeight = (window.innerHeight-30)*0.4;
+  const toolsHeight = (window.innerHeight-30-infoHeight)*0.3;
+  const specialFxHeight = (window.innerHeight-30-infoHeight)*0.4;
+  const uploadsHeight = (window.innerHeight-30-infoHeight)*0.3;
+  const eqWidth = 200;
   let panels = [];
   let baseTop = 30;
   let edgeThickness = 5;
@@ -65,7 +69,7 @@
             <line x1="16" y1="4" x2="4" y2="16" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
           </svg>`;
     panelObj.innerHTML = `
-    <div id="${opts.id}header" style="height:${topbar}px;border-bottom:1px solid #888;display:${opts.showHeader?"flex":"none"};flex-direction:row;">
+    <div id="${opts.id}header" style="height:${topbar}px;border-bottom:1px solid #888;display:${(!opts.showHeader&&opts.docked)?"none":"flex"};flex-direction:row;">
       <p style="color:white;font-family:'Inter',system-ui,sans-serif;margin:0;align-self:center;margin-left:5px;">${opts.name}</p>
       <div style="display:flex;margin-left:auto;">
         <button id="${opts.id}popOut" style="background:none;border:none;display:${opts.docked?"block":"none"};">${popOutSVGs[opts.dockEdge]}</button>
@@ -128,7 +132,7 @@
     const headerEl = document.getElementById(opts.id+"header");
     const toggleButton = document.getElementById(opts.id+"Toggle");
     if(opts.id!=="main-area"){
-      panelObj.style.display = "flex";
+      panelObj.style.display = opts.showing?"flex":"none";
       panelObj.style.flexDirection = "column";
       panelObj.style.overflow = "hidden";
       const contentWrapper = document.createElement("div");
@@ -324,11 +328,11 @@
         }
         panel.showing = false;
         panelObj.style.display = "none";
-        if (toggleButton) toggleButton.style.background = "var(--accent-gradient)";
+        if (toggleButton) toggleButton.style.background = "";
       } else {
         panel.showing = true;
         panelObj.style.display = "block";
-        if (toggleButton) toggleButton.style.background = "linear-gradient(90deg,orange,yellow)";
+        if (toggleButton) toggleButton.style.background = "#4af";
         if (panel._savedDock) {
           restoreDock(panel);
         }
@@ -731,6 +735,17 @@
                 aria-label="Toggle Effect settings"
                 id="btoolSettingsToggleBtn"></button>
       </h3>
+      <div id="stampsDiv" style="display:none;">
+        <h3>Stamps
+          <button type="button"
+                  class="section-toggle"
+                  data-target="stampsDiv"
+                  aria-expanded="true"
+                  aria-label="Toggle Stamps"
+                  id="stampsDivToggleBtn"></button>
+        </h3>
+        <div id="stampsWrapper"></div>
+      </div>
       <div class="slider-row" id="dragToDrawDiv" style="display:none;">
         <label class="h2">Drag to draw</label>
         <input type="checkbox" id="dragToDraw"></input>
@@ -783,17 +798,6 @@
                   id="brushHarmonicsEditorDivToggleBtn"style="margin-right:15px;"></button>
         </h3>
         <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
-      </div>
-      <div id="stampsDiv" style="display:none;">
-        <h3>Stamps
-          <button type="button"
-                  class="section-toggle"
-                  data-target="stampsDiv"
-                  aria-expanded="true"
-                  aria-label="Toggle Stamps"
-                  id="stampsDivToggleBtn"></button>
-        </h3>
-        <div id="stampsWrapper"></div>
       </div>
     </div>
     <!--Effect settings: Depends on effect. -->
@@ -887,10 +891,10 @@
     `,
   });
   newWindow({
-      name:"Tools",
-      id:"toolsWindow",
+      name:"Brushes",
+      id:"brushesWindow",
       width:leftWidth,
-      height:window.innerHeight-infoHeight-30,
+      height:toolsHeight,
       docked:true,
       dockEdge:"left",
       dockTo:edgeDocks[0],
@@ -903,103 +907,130 @@
       top:30+infoHeight,
       showing:true,
       showHeader:true,
+      innerHTML:`
+      <h4 style="margin:0;">Tools</h4>
+      <table style="background:#fff;width:90%;margin:5px;color:#000;border:none;border-spacing:0;" role="grid">
+        <thead>
+          <tr>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <button class="shape-btn" title="Brush (b)" data-shape="brush" id="brushBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="5 4 18 18" fill="#333"><path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/></svg>
+              </button>
+            </td>
+            <td>
+              <button title="Note brush (o)" class="shape-btn" id="noteBtn" data-shape="note">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20px" height="20px"><path fill="#333" d="M28.6,178.2c0,0-13.7,53.7-18.6,74.8l26.3-36c-2.4-5.3-0.9-13.4,3.2-17.9c5.6-6.1,15.6-6.1,21.7-0.5c6.2,5.6,6.5,15.1,1,21.2c-4.3,4.6-12.1,6.5-17.7,4.4l-32.9,30.9l69.3-26.8l27.8-41.7l-36.4-34.1L28.6,178.2z M223.3,1.4c-10.5,7.2-142,140.9-142,140.9l37,35.4c0,0,111.5-132,127.7-158.8C243.6-3.8,223.3,1.4,223.3,1.4z"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="shape-btn" title="Stamp (s)" data-shape="stamp" id="stampBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="1.25 1.25 17.5 17.5" > <g fill="#333" stroke="#333" stroke-width="2" stroke-linejoin="round" > <rect x="2.5" y="10" width="15" height="5" rx="2" ry="2" /> <line x1="10" y1="9" x2="10" y2="6" /> <rect x="8" y="4" width="4" height="3" rx="2" ry="2" /> </g> </svg>
+              </button>
+            </td>
+            <td>
+              <button class="shape-btn" title="Line (l)" data-shape="line" id="lineBtn" >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke = "#333" stroke-width = "3"><path d="M20 0 L 0 20"/></svg>
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <button class="shape-btn" title="Rectangle (r)" data-shape="rectangle" id="rectBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke = "#333" stroke-width = "5"><path d="M0 0 H 20 V 20 H 0 V -20"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="shape-btn" title="Image Overlay (i)" data-shape="image" id="imageBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="3" fill="#333" stroke="none"/><polygon points="1,20 8,10 15,20" fill="#333"/><polygon points="8,20 15,12 23,20" fill="#333"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="shape-btn" title="Selection Tool" data-shape="select" id="selectBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ><rect x="1" y="1" width="22" height="22" rx="3" ry="3" stroke-dasharray="3 5" /></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h4 style="margin:0;">Effects</h4>
+      <table style="background:#fff;width:90%;margin:5px;color:#000;border:none;border-spacing:0;" role="grid">
+        <thead>
+          <tr>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <button class="tool-btn" data-tool="fill" id="colorBtn" title="Fill (f)" data-tool="color" id="colorBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><circle cx="12" cy="12" r="9"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"width="18.19" height="19.22" viewBox="0,0,18.19,19.22"><g transform="translate(-0.90,-0.39)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.70,2.43l2.87,-2.04l7.13,10.01l-2.87,2.04z" stroke-width="NaN"/><path d="M0.90,4.90l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M2.28,6.82l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M3.73,8.91l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M5.10,10.83l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M6.45,12.73l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M11.39,11.97l2.26,-1.61l5.44,7.64l-2.26,1.61z" stroke-width="NaN"/></g></g></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="cloner" id="clonerBtn" title="Cloner (c)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 23 23" > <g fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round" > <rect x="1.5" y="8.16" width="13.33" height="13.33" rx="2" ry="2" /> <rect x="8.16" y="1.5" width="13.33" height="13.33" rx="2" ry="2" /> </g> </svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune (shift+a)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork"><path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" /><line x1="10" y1="14" x2="10" y2="17.5" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/><path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
+                <svg width="20" height="20" viewBox="-1 -1 16 16"><path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/><path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>`
+    });
+  newWindow({
+      name:"Special Effects",
+      id:"specialFXWindow",
+      width:leftWidth,
+      height:window.innerHeight-30-infoHeight-uploadsHeight-toolsHeight,
+      docked:true,
+      dockEdge:"left",
+      dockTo:edgeDocks[0],
+      layer:0,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:0,
+      top:30+infoHeight+toolsHeight,
+      showing:true,
+      showHeader:true,
       innerHTML:`<div class="toolsWrapper">
-    <section class="toolSection" id="section-1">
-      <div class="toolSection-header" role="button" aria-controls="content-1" aria-expanded="false">
-        <button class="toggle-btn">
-          <span class="char gt">&gt;</span>
-        </button>
-        <div>
-          <div class="toolSection-title">Project</div>
-        </div>
-      </div>
-      <div class="content-wrapper" id="content-1">
-        <div class="panel-body">
-          <div class="slider-row"><label for="projectName">Name:</label><input type="text" id="projectName" value="Untitled"></input></div>
-          <div id="fftParameters">
-            <label class="h1">FFT Parameters
-              <a id="fftLearnMore" class="learn-more" href="/faq/fft/#notes" title="Learn more about FFT / STFT" target="_blank" rel="noopener noreferrer" style="color:#777;font-size:10px;display:inline-block;transform:translateY(-1px)">Learn more</a>
-            </label>
-            <div class="slider-row">
-              <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
-              <select id="fftSize" style="margin-left:80px;">
-                <option value="16384">16384</option>
-                <option value="8192">8192</option>
-                <option value="4096" selected>4096</option>
-                <option value="2048">2048</option>
-                <option value="1024">1024</option>
-                <option value="512">512</option>
-                <option value="256">256</option>
-                <option value="128">128</option>
-                <option value="64">64</option>
-              </select>
-            </div>
-            <div class="slider-row" style="align-items:center;">
-              <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
-              <button id="lockHopBtn" class="lock-btn" aria-pressed="true" title="Lock time resolution to prevent phase interference" style="background:none; border:none; margin-left:50px;" onclick="toggleLockHop();"></button>
-              <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
-            </div>
-          </div>
-          <hr>
-          </label>
-          <div id ="emptyAudioLengthDiv" class="slider-row" title="Buffer length">
-            <label class="h2">Buffer length</label>
-            <input id="emptyAudioLength" type="range" min="0.01" max="600" step="0.01" value="10">
-            <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="600">
-          </div>
-          <div class="slider-row" title="Playback volume">
-              <label class="h2">Playback volume</label>
-              <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
-              <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
-          </div>
-          <div class="slider-row" title="Oscillator Volume while drawing">
-              <label class="h2">Draw volume</label>
-              <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
-              <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
-          </div>
-          <hr>
-          <div style="align-items:center;display:flex;flex-direction:column;">
-            <button class="leftBtn" id="saveProject">Save</button>
-            <button class="leftBtn" id="startNewProjectBtn">Save and start new project</button>
-            <button class="leftBtn" id="saveAndOpenProject">Open project</button>
-            <input type="file" id="openProject" accept=".zip*" style="display:none;">
-            <hr>
-            <button id="trueScale" title="Use true aspect ratio" class="leftBtn">Use true scale</button>
-            <button id="downloadSpectrogram" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
-            <button id="downloadVideo" title="Download video" class="leftBtn">Download video</button>
-            <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>
-          </div>
-        </div>
-      </div>
-    </section>
-    <section class="toolSection" id="section-2">
-      <div class="toolSection-header" role="button" aria-controls="content-2" aria-expanded="false">
-        <button class="toggle-btn">
-          <span class="char gt">&gt;</span>
-        </button>
-        <div>
-          <div class="toolSection-title">Tools</div>
-        </div>
-      </div>
-      <div class="content-wrapper" id="content-2">
-        <div class="panel-body">
-        </div>
-      </div>
-    </section>
-    <section class="toolSection" id="section-3">
-      <div class="toolSection-header" role="button" aria-controls="content-3" aria-expanded="false">
-        <button class="toggle-btn">
-          <span class="char gt">&gt;</span>
-        </button>
-        <div>
-          <div class="toolSection-title">Effects</div>
-        </div>
-      </div>
-      <div class="content-wrapper" id="content-3">
-        <div class="panel-body">
-        </div>
-      </div>
-    </section>
     <section class="toolSection" id="section-4">
       <div class="toolSection-header" role="button" aria-controls="content-3" aria-expanded="false">
         <button class="toggle-btn">
@@ -1011,6 +1042,29 @@
       </div>
       <div class="content-wrapper" id="content-4">
         <div class="panel-body">
+          <label class="h1">Brush Alignment</label>
+          <!--Auto align pitch-->
+          <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
+          <div id="startOnPitchDiv" style="display:none;">
+            <div class="slider-row" title="Base Pitch">
+              <label class="h2">Base Hz</label>
+              <input id="startOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
+              <input id="startOnPitchInput" type="number" value="440">
+            </div>
+            <!--Notes per octave (achieve with pitch bends)-->
+            <div class="slider-row" title="Notes Per Octave">
+              <label class="h2">Notes per octave</label>
+              <input id="npo" type="range" min="1" max="48" step="1" value="12">
+              <input id="npoInput" type="number" value="12" min="1" max="384">
+            </div>
+          </div>
+          <!--Auto align time-->
+          <button class="leftBtn" id="alignTime" title="Auto align time (k)">Auto Align Time</button>
+          <div id ="bpmDiv" class="slider-row" title="BPM" style="display:none;">
+            <label class="h2">BPM</label>
+            <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
+            <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
+          </div>
         </div>
       </div>
     </section>
@@ -1091,7 +1145,7 @@
   newWindow({
       name:"bottomBar",
       id:"bottom-bar",
-      width:window.innerWidth-rightWidth-leftWidth,
+      width:window.innerWidth-rightWidth-leftWidth-eqWidth,
       height:80,
       docked:true,
       dockEdge:"bottom",
@@ -1101,11 +1155,39 @@
       moving:false,
       resizing:false,
       minimized:false,
-      left:leftWidth,
+      left:leftWidth+eqWidth,
       top:window.innerHeight-80,
       showing:true,
       showHeader:false,
-      innerHTML:`PPPPPPPPPP`,
+      innerHTML:`<div id="fftParameters">
+            <label class="h1">FFT Parameters</label>
+            <div class="slider-row">
+              <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
+              <select id="fftSize" style="margin-left:80px;">
+                <option value="16384">16384</option>
+                <option value="8192">8192</option>
+                <option value="4096" selected>4096</option>
+                <option value="2048">2048</option>
+                <option value="1024">1024</option>
+                <option value="512">512</option>
+                <option value="256">256</option>
+                <option value="128">128</option>
+                <option value="64">64</option>
+              </select>
+            </div>
+            <div class="slider-row" style="align-items:center;">
+              <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
+              <button id="lockHopBtn" class="lock-btn" aria-pressed="true" title="Lock time resolution to prevent phase interference" style="background:none; border:none; margin-left:50px;" onclick="toggleLockHop();"></button>
+              <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
+            </div>
+          </div>
+          <hr>
+          </label>
+          <div id ="emptyAudioLengthDiv" class="slider-row" title="Buffer length">
+            <label class="h2">Buffer length</label>
+            <input id="emptyAudioLength" type="range" min="0.01" max="600" step="0.01" value="10">
+            <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="600">
+          </div>`,
   });
   newWindow({
       name:"Sprites Editor",
@@ -1270,4 +1352,215 @@
         </div>
       </div>`,
   });
+  newWindow({
+      name:"MIDI Export",
+      id:"midiExportWindow",
+      width:300,
+      height:240,
+      docked:false,
+      dockEdge:"none",
+      dockTo:null,
+      layer:1,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:window.innerWidth/2-150,
+      top:window.innerHeight/2-120,
+      showing:false,
+      showHeader:true,
+      innerHTML:`<input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</input>
+          <div class="slider-row" title="Duration cutoff">
+            <label class="h2">Duration cutoff (secs)</label>
+            <input id="durationCutoff" type="range" min="0" max="1" step="0.001" value="0.05">
+            <input id="durationCutoffInput" type="number" value="0.05" min="0" max="1">
+          </div>
+          <div id="nonAiMidiDiv">
+            <!--Noise floor cutoff-->
+            <div class="slider-row" title="Noise floor cutoff">
+              <label class="h2">Noise floor (dB)</label>
+              <input id="noiseFloorCutoff" type="range" min="-50" max="0" step="0.1" value="-30">
+              <input id="noiseFloorCutoffInput" type="number" value="-30" min="-50" max="0">
+            </div>
+            <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</input>
+            <div id="matOptions">
+              <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
+                <label class="h2">BPM</label>
+                <input id="midiBpm" type="range" min="0.001" max="500" step="0.01" value="120">
+                <input id="midiBpmInput" type="number" value="120" min="0.001" max="5000">
+              </div>
+              <div id ="subBeatDiv" class="slider-row" title="Sub beats">
+                <label class="h2">Sub beats</label>
+                <input id="subBeat" type="range" min="1" max="24" step="1" value="8">
+                <input id="subBeatInput" type="number" value="8" min="1" max="24">
+              </div>
+            </div>
+            <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
+          </div>
+          <div id="AiMidiDiv" style="display:none;">
+            <label class="h1">Time Quantize</label>
+            <div class="slider-row" title="Time quantize strength">
+              <label class="h2">Strength</label>
+              <input id="tQs" type="range" min="0" max="100" step="1" value="0">
+              <input id="tQsInput" type="number" value="0" min="0" max="100">
+            </div>
+            <div class="slider-row" title="Time quantize strength">
+              <label class="h2">Tempo</label>
+              <input id="tQt" type="range" min="1" max="300" step="1" value="120">
+              <input id="tQtInput" type="number" value="120" min="1" max="300">
+            </div>
+            <div class="slider-row" title="Phase texture">
+              <label class="h2" for="tQd">Time division</label>
+              <select id="tQd">
+                <option value="1">1/1</option>
+                <option value="2">1/2</option>
+                <option value="3">1/3</option>
+                <option value="4">1/4</option>
+                <option value="5">1/5</option>
+                <option value="6">1/6</option>
+                <option value="7">1/7</option>
+                <option value="8" selected="selected">1/8</option>
+                <option value="12">1/12</option>
+                <option value="16">1/16</option>
+                <option value="24">1/24</option>
+                <option value="32">1/32</option>
+              </select>
+            </div>
+          </div>
+          <div id="midiLayerSettings">
+            <label class="h1">Midi audio layers</label>
+            <div style="display:flex; gap:10px; margin-bottom:5px;" title="Layer mode">
+              <label class="h2" for="midiLayerMode">Mode</label>
+              <select id="midiLayerMode">
+                <option value="all">All layers</option>
+                <option value="allMixToMono">All layers mixed to mono</option>
+                <option value="single">Single layer</option>
+              </select>
+            </div>
+            <div class="slider-row" id="midiSingleLayerDiv" style="display:none;">
+              <label class="h2" for="midiSingleLayer">Layer</label>
+              <select id="midiSingleLayer"></select>
+            </div>
+          </div>
+          <button class="leftBtn" id="removeHarmonicsBtn" title="Auto Remove Harmonics" onClick="removeHarmonics()">Remove Harmonics</button>
+          <button class="leftBtn" id="exportMIDI" title="Export Midi (ctrl + m)" onclick="exportMidi()">Export MIDI</button>`,
+  });
+  newWindow({
+      name:"Uploads",
+      id:"uploadsWindow",
+      width:leftWidth,
+      height:window.innerHeight-30-infoHeight-toolsHeight-specialFxHeight,
+      docked:true,
+      dockEdge:"left",
+      dockTo:edgeDocks[0],
+      layer:0,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:0,
+      top:30+infoHeight+toolsHeight+specialFxHeight,
+      showing:true,
+      showHeader:true,
+      innerHTML:`
+      <section class="toolSection" id="section-1">
+        <div class="toolSection-header" role="button" aria-expanded="false" id="audioSamplesSection">
+          <button class="toggle-btn" id="audioSamplesToggle">
+            <span class="char gt">&gt;</span>
+          </button>
+          <div>
+            <div class="toolSection-title">Audio samples</div>
+          </div>
+        </div>
+        <div class="content-wrapper">
+          <div class="panel-body">
+            <div id="uploadsWrapper"></div>
+          </div>
+        </div>
+      </section>
+      <section class="toolSection">
+        <div class="toolSection-header" role="button" aria-expanded="false">
+          <button class="toggle-btn">
+            <span class="char gt">&gt;</span>
+          </button>
+          <div>
+            <div class="toolSection-title">Layer samples</div>
+          </div>
+        </div>
+        <div class="content-wrapper">
+          <div class="panel-body">
+            <div id="layersSampleWrapper"></div>
+          </div>
+        </div>
+      </section>
+      <section class="toolSection">
+        <div class="toolSection-header" role="button" aria-expanded="false">
+          <button class="toggle-btn">
+            <span class="char gt">&gt;</span>
+          </button>
+          <div>
+            <div class="toolSection-title">Overlay Images</div>
+          </div>
+        </div>
+        <div class="content-wrapper">
+          <div class="panel-body">
+            <div class="image-gallery" id="imageGallery" role="list" aria-label="Images gallery">
+          </div>
+        </div>
+      </section>`,
+  });
+  newWindow({
+      name:"Preferences",
+      id:"preferencesWindow",
+      width:300,
+      height:240,
+      docked:false,
+      dockEdge:"none",
+      dockTo:null,
+      layer:1,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:window.innerWidth/2-150,
+      top:window.innerHeight/2-120,
+      showing:false,
+      showHeader:true,
+      innerHTML:`<div class="slider-row" title="Playback volume">
+              <label class="h2">Playback volume</label>
+              <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Oscillator Volume while drawing">
+              <label class="h2">Draw volume</label>
+              <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
+              <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
+          </div>
+          <hr>
+          <div style="align-items:center;display:flex;flex-direction:column;">
+            <button id="trueScale" title="Use true aspect ratio" class="leftBtn">Use true scale</button>
+            <button id="downloadSpectrogram" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
+            <button id="downloadVideo" title="Download video" class="leftBtn">Download video</button>
+            <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>
+          </div>`,
+  });
+  newWindow({
+      name:"EQ",
+      id:"eqWindow",
+      width:eqWidth,
+      height:80,
+      docked:true,
+      dockEdge:"bottom",
+      dockTo:edgeDocks[4],
+      layer:0,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:leftWidth,
+      top:window.innerHeight-80,
+      showing:true,
+      showHeader:false,
+      innerHTML:``
+    });
 })();

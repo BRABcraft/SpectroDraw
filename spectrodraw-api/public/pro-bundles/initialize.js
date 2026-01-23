@@ -1,4 +1,4 @@
-const fileEl=document.getElementById("fileB");
+const fileEl=document.getElementById("uploadBtn");
 const status=document.getElementById("status");
 const fftSizeEl=document.getElementById("fftSize");
 const hopSizeEl=document.getElementById("hopSize");
@@ -53,7 +53,7 @@ registerProcessor('recorder-processor', RecorderProcessor);
 const micHTML = `
 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M8 15a4 4 0 0 0 8 0" />
-  <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="black"/>
+  <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="#333"/>
   <line x1="12" y1="18" x2="12" y2="17"/>
   <line x1="9" y1="21" x2="15" y2="21"/>
 </svg>`;

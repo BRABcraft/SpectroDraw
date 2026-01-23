@@ -714,3 +714,7 @@ document.getElementById("bottom-bar").addEventListener("contextmenu",(e)=>{
   e.preventDefault();
   preventAndOpen(e, ()=> makePopOutMenu("bottom-bar"));
 });
+document.getElementById("eqWindow").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();
+  preventAndOpen(e, ()=> makePopOutMenu("eqWindow"));
+});

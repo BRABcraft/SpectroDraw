@@ -359,7 +359,7 @@ document.getElementById("brushToolSelect").addEventListener("input",()=>{
 });
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
-uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--accent-gradient)";});
+uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--button)";});
 alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; startOnPitchDiv.style.display=alignPitch?"block":"none";});
 alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
 midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
@@ -871,10 +871,10 @@ function openProject(file) {
   reader.readAsArrayBuffer(file);
 }
 
-document.getElementById("saveProject").addEventListener('click', () => {
+document.getElementById("saveProjectBtn").addEventListener('click', () => {
   saveProject();
 });
-document.getElementById("saveAndOpenProject").addEventListener('click', () => {
+document.getElementById("openProjectBtn").addEventListener('click', () => {
   document.getElementById("openProject").click();
 });
 document.getElementById("openProject").addEventListener('change',(e)=>{
@@ -886,7 +886,7 @@ document.getElementById('closeProjectModalBtn').addEventListener('click', () => 
   modal.style.display = 'none';
 });
 
-document.getElementById("startNewProjectBtn").addEventListener('click', () => {
+document.getElementById("newProjectBtn").addEventListener('click', () => {
   modal.style.display = 'flex';
 });
 
@@ -1282,4 +1282,22 @@ document.querySelectorAll('.toolSection').forEach(section => {
   wrapper.style.maxHeight = 0;
   header.setAttribute('tabindex', 0);
   header.setAttribute('role','button');
+});
+
+document.querySelectorAll(".top-leftBtn").forEach(b => {
+  b.addEventListener("click", (e) => {
+    document.querySelectorAll(".top-leftBtn").forEach(b => {document.getElementById(b.id+"Dropdown").classList.remove("show");});
+    e.stopPropagation();
+    document.getElementById(b.id+"Dropdown").classList.toggle("show");
+  });
+});
+document.addEventListener("click", (e) => {
+  if (["undoBtn","redoBtn"].includes(e.target.id)||["wToggle"].includes(e.target.classList[0])) return;
+  document.querySelectorAll(".top-leftBtn").forEach(b => {document.getElementById(b.id+"Dropdown").classList.remove("show");});
+});
+document.querySelectorAll(".wToggle").forEach(b =>{
+  b.addEventListener("click",e=>{
+    const el = document.getElementById(b.getAttribute("windowId")+"Check");
+    el.innerText=(el.innerText==="✓")?" ":"✓";
+  });
 });

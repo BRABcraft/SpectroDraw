@@ -1,7 +1,5 @@
 const fileEl=document.getElementById("uploadBtn");
 const status=document.getElementById("status");
-const fftSizeEl=document.getElementById("fftSize");
-const hopSizeEl=document.getElementById("hopSize");
 const brushSizeEl=document.getElementById("brushSize");
 const brushOpacityEl=document.getElementById("brushOpacity");
 const phaseStrengthEl=document.getElementById("phaseStrength");
@@ -10,12 +8,12 @@ const blurRadiusEl=document.getElementById("blurRadius");
 const ampEl=document.getElementById("amp");
 const noiseAggEl=document.getElementById("noiseAgg");
 const phaseShiftEl=document.getElementById("phaseShift");
-const emptyAudioLengthEl = document.getElementById("emptyAudioLength");
 const phaseTextureEl = document.getElementById("phaseTexture");
 const sphaseTextureEl = document.getElementById("sphaseTexture");
 const recordBtn = document.getElementById("rec");
 const preset = document.getElementById("presets");
 //const es = document.getElementById("emptyAudioLengthDiv");
+let emptyAudioLength = 10;
 const ev = document.getElementById("phaseTextureDiv");
 const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
@@ -100,7 +98,7 @@ const defaultFadePoints = [
   { x: 1.0, y: 1.0, mx: 120, my: 0, tLen: 120 }
 ];
 
-let pcm=null, sampleRate=48000, pos=0, fftSize=1024, hop=512, win=hann(1024);
+let pcm=null, sampleRate=48000, pos=0, fftSize=4096, hop=1024, win=hann(fftSize);
 let framesTotal=0, x=0, rendering=false;
 let imageBuffer=null;
 let visited = null;
@@ -338,3 +336,256 @@ function updateOptionValue(select, oldValue, newValue, newText = newValue) {
   opt.textContent = newText;
   return true;
 }
+
+
+
+class Knob {
+  constructor(element, options = {}) {
+    if (!(element instanceof HTMLElement)) throw new Error('Knob requires a DOM element');
+    this.el = element;
+    this.type = options.type || 'continuous';
+    this.range = options.range;
+    this.marker = this.el.querySelector("line");
+
+    // HTML labels container
+    this.labelsEl = document.createElement("div");
+    this.labelsEl.className = "knob-labels";
+    this.el.appendChild(this.labelsEl);
+
+    this.name = options.name;
+    this.onInput = typeof options.onInput === 'function' ? options.onInput : null;
+
+    // initial value
+    this.value = options.value !== undefined ? options.value : (Array.isArray(this.range) ? this.range[0] : 0);
+    this.contvalue = this.value; // continuous tracking value
+    this.startV = this.value;    // stored on pointerdown for continuous
+    this.startIndex = 0;         // stored on pointerdown for discrete
+
+    this._buildLabels();
+    this.render();
+
+    // dragging state
+    this.dragging = false;
+    this.startX = 0;
+    this.startY = 0;
+
+    // bind handlers so we can remove later if needed
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerMove = this._onPointerMove.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
+
+    this.el.addEventListener("pointerdown", this._onPointerDown);
+    document.addEventListener("pointermove", this._onPointerMove);
+    document.addEventListener("pointerup", this._onPointerUp);
+  }
+
+  // pointer handlers
+  _onPointerDown(e) {
+    e.preventDefault();
+    this.el.setPointerCapture?.(e.pointerId);
+
+    this.startX = e.clientX;
+    this.startY = e.clientY;
+    this.dragging = true;
+
+    // store starting position depending on type
+    if (this.type === 'discrete') {
+      // find index of current value (closest if not exact)
+      const idx = this.range.indexOf(this.value);
+      this.startIndex = idx >= 0 ? idx : this._closestIndex(this.value);
+    } else {
+      this.startV = this.value;
+    }
+  }
+
+  _onPointerMove(e) {
+    if (!this.dragging) return;
+
+    // use vertical drag only (simpler and predictable)
+    const delta = (this.startY - e.clientY) + (e.clientX - this.startX); // positive when dragging up
+    // determine mode
+    if (this.type === 'discrete') {
+      const n = this.range.length;
+      if (n <= 1) return;
+
+      // pixels per index step - tweak to change sensitivity
+      const pixelsPerStep = 30;
+
+      // calculate floating index from startIndex + delta/pixelsPerStep
+      const idxFloat = this.startIndex + (delta / pixelsPerStep);
+      // clamp
+      const idxClamped = Math.max(0, Math.min(n - 1, idxFloat));
+      // snap to nearest integer index
+      const nearest = Math.round(idxClamped);
+
+      // set value from index
+      this.value = this.range[nearest];
+      // for rendering we use index-based t (see render())
+    } else {
+      // continuous
+      const min = Math.min(...this.range);
+      const max = Math.max(...this.range);
+      const span = max - min;
+      if (span === 0) return;
+
+      // pixels needed to cover full range (tweakable)
+      const pixelsForFullRange = 200;
+      const deltaValue = (delta / pixelsForFullRange) * span;
+      const actualValue = this.startV + deltaValue;
+
+      // clamp
+      this.contvalue = Math.max(min, Math.min(actualValue, max));
+      this.value = this.contvalue;
+    }
+
+    this.render();
+    if (this.onInput) this.onInput(this);
+  }
+
+  _onPointerUp(e) {
+    this.dragging = false;
+  }
+
+  // helper: find closest index by numeric difference
+  _closestIndex(val) {
+    let closest = 0;
+    let best = Infinity;
+    for (let i = 0; i < this.range.length; i++) {
+      const d = Math.abs(this.range[i] - val);
+      if (d < best) {
+        best = d;
+        closest = i;
+      }
+    }
+    return closest;
+  }
+
+  // render - for discrete, base on index; for continuous, base on numeric value
+  render() {
+    if (!Array.isArray(this.range) || this.range.length < 2) return;
+
+    const min = Math.min(...this.range);
+    const max = Math.max(...this.range);
+
+    let t = 0;
+
+    if (this.type === 'discrete') {
+      // compute index for current value (use indexOf, fallback to closest)
+      let idx = this.range.indexOf(this.value);
+      if (idx === -1) idx = this._closestIndex(this.value);
+
+      const n = this.range.length;
+      t = idx / (n - 1); // position across sweep
+    } else {
+      // continuous mapping
+      const span = max - min;
+      if (span === 0) t = 0;
+      else t = (this.value - min) / span;
+    }
+
+    // clamp t
+    t = Math.max(0, Math.min(1, t));
+
+    const angle = -135 + t * 270; // -135..+135
+    this.marker.setAttribute("transform", `rotate(${angle} 50 50)`);
+  }
+
+  // labels: builds HTML labels just once
+  _buildLabels() {
+    this.labelsEl.innerHTML = "";
+    if (!Array.isArray(this.range) || this.range.length < 2) return;
+
+    const size = this.el.clientWidth || 96;
+    const radius = size * 0.5 * 0.8;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    // for continuous, sample a small number of ticks between range[0] and range[1]
+    let tempRange = this.range;
+    const diff = this.range[1] - this.range[0];
+    if (this.type === "continuous") {
+      tempRange = Array.from({ length: 5 }, (_, i) =>
+        (this.range[0] + i * diff / 4).toFixed((diff>5)?0:1)
+      );
+    }
+
+    const n = tempRange.length;
+    for (let i = 0; i < n; i++) {
+      const value = tempRange[i];
+      const t = i / (n - 1);
+      const angleDeg = -225 + t * 270;
+      const angleRad = angleDeg * Math.PI / 180;
+
+      const x = cx + Math.cos(angleRad) * radius;
+      const y = cy + Math.sin(angleRad) * radius;
+
+      const label = document.createElement("div");
+      label.className = "knob-label";
+      label.textContent = value;
+      label.style.fontSize = (size / 9) + "px";
+      label.style.left = `${x}px`;
+      label.style.top = `${y}px`;
+      this.labelsEl.appendChild(label);
+    }
+
+    // name label
+    const nameLabel = document.createElement("div");
+    nameLabel.className = "knob-label";
+    nameLabel.textContent = this.name || "";
+    nameLabel.style.fontSize = (size / 6) + "px";
+    nameLabel.style.background = "#222";
+    nameLabel.style.left = `${cx}px`;
+    nameLabel.style.top = `${cy * 1.85}px`;
+    this.labelsEl.appendChild(nameLabel);
+  }
+  setDisabled(disable) {
+    if (disable) {
+      this.el.classList.add("disabled");
+    } else {
+      this.el.classList.remove("disabled");
+    }
+  }
+  setValue(v) { this.value = v; this.render(); }
+  getValue() { return this.value; }
+}
+const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
+  name:'Buffer Length',
+  type: 'continuous',
+  range: [0,100],
+  value: 10,
+  onInput: (knob)=>{
+    emptyAudioLength = knob.value;console.log("4");
+    initEmptyPCM(false);
+  }
+});
+const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
+  name:'Hop',
+  type: 'continuous',
+  range: [0,fftSize],
+  value: 1024,
+  onInput: (knob)=>{
+    hop = knob.value;
+    minCol = 0; maxCol = Math.floor(sampleRate*emptyAudioLength/hop);
+    currentCursorX = timelineCursorX = (currentCursorX/framesTotal)*maxCol;
+    restartRender(false);
+    drawTimeline();
+  }
+});
+const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
+  name:'fftSize',
+  type: 'discrete',
+  range: [64,128,256,512,1024,2048,4096,8192,16384],
+  value: fftSize,
+  onInput: (knob)=>{
+    fftSize = knob.value;
+    restartRender(false);
+    buildBinDisplayLookup();
+    if (lockHop) {hopSizeKnob.setValue(fftSizeKnob.getValue());}
+  }
+});
+const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
+  name:'Volume',
+  type: 'continuous',
+  range: [0,1],
+  value: 1,
+});

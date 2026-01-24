@@ -1032,7 +1032,7 @@
       showHeader:true,
       innerHTML:`<div class="toolsWrapper">
     <section class="toolSection" id="section-4">
-      <div class="toolSection-header" role="button" aria-controls="content-3" aria-expanded="false">
+      <div class="toolSection-header" role="button" aria-controls="content-4" aria-expanded="false">
         <button class="toggle-btn">
           <span class="char gt">&gt;</span>
         </button>
@@ -1069,7 +1069,7 @@
       </div>
     </section>
     <section class="toolSection" id="section-5">
-      <div class="toolSection-header" role="button" aria-controls="content-3" aria-expanded="false">
+      <div class="toolSection-header" role="button" aria-controls="content-5" aria-expanded="false">
         <button class="toggle-btn">
           <span class="char gt">&gt;</span>
         </button>
@@ -1079,6 +1079,39 @@
       </div>
       <div class="content-wrapper" id="content-5">
         <div class="panel-body">
+        </div>
+      </div>
+    </section>
+    <section class="toolSection" id="section-6">
+      <div class="toolSection-header" role="button" aria-controls="content-6" aria-expanded="false">
+        <button class="toggle-btn">
+          <span class="char gt">&gt;</span>
+        </button>
+        <div>
+          <div class="toolSection-title">Advanced EQ</div>
+        </div>
+      </div>
+      <div class="content-wrapper" id="content-6">
+        <div class="panel-body">
+          <div class="slider-row" title="Global gain" id="globalGainDiv">
+            <label class="h2">Global gain</label>
+            <input id="globalGain" type="range" min="-30" max="30" step="0.1" value="0">
+            <input id="globalGainInput" type="number" value="0" min="-30" max="30">
+          </div>
+          <div class="slider-row" title="EQ Presets" id="eqPresetsDiv">
+            <label class="h2" for="eqPresets">Presets</label>
+            <select id="eqPresets" style="margin-right:15px;">
+              <option value="Flat">Flat</option>
+              <option value="Bass boost">Bass boost</option>
+              <option value="Lowpass">Lowpass</option>
+              <option value="Mid boost">Mid boost</option>
+              <option value="Midpass">Midpass</option>
+              <option value="High boost">High boost</option>
+              <option value="Highpass">Highpass</option>
+              <option value="Custom">Custom</option>
+            </select>
+          </div>
+          <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
         </div>
       </div>
     </section>
@@ -1142,6 +1175,11 @@
       showHeader:false,
       innerHTML:`<div id="canvasWrapper" style="width:100%; top:0px"></div>`,
   });
+  const knobSVG = `<svg width="72" height="72" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="6"/>
+        <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="2" />
+        <line x1="50" y1="50" x2="50" y2="18" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      </svg>`;
   newWindow({
       name:"bottomBar",
       id:"bottom-bar",
@@ -1159,35 +1197,24 @@
       top:window.innerHeight-80,
       showing:true,
       showHeader:false,
-      innerHTML:`<div id="fftParameters">
-            <label class="h1">FFT Parameters</label>
-            <div class="slider-row">
-              <label class="h2" title="Height of spectrogram in pixels.">Pitch resolution:</label>
-              <select id="fftSize" style="margin-left:80px;">
-                <option value="16384">16384</option>
-                <option value="8192">8192</option>
-                <option value="4096" selected>4096</option>
-                <option value="2048">2048</option>
-                <option value="1024">1024</option>
-                <option value="512">512</option>
-                <option value="256">256</option>
-                <option value="128">128</option>
-                <option value="64">64</option>
-              </select>
-            </div>
-            <div class="slider-row" style="align-items:center;">
-              <label class="h2" title="Number of audio samples given to each frame (x pixel).">Time resolution:</label>
-              <button id="lockHopBtn" class="lock-btn" aria-pressed="true" title="Lock time resolution to prevent phase interference" style="background:none; border:none; margin-left:50px;" onclick="toggleLockHop();"></button>
-              <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
-            </div>
-          </div>
-          <hr>
-          </label>
-          <div id ="emptyAudioLengthDiv" class="slider-row" title="Buffer length">
-            <label class="h2">Buffer length</label>
-            <input id="emptyAudioLength" type="range" min="0.01" max="600" step="0.01" value="10">
-            <input id="emptyAudioLengthInput" type="number" value="10" min="0.01" max="600">
-          </div>`,
+      innerHTML:`<div style="display:flex;flex-direction:row;height:100%;gap:5px;padding-left:5px;">
+    <div class="knob-wrapper">
+      <div class="knob" id="emptyAudioLength" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <div class="knob-wrapper">
+      <div class="knob" id="fftSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <button id="lockHopBtn" class="lock-btn" aria-pressed="true"
+      title="Lock time resolution to prevent phase interference" style="background:none;border:none;margin:0;"
+      onclick="toggleLockHop();">
+    </button>
+    <div class="knob-wrapper">
+      <div class="knob" id="hopSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <div class="knob-wrapper">
+      <div class="knob" id="masterVolume" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+  </div>`,
   });
   newWindow({
       name:"Sprites Editor",
@@ -1561,6 +1588,6 @@
       top:window.innerHeight-80,
       showing:true,
       showHeader:false,
-      innerHTML:``
+      innerHTML:`<canvas id="eqCanvas2" width="${eqWidth}" height="80"></canvas>`
     });
 })();

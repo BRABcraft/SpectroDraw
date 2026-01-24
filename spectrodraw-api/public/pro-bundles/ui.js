@@ -52,7 +52,7 @@ function syncNumberAndRange(numberInput, rangeInput) {
   });
 }
 const sliders = [
-  [document.getElementById('emptyAudioLength'), document.getElementById('emptyAudioLengthInput'),true],//0
+  [],//0
   [document.getElementById('brushSize'), document.getElementById('brushSizeInput')],
   [document.getElementById('brushBrightness'), document.getElementById('brushBrightnessInput')],
   [document.getElementById('phaseShift'), document.getElementById('phaseShiftInput')],
@@ -82,13 +82,12 @@ const sliders = [
   [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
   [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],
   [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
-  [document.getElementById('masterVolume'), document.getElementById('masterVolumeInput')],
 ];
-  sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
-sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
-sliders[0][0].addEventListener('mouseup', ()=>{/*for(let ch=0;ch<layerCount;ch++){layers[ch].hasCanvases=false;}*/initEmptyPCM(false);});
-sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[0][1].value);const min = parseFloat(sliders[0][0].min);const max = parseFloat(sliders[0][0].max);
-    if (isNaN(val)) val = 0;if (val < min) val = min;if (val > max) val = max;sliders[0][1].value = val;sliders[0][0].value = val;initEmptyPCM(false);}});
+  sliders.forEach(pair => {if (!pair[2]&&pair.length) syncNumberAndRange(pair[1], pair[0])});
+// sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
+// sliders[0][0].addEventListener('mouseup', ()=>{/*for(let ch=0;ch<layerCount;ch++){layers[ch].hasCanvases=false;}*/initEmptyPCM(false);});
+// sliders[0][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[0][1].value);const min = parseFloat(sliders[0][0].min);const max = parseFloat(sliders[0][0].max);
+    // if (isNaN(val)) val = 0;if (val < min) val = min;if (val > max) val = max;sliders[0][1].value = val;sliders[0][0].value = val;initEmptyPCM(false);}});
 function rs_(i){const v = sliders[1][i].value; const f = v/brushSize; sliders[21][0].value=sliders[21][1].value=Math.round(brushWidth *= f); sliders[22][0].value=sliders[22][1].value=Math.round(brushHeight *= f); brushSize=v; updateBrushPreview();}
 sliders[1][0].addEventListener("input", ()=>{rs_(0);updateAllVariables(null);});
 sliders[1][1].addEventListener("input", ()=>{rs_(1);updateAllVariables(null);});
@@ -381,22 +380,22 @@ overlayFile.addEventListener("change", e => {
   }
   img.src = URL.createObjectURL(f);
 });
-let ogHSv = hopSizeEl.value;
+let ogHSv = hopSizeKnob.getValue();
 async function toggleLockHop() {
-  const len = emptyAudioLengthEl.value*sampleRate;
+  const len = emptyAudioLength*sampleRate;
   if (lockHop) {
     lockHopBtn.innerHTML=unlockHTML;
-    hopSize.classList.remove("disabled");
-    hopSizeEl.value = ogHSv;
+    hopSizeKnob.setDisabled(false);
+    hopSizeKnob.setValue(ogHSv);
     iLow = 0; iHigh = Math.max(1, Math.floor((len - fftSize) / ogHSv) + 1);
   } else {
     lockHopBtn.innerHTML=lockHTML;
-    hopSize.classList.add("disabled");
-    ogHSv = hopSizeEl.value;
-    hopSizeEl.value = fftSizeEl.value;
-    iLow = 0; iHigh = Math.max(1, Math.floor((len - fftSize) / fftSizeEl.value) + 1);
+    hopSizeKnob.setDisabled(true);
+    ogHSv = hopSizeKnob.getValue();
+    hopSizeKnob.setValue(fftSizeKnob.getValue());
+    iLow = 0; iHigh = Math.max(1, Math.floor((len - fftSize) / fftSizeKnob.getValue()) + 1);
   }
-  minCol = 0; maxCol = Math.floor(len/hopSizeEl.value);
+  minCol = 0; maxCol = Math.floor(len/hopSizeKnob.getValue());
   restartRender(false);
   await waitFor(() => !rendering);
   for(let ch=0;ch<layerCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
@@ -625,10 +624,10 @@ async function saveProject() {
     name: document.getElementById("projectName").value,
     layerCount,
     fftSize,
-    hop: hopSizeEl.value,
-    bufferLength: emptyAudioLengthEl.value,
+    hop: hopSizeKnob.getValue(),
+    bufferLength: emptyAudioLength,
     drawVolume: document.getElementById("drawVolume").value,
-    masterVolume: document.getElementById("masterVolume").value,
+    masterVolume: masterVolumeKnob.getValue(),
     playbackVolume: document.getElementById("playbackVolume").value,
     logScaleVal,
     trueScaleVal,
@@ -722,11 +721,11 @@ function openProject(file) {
       }
       if (parsed.fftSize !== undefined) fftSize = parsed.fftSize;
       if (parsed.layerCount !== undefined) layerCount = parsed.layerCount;
-      if (parsed.hop !== undefined) hopSizeEl.value = parsed.hop;
-      if (parsed.bufferLength !== undefined) emptyAudioLengthEl.value = parsed.bufferLength;
+      if (parsed.hop !== undefined) hopSizeKnob.setValue(parsed.hop);
+      if (parsed.bufferLength !== undefined) emptyAudioLength = parsed.bufferLength;
       if (parsed.drawVolume !== undefined) document.getElementById("drawVolumeInput").value = document.getElementById("drawVolume").value = !!parsed.drawVolume;
       if (parsed.playbackVolume !== undefined) document.getElementById("playbackVolumeInput").value = document.getElementById("playbackVolume").value = !!parsed.playbackVolume;
-      if (parsed.masterVolume !== undefined) document.getElementById("masterVolumeInput").value = document.getElementById("masterVolume").value = !!parsed.masterVolume;
+      if (parsed.masterVolume !== undefined) masterVolumeKnob.setValue(!!parsed.masterVolume);
       if (parsed.logScaleVal !== undefined) logScaleVal = parsed.logScaleVal;
       if (parsed.trueScaleVal !== undefined) window.trueScaleVal = parsed.trueScaleVal;
       if (parsed.useHz !== undefined) {
@@ -949,10 +948,10 @@ document.getElementById("saveAndStart").addEventListener('click', async () => {
 
     status.textContent = `Loaded preset "${val}", ${layers[0].pcm.length} samples @ ${sampleRate} Hz`;
     let t = layers[0].pcm.length / sampleRate;
-    hopSizeEl.value = lockHop?Math.pow(2,fftSizeEl.value):(t<0.5?128:(t<5?512:1024));
-    emptyAudioLengthEl.value = Math.ceil(t);
+    hopSizeKnob.setValue(lockHop?Math.pow(2,fftSizeKnob.getValue()):(t<0.5?128:(t<5?512:1024)));
+    emptyAudioLength = Math.ceil(t);
     document.getElementById("emptyAudioLengthInput").value = Math.ceil(t);
-    minCol = 0; maxCol = Math.floor(layers[0].pcm.length/hopSizeEl.value);
+    minCol = 0; maxCol = Math.floor(layers[0].pcm.length/hopSizeKnob.getValue());
     iLow = 0;
     iHigh = framesTotal;
     layerCount = 1;
@@ -1234,12 +1233,9 @@ function autoSetNoiseProfile() {
   noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
   updateNoiseProfile();
 }
-function showOrHideMasterVolume(){document.getElementById("masterVolumeDiv").style.display=(window.innerWidth<1400)?"none":"";};
-showOrHideMasterVolume();
 window.addEventListener("resize",()=>{
   minCol = 0; maxCol = framesTotal;
   restartRender();
-  showOrHideMasterVolume();
 });
 
 

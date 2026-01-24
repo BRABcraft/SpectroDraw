@@ -252,7 +252,7 @@ function makeCanvasMenu(cx0, cy0){
   let hz = 0, secs = 0, i = -1, normalizedMag = 0, db = -200, phaseVal = 0;
   try {
     hz = getSineFreq(visibleToSpecY(cy));
-    secs = Math.floor(cx / (Number(sampleRate)/Number(hopSizeEl.value)) * 10000) / 10000;
+    secs = Math.floor(cx / (Number(sampleRate)/Number(hop)) * 10000) / 10000;
     const hx = Math.floor(cx);
     const hy = Math.floor(hz / (sampleRate/fftSize));
     let mags = layers[currentLayer].mags,phases = layers[currentLayer].phases;
@@ -359,7 +359,7 @@ function makeCanvasMenu(cx0, cy0){
 
 
 function makeTimelineMenu(){
-  const factor = (sampleRate/hopSizeEl.value); // seconds -> sample/index multiplier
+  const factor = (sampleRate/hop); // seconds -> sample/index multiplier
   const currentMinSec = iLow / factor;
   const currentMaxSec = iHigh / factor;
 
@@ -666,8 +666,7 @@ function makeFadeMenu(cx,cy){
 function preventAndOpen(e, menuFactory){
   e.preventDefault();
   e.stopPropagation();
-  const menu = menuFactory(e.clientX, e.clientY);
-  openMenuAt(menu, e.clientX, e.clientY);
+  openMenuAt(menuFactory(), e.clientX, e.clientY);
 }
 
 // attach plain contextmenu to logscaleEl too:

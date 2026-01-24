@@ -29,7 +29,7 @@ function drawTimeline() {
     tctx.fill();
 
     iWidth = iHigh - iLow;
-    const totalSeconds = iWidth*hopSizeEl.value / sampleRate;
+    const totalSeconds = iWidth*hop / sampleRate;
 
     let interval = 0.01; 
     if (totalSeconds > 0.3) interval = 0.1;
@@ -45,7 +45,7 @@ function drawTimeline() {
     tctx.textBaseline = "top";
     const factor = timeline.width / framesTotal;
     const visibleFrames = iHigh - iLow;
-    const secondsPerFrame = hopSizeEl.value / sampleRate;
+    const secondsPerFrame = hop / sampleRate;
 
     const sLow = iLow * secondsPerFrame;
     const sHigh = iHigh * secondsPerFrame;
@@ -105,7 +105,7 @@ function timelineMousedown(e,touch) {
     }
 }
 function timelineMousemove(e,touch) {
-  const beatSize = (sampleRate/hopSizeEl.value)/iWidth;
+  const beatSize = (sampleRate/hop)/iWidth;
   if (beatSize > 2) subBeat = 16;
   else if (beatSize > 1) subBeat = 8;
   else if (beatSize > 0.5) subBeat = 4;

@@ -439,8 +439,8 @@ async function commitSample(sample, X, insert = false) {
     const end = start + sample[idx].pcm.length;
     if (!layers[ch].pcm || layers[ch].pcm.length === 0) {
       layers[ch].pcm = sample[idx].pcm.slice(0);
-      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
-      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      emptyAudioLength = layers[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLength;
       drawTimeline();
     } else if (insert) {
       const existing = layers[ch].pcm;
@@ -450,22 +450,22 @@ async function commitSample(sample, X, insert = false) {
       newPCM.set(sample[idx].pcm, start);
       if (start < existing.length) newPCM.set(existing.subarray(start), start + sample[idx].pcm.length);
       layers[ch].pcm = newPCM;
-      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
-      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      emptyAudioLength = layers[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLength;
       drawTimeline();
       shiftSpritesForInsert(ch, X, Math.floor(sample[idx].pcm.length/hop));
     } else if (sample[idx].pcm.length > layers[ch].pcm.length) {
       layers[ch].pcm = sample[idx].pcm;
-      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
-      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      emptyAudioLength = layers[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLength;
       drawTimeline();
     } else if (layers[ch].pcm.length < end) {
       const newPCM = new Float32Array(end);
       newPCM.set(layers[ch].pcm, 0);
       newPCM.set(sample[idx].pcm, start);
       layers[ch].pcm = newPCM;
-      emptyAudioLengthEl.value = layers[ch].pcm.length / sampleRate;
-      document.getElementById("emptyAudioLengthInput").value = emptyAudioLengthEl.value;
+      emptyAudioLength = layers[ch].pcm.length / sampleRate;
+      document.getElementById("emptyAudioLengthInput").value = emptyAudioLength;
       drawTimeline();
     } else {
       layers[ch].pcm.set(sample[idx].pcm, start);
@@ -476,7 +476,7 @@ async function commitSample(sample, X, insert = false) {
     layers[ch].snapshotMags = new Float32Array(layers[ch].mags);
     layers[ch].snapshotPhases = new Float32Array(layers[ch].phases);
   }
-  //simpleRestartRender(0,Math.floor(emptyAudioLengthEl.value*sampleRate/hop));
+  //simpleRestartRender(0,Math.floor(emptyAudioLength*sampleRate/hop));
   uploadingSprite = true;
   restartRender(false);
   // await waitFor(() => !rendering);

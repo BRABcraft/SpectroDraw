@@ -113,8 +113,8 @@ function canvasMouseDown(e,touch) {
   
   if (alignTime) {
     const snapSize = 30/bpm/subBeat;
-    const startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize;
-    const startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    const startTime = Math.floor((cx/(sampleRate/hop))/snapSize)*snapSize;
+    const startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
     sx2 = cx; sy2 = cy;
     startX = startFrame0 - iLow;
   }
@@ -156,7 +156,7 @@ function canvasMouseDown(e,touch) {
     sineOsc = audioCtx.createOscillator();
     sineOsc.setPeriodicWave(wave);
     sineGain = audioCtx.createGain();
-    sineGain.gain.value = 0.2*document.getElementById("drawVolume").value*document.getElementById("masterVolume").value;
+    sineGain.gain.value = 0.2*document.getElementById("drawVolume").value*masterVolumeKnob.getValue();
 
     sineOsc.connect(sineGain).connect(audioCtx.destination);
     setSineFreq(realY);
@@ -184,7 +184,7 @@ function canvasMouseMove(e,touch,el) {
   if (zooming) return;
   if (!recording) {
     const hz = getSineFreq(visibleToSpecY(cy));
-    const secs = Math.floor((cx+iLow)/(sampleRate/hopSizeEl.value)*10000)/10000;
+    const secs = Math.floor((cx+iLow)/(sampleRate/hop)*10000)/10000;
     const hx = Math.floor(cx);
     const hy = Math.floor(hz/(sampleRate/fftSize));
     const i = hx*specHeight+hy;
@@ -279,12 +279,12 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
     let brushS = (brushSize)*((fHigh-fLow)/(sampleRate/4));
     if (currentShape === "note") brushS = 1;
 
-    let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
-    let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    let startTime = Math.floor((sx2/(sampleRate/hop))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
+    let startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
     line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
 
-    startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
-    startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    startTime = Math.floor((cx/(sampleRate/hop))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
+    startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
     line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
   }
   simpleRestartRender();
@@ -542,7 +542,7 @@ async function playPCM(loop = true, startFrame = null) {
   try {
     const targetNode = _getPlaybackTarget();
     const gainNode = audioCtx.createGain();
-    gainNode.gain.setValueAtTime(document.getElementById("playbackVolume").value*document.getElementById('masterVolume').value, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(document.getElementById("playbackVolume").value*masterVolumeKnob.getValue(), audioCtx.currentTime);
 
     sourceNode.connect(gainNode);
     gainNode.connect(targetNode);
@@ -615,13 +615,11 @@ async function playFrame(frameX) {
   sourceNode.buffer = buffer;
   sourceNode.loop = true;
 
-  try {
-    const targetNode = _getPlaybackTarget();
-    sourceNode.connect(targetNode);
-  } catch (e) {
-    try { sourceNode.connect(audioCtx.destination); } catch (_) {}
-  }
-
+  const targetNode = _getPlaybackTarget();
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.setValueAtTime(masterVolumeKnob.getValue(), audioCtx.currentTime);
+  sourceNode.connect(gainNode);
+  gainNode.connect(targetNode);
   sourceStartTime = audioCtx.currentTime - (start / sampleRate);
   sourceNode.start();
   playing = true;

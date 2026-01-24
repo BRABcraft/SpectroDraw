@@ -1,19 +1,11 @@
-if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
-fftSizeEl.addEventListener("change",()=>{
-  if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
-  restartRender(false);
-  buildBinDisplayLookup();});
-hopSizeEl.addEventListener("change",()=>{
-  restartRender(false);
-  buildBinDisplayLookup();});
-
+if (lockHop) {hopSizeKnob.setValue(fftSizeKnob.getValue());}
 function restartRender(autoPlay){
   autoPlayOnFinish = !!playing || !!autoPlay;
-  fftSize = parseInt(fftSizeEl.value);
-  hop = Math.max(1, parseInt(hopSizeEl.value) || Math.floor(fftSize/2));
+  fftSize = fftSizeKnob.getValue();
+  hop = Math.floor(hopSizeKnob.getValue());
   win = hann(fftSize);
 
-  framesTotal = Math.max(1, Math.floor((emptyAudioLengthEl.value*sampleRate - fftSize) / hop) + 1);
+  framesTotal = Math.max(1, Math.floor((emptyAudioLength*sampleRate - fftSize) / hop) + 1);
   iLow = 0;
   iHigh = framesTotal;
   const freqBins = Math.floor(fftSize / 2);

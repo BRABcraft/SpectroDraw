@@ -1,7 +1,7 @@
 async function initEmptyPCM(doReset) {
   if (layers === null) layers = new Array(layerCount);
   const sampleRateLocal = 48000;
-  let duration = parseFloat(emptyAudioLengthEl.value);
+  let duration = parseFloat(emptyAudioLength);
   if (duration < 0.01) duration = 10;
 
   const length = Math.floor(sampleRateLocal * duration);
@@ -51,7 +51,7 @@ async function onReset() {
     layers[ch].snapshotPhases=layers[ch].phases;
   }
   await initEmptyPCM(true);
-  minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
+  minCol = 0; maxCol = sampleRate/hop*emptyAudioLength;
   sprites = []; movingSprite=false;mvsbtn.classList.toggle('moving', movingSprite);renderSpritesTable('reset');
 }
 function drawLogScale() {
@@ -275,9 +275,9 @@ async function startRecording() {
       
       if (Math.floor(pcmChunks.length/hop) != Math.floor((pcmChunks.length-chunk.length)/hop)) processPendingFramesLive();
       iLow = 0;
-      const framesSoFar = Math.max(1, Math.floor((pcmChunks.length - fftSize) / hopSizeEl.value) + 1);
-      iHigh = Math.max(Math.floor(emptyAudioLengthEl.value*sampleRate/hopSizeEl.value), framesSoFar);
-      info.innerHTML = `Recording...<br>${(framesSoFar/(sampleRate/hopSizeEl.value)).toFixed(1)} secs<br>Press record or ctrl+space to stop`;
+      const framesSoFar = Math.max(1, Math.floor((pcmChunks.length - fftSize) / hop) + 1);
+      iHigh = Math.max(Math.floor(emptyAudioLength*sampleRate/hop), framesSoFar);
+      info.innerHTML = `Recording...<br>${(framesSoFar/(sampleRate/hop)).toFixed(1)} secs<br>Press record or ctrl+space to stop`;
     };
 
     // keep silentGain global so we can disconnect later
@@ -314,8 +314,8 @@ function stopRecording() {
   silentGain = null;
   let ch = currentLayer;
 
-  if (layers[ch].pcm.length>emptyAudioLengthEl.value*sampleRate) {
-    emptyAudioLengthEl.value = Math.floor(layers[ch].pcm.length/sampleRate);
+  if (layers[ch].pcm.length>emptyAudioLength*sampleRate) {
+    emptyAudioLength = Math.floor(layers[ch].pcm.length/sampleRate);
     for (let c=0;c<layerCount;c++){
       if (c==ch) continue;
       const addon = new Float32Array(layers[ch].pcm.length-layers[c].pcm.length);
@@ -325,7 +325,7 @@ function stopRecording() {
       layers[c].pcm = Float32Array.from([...layers[c].pcm, ...addon]);
     }
   } else {
-    const addon = new Float32Array(Math.floor(emptyAudioLengthEl.value*sampleRate)-layers[ch].pcm.length);
+    const addon = new Float32Array(Math.floor(emptyAudioLength*sampleRate)-layers[ch].pcm.length);
     for (let i = 0; i < addon.length; i++) {
       addon[i] = (Math.random() * 2 - 1) * 0.0001;
     }
@@ -400,7 +400,7 @@ async function doUpload(e) {
 
 async function updateLayers(){
   while (layerCount > layers.length) {
-    let length = Math.floor(sampleRate * emptyAudioLengthEl.value);
+    let length = Math.floor(sampleRate * emptyAudioLength);
     let pcm = new Float32Array(length);
     const tinyNoiseAmplitude = 0.0001;
     for (let i = 0; i < length; i++) {

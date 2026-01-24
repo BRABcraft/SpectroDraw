@@ -184,7 +184,7 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
     } else {
       const renderedPCM = await renderEQAppliedPCM(24);
       // target length in samples
-      const targetSamples = Math.floor(emptyAudioLengthEl.value* sampleRate);
+      const targetSamples = Math.floor(emptyAudioLength* sampleRate);
       // clamp PCM to target length
       const numSamples = Math.min(renderedPCM.length, targetSamples);
       const pcmClamped = renderedPCM.subarray(0, numSamples);
@@ -282,7 +282,7 @@ document.getElementById('downloadVideo').addEventListener('click', async functio
       // find longest PCM length
       let maxLen = 0;
       for (let ch = 0; ch < layerCount; ch++) if (layers[ch] && layers[ch].pcm && layers[ch].pcm.length > maxLen) maxLen = layers[ch].pcm.length;
-      maxLen = Math.min(maxLen, Math.floor(emptyAudioLengthEl.value * sampleRate));
+      maxLen = Math.min(maxLen, Math.floor(emptyAudioLength * sampleRate));
 
       // create left/right mixing buffers
       const left = new Float32Array(maxLen);
@@ -338,7 +338,7 @@ document.getElementById('downloadVideo').addEventListener('click', async functio
       }
     } else {
       const renderedPCM = await renderEQAppliedPCM(24);
-      const targetSamples = Math.floor(emptyAudioLengthEl.value * sampleRate);
+      const targetSamples = Math.floor(emptyAudioLength * sampleRate);
       const numSamples = Math.min(renderedPCM.length, targetSamples);
       const pcmClamped = renderedPCM.subarray(0, numSamples);
 

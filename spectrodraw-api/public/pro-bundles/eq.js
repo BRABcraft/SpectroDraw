@@ -1,5 +1,7 @@
 const FREQ_LOG_SCALE = 2;
 const gainScale = parseInt(sliders[11][0].max);
+const eqCanvas2 = document.getElementById('eqCanvas2');
+const eCtx2 = eqCanvas2.getContext("2d");
 let defaultEQBands= [
     { type: "low_shelf", freq: 0, gain: 0}, 
     { type: "peaking", freq: sampleRate/128}, 
@@ -10,7 +12,7 @@ let defaultEQBands= [
     { type: "high_shelf", freq: sampleRate/2}
 ];
 let eqBands = defaultEQBands.map(band => ({ ...band }));
-
+let _draggingCanvas = null;
 let _draggingPointIndex = -1;
 let _draggingTangentIndex = -1;
 let _dragOffset = { x: 0, y: 0 };
@@ -49,7 +51,20 @@ function gainToX(gain, w) {
 function xToGain(x, w) {
   return ((clamp(x, 0, w) / w) * (gainScale*2)) - gainScale;
 }
+function freqToXSide(freq, w) {
+  const nyquist = sampleRate * 0.5;
+  if (freq <= 0) return 0;
+  let nf = freq / nyquist;
+  nf = clamp(nf, 0, 1);
+  const mapped = Math.pow(nf, 1 / FREQ_LOG_SCALE);
+  return mapped * w;
+}
 
+function gainToYSide(gain, h) {
+  const norm = ((gain + gainScale) / (gainScale * 2));
+  const y = (1 - clamp(norm, 0, 1)) * h;
+  return clamp(y, 0, h);
+}
 function buildPts(w, h) {
   if (!ptsDirty && ptsCache && ptsCacheW === w && ptsCacheH === h) {
     return ptsCache;
@@ -86,12 +101,15 @@ function scheduleDraw() {
 
 function drawEQ() {
   if (!EQcanvas || !eCtx) return;
+  if (!eqCanvas2 || !eCtx2) return;
   const w = EQcanvas.width, h = EQcanvas.height;
 
   eCtx.clearRect(0, 0, w, h);
-
   eCtx.fillStyle = "#111";
   eCtx.fillRect(0, 0, w, h);
+  eCtx2.clearRect(0, 0, eqCanvas2.width, eqCanvas2.height);
+  eCtx2.fillStyle = "#111";
+  eCtx2.fillRect(0, 0, eqCanvas2.width, eqCanvas2.height);
 
   const pts = buildPts(w, h);
 
@@ -170,43 +188,157 @@ function drawEQ() {
     eCtx.fillStyle = "#fff";
     eCtx.fillText(label, tx, ty);
   }
+
+  const w2 = eqCanvas2.width, h2 = eqCanvas2.height;
+  // draw a 0 dB baseline
+  eCtx2.strokeStyle = "#444";
+  eCtx2.lineWidth = 1;
+  const yZero2 = gainToYSide(0, h2);
+  eCtx2.beginPath();
+  eCtx2.moveTo(0, yZero2);
+  eCtx2.lineTo(w2, yZero2);
+  eCtx2.stroke();
+
+  const pts2 = eqBands.map((b, i) => {
+    const x = freqToXSide(b.freq || 0, w2);
+    const y = gainToYSide(b.gain || 0, h2);
+    const mx = (typeof b.my === 'number') ? b.my : Math.sin(b.angle || 0) * (b.tLen || 40);
+    const my = (typeof b.mx === 'number') ? b.mx : Math.cos(b.angle || 0) * (b.tLen || 40);
+    return { i, b, x, y, mx, my };
+  });
+
+  // sort by x (freq ascending)
+  pts2.sort((A, B) => A.x - B.x);
+
+  // draw smoothed curve using Hermite interpolation (no tangent handles drawn)
+  eCtx2.strokeStyle = "#fff";
+  eCtx2.lineWidth = 2;
+  eCtx2.beginPath();
+  if (pts2.length > 0) {
+    eCtx2.moveTo(pts2[0].x, pts2[0].y);
+    for (let k = 0; k < pts2.length - 1; k++) {
+      const p0 = pts2[k], p1 = pts2[k + 1];
+      const dx = p1.x - p0.x, dy = p1.y - p0.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const steps = Math.max(8, Math.floor(dist / 6));
+      for (let s = 1; s <= steps; s++) {
+        const t = s / steps;
+        const t2 = t * t, t3 = t2 * t;
+        const h00 = 2 * t3 - 3 * t2 + 1;
+        const h10 = t3 - 2 * t2 + t;
+        const h01 = -2 * t3 + 3 * t2;
+        const h11 = t3 - t2;
+        const X = h00 * p0.x + h10 * p0.mx + h01 * p1.x + h11 * p1.mx;
+        const Y = h00 * p0.y + h10 * p0.my + h01 * p1.y + h11 * p1.my;
+        eCtx2.lineTo(X, Y);
+      }
+    }
+  }
+  eCtx2.stroke();
+  eCtx2.save();
+
+  for (let i = 0; i < pts2.length; i++) {
+    const p = pts2[i];
+    const kx = Number.isFinite(p.x) ? p.x : 0;
+    const ky = Number.isFinite(p.y) ? p.y : 0;
+
+    eCtx2.beginPath();
+    eCtx2.arc(kx, ky, 4, 0, Math.PI * 2);
+    eCtx2.fillStyle = "#fff";
+    eCtx2.fill();
+    eCtx2.lineWidth = 1;
+    eCtx2.strokeStyle = "rgba(0,0,0,0.5)";
+    eCtx2.stroke();
+  }
+  eCtx2.restore();
+  
   drawSpectrals();
 }
 
 function drawSpectrals() {
   const bandCount = 128;
   const pos = currentCursorX * hop;
+  if (!layers || !layers[0] || !layers[0].pcm) { return false; }
   if (pos + fftSize > layers[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
-  for (let i = 0; i < fftSize;i++) { re[i] = (layers[0].pcm[pos + i] || 0) * win[i]; im[i] = 0; }
+  for (let i = 0; i < fftSize; i++) { re[i] = (layers[0].pcm[pos + i] || 0) * win[i]; im[i] = 0; }
   fft_inplace(re, im);
 
-  let bands = [];
-
-  for (let i = 0; i < bandCount; i++) {
-      const bin = Math.floor(yToFreq(((i / bandCount)),1)/(sampleRate/2)*specHeight);
-
-      const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
-      bands[bin] = mag;
+  // compute magnitudes per FFT bin
+  const magBuf = new Float32Array(fftSize / 2);
+  for (let i = 0; i < magBuf.length; i++) {
+    magBuf[i] = Math.hypot(re[i] || 0, im[i] || 0);
   }
 
-  eCtx.strokeStyle ="rgba(255, 255, 255, 0.48)";
-  eCtx.lineWidth = EQcanvas.height/bandCount/1.25;
-  for (let yy = 0; yy < bandCount; yy++) {
-      const mappedBin = Math.floor(yToFreq(((yy / bandCount)),1)/(sampleRate/2)*specHeight);
-
-      const mag = bands[mappedBin] || 0;
+  // --- draw on main EQ canvas (existing behaviour) ---
+  try {
+    eCtx.strokeStyle = "rgba(255, 255, 255, 0.48)";
+    eCtx.lineWidth = EQcanvas.height / bandCount / 1.25;
+    for (let yy = 0; yy < bandCount; yy++) {
+      // map lane 0..bandCount -> frequency (use fractional mapping through yToFreq)
+      const freq = yToFreq((yy / bandCount) * EQcanvas.height, EQcanvas.height);
+      // find corresponding FFT bin
+      const bin = Math.min(magBuf.length - 1, Math.floor(freq / (sampleRate / 2) * (magBuf.length)));
+      const mag = magBuf[bin] || 0;
+      const magToDb = m => (m <= 0 ? -200 : 20 * Math.log10(m));
+      const magDb = magToDb(mag);
+      // get the curve's gain at this displayed Y using the main canvas mapping
+      const XonSpline = evalEQGainAtY((yy / bandCount) * EQcanvas.height);
+      const gain = xToGain(XonSpline || 0, EQcanvas.width);
+      const db = magDb + (gain || 0);
+      // map db to horizontal length (clamp)
+      const normalized = clamp((db + 60) / 120, 0, 1);
+      const lineTo = normalized * (EQcanvas.width);
       eCtx.beginPath();
-      eCtx.moveTo(0, (yy/bandCount)*EQcanvas.height);
-      const magToDb = m => 20 * Math.log10(m);
-      const gain = xToGain(evalEQGainAtY((yy/bandCount)*EQcanvas.height),EQcanvas.width);
-      const db = magToDb(mag/256) + (gain || 0);
-      const lineTo = (db+128)/128*(EQcanvas.width/2);
-      eCtx.lineTo(lineTo, (yy/bandCount)*EQcanvas.height);
+      eCtx.moveTo(0, (yy / bandCount) * EQcanvas.height);
+      eCtx.lineTo(lineTo, (yy / bandCount) * EQcanvas.height);
       eCtx.stroke();
+    }
+  } catch (e) { console.warn("drawSpectrals main canvas error:", e); }
+
+  // --- draw a compact sideways spectral on eqCanvas2 (freq -> x, mag+gain -> vertical height) ---
+  if (eqCanvas2 && eCtx2) {
+    try {
+      const w2 = eqCanvas2.width, h2 = eqCanvas2.height;
+      const magToDb = m => (m <= 0 ? -200 : 20 * Math.log10(m));
+      // draw a small baseline
+      eCtx2.lineWidth = 3;
+
+      // sample across x (freq) and draw vertical bars
+      const samples = Math.min(64, w2); // number of vertical samples to draw
+      for (let sx = 0; sx < samples; sx++) {
+        const frac = sx / Math.max(1, samples - 1);
+        // map frac -> frequency (left=low, right=high)
+        const freq = Math.pow(frac, FREQ_LOG_SCALE) * (sampleRate * 0.5);
+        const bin = Math.min(magBuf.length - 1, Math.floor(freq / (sampleRate / 2) * (magBuf.length)));
+        const mag = magBuf[bin] || 0;
+        const magDb = magToDb(mag);
+
+        // get curve gain at this frequency: convert freq -> y on main canvas, then eval curve
+        const yOnMain = freqToY(freq, EQcanvas.height);
+        const XonSpline = evalEQGainAtY(yOnMain);
+        const gainDb = xToGain(XonSpline || 0, EQcanvas.width);
+
+        const db = magDb + (gainDb || 0);
+
+        const norm = clamp((db + 60) / 120, 0, 1);
+        const barTop = (1 - norm) * h2; // higher energy -> lower y -> up on canvas
+        const px = Math.floor(freqToXSide(freq, w2));
+
+        // draw a thin vertical bar at px
+        eCtx2.strokeStyle = "rgba(255, 255, 255, 0.48)";
+        const barW = Math.max(1, Math.floor(w2 / samples));
+
+        eCtx2.beginPath();
+        eCtx2.moveTo(px - Math.floor(barW / 2), h2);
+        eCtx2.lineTo(px - Math.floor(barW / 2), barTop);
+        eCtx2.stroke();
+      }
+    } catch (e) { console.warn("drawSpectrals eqCanvas2 error:", e); }
   }
 }
+
 
 function findHit(pos) {
   if (!EQcanvas) return null;
@@ -246,6 +378,12 @@ function updateCanvasCursorFromPos(pos) {
   } else {
     EQcanvas.style.cursor = rotateCursorUrl;
   }
+  const hit2 = findEQ2Hit(pos);
+  if (!hit2 && _draggingPointIndex === -1 && _draggingTangentIndex === -1) {
+    eqCanvas2.style.cursor = 'crosshair';
+  } else if (_draggingPointIndex !== -1 || (hit2 && hit2.type === 'point')) {
+    eqCanvas2.style.cursor = 'pointer';
+  } 
 }
 
 function evalHermiteAt(p0, p1, t) {
@@ -308,6 +446,49 @@ function evalEQGainAtY(targetY) {
   }
   return null;
 }
+function xToFreqSide(x, w) {
+  const nyquist = sampleRate * 0.5;
+  const nx = clamp(x / w, 0, 1);
+  const freq = Math.pow(nx, FREQ_LOG_SCALE) * nyquist;
+  return clamp(freq, 0, nyquist);
+}
+function yToGainSide(y, h) {
+  const norm = clamp(1 - (y / h), 0, 1);
+  return (norm * (gainScale * 2)) - gainScale;
+}
+function evalEQGainAtX(targetX) {
+  if (!eqCanvas2) return null;
+
+  const w = eqCanvas2.width;
+  const h = eqCanvas2.height;
+
+  // build side-EQ points
+  const pts = eqBands.map(b => ({
+    x: freqToXSide(b.freq || 0, w),
+    y: gainToYSide(b.gain || 0, h),
+    mx: (typeof b.my === 'number') ? b.my : Math.sin(b.angle || 0) * (b.tLen || 40),
+    my: (typeof b.mx === 'number') ? b.mx : Math.cos(b.angle || 0) * (b.tLen || 40)
+  })).sort((a, b) => a.x - b.x);
+
+  if (pts.length === 0) return null;
+  if (targetX <= pts[0].x) return pts[0].y;
+  if (targetX >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+
+  for (let k = 0; k < pts.length - 1; k++) {
+    const p0 = pts[k], p1 = pts[k + 1];
+
+    const minX = Math.min(p0.x, p1.x) - Math.abs(p0.mx) - Math.abs(p1.mx);
+    const maxX = Math.max(p0.x, p1.x) + Math.abs(p0.mx) + Math.abs(p1.mx);
+    if (targetX < minX || targetX > maxX) continue;
+
+    const t = findTForXOnSegment(p0, p1, targetX);
+    if (t !== null) {
+      return evalHermiteAt(p0, p1, t).Y;
+    }
+  }
+  return null;
+}
+
 
 function getCanvasPos(evt) {
   const rect = EQcanvas.getBoundingClientRect();
@@ -317,7 +498,9 @@ function getCanvasPos(evt) {
   } else {
     clientX = evt.clientX; clientY = evt.clientY;
   }
-  return { x: clientX - rect.left, y: clientY - rect.top };
+  const x = (clientX - rect.left)/(rect.width/EQcanvas.width);
+  const y = (clientY - rect.top)/(rect.height/EQcanvas.height);
+  return { x, y };
 }
 
 EQcanvas.addEventListener('pointerdown', (evt) => {  
@@ -332,7 +515,7 @@ EQcanvas.addEventListener('pointerdown', (evt) => {
       sineOsc.start();
   }
 });
-function onPointerDown(evt) {
+function onEQPointerDown(evt) {
   evt.preventDefault();
   const pos = getCanvasPos(evt);
   const hit = findHit(pos);
@@ -349,6 +532,7 @@ function onPointerDown(evt) {
   if (hit.type === 'point') {
     EQcanvas.style.cursor = "pointer";
     _draggingPointIndex = hit.index;
+    _draggingCanvas = 'main';
     const b = eqBands[hit.index];
     const sx = gainToX(b.gain, EQcanvas.width);
     const sy = freqToY(b.freq, EQcanvas.height);
@@ -356,6 +540,7 @@ function onPointerDown(evt) {
   } else if (hit.type === 'handle') {
     EQcanvas.style.cursor = rotateCursorUrl;
     _draggingTangentIndex = hit.index;
+    _draggingCanvas = 'main';
   }
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp, { once: true });
@@ -387,24 +572,144 @@ function eqMouseMove(evt) {
     info.innerHTML = `Freq: ${freqAtCursor.toFixed(0)} Hz<br>Gain: ${gainText}<br>`;
   }
 }
+const getEQcanvas2Pos = evt=>{
+  const rect = eqCanvas2.getBoundingClientRect();
+  let clientX, clientY;
+  if (evt.touches && evt.touches[0]) {
+    clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY;
+  } else {
+    clientX = evt.clientX; clientY = evt.clientY;
+  }
+  const x = (clientX - rect.left)/(rect.width/eqCanvas2.width);
+  const y = (clientY - rect.top)/(rect.height/eqCanvas2.height);
+  return { x, y };
+}
+const findEQ2Hit = pos => {
+  const w = eqCanvas2.width;
+  const h = eqCanvas2.height;
+  for (let i = 0; i < eqBands.length; i++) {
+    const b = eqBands[i];
+    const x = freqToXSide(b.freq || 0, w);
+    const y = gainToYSide(b.gain || 0, h);
+    const dx = pos.x - x;
+    const dy = pos.y - y;
+    if ((dx * dx + dy * dy) <= (POINT_HIT_RADIUS * POINT_HIT_RADIUS)) {
+      return { type: 'point', index: i };
+    }
+  }
+  return null;
+}
+function onEQ2PointerDown(evt) {
+  evt.preventDefault();
+  const pos = getEQcanvas2Pos(evt);
+  const hit = findEQ2Hit(pos);
+  if (evt.pointerId && eqCanvas2.setPointerCapture) {
+    try { eqCanvas2.setPointerCapture(evt.pointerId); } catch(e) {}
+  }
+  if (!hit) {
+    _draggingPointIndex = -1; _draggingTangentIndex = -1;
+    if (eqCanvas2) eqCanvas2.style.cursor = "crosshair";
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp, { once: true });
+    return;
+  }
+  if (hit.type === 'point') {
+    eqCanvas2.style.cursor = "pointer";
+    _draggingPointIndex = hit.index;
+    _draggingCanvas = 'side';
+    const b = eqBands[hit.index];
+    const sx = freqToXSide(b.freq, eqCanvas2.width);
+    const sy = gainToYSide(b.gain, eqCanvas2.height);
+    _dragOffset.x = pos.x - sx;
+    _dragOffset.y = pos.y - sy;
+  }
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp, { once: true });
+}
+
+function eq2MouseMove(evt) {
+  const pos = getEQcanvas2Pos(evt);
+  updateCanvasCursorFromPos(pos);
+
+  const w = eqCanvas2.width;
+  const h = eqCanvas2.height;
+
+  const freqAtCursor = xToFreqSide(pos.x, w);
+  const YonSpline = evalEQGainAtX(pos.x); // returns Y on curve or null
+
+  let gainText;
+
+  if (YonSpline === null) {
+    gainText = `${yToGainSide(pos.y, h).toFixed(1)} dB (raw Y)`;
+  } else {
+    gainText = `${yToGainSide(YonSpline, h).toFixed(1)} dB (curve)`;
+
+    drawEQ();
+
+    eCtx2.save();
+    eCtx2.fillStyle = "limegreen";
+    eCtx2.beginPath();
+    eCtx2.arc(pos.x, YonSpline, 3, 0, Math.PI * 2);
+    eCtx2.fill();
+    eCtx2.restore();
+  }
+
+  if (typeof info !== 'undefined' && info) {
+    info.innerHTML =
+      `Freq: ${freqAtCursor.toFixed(0)} Hz<br>` +
+      `Gain: ${gainText}<br>`;
+  }
+}
 
 function onPointerMove(evt) {
   evt.preventDefault();
-  const pos = getCanvasPos(evt);
+
+  // Choose pos relative to the canvas that started the drag
+  let pos;
+  if (_draggingCanvas === 'side') {
+    pos = getEQcanvas2Pos(evt);
+  } else {
+    pos = getCanvasPos(evt);
+  }
+
   updateCanvasCursorFromPos(pos);
-  if (sineOsc) {sineOsc.frequency.setTargetAtTime(yToFreq(pos.y, EQcanvas.height), audioCtx.currentTime, 0.01);}
+
+  // keep the test audio oscillator in sync with where the pointer is,
+  // using the canvas whose coords we're using
+  if (sineOsc) {
+    if (_draggingCanvas === 'side') {
+      // frequency comes from X on the sideways canvas
+      sineOsc.frequency.setTargetAtTime(xToFreqSide(pos.x, eqCanvas2.width), audioCtx.currentTime, 0.01);
+    } else {
+      sineOsc.frequency.setTargetAtTime(yToFreq(pos.y, EQcanvas.height), audioCtx.currentTime, 0.01);
+    }
+  }
 
   if (_draggingPointIndex !== -1) {
     const idx = _draggingPointIndex;
     const b = eqBands[idx];
+
+    // compute new coords using the same canvas that initiated the drag
     const newX = pos.x - _dragOffset.x;
     const newY = pos.y - _dragOffset.y;
-    const newGain = xToGain(newX, EQcanvas.width);
-    const newFreq = yToFreq(newY, EQcanvas.height);
-    if (b.type !== "low_shelf" && b.type !== "high_shelf") b.freq = clamp(newFreq, 20, sampleRate / 2);
-    b.gain = clamp(Number(newGain.toFixed(2)), 0-gainScale, gainScale);
+
+    if (_draggingCanvas === 'side') {
+      // side-canvas mapping: X -> freq, Y -> gain
+      const newFreq = xToFreqSide(newX, eqCanvas2.width);
+      const newGain = yToGainSide(newY, eqCanvas2.height);
+      if (b.type !== "low_shelf" && b.type !== "high_shelf") b.freq = clamp(newFreq, 20, sampleRate / 2);
+      b.gain = clamp(Number(newGain.toFixed(2)), -gainScale, gainScale);
+    } else {
+      // main-canvas mapping: X -> gain, Y -> freq
+      const newGain = xToGain(newX, EQcanvas.width);
+      const newFreq = yToFreq(newY, EQcanvas.height);
+      if (b.type !== "low_shelf" && b.type !== "high_shelf") b.freq = clamp(newFreq, 20, sampleRate / 2);
+      b.gain = clamp(Number(newGain.toFixed(2)), -gainScale, gainScale);
+    }
+
     ptsDirty = true;
   } else if (_draggingTangentIndex !== -1) {
+    // tangent dragging only applies to main canvas — keep original behavior
     const idx = _draggingTangentIndex;
     const b = eqBands[idx];
     const px = gainToX(b.gain, EQcanvas.width);
@@ -417,15 +722,17 @@ function onPointerMove(evt) {
     b._cachedAngle = b.angle; b._cachedTLen = b.tLen;
     ptsDirty = true;
   }
+
   updateAllVariables(null);
   scheduleDraw();
   updateCurveEQ();
   updateGlobalGain(); 
 }
 
+
 function onPointerUp(evt) {
   _draggingPointIndex = -1;
-  _draggingTangentIndex = -1;
+  _draggingTangentIndex = -1;draggingCanvas = null;
   window.removeEventListener('pointermove', onPointerMove);
   ptsDirty = true;
   scheduleDraw();
@@ -440,8 +747,14 @@ function onPointerUp(evt) {
 
 if (EQcanvas) {
   EQcanvas.style.touchAction = 'none';
-  EQcanvas.addEventListener('pointerdown', onPointerDown);
+  EQcanvas.addEventListener('pointerdown', onEQPointerDown);
   EQcanvas.addEventListener('pointermove', eqMouseMove);
+}
+
+if (eqCanvas2) {
+  eqCanvas2.style.touchAction = 'none';
+  eqCanvas2.addEventListener('pointerdown', onEQ2PointerDown);
+  eqCanvas2.addEventListener('pointermove', eq2MouseMove);
 }
 
 function updateGlobalGain() {
@@ -555,7 +868,7 @@ function buildCurveEQ(bandCount = 24) {
 }
 
 function updateCurveEQ() {
-  if (!curveEQ.inited || curveEQ.filters.length === 0) return;
+  if (!curveEQ || !curveEQ.inited || curveEQ.filters.length === 0) return;
   if (!EQcanvas) return;
   const bandCount = curveEQ.filters.length;
   const w = EQcanvas.width, h = EQcanvas.height;

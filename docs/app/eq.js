@@ -334,7 +334,7 @@ EQcanvas.addEventListener('pointerdown', (evt) => {
       sineOsc.start();
   }
 });
-function onPointerDown(evt) {
+function onEQPointerDown(evt) {
   evt.preventDefault();
   const pos = getCanvasPos(evt);
   const hit = findHit(pos);
@@ -441,7 +441,7 @@ function onPointerUp(evt) {
 
 if (EQcanvas) {
   EQcanvas.style.touchAction = 'none';
-  EQcanvas.addEventListener('pointerdown', onPointerDown);
+  EQcanvas.addEventListener('pointerdown', onEQPointerDown);
   EQcanvas.addEventListener('pointermove', eqMouseMove);
 }
 

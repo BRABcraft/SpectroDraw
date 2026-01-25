@@ -392,7 +392,7 @@ function previewShape(cx, cy) {
         e.noiseProfileMin = Math.min(e.noiseProfileMin,Math.floor(cx));
         e.noiseProfileMax = Math.max(e.noiseProfileMax,Math.floor(cx));
       }
-      updateNoiseProfile();
+      updateNoiseProfile(false);
       const framesVisible = Math.max(1, iHigh - iLow);
       const overlayCanvas = document.getElementById("overlay-" + currentLayer);
       const ctx = overlayCanvas.getContext("2d");

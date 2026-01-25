@@ -7,6 +7,7 @@ let tDmode = -1;
 let oldX = null;
 let iWidth = iHigh - iLow;
 
+
 function drawTimeline() {
   for (let ch =0 ; ch<layerCount;ch++) {
     const timeline = document.getElementById("timeline-"+ch);
@@ -76,7 +77,14 @@ function drawTimeline() {
     tctx.fillStyle = "#af0";
     tctx.fillRect(tx2-1,0,2,20); 
   }
+  if (layers && layers[0] && layers[0].pcm) {
+    const startSample = Math.max(0, Math.floor(iLow * hop));
+    const endSample = Math.min(layers[0].pcm.length, Math.ceil(iHigh * hop));
+    combineAndDraw(startSample, endSample);
+  }
+
 }
+
 
 function timelineXToFrame(clientXLeft) {
   let timeline = document.getElementById("timeline-"+currentLayer);//CHANGE LATER
@@ -381,9 +389,11 @@ window.addEventListener("touchend", e => {fDmode = -1;draggingFreq = false;});
 
 
 const playPauseBtn = document.getElementById("playPause");
-const stopBtn = document.getElementById("stop");
-const playHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="9 8 16 16"><path d="M16 0 M14 22V10l8 6z"/></svg>`;
-const pauseHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 20 20"><rect x="2" y="0" width="5" height="18" rx="2" ry="2"/><rect x="12" y="0" width="5" height="18" rx="2" ry="2"/></svg>`;
+const ppohtml = `<svg xmlns="http://www.w3.org/2000/svg" fill="#333" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="6"/>
+          <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="2" />`;
+const playHtml = ppohtml + `<path d="M40 70 V30 l30 20z"/ fill="#fff"></svg>`
+const pauseHtml = ppohtml+`<rect x="34" y="30" width="10" height="36" rx="2" ry="2" fill="#fff"/><rect x="54" y="30" width="10" height="36" rx="2" ry="2" fill="#fff"/></svg>`;
 
 function playPause() {
   ensureAudioCtx();
@@ -412,20 +422,6 @@ document.addEventListener('keydown', function(event) {
     playPause();
     event.preventDefault();
   }
-});
-
-stopBtn.addEventListener("click", () => {
-    stopSource(false); 
-    if (recording) {stopRecording(); recording = false;}
-    timelineCursorX = 0;
-    currentCursorX = 0;
-    drawTimeline();
-    drawYAxis();
-    drawLogScale();
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
-    drawCursor(true);
-    playPauseBtn.innerHTML = playHtml;
 });
 
 function updateTimelineCursor() {

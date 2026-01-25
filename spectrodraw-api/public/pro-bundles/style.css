@@ -367,7 +367,7 @@ input[type="number"],input[type="text"] {
   color: #eaeaea;
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 6px;
-  min-width: 220px;
+  width:200px;
   z-index: 99999;
   box-shadow: 0 8px 24px rgba(0,0,0,0.6);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
@@ -423,7 +423,7 @@ input[type="number"],input[type="text"] {
 
 .slider-row2 {
   position: relative;     /* so absolute children are relative to this row */
-  height: 26px;           /* give enough height for inputs */
+  height: 14px;           /* give enough height for inputs */
   margin: 4px 0;
 }
 
@@ -444,9 +444,8 @@ input[type="number"],input[type="text"] {
 /* range slider: starts right after label (x = 140px) */
 .slider-row2 input[type="range"] {
   position: absolute;
-  left: 50px;            /* align all sliders at 140px */
-  top: 50%;
-  transform: translateY(-50%);
+  left: 40px;
+  transform: translateY(3px);
   width: 70px;            /* slider width */
   height: 6px;
   -webkit-appearance: none;
@@ -458,9 +457,8 @@ input[type="number"],input[type="text"] {
 /* numeric input: further to the right */
 .slider-row2 input[type="number"] {
   position: absolute;
-  left: 140px;            /* place numeric box at fixed column */
-  top: 50%;
-  transform: translateY(-50%);
+  left: 70px;
+  transform: translateY(-7px);
   width: 70px;
   box-sizing: border-box;
   border-radius: 6px;
@@ -867,7 +865,7 @@ select {
   min-width: 160px;
   box-shadow: 0 8px 20px #000;
   display: none;
-  z-index: 100;
+  z-index: 999999900;
 }
 
 .dropdown button {
@@ -896,6 +894,8 @@ select {
       flex-direction:column;
       gap:8px;
       align-items:center;
+      width:75px;
+      height:75px;
     }
     .knob{
       width: var(--knob-size);
@@ -910,6 +910,7 @@ select {
       user-select:none;
     }
     .knob svg{ width: 70%; height: 70%; }
+    #playPause svg{}
     .knob-labels {
       position: absolute;
       inset: 0;

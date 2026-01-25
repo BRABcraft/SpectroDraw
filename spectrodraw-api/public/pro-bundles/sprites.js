@@ -343,7 +343,7 @@ function renderToolEditorSettings(newEffect) {
   document.getElementById("sbrushOpacityDiv").style.display=(c("n/a")||c("sample"))?"none":"flex";
   document.getElementById("sWidthDiv").style.display=c("n/a")?"flex":"none";
   document.getElementById("sHeightDiv").style.display=c("n/a")?"flex":"none";
-  updateNoiseProfile();
+  updateNoiseProfile(true);
 
   // Ensure effects object exists to read from
   if (newEffect.tool==="n/a") {

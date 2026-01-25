@@ -542,7 +542,7 @@ async function updateLayers(){
   newOption.textContent = "All";
   newOption.value = "all";
   selectElement1.appendChild(newOption);
-  layerHeight = (window.innerHeight - 70)/layerCount;
+  layerHeight = (getLayerHeight())/layerCount;
   updateLayerHeightInputs();
   minCol = 0; maxCol = framesTotal;
   restartRender(false);
@@ -555,12 +555,12 @@ async function updateLayers(){
 
 function updateLayerHeightInputs(){
   const layerHeightEl = document.getElementById('layerHeight');
-  layerHeightEl.value = layerHeight; layerHeightEl.max = window.innerHeight - 70;
+  layerHeightEl.value = layerHeight; layerHeightEl.max = getLayerHeight();
   const layerHeightElInput = document.getElementById('layerHeightInput');
-  layerHeightElInput.value = layerHeight; layerHeightElInput.max = window.innerHeight - 70;
+  layerHeightElInput.value = layerHeight; layerHeightElInput.max = getLayerHeight();
 }
 
-layerHeight = window.innerHeight - 70;
+layerHeight = getLayerHeight();
 updateLayerHeightInputs();
 function updateLayerHeight(newch = null){
   if (newch !== null) layerHeight = newch;

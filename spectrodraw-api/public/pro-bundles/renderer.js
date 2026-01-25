@@ -10,7 +10,7 @@ function restartRender(autoPlay){
   iHigh = framesTotal;
   const freqBins = Math.floor(fftSize / 2);
   
-  const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (window.innerHeight - 70) / freqBins, 1) : layerHeight;
+  const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (getLayerHeight()) / freqBins, 1) : layerHeight;
   if (trueScaleVal) {
     document.getElementById("chdiv").setAttribute('disabled', 'disabled');
   } else {
@@ -18,7 +18,7 @@ function restartRender(autoPlay){
   }
   if (imageBuffer === null) imageBuffer = new Array(layerCount);
   if (currentLayer >= layerCount) currentLayer = layerCount-1;
-  for (let ch = 0; ch < layerCount; ch++){
+  for (let ch = 0; ch < layers.length; ch++){
     let timeline, canvas, overlayCanvas, yAxis, specCanvas, logscaleEl;
     if (!layers[ch].hasCanvases) {
       let w = document.getElementById("canvasWrapper-"+ch);
@@ -81,6 +81,12 @@ function restartRender(autoPlay){
       logscaleEl = document.getElementById(`logscale-${ch}`);
       specCanvas = document.getElementById(`spec-${ch}`);
     }
+    timeline.style.display=(ch<layerCount)?"block":"none";
+    canvas.style.display=(ch<layerCount)?"block":"none";
+    overlayCanvas.style.display=(ch<layerCount)?"block":"none";
+    yAxis.style.display=(ch<layerCount)?"block":"none";
+    logscaleEl.style.display=(ch<layerCount)?"block":"none";
+    if (ch>=layerCount) return;
     const specCtx = specCanvas.getContext("2d");
     // ----- IMPORTANT: keep backing store = data resolution (spec resolution) -----
     // This lets you use ImageData(specWidth,specHeight) without having to rewrite imageBuffer logic.
@@ -91,7 +97,7 @@ function restartRender(autoPlay){
     // If trueScaleVal we scale down for display; otherwise we use full-width layout.
     let displayW, displayH;
     if (trueScaleVal) {
-      const maxHeight = (window.innerHeight - 110);
+      const maxHeight = (getLayerHeight());
       const containerWidth = canvas.parentElement.clientWidth;
       const scaleX = containerWidth / framesTotal;
       const scaleY = maxHeight / freqBins;
@@ -109,7 +115,7 @@ function restartRender(autoPlay){
       displayW = parentClientW;
       displayH = Math.max(1, layerHeight - 40);
 
-      canvas.style.width = displayW + "px";
+      canvas.style.width = "calc(100% - 40px)";
       canvas.style.height = displayH + "px";
     }
 

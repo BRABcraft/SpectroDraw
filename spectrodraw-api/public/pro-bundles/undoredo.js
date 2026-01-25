@@ -1,43 +1,117 @@
-
+function combineAndDraw(startSample, endSample) {
+  let avg;
+  let maxLen = layers[0].pcm.length;
+  if (layers.length > 1) {
+    const sum = new Float32Array(maxLen);
+    const count = new Uint16Array(maxLen);
+    for (let ch = 0; ch < layerCount; ch++) {
+      const layer = layers[ch];
+      if (!layer || !layer.pcm) continue;
+      const p = layer.pcm;
+      const L = p.length;
+      for (let i = 0; i < L; i++) {
+        const v = p[i];
+        if (!isFinite(v)) continue;
+        sum[i] += v;
+        count[i] += 1;
+      }
+    }
+    avg = new Float32Array(maxLen);
+    for (let i = 0; i < maxLen; i++) {
+      if (count[i] > 0) {
+        avg[i] = sum[i] / count[i];
+      } else {
+        avg[i] = 0;
+      }
+    }
+  } else {
+    avg = layers[0].pcm;
+  }
+  if (typeof startSample === 'undefined' || startSample === null) startSample = 0;
+  if (typeof endSample === 'undefined' || endSample === null) endSample = maxLen;
+  startSample = Math.max(0, Math.floor(startSample));
+  endSample = Math.min(maxLen, Math.ceil(endSample));
+  if (endSample <= startSample) {
+    startSample = 0;
+    endSample = maxLen;
+  }
+  const WIDTH = 1000;
+  const HEIGHT = 35;
+  const canvas = document.getElementById('waveform');
+  if (!canvas || !canvas.getContext) return;
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  const halfH = HEIGHT / 2;
+  const scale = halfH / 1.5;
+  const sampleRange = Math.max(1, endSample - startSample);
+  const samplesPerPixel = sampleRange / WIDTH;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#fff';
+  const sampleCount = endSample - startSample;
+  if (sampleCount < WIDTH*12) {
+    ctx.beginPath();
+    for (let i = 0; i < sampleCount; i++) {
+      const x = (i / (sampleCount - 1 || 1)) * WIDTH;
+      const v = avg[startSample + i] || 0;
+      const y = halfH - v * scale;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    return;
+  }
+  ctx.beginPath();
+  for (let x = 0; x < WIDTH; x++) {
+    const start = Math.floor(startSample + x * samplesPerPixel);
+    const end = Math.min(endSample, Math.floor(startSample + (x + 1) * samplesPerPixel));
+    let min = Infinity, max = -Infinity;
+    if (end <= start) {
+      const v = avg[start] || 0;
+      min = max = v;
+    } else {
+      for (let i = start; i < end; i++) {
+        const v = avg[i] || 0;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+    }
+    const y1 = halfH - max * scale;
+    const y2 = halfH - min * scale;
+    ctx.moveTo(x + 0.5, y1);
+    ctx.lineTo(x + 0.5, y2);
+  }
+  ctx.stroke();
+}
 function recomputePCMForCols(colStart, colEnd) {
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;
-  
   const marginCols = Math.ceil(fftSize / hop) + 2;
   const colFirst = Math.max(0, colStart - marginCols);
   const colLast  = Math.min(specWidth - 1, colEnd + marginCols);
-
   const h = specHeight;
   const window = win;
-
-  // Re / Im arrays reused across layers/columns to avoid repeated allocation
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
-
   const EPS = 1e-8;
   const fadeCap = Infinity;
-
-  // Process each layer independently
   for (let ch = 0; ch < layerCount; ch++) {
     const layer = layers[ch];
     if (!layer) continue;
     const pcm = layer.pcm || new Float32Array(0);
-    // compute sample range for this layer
     const sampleStart = Math.max(0, colFirst * hop);
     const sampleEnd   = Math.min(pcm.length, (colLast * hop) + fftSize);
     const segmentLen  = sampleEnd - sampleStart;
     if (segmentLen <= 0) continue;
-
     const newSegment = new Float32Array(segmentLen);
     const overlapCount = new Float32Array(segmentLen);
-
-    // For each spectrogram column in range, build an IFFT frame from mags/phases for this layer
     for (let xCol = colFirst; xCol <= colLast; xCol++) {
       re.fill(0);
       im.fill(0);
-
-      // populate frequency bins from this layer's mags/phases
       const mags = layer.mags;
       const phases = layer.phases;
       for (let bin = 0; bin < h && bin < fftSize; bin++) {
@@ -46,21 +120,15 @@ function recomputePCMForCols(colStart, colEnd) {
         const phase = phases[idx];
         re[bin] = mag * Math.cos(phase);
         im[bin] = mag * Math.sin(phase);
-
-        // mirror for negative frequencies (ensure conjugate symmetry)
         if (bin > 0 && bin < fftSize / 2) {
           const sym = fftSize - bin;
           re[sym] = re[bin];
           im[sym] = -im[bin];
         }
       }
-
       im[0] = 0;
       if (fftSize % 2 === 0) im[fftSize / 2] = 0;
-
-      // perform in-place IFFT (assumes ifft_inplace is available globally)
       ifft_inplace(re, im);
-
       const baseSample = xCol * hop;
       for (let i = 0; i < fftSize; i++) {
         const globalSample = baseSample + i;
@@ -69,47 +137,38 @@ function recomputePCMForCols(colStart, colEnd) {
         newSegment[segIndex] += re[i] * window[i];
         overlapCount[segIndex] += window[i] * window[i];
       }
-    } // end xCol loop
-
-    // normalize overlap
+    } 
     for (let i = 0; i < segmentLen; i++) {
       if (overlapCount[i] > EPS) newSegment[i] /= overlapCount[i];
       else newSegment[i] = 0;
     }
-
-    // cross-fade edges with old PCM to smooth boundaries
-    const oldSegment = pcm.slice(sampleStart, sampleEnd); // length == segmentLen
+    const oldSegment = pcm.slice(sampleStart, sampleEnd); 
     const fadeLen = Math.min(Math.max(1, hop), fadeCap, segmentLen);
     for (let i = 0; i < fadeLen; i++) {
       const t = i / fadeLen;
-      // start fade
       newSegment[i] = newSegment[i] * t + oldSegment[i] * (1 - t);
-      // end fade
       const j = segmentLen - 1 - i;
       if (j >= 0 && j < segmentLen) {
         const oldIdx = oldSegment.length - 1 - i;
         newSegment[j] = newSegment[j] * t + oldSegment[oldIdx] * (1 - t);
       }
     }
-
-    // write back into layer PCM
     layer.pcm.set(newSegment, sampleStart);
-    // Re-render the spectrogram columns affected
-    //renderSpectrogramColumnsToImageBuffer(colFirst, colLast, ch);
-  } // end layer loop
-
-
-  // restart playback if currently playing (playPCM supports multi-layer)
+  }
+  if (layers && layers[0] && layers[0].pcm) {
+    const startSample = Math.max(0, Math.floor(iLow * hop));
+    const endSample = Math.min(layers[0].pcm.length, Math.ceil(iHigh * hop));
+    combineAndDraw(startSample, endSample);
+  } else {
+    combineAndDraw(); 
+  }
   if (playing) {
     stopSource(true);
     playPCM(true);
   }
 }
-
-
 function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
   let mags = layers[ch].mags, phases = layers[ch].phases;
-  //console.log(layers[ch]);
   const specCanvas = document.getElementById("spec-"+ch);
   const specCtx = specCanvas.getContext("2d");
   colStart = Math.min(Math.max(0, Math.floor(colStart)),specWidth);
@@ -135,9 +194,8 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
   renderView();
   drawCursor();
 }
-
 document.addEventListener('keydown', (ev) => {
-  if (editingExpression !== null) return; // don't interfere with expression editing
+  if (editingExpression !== null) return; 
   const key = ev.key.toLowerCase();
   if ((ev.ctrlKey || ev.metaKey) && key === 'z') {
     ev.preventDefault();
@@ -148,17 +206,14 @@ document.addEventListener('keydown', (ev) => {
     doRedo();                     
   }
 });
-
 document.getElementById('undoBtn').addEventListener('click', () => {
   doUndo();
 });
 document.getElementById('redoBtn').addEventListener('click', () => {
   doRedo();
 });
-
 function doUndo() {
   if (rendering) return;
-  // find most recent enabled sprite
   let idx = -1;
   for (let i = sprites.length - 1; i >= 0; i--) {
     if (sprites[i].enabled) { idx = i; break; }
@@ -169,76 +224,51 @@ function doUndo() {
   for (let ch=$s;ch<$e;ch++){
     let mags = layers[ch].mags, phases = layers[ch].phases;
     console.log("Undoing sprite:", sprite);
-    // restore sprite's prev values (iterate left->right, top->bottom)
     forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
       const id = x * specHeight + y;
       mags[id] = prevMag;
       phases[id] = prevPhase;
     });
-
-    // mark disabled
     sprite.enabled = false;
     renderSpritesTable();
     console.log(sprite);
-    // recompute/render only affected columns
     const minCol = Math.max(0, sprite.minCol);
     const maxCol = Math.min(specWidth - 1, sprite.maxCol);
     renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
   }
-  
   autoRecomputePCM(-1,-1);
-
-  // update UI scroll / view
   if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
-
-  // track disabled sprites (optional)
   spriteRedoQueue.push(sprite);
-
   if (playing) {
     stopSource(true);
     playPCM(true);
   }
 }
-
-/* ===== Sprite-based redo: enable the oldest disabled sprite by reapplying its next values =====
-   (You specified "oldest disabled sprite" — this finds the earliest disabled entry in `sprites[]`.)
-*/
 function doRedo() {
   if (rendering) return;
-  
-  // find oldest disabled sprite
   let idx = -1;
   for (let i = 0; i < sprites.length; i++) {
     if (!sprites[i].enabled) { idx = i; break; }
   }
   if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
   const sprite = sprites[idx];
-
   let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   for (let ch=$s;ch<$e;ch++){
     let mags = layers[ch].mags, phases = layers[ch].phases;
-
-    // apply sprite's recorded "next" values
     forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
       const id = x * specHeight + y;
       mags[id] = nextMag;
       phases[id] = nextPhase;
     });
-
     sprite.enabled = true;
     renderSpritesTable();
-
-    // recompute/render only affected columns
     const minCol = Math.max(0, sprite.minCol);
     const maxCol = Math.min(specWidth - 1, sprite.maxCol);
     renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
   }
   autoRecomputePCM(-1,-1);
-
-  // remove from redo queue if tracked
   const rqidx = spriteRedoQueue.indexOf(sprite);
   if (rqidx !== -1) spriteRedoQueue.splice(rqidx, 1);
-
   if (playing) {
     stopSource(true);
     playPCM(true);

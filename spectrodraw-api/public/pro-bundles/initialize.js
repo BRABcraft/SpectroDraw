@@ -153,7 +153,7 @@ let movingSprite = false;
 let spritePath = null;
 let layerCount = 1;
 let layers = null;
-let layerHeight = window.innerHeight - 70;
+let layerHeight = window.innerHeight-145;
 let $x = 0, $y = 0;
 let currentLayer = 0;
 let syncLayers = false;
@@ -340,6 +340,10 @@ function updateOptionValue(select, oldValue, newValue, newText = newValue) {
 
 
 class Knob {
+  static instances = [];
+  static fromElement(el) {
+    return Knob.instances.find(k => k.el === el) || null;
+  }
   constructor(element, options = {}) {
     if (!(element instanceof HTMLElement)) throw new Error('Knob requires a DOM element');
     this.el = element;
@@ -353,6 +357,7 @@ class Knob {
     this.el.appendChild(this.labelsEl);
 
     this.name = options.name;
+    this.id = this.name.replaceAll(' ', '');
     this.onInput = typeof options.onInput === 'function' ? options.onInput : null;
 
     // initial value
@@ -370,17 +375,19 @@ class Knob {
     this.startY = 0;
 
     // bind handlers so we can remove later if needed
-    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onEQPointerDown = this._onEQPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
 
-    this.el.addEventListener("pointerdown", this._onPointerDown);
+    this.el.addEventListener("pointerdown", this._onEQPointerDown);
     document.addEventListener("pointermove", this._onPointerMove);
     document.addEventListener("pointerup", this._onPointerUp);
+    Knob.instances.push(this);
   }
+  getRange(){return this.range;}
 
   // pointer handlers
-  _onPointerDown(e) {
+  _onEQPointerDown(e) {
     e.preventDefault();
     this.el.setPointerCapture?.(e.pointerId);
 
@@ -545,7 +552,7 @@ class Knob {
       this.el.classList.remove("disabled");
     }
   }
-  setValue(v) { this.value = v; this.render(); }
+  setValue(v) { this.value = v; this.render(); this.onInput(this);}
   getValue() { return this.value; }
 }
 const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
@@ -554,7 +561,7 @@ const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
   range: [0,100],
   value: 10,
   onInput: (knob)=>{
-    emptyAudioLength = knob.value;console.log("4");
+    emptyAudioLength = knob.value;
     initEmptyPCM(false);
   }
 });

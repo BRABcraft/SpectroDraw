@@ -1,4 +1,6 @@
+let panels = [];
 (function() {
+  let _recomputeEdgeBoundsBusy = false;
   const waveformHeight = 35;
   const infoHeight = 67.2;
   const rightWidth = 310;
@@ -10,14 +12,13 @@
   const specialFxHeight = (window.innerHeight-30-infoHeight)*0.4;
   const uploadsHeight = (window.innerHeight-30-infoHeight)*0.3;
   const eqWidth = 200;
-  let panels = [];
   let baseTop = 30;
   let edgeThickness = 5;
   let edgeDocks = [
-    { left: 0,                             top: baseTop, axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:2, size:infoHeight},{panelIndex:1, size:window.innerHeight-30-infoHeight}]), thickness: [leftWidth], name:"left" }, 
-    { left: window.innerWidth - edgeThickness, top: baseTop, axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:0, size:brushSettingsHeight},{panelIndex:6, size:spritesHeight}]), thickness: [rightWidth], name:"right" }, 
-    { left: 0,                             top: baseTop, axis: "horizontal", length: window.innerWidth,            panels: new Array([]), thickness: [200], name:"top" }, 
-    { left: 0,    top: window.innerHeight - edgeThickness, axis: "horizontal", length: window.innerWidth,            panels: new Array([]), thickness: [200], name:"bottom" }, 
+    { left: 0,                                 top: baseTop,                            axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:3, size:infoHeight},{panelIndex:1, size:toolsHeight},{panelIndex:2,size:specialFxHeight},{panelIndex:9,size:uploadsHeight}]), thickness: [leftWidth], name:"left" }, 
+    { left: window.innerWidth - edgeThickness, top: baseTop,                            axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:0, size:brushSettingsHeight},{panelIndex:7, size:spritesHeight}]), thickness: [rightWidth], name:"right" }, 
+    { left: leftWidth,                         top: baseTop,                            axis: "horizontal", length: middleWidth,                  panels: new Array([{panelIndex:4,size:waveformHeight}],[{panelIndex:5,size:window.innerHeight-110-waveformHeight}]), thickness: [waveformHeight,window.innerHeight-110-waveformHeight], name:"top" }, 
+    { left: leftWidth,                         top: window.innerHeight - edgeThickness, axis: "horizontal", length: middleWidth,                  panels: new Array([{panelIndex:11,size:eqWidth},{panelIndex:6,size:window.innerWidth-rightWidth-leftWidth-eqWidth,}]), thickness: [80], name:"bottom" }, 
   ];
   function newWindow(opts){
     const panelObj = document.createElement("div");
@@ -32,7 +33,7 @@
     panelObj.style.boxShadow = "0 0 20px rgba(0,0,0,0.9)";
     panelObj.style.overflow = "hidden";
     panelObj.style.border = "1px solid #555";
-    panelObj.style.zIndex=opts.docked?"0":"999999";
+    panelObj.style.zIndex=opts.docked?"0":"9999";
     panelObj.setAttribute("idx",panels.length);
     const topbar = 15;
     const minimizeSvg = `<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -101,6 +102,9 @@
     }
     function setWidth(panel,w){
       if (w<120) w = 120;
+      if (panel.id==="eqWindow"&&w>200) w=200;
+      const mw = window.innerWidth-leftWidth-rightWidth-200;
+      if (panel.id==="bottom-bar"&&w<mw&&panels[11].docked) {w=mw;recomputeEdgeBounds();}
       panel.obj.style.width=w+"px";
       panel.width=w;
     }
@@ -131,6 +135,7 @@
     const closeEl = document.getElementById(opts.id+"close");
     const headerEl = document.getElementById(opts.id+"header");
     const toggleButton = document.getElementById(opts.id+"Toggle");
+    const check = document.getElementById(opts.id+"Check");
     if(opts.id!=="main-area"){
       panelObj.style.display = opts.showing?"flex":"none";
       panelObj.style.flexDirection = "column";
@@ -252,7 +257,7 @@
           layoutDock(dock);
         }
         if (panel.dockEdge === "left" || panel.dockEdge === "right") { setHeight(panel, Math.min(panel.height+topbar, window.innerHeight * 0.8)); setY(panel, panel.top + 50); }
-        if (panel.dockEdge === "top" || panel.dockEdge === "bottom") { setWidth(panel, Math.min(panel.width, window.innerWidth.width * 0.8)); setX(panel, panel.left + 50); }
+        if (panel.dockEdge === "top" || panel.dockEdge === "bottom") { setWidth(panel, Math.min(panel.width, window.innerWidth * 0.8)); setX(panel, panel.left + 50); }
         if (panel.dockEdge === "left") setX(panel, panel.left + 250);
         if (panel.dockEdge === "right") setX(panel, panel.left - 250);
         if (panel.dockEdge === "top") setY(panel, panel.top + 250);
@@ -308,7 +313,7 @@
       for (let d of edgeDocks) if (d.panels[0].length) {layoutDock(d);}
       panel._savedDock = null;
     }
-    function toggleWindow(toggleButton){
+    function toggleWindow(){
       const id=getPanelId(panelObj);
       const panel = panels[id];
       if (panel.showing) {
@@ -328,11 +333,13 @@
         }
         panel.showing = false;
         panelObj.style.display = "none";
-        if (toggleButton) toggleButton.style.background = "";
+        if (toggleButton&&!check) toggleButton.style.background = "";
+        if (check) check.innerText = "✓";
       } else {
         panel.showing = true;
         panelObj.style.display = "block";
-        if (toggleButton) toggleButton.style.background = "#4af";
+        if (toggleButton&&!check) toggleButton.style.background = "#4af";
+        if (check) check.innerText = "";
         if (panel._savedDock) {
           restoreDock(panel);
         }
@@ -364,14 +371,15 @@
           const pxR = panel.left + panel.width;
           const sign = (edge.name==="top")?-1:1;
           for (let p = 0; p <= length; p++) {
+            if (p>1) continue;
             const py = panel.top + sign*offY;
             const pyB = panel.top + panel.height + sign*offY;
             const inTopSpan = (py > edge.top && py < (edge.top + edgeThickness));
             const inBottomSpan = (pyB > edge.top && pyB < (edge.top + edgeThickness));
             const inHSpanLeft = (px >= edge.left && px <= (edge.left + edge.length));
             const inHSpanRight = (pxR >= edge.left && pxR <= (edge.left + edge.length));
-            if (inTopSpan && inHSpanLeft) return {edge,type:0,layer:p,off:offY};
-            if (inBottomSpan && inHSpanRight) return {edge,type:1,layer:p,off:-offY};
+            if (inTopSpan && inHSpanLeft) {return {edge,type:0,layer:p,off:offY};}
+            if (inBottomSpan && inHSpanRight) {return {edge,type:1,layer:p,off:-offY};}
             if (p<edge.panels.length) offY += edge.thickness[p];
           }
         }
@@ -491,43 +499,53 @@
       }
     }
     function recomputeEdgeBounds() {
-      const leftDock = edgeDocks[0], rightDock = edgeDocks[1], topDock = edgeDocks[2], bottomDock = edgeDocks[3];
-      const topOccupied = (topDock.panels.length>0&&topDock.panels[0].length>0)?topDock.thickness.reduce((a,b)=>a+b,0):0;
-      const bottomOccupied = (bottomDock.panels.length>0&&bottomDock.panels[0].length>0)?bottomDock.thickness.reduce((a,b)=>a+b,0):0;
-      const leftOccupied = (leftDock.panels.length>0&&leftDock.panels[0].length>0)?leftDock.thickness.reduce((a,b)=>a+b,0):0;
-      const rightOccupied = (rightDock.panels.length>0&&rightDock.panels[0].length>0)?rightDock.thickness.reduce((a,b)=>a+b,0):0;
-      leftDock.top = baseTop;
-      rightDock.top = baseTop;
-      topDock.left = leftOccupied;
-      bottomDock.left = leftOccupied;
-      topDock.length = Math.max(0, window.innerWidth - leftOccupied - rightOccupied);
-      bottomDock.length = Math.max(0, window.innerWidth - leftOccupied - rightOccupied);
-      edgeDocks[1].left = window.innerWidth - edgeThickness;
-      edgeDocks[3].top  = window.innerHeight - edgeThickness;
-      function clampToLength(edge,p,l){
-        if (!l) l = edge.length;
-        if (edge.axis === "horizontal") setWidth(panels[p.panelIndex], l);
-        else setHeight(panels[p.panelIndex], l);
-        p.size = l;
-      }
-      for (let edge of edgeDocks) {
-        for (let edgePanel of edge.panels) {
-          let total = 0;
-          for (let p of edgePanel) {
-            if (edgePanel.length===1 && p.size<edge.length) clampToLength(edge,p);
-            if (p.size > edge.length) clampToLength(edge,p);
-            total += p.size;
-          }
-          if (total === 0) continue;
-          if (total !== edge.length) {
-            for (let p of edgePanel) clampToLength(edge,p,p.size*(edge.length/total));
+      if (_recomputeEdgeBoundsBusy) return;
+      _recomputeEdgeBoundsBusy = true;
+      try {
+        const leftDock = edgeDocks[0], rightDock = edgeDocks[1], topDock = edgeDocks[2], bottomDock = edgeDocks[3];
+        const topOccupied = (topDock.panels.length>0&&topDock.panels[0].length>0)?topDock.thickness.reduce((a,b)=>a+b,0):0;
+        const bottomOccupied = (bottomDock.panels.length>0&&bottomDock.panels[0].length>0)?bottomDock.thickness.reduce((a,b)=>a+b,0):0;
+        const leftOccupied = (leftDock.panels.length>0&&leftDock.panels[0].length>0)?leftDock.thickness.reduce((a,b)=>a+b,0):0;
+        const rightOccupied = (rightDock.panels.length>0&&rightDock.panels[0].length>0)?rightDock.thickness.reduce((a,b)=>a+b,0):0;
+        leftDock.top = baseTop;
+        rightDock.top = baseTop;
+        topDock.left = leftOccupied;
+        bottomDock.left = leftOccupied;
+        topDock.length = Math.max(0, window.innerWidth - leftOccupied - rightOccupied);
+        bottomDock.length = Math.max(0, window.innerWidth - leftOccupied - rightOccupied);
+        edgeDocks[1].left = window.innerWidth - edgeThickness;
+        edgeDocks[3].top  = window.innerHeight - edgeThickness;
+        function clampToLength(edge,p,l){
+          if (!l) l = edge.length;
+          if (edge.axis === "horizontal") setWidth(panels[p.panelIndex], l);
+          else setHeight(panels[p.panelIndex], l);
+          p.size = l;
+        }
+        for (let edge of edgeDocks) {
+          for (let edgePanel of edge.panels) {
+            let total = 0;
+            for (let p of edgePanel) {
+              if (edgePanel.length===1 && p.size<edge.length) clampToLength(edge,p);
+              if (p.size > edge.length) clampToLength(edge,p);
+              //const pn = panels[p.panelIndex];
+              //if (pn.left>total+edge.left) {setX(pn, total+edge.left);console.log(pn.left,total);}
+              total += p.size;
+            }
+            if (total === 0) continue;
+            if (total !== edge.length) {
+              for (let p of edgePanel) clampToLength(edge,p,p.size*(edge.length/total));
+            }
           }
         }
+      } finally {
+        _recomputeEdgeBoundsBusy = false;
       }
     }
-    function setDocked(panel, dockObj){ 
+function setDocked(panel, dockObj){ 
+      const MAX_11 = 200;
       const dock = dockObj.edge;
       const id = panels.indexOf(panel);
+      if (!panel.showHeader) document.getElementById(panel.id+"header").style.display="none";
       panel.dockTo = dock;
       panel.docked = true;
       panel.layer = dockObj.layer;
@@ -541,6 +559,350 @@
       }
       const spaceLeft = dock.length / (preCount + 1);
       dock.panels[dockObj.layer].push({ panelIndex: id, size: spaceLeft });
+      const layerPanels = dock.panels[dockObj.layer];
+      const sizes = new Array(layerPanels.length);
+      const isClamped = new Array(layerPanels.length);
+      for (let i = 0; i < layerPanels.length; i++) {
+        const pl = layerPanels[i];
+        sizes[i] = Number(pl.size) || 0;
+        if (pl.panelIndex === 11) {
+          if (sizes[i] > MAX_11) sizes[i] = MAX_11;
+          isClamped[i] = true;
+        } else {
+          isClamped[i] = false;
+        }
+      }
+      const totalAvailable = dock.length;
+      let sumSizes = sizes.reduce((s, v) => s + v, 0);
+      let diff = function combineAndDraw(startSample, endSample) {
+  let avg;
+  let maxLen = layers[0].pcm.length;
+  if (layers.length > 1) {
+    const sum = new Float32Array(maxLen);
+    const count = new Uint16Array(maxLen);
+    for (let ch = 0; ch < layerCount; ch++) {
+      const layer = layers[ch];
+      if (!layer || !layer.pcm) continue;
+      const p = layer.pcm;
+      const L = p.length;
+      for (let i = 0; i < L; i++) {
+        const v = p[i];
+        if (!isFinite(v)) continue;
+        sum[i] += v;
+        count[i] += 1;
+      }
+    }
+    avg = new Float32Array(maxLen);
+    for (let i = 0; i < maxLen; i++) {
+      if (count[i] > 0) {
+        avg[i] = sum[i] / count[i];
+      } else {
+        avg[i] = 0;
+      }
+    }
+  } else {
+    avg = layers[0].pcm;
+  }
+  if (typeof startSample === 'undefined' || startSample === null) startSample = 0;
+  if (typeof endSample === 'undefined' || endSample === null) endSample = maxLen;
+  startSample = Math.max(0, Math.floor(startSample));
+  endSample = Math.min(maxLen, Math.ceil(endSample));
+  if (endSample <= startSample) {
+    startSample = 0;
+    endSample = maxLen;
+  }
+  const WIDTH = 1000;
+  const HEIGHT = 35;
+  const canvas = document.getElementById('waveform');
+  if (!canvas || !canvas.getContext) return;
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  const halfH = HEIGHT / 2;
+  const scale = halfH / 1.5;
+  const sampleRange = Math.max(1, endSample - startSample);
+  const samplesPerPixel = sampleRange / WIDTH;
+    ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#00aaff';
+  const sampleCount = endSample - startSample;
+  if (sampleCount < WIDTH*12) {
+    ctx.beginPath();
+    for (let i = 0; i < sampleCount; i++) {
+      const x = (i / (sampleCount - 1 || 1)) * WIDTH;
+      const v = avg[startSample + i] || 0;
+      const y = halfH - v * scale;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    return;
+  }
+  ctx.beginPath();
+  for (let x = 0; x < WIDTH; x++) {
+    const start = Math.floor(startSample + x * samplesPerPixel);
+    const end = Math.min(endSample, Math.floor(startSample + (x + 1) * samplesPerPixel));
+    let min = Infinity, max = -Infinity;
+    if (end <= start) {
+      const v = avg[start] || 0;
+      min = max = v;
+    } else {
+      for (let i = start; i < end; i++) {
+        const v = avg[i] || 0;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+    }
+    const y1 = halfH - max * scale;
+    const y2 = halfH - min * scale;
+    ctx.moveTo(x + 0.5, y1);
+    ctx.lineTo(x + 0.5, y2);
+  }
+  ctx.stroke();
+}
+function recomputePCMForCols(colStart, colEnd) {
+  colStart = Math.max(0, Math.floor(colStart));
+  colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
+  if (colEnd < colStart) return;
+  const marginCols = Math.ceil(fftSize / hop) + 2;
+  const colFirst = Math.max(0, colStart - marginCols);
+  const colLast  = Math.min(specWidth - 1, colEnd + marginCols);
+  const h = specHeight;
+  const window = win;
+  const re = new Float32Array(fftSize);
+  const im = new Float32Array(fftSize);
+  const EPS = 1e-8;
+  const fadeCap = Infinity;
+  for (let ch = 0; ch < layerCount; ch++) {
+    const layer = layers[ch];
+    if (!layer) continue;
+    const pcm = layer.pcm || new Float32Array(0);
+    const sampleStart = Math.max(0, colFirst * hop);
+    const sampleEnd   = Math.min(pcm.length, (colLast * hop) + fftSize);
+    const segmentLen  = sampleEnd - sampleStart;
+    if (segmentLen <= 0) continue;
+    const newSegment = new Float32Array(segmentLen);
+    const overlapCount = new Float32Array(segmentLen);
+    for (let xCol = colFirst; xCol <= colLast; xCol++) {
+      re.fill(0);
+      im.fill(0);
+      const mags = layer.mags;
+      const phases = layer.phases;
+      for (let bin = 0; bin < h && bin < fftSize; bin++) {
+        const idx = xCol * h + bin;
+        const mag = mags[idx];
+        const phase = phases[idx];
+        re[bin] = mag * Math.cos(phase);
+        im[bin] = mag * Math.sin(phase);
+        if (bin > 0 && bin < fftSize / 2) {
+          const sym = fftSize - bin;
+          re[sym] = re[bin];
+          im[sym] = -im[bin];
+        }
+      }
+      im[0] = 0;
+      if (fftSize % 2 === 0) im[fftSize / 2] = 0;
+      ifft_inplace(re, im);
+      const baseSample = xCol * hop;
+      for (let i = 0; i < fftSize; i++) {
+        const globalSample = baseSample + i;
+        if (globalSample < sampleStart || globalSample >= sampleEnd) continue;
+        const segIndex = globalSample - sampleStart;
+        newSegment[segIndex] += re[i] * window[i];
+        overlapCount[segIndex] += window[i] * window[i];
+      }
+    } 
+    for (let i = 0; i < segmentLen; i++) {
+      if (overlapCount[i] > EPS) newSegment[i] /= overlapCount[i];
+      else newSegment[i] = 0;
+    }
+    const oldSegment = pcm.slice(sampleStart, sampleEnd); 
+    const fadeLen = Math.min(Math.max(1, hop), fadeCap, segmentLen);
+    for (let i = 0; i < fadeLen; i++) {
+      const t = i / fadeLen;
+      newSegment[i] = newSegment[i] * t + oldSegment[i] * (1 - t);
+      const j = segmentLen - 1 - i;
+      if (j >= 0 && j < segmentLen) {
+        const oldIdx = oldSegment.length - 1 - i;
+        newSegment[j] = newSegment[j] * t + oldSegment[oldIdx] * (1 - t);
+      }
+    }
+    layer.pcm.set(newSegment, sampleStart);
+  }
+  if (layers && layers[0] && layers[0].pcm) {
+    const startSample = Math.max(0, Math.floor(iLow * hop));
+    const endSample = Math.min(layers[0].pcm.length, Math.ceil(iHigh * hop));
+    combineAndDraw(startSample, endSample);
+  } else {
+    combineAndDraw(); 
+  }
+  if (playing) {
+    stopSource(true);
+    playPCM(true);
+  }
+}
+function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
+  let mags = layers[ch].mags, phases = layers[ch].phases;
+  const specCanvas = document.getElementById("spec-"+ch);
+  const specCtx = specCanvas.getContext("2d");
+  colStart = Math.min(Math.max(0, Math.floor(colStart)),specWidth);
+  colEnd = Math.min(specWidth - 1, Math.max(0,Math.floor(colEnd)));
+  if (!imageBuffer[ch] || !specCtx) return;
+  const h = specHeight;
+  const w = specWidth;
+  for (let xx = colStart; xx <= colEnd; xx++) {
+    for (let yy = 0; yy < h; yy++) {
+      const bin = displayYToBin(yy, h, ch);
+      const idx = xx * h + bin;
+      const mag = mags[idx] || 0;
+      const phase = phases[idx] || 0;
+      const [r,g,b] = magPhaseToRGB(mag, phase);
+      const pix = (yy * w + xx) * 4;
+      imageBuffer[ch].data[pix] = r;
+      imageBuffer[ch].data[pix+1] = g;
+      imageBuffer[ch].data[pix+2] = b;
+      imageBuffer[ch].data[pix+3] = 255;
+    }
+  }
+  specCtx.putImageData(imageBuffer[ch], 0, 0, colStart, 0, (colEnd-colStart+1), specHeight);
+  renderView();
+  drawCursor();
+}
+document.addEventListener('keydown', (ev) => {
+  if (editingExpression !== null) return; 
+  const key = ev.key.toLowerCase();
+  if ((ev.ctrlKey || ev.metaKey) && key === 'z') {
+    ev.preventDefault();
+    if (ev.shiftKey) doRedo();    
+    else doUndo();                
+  } else if ((ev.ctrlKey || ev.metaKey) && key === 'y') {
+    ev.preventDefault();
+    doRedo();                     
+  }
+});
+document.getElementById('undoBtn').addEventListener('click', () => {
+  doUndo();
+});
+document.getElementById('redoBtn').addEventListener('click', () => {
+  doRedo();
+});
+function doUndo() {
+  if (rendering) return;
+  let idx = -1;
+  for (let i = sprites.length - 1; i >= 0; i--) {
+    if (sprites[i].enabled) { idx = i; break; }
+  }
+  if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
+  const sprite = sprites[idx];
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = layers[ch].mags, phases = layers[ch].phases;
+    console.log("Undoing sprite:", sprite);
+    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+      const id = x * specHeight + y;
+      mags[id] = prevMag;
+      phases[id] = prevPhase;
+    });
+    sprite.enabled = false;
+    renderSpritesTable();
+    console.log(sprite);
+    const minCol = Math.max(0, sprite.minCol);
+    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
+    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
+  }
+  autoRecomputePCM(-1,-1);
+  if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
+  spriteRedoQueue.push(sprite);
+  if (playing) {
+    stopSource(true);
+    playPCM(true);
+  }
+}
+function doRedo() {
+  if (rendering) return;
+  let idx = -1;
+  for (let i = 0; i < sprites.length; i++) {
+    if (!sprites[i].enabled) { idx = i; break; }
+  }
+  if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
+  const sprite = sprites[idx];
+  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
+  for (let ch=$s;ch<$e;ch++){
+    let mags = layers[ch].mags, phases = layers[ch].phases;
+    forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
+      const id = x * specHeight + y;
+      mags[id] = nextMag;
+      phases[id] = nextPhase;
+    });
+    sprite.enabled = true;
+    renderSpritesTable();
+    const minCol = Math.max(0, sprite.minCol);
+    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
+    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
+  }
+  autoRecomputePCM(-1,-1);
+  const rqidx = spriteRedoQueue.indexOf(sprite);
+  if (rqidx !== -1) spriteRedoQueue.splice(rqidx, 1);
+  if (playing) {
+    stopSource(true);
+    playPCM(true);
+  }
+}totalAvailable - sumSizes; 
+      const flexibleIdx = [];
+      for (let i = 0; i < layerPanels.length; i++) {
+        if (!isClamped[i]) flexibleIdx.push(i);
+      }
+      let totalFlexible = flexibleIdx.reduce((s, idx) => s + sizes[idx], 0);
+      if (Math.abs(diff) > 1e-6) {
+        if (diff > 0) {
+          if (totalFlexible > 0) {
+            for (let idx of flexibleIdx) {
+              const share = sizes[idx] / totalFlexible; 
+              sizes[idx] += share * diff;
+            }
+          } else {
+            let idxFallback = -1;
+            for (let i = 0; i < layerPanels.length; i++) {
+              if (layerPanels[i].panelIndex !== 11) { idxFallback = i; break; }
+            }
+            if (idxFallback === -1) idxFallback = layerPanels.length - 1;
+            sizes[idxFallback] += diff;
+          }
+        } else {
+          if (totalFlexible > 0) {
+            for (let idx of flexibleIdx) {
+              const share = sizes[idx] / totalFlexible;
+              sizes[idx] += share * diff; 
+              if (sizes[idx] < 1) sizes[idx] = 1;
+            }
+          } else {
+            const scale = totalAvailable / sumSizes;
+            for (let i = 0; i < sizes.length; i++) sizes[i] = Math.max(1, sizes[i] * scale);
+          }
+        }
+      }
+      for (let i = 0; i < layerPanels.length; i++) {
+        if (layerPanels[i].panelIndex === 11 && sizes[i] > MAX_11) sizes[i] = MAX_11;
+        if (!isFinite(sizes[i]) || sizes[i] < 0) sizes[i] = 0;
+      }
+      sumSizes = sizes.reduce((s, v) => s + v, 0);
+      if (sumSizes > 0 && Math.abs(sumSizes - totalAvailable) > 1e-6) {
+        const scale = totalAvailable / sumSizes;
+        for (let i = 0; i < sizes.length; i++) sizes[i] *= scale;
+      }
+      let x = dock.left || 0; 
+      for (let i = 0; i < layerPanels.length; i++) {
+        layerPanels[i].size = sizes[i];
+        const panelIdx = layerPanels[i].panelIndex;
+        if (typeof setX === 'function' && panels[panelIdx]) {
+          setX(panels[panelIdx], x);
+        } else if (panels[panelIdx]) {
+          panels[panelIdx].left = x;
+        }
+        x += sizes[i];
+      }
       popOutEl.style.display = "block";
       minimizeEl.style.display = "none";
       if (dockObj.type === 0) { panel.dockEdge = (dock.axis === "vertical") ? "left" : "top"; }
@@ -553,6 +915,7 @@
         }
       }
     }
+
     document.addEventListener("pointermove",(e)=>{
       const id=getPanelId(panelObj);
       const panel = panels[id];
@@ -604,14 +967,39 @@
             return;
           }
           if (rd.orientation === "horizontal") {
-            const delta = e.clientX - rd.startX;
-            let newA = rd.aStart + delta;
-            let newB = rd.bStart - delta;
+            const MAX_11 = 200;
             const minSz = 120;
-            if (newA < minSz) { newB -= (minSz - newA); newA = minSz; }
-            if (newB < minSz) { newA -= (minSz - newB); newB = minSz; }
-            dock.panels[0][rd.aIdx].size = newA;
-            dock.panels[0][rd.bIdx].size = newB;
+            const ap = dock.panels[0][rd.aIdx];
+            const bp = dock.panels[0][rd.bIdx];
+            const totalStart = (rd.aStart || 0) + (rd.bStart || 0);
+            const delta = e.clientX - rd.startX;
+            let newA = (rd.aStart || 0) + delta;
+            let newB = totalStart - newA;
+            const apIs11 = ap && ap.panelIndex === 11;
+            const bpIs11 = bp && bp.panelIndex === 11;
+            const maxA = apIs11 ? MAX_11 : Infinity;
+            const maxB = bpIs11 ? MAX_11 : Infinity;
+            function clampPreserveTotal(a, b) {
+              a = Math.max(minSz, Math.min(maxA, a));
+              b = totalStart - a;
+              if (b < minSz) {
+                b = minSz;
+                a = totalStart - b;
+                a = Math.max(minSz, Math.min(maxA, a));
+                b = totalStart - a;
+              } else if (b > maxB) {
+                b = maxB;
+                a = totalStart - b;
+                a = Math.max(minSz, Math.min(maxA, a));
+                b = totalStart - a;
+              }
+              a = Math.max(minSz, Math.min(maxA, a));
+              b = Math.max(minSz, Math.min(maxB, b));
+              return [a, b];
+            }
+            [newA, newB] = clampPreserveTotal(newA, newB);
+            ap.size = newA;
+            bp.size = newB;
             layoutDock(dock);
             recomputeEdgeBounds();
             for (let d of edgeDocks) if (d.panels[0].length) layoutDock(d);
@@ -662,8 +1050,8 @@
     });
     popOutEl.addEventListener("click",popOut);
     minimizeEl.addEventListener("click",minimize);
-    closeEl.addEventListener("click",()=>{toggleWindow(toggleButton);});
-    if (toggleButton) toggleButton.addEventListener("click",()=>{toggleWindow(toggleButton);});
+    closeEl.addEventListener("click",()=>{toggleWindow();});
+    if (toggleButton) toggleButton.addEventListener("click",()=>{toggleWindow();});
     window.addEventListener("resize",()=>{
       recomputeEdgeBounds();
       for (let d of edgeDocks) if (d.panels[0].length) layoutDock(d);
@@ -1012,7 +1400,7 @@
           </tr>
         </tbody>
       </table>`
-    });
+  });
   newWindow({
       name:"Special Effects",
       id:"specialFXWindow",
@@ -1033,7 +1421,7 @@
       innerHTML:`<div class="toolsWrapper">
     <section class="toolSection" id="section-4">
       <div class="toolSection-header" role="button" aria-controls="content-4" aria-expanded="false">
-        <button class="toggle-btn">
+        <button class="toggle-btn" onclick="this.blur()">
           <span class="char gt">&gt;</span>
         </button>
         <div>
@@ -1070,7 +1458,7 @@
     </section>
     <section class="toolSection" id="section-5">
       <div class="toolSection-header" role="button" aria-controls="content-5" aria-expanded="false">
-        <button class="toggle-btn">
+        <button class="toggle-btn" onclick="this.blur()">
           <span class="char gt">&gt;</span>
         </button>
         <div>
@@ -1084,7 +1472,7 @@
     </section>
     <section class="toolSection" id="section-6">
       <div class="toolSection-header" role="button" aria-controls="content-6" aria-expanded="false">
-        <button class="toggle-btn">
+        <button class="toggle-btn" onclick="this.blur()">
           <span class="char gt">&gt;</span>
         </button>
         <div>
@@ -1111,13 +1499,12 @@
               <option value="Custom">Custom</option>
             </select>
           </div>
-          <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
+          <canvas id="eqCanvas" width="300" height="440" style="border:1px solid #ccc; display:block; margin-top:10px;width:100%;"></canvas>
         </div>
       </div>
     </section>
   </div>`,
   });
-  
   newWindow({
       name:"Info",
       id:"infoWindow",
@@ -1154,7 +1541,7 @@
       top:30,
       showing:true,
       showHeader:false,
-      innerHTML:`<canvas id="waveform" width="${middleWidth}" height=${waveformHeight}>`,
+      innerHTML:`<canvas id="waveform" width="1000" style="margin-left:40px;width:calc(100% - 40px);height:100%;" height=${waveformHeight}>`,
   });
   newWindow({
       name:"mainArea",
@@ -1187,7 +1574,7 @@
       height:80,
       docked:true,
       dockEdge:"bottom",
-      dockTo:edgeDocks[4],
+      dockTo:edgeDocks[3],
       layer:0,
       hit:"none",
       moving:false,
@@ -1198,9 +1585,6 @@
       showing:true,
       showHeader:false,
       innerHTML:`<div style="display:flex;flex-direction:row;height:100%;gap:5px;padding-left:5px;">
-    <div class="knob-wrapper">
-      <div class="knob" id="emptyAudioLength" data-knob="true" aria-hidden="true">${knobSVG}</div>
-    </div>
     <div class="knob-wrapper">
       <div class="knob" id="fftSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
@@ -1213,6 +1597,18 @@
     </div>
     <div class="knob-wrapper">
       <div class="knob" id="masterVolume" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <div class="knob-wrapper">
+      <button id="playPause" title="Play (space)" style="background:linear-gradient(180deg,#2b2b2b,#161616);border:0;border-radius:50%;width:75px;height:75px;" onClick="this.blur();">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="#333" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="6"/>
+          <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="2" />
+          <path d="M40 70 V30 l30 20z"/ fill="#fff">
+        </svg>
+      </button>
+    </div>
+    <div class="knob-wrapper">
+      <div class="knob" id="emptyAudioLength" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
   </div>`,
   });
@@ -1507,7 +1903,7 @@
       </section>
       <section class="toolSection">
         <div class="toolSection-header" role="button" aria-expanded="false">
-          <button class="toggle-btn">
+          <button class="toggle-btn" onclick="this.blur()">
             <span class="char gt">&gt;</span>
           </button>
           <div>
@@ -1522,7 +1918,7 @@
       </section>
       <section class="toolSection">
         <div class="toolSection-header" role="button" aria-expanded="false">
-          <button class="toggle-btn">
+          <button class="toggle-btn" onclick="this.blur()">
             <span class="char gt">&gt;</span>
           </button>
           <div>
@@ -1578,7 +1974,7 @@
       height:80,
       docked:true,
       dockEdge:"bottom",
-      dockTo:edgeDocks[4],
+      dockTo:edgeDocks[3],
       layer:0,
       hit:"none",
       moving:false,
@@ -1588,6 +1984,59 @@
       top:window.innerHeight-80,
       showing:true,
       showHeader:false,
-      innerHTML:`<canvas id="eqCanvas2" width="${eqWidth}" height="80"></canvas>`
-    });
+      innerHTML:`<canvas id="eqCanvas2" width="${eqWidth}" style="width:100%;height:100%;" height="80"></canvas>`
+  });
+  newWindow({
+      name:"Layers",
+      id:"layersWindow",
+      width:320,
+      height:340,
+      docked:false,
+      dockEdge:"none",
+      dockTo:null,
+      layer:1,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:window.innerWidth/2-160,
+      top:window.innerHeight/2-170,
+      showing:false,
+      showHeader:true,
+      innerHTML:`
+      <div class="slider-row"><label for="layers">Layers:</label>
+        <input type="range" id="layers" min="1" max="16" value="1">
+        <input id="layersInput" type="number" value="1" min="1" max="16">
+      </input></div>
+      <div class="slider-row" title="Layer Display Height" id="chdiv">
+        <label class="h2">Layer height</label>
+        <input id="layerHeight" type="range" min="0" max="500" step="1" value="500">
+        <input id="layerHeightInput" type="number" value="500" min="0" max="500">
+      </div>
+      <div class="slider-row" title="Sync actions to all layers">
+        <label class="h2">Sync layers</label>
+        <input id="syncLayers" type="checkbox">
+      </div>
+      <div id="layersMixerDiv"></div>`
+  });
 })();
+function getLayerHeight(){
+  return parseInt(panels[5].obj.style.height);
+}
+/*
+brushSettings: 0
+brushes: 1
+specialFX: 2
+info: 3
+
+waveform: 4
+main-area: 5
+bottom-bar: 6
+
+sprites: 7
+midiExport: 8
+uploads: 9
+preferences: 10
+eq: 11
+layers: 12
+*/

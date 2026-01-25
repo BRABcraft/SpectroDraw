@@ -625,8 +625,7 @@ async function playFrame(frameX) {
   playing = true;
   pausedAtSample = null;
 }
-function updateNoiseProfile(){
-  const d = (currentPanel==="2");
+function updateNoiseProfile(d){
   const c = d?"s":"";
   const e = d?getSpriteById(selectedSpriteId).effect:null;
   document.getElementById(c+"setNoiseProfileMin").value = d?e.noiseProfileMin:noiseProfileMin;

@@ -1220,7 +1220,7 @@ function autoSetNoiseProfile() {
       noiseProfileMin = bestStart;
       noiseProfileMax = bestStart + bestLen;
       noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
-      updateNoiseProfile();
+      updateNoiseProfile(false);
       return;
     }
   }
@@ -1231,7 +1231,7 @@ function autoSetNoiseProfile() {
   noiseProfileMin = 0;
   noiseProfileMax = framesTotal;
   noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
-  updateNoiseProfile();
+  updateNoiseProfile(falses);
 }
 window.addEventListener("resize",()=>{
   minCol = 0; maxCol = framesTotal;
@@ -1259,12 +1259,6 @@ document.querySelectorAll('.toolSection').forEach(section => {
   }
   header.addEventListener('click', (e)=>{
     if (section.classList.contains('open')) close(); else open();
-  });
-  header.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      header.click();
-    }
   });
   const ro = new ResizeObserver(()=>{
     if (section.classList.contains('open')){

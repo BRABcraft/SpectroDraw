@@ -315,8 +315,8 @@ function makeCanvasMenu(cx0, cy0){
   phaseItem.innerHTML = `
     <div class="slider-row2">
       <label>Phase</label>
-      <input type="range" class="phase-slider" min="${-Math.PI}" max="${Math.PI}" step="0.001" style="flex:0 0 120px;margin-left:8px">
-      <input type="number" class="ctx-input" id="phase-num-input" step="0.001" min="${-Math.PI}" max="${Math.PI}" style="flex:0 0 70px;margin-left:8px" value="${phaseVal.toFixed(3)}">
+      <input type="range" class="phase-slider" min="${-Math.PI}" max="${Math.PI}" step="0.001" style="flex:0 0 80px;margin-left:2px">
+      <input type="number" class="ctx-input" id="phase-num-input" step="0.001" min="${-Math.PI}" max="${Math.PI}" style="flex:0 0 50px;margin-left:2px" value="${phaseVal.toFixed(3)}">
     </div>`;
 
   // re-query inputs after innerHTML replacement
@@ -651,6 +651,69 @@ function makeEQMenu(cx,cy){
 function makePopOutMenu(i){
   return buildMenu([{ label: '↗ Pop out', onClick: ()=>{document.getElementById(i+"popOut").click()} }]);
 }
+function makeKnobMenu(knob){
+  if (knob.type==="discrete")return null;
+  const menu = buildMenu([
+    { type:'input', label:'', value:0 },
+    { type:'input', label:'', value:0 },
+    { type:'input', label:'', value:0 },
+  ]);
+  const inputs = Array.from(menu.querySelectorAll('.ctx-input'));
+  const [minEl, maxEl, valEl] = [
+    inputs[0].closest('.ctx-item'),
+    inputs[1].closest('.ctx-item'),
+    inputs[2].closest('.ctx-item')
+  ];
+  minEl.innerHTML = `<div class="slider-row2">
+    <label>Set min</label>
+    <input type="number" id="${knob.id}MinInput" class="ctx-input" step="0.001" min="0" max="128" value="${knob.range[0]}" style="flex:0 0 70px;margin-left:auto">
+  </div>`;
+  maxEl.innerHTML = `<div class="slider-row2">
+    <label>Set max</label>
+    <input type="number" id="${knob.id}MaxInput" class="ctx-input" step="0.001" min="0" max="128" value="${knob.range[1]}" style="flex:0 0 70px;margin-left:auto">
+  </div>`;
+  valEl.innerHTML = `<div class="slider-row2">
+    <label>Set value</label>
+    <input type="number" id="${knob.id}ValInput" class="ctx-input" step="0.001" min="0" max="128" value="${knob.value}" style="flex:0 0 70px;margin-left:auto">
+  </div>`;
+  const minInputEl = menu.querySelector(`#${knob.id}MinInput`);
+  const maxInputEl = menu.querySelector(`#${knob.id}MaxInput`);
+  const valInputEl = menu.querySelector(`#${knob.id}ValInput`);
+  minInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      let val = parseFloat(minInputEl.value);
+      if (isNaN(val)) return;
+      if (val < 0) val = 0;
+      if (val > maxInputEl.value) val = knob.range[0];
+      minInputEl.value = val;
+      knob.range[0]=val;
+      knob._buildLabels();
+    }
+  });
+  maxInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      let val = parseFloat(maxInputEl.value);
+      if (isNaN(val)) return;
+      if (val < 0) val = 0;
+      if (val < minInputEl.value) val = knob.range[1];
+      maxInputEl.value = val;
+      knob.range[1]=val;
+      knob._buildLabels();
+    }
+  });
+  valInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      let val = parseFloat(valInputEl.value);
+      if (isNaN(val)) return;
+      if (val < minInputEl.value) val = minInputEl.value;
+      if (val > maxInputEl.value) val = maxInputEl.value;
+      valInputEl.value = val;
+      knob.setValue(val);
+      knob.render();
+    }
+  });
+  return menu;
+}
 
 function makeFadeMenu(cx,cy){
   const h = fadeCanvas.height;
@@ -666,7 +729,9 @@ function makeFadeMenu(cx,cy){
 function preventAndOpen(e, menuFactory){
   e.preventDefault();
   e.stopPropagation();
-  openMenuAt(menuFactory(), e.clientX, e.clientY);
+  const menu = menuFactory();
+  if (!menu) return;
+  openMenuAt(menu, e.clientX, e.clientY);
 }
 
 // attach plain contextmenu to logscaleEl too:
@@ -709,7 +774,16 @@ document.getElementById("waveformWindow").addEventListener("contextmenu",(e)=>{
   e.preventDefault();
   preventAndOpen(e, ()=> makePopOutMenu("waveformWindow"));
 });
-document.getElementById("bottom-bar").addEventListener("contextmenu",(e)=>{
+document.querySelectorAll(".knob").forEach(knob => {
+  knob.addEventListener("contextmenu", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const knobObj = Knob.fromElement(knob);
+    if (!knobObj) return;
+    preventAndOpen(e, ()=> makeKnobMenu(knobObj));
+  });
+});
+document.getElementById("bottom-bar").addEventListener("contextmenu", e => {
   e.preventDefault();
   preventAndOpen(e, ()=> makePopOutMenu("bottom-bar"));
 });

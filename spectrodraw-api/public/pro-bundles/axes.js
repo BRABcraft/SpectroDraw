@@ -174,7 +174,7 @@ function timelineMousemove(e,touch) {
   drawTimeline();
   drawYAxis();
   drawLogScale();
-  drawCursor(false);
+  drawCursor(true);
 }
 window.addEventListener("mousemove", e => {
     timelineMousemove(e,false);
@@ -378,7 +378,7 @@ function yAxisMousemove(e,touch) {
   drawTimeline();
   drawYAxis();
   drawLogScale();
-  drawCursor(true);
+  // drawCursor(true);
 }
 window.addEventListener("mousemove", e => {yAxisMousemove(e,false);});
 window.addEventListener("touchmove", e => {yAxisMousemove(e,true);});

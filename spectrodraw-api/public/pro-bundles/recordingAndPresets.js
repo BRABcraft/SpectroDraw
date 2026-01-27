@@ -22,10 +22,10 @@ async function initEmptyPCM(doReset) {
       }
       layers[ch] = {
         pcm: newPCM,
-        mags: [],
-        phases: [],
-        snapshotMags: [],
-        snapshotPhases: [],
+        mags: new Float32Array(Math.floor(length/hop*specHeight)),
+        phases: new Float32Array(Math.floor(length/hop*specHeight)),
+        snapshotMags: new Float32Array(Math.floor(length/hop*specHeight)),
+        snapshotPhases: new Float32Array(Math.floor(length/hop*specHeight)),
         enabled: true,
         volume: 1,
         brushPressure: 1,
@@ -216,10 +216,10 @@ async function startRecording() {
   layerCount++;
   sliders[19][0].value = sliders[19][1].value = layerCount;
   updateLayers();
-  currentLayer = layerCount-1;
-  let ch = currentLayer;
   await waitFor(() => x>=maxCol && !updatingLayer);
   recording = true;
+  currentLayer = layerCount-1;
+  let ch = currentLayer;
 
   ensureAudioCtx();
   fHigh = sampleRate/2;
@@ -312,28 +312,17 @@ function stopRecording() {
   workletNode = null;
   silentGain.disconnect();
   silentGain = null;
-  let ch = currentLayer;
+  let l = currentLayer;
 
-  if (layers[ch].pcm.length>emptyAudioLength*sampleRate) {
-    emptyAudioLength = Math.floor(layers[ch].pcm.length/sampleRate);
-    for (let c=0;c<layerCount;c++){
-      if (c==ch) continue;
-      const addon = new Float32Array(layers[ch].pcm.length-layers[c].pcm.length);
-      for (let i = 0; i < addon.length; i++) {
-        addon[i] = (Math.random() * 2 - 1) * 0.0001;
-      }
-      layers[c].pcm = Float32Array.from([...layers[c].pcm, ...addon]);
-    }
-  } else {
-    const addon = new Float32Array(Math.floor(emptyAudioLength*sampleRate)-layers[ch].pcm.length);
-    for (let i = 0; i < addon.length; i++) {
-      addon[i] = (Math.random() * 2 - 1) * 0.0001;
-    }
-    layers[ch].pcm = Float32Array.from([...layers[ch].pcm, ...addon]);
-  }
+  uploads.push({name:"New recording", pcm:layers[l].pcm, samplePos: 0, sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid:crypto.randomUUID()});
+  if (document.getElementById("audioSamplesSection").getAttribute("aria-expanded")==="false") document.getElementById("audioSamplesToggle").click();
+  layers.pop();
+  layerCount--;
+  layerHeight = (getLayerHeight())/layerCount;
+  updateLayerHeightInputs();
+  document.getElementById("canvasWrapper-"+layerCount).remove();
   renderUploads();
-  
-  //restartRender(false);
+  restartRender(false);
 }
 
 

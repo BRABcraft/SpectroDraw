@@ -90,7 +90,6 @@ const sWidthI = document.getElementById("sWidthInput");
 const sHeight = document.getElementById("sHeight");
 const sHeightI = document.getElementById("sHeightInput");
 
-const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
 const defaultFadePoints = [
   { x: 0.0, y: 1.0, mx: 120, my: 0, tLen: 120 },
@@ -189,6 +188,7 @@ let changingNoiseProfile = false, hasSetNoiseProfile = false, noiseProfileMin = 
 let editingExpression = null;
 let dontChangeSprites = false;
 let uploadingSprite = false;
+let historyStack = [], historyIndex = 0;
 
 let handlers = {
   "canvas-": (el) => {
@@ -219,7 +219,7 @@ let handlers = {
   "logscale-": (el) => {
     el.addEventListener("mousedown", e=> {logScaleMouseDown(e,false,el);});
     el.addEventListener("touchstart", e=> {logScaleMouseDown(e,true,el);});
-    el.addEventListener("mousemove", e=> {currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);el.title = "Log scale: " + logScaleVal[currentLayer];});
+    el.addEventListener("mousemove", e=> {if (recording) return; currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);el.title = "Log scale: " + logScaleVal[currentLayer];});
     el.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
   }
 }
@@ -385,6 +385,7 @@ class Knob {
     Knob.instances.push(this);
   }
   getRange(){return this.range;}
+  updateTitle(){this.el.title = this.name + ": " + this.value;}
 
   // pointer handlers
   _onEQPointerDown(e) {
@@ -403,6 +404,9 @@ class Knob {
     } else {
       this.startV = this.value;
     }
+    historyStack = historyStack.slice(0, historyIndex+1);
+    historyIndex = historyStack.length;
+    historyStack.push({type:"knob",command:(knob,value)=>knob.setValue(value),knob:this,undoValue:this.value,redoValue:null});
   }
 
   _onPointerMove(e) {
@@ -450,6 +454,7 @@ class Knob {
   }
 
   _onPointerUp(e) {
+    if (this.dragging) historyStack[historyIndex].redoValue = this.value;
     this.dragging = false;
   }
 
@@ -469,6 +474,7 @@ class Knob {
 
   // render - for discrete, base on index; for continuous, base on numeric value
   render() {
+    this.updateTitle();
     if (!Array.isArray(this.range) || this.range.length < 2) return;
 
     const min = Math.min(...this.range);
@@ -552,7 +558,7 @@ class Knob {
       this.el.classList.remove("disabled");
     }
   }
-  setValue(v) { this.value = v; this.render(); this.onInput(this);}
+  setValue(v,doOnInput=true) { this.value = v; this.render(); if(doOnInput)this.onInput(this);this.updateTitle();}
   getValue() { return this.value; }
 }
 const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
@@ -579,7 +585,7 @@ const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
   }
 });
 const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
-  name:'fftSize',
+  name:'FFT Size',
   type: 'discrete',
   range: [64,128,256,512,1024,2048,4096,8192,16384],
   value: fftSize,
@@ -587,6 +593,7 @@ const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
     fftSize = knob.value;
     restartRender(false);
     buildBinDisplayLookup();
+    if (hopSizeKnob.range[1]<fftSize){hopSizeKnob.range[1]=fftSize; hopSizeKnob._buildLabels(); hopSizeKnob.render();}
     if (lockHop) {hopSizeKnob.setValue(fftSizeKnob.getValue());}
   }
 });
@@ -595,4 +602,13 @@ const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
   type: 'continuous',
   range: [0,1],
   value: 1,
+});
+const phaseDisplayKnob = new Knob(document.getElementById('phaseDisplay'), {
+  name:'Phase Display',
+  type: 'continuous',
+  range: [0,1],
+  value: 1,
+  onInput: (knob)=>{
+    renderFullSpectrogramToImage();
+  }
 });

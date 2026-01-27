@@ -205,6 +205,9 @@ function magPhaseToRGB(mag, phase){
   else if(hp < 4){ r=0; g=x; b=v; }
   else if(hp < 5){ r=x; g=0; b=v; }
   else           { r=v; g=0; b=x; }
+  const s = phaseDisplayKnob.getValue();
+  const c = r => {return ((mag/60)*(1-s) + r*s);};
+  r = c(r); g=c(g); b=c(b);
   return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
 }
 

@@ -41,8 +41,9 @@ function frameToCx(frame) {
   return ((frame-iLow)/(iWidth/specWidth)*1);
 }
 function handleMoveSprite(cx,cy) {
-  let dx = cx-startX, dy=startY-cy;
-  moveSprite(selectedSpriteId, Math.round(dx), Math.round(dy));
+  let dx = Math.round(cx-startX), dy=Math.round(startY-cy);
+  moveSprite(selectedSpriteId, dx, dy);
+  newGlobalXYHistory("redo");
 }
 function newSprite(opts={}){
   let count = 1;
@@ -69,6 +70,9 @@ function newSprite(opts={}){
     ch: syncLayers?"all":currentLayer
   };
   sprites.push(currentSprite);
+  historyStack = historyStack.slice(0, historyIndex+1);
+  historyIndex = historyStack.length;
+  historyStack.push({type:"toggleSprite"});
 }
 let sx2 = 0, sy2 = 0;
 
@@ -77,7 +81,7 @@ let prevMouseX =null, prevMouseY = null;
 function canvasMouseDown(e,touch) {
   if (!touch) zooming=false;
   if (!touch && e.button !== 0) return;
-  if (pendingHistory) return;
+  //if (pendingHistory) return;
   if (!hasSetNoiseProfile) autoSetNoiseProfile();
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   prevMouseX = cx; prevMouseY = cy; vr = 1;
@@ -97,6 +101,7 @@ function canvasMouseDown(e,touch) {
     return;
   }
   if (movingSprite) {
+    newGlobalXYHistory("undo");
     spritePath = generateSpriteOutlinePath(getSpriteById(selectedSpriteId), { height: specHeight });
     return;
   }
@@ -176,6 +181,7 @@ function setClonerYShift(){
 let previewingShape = false;
 let mouseVelocity = 0;
 function canvasMouseMove(e,touch,el) {
+  if (recording) return;
   currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   let mags = layers[currentLayer].mags; //change to layer that mouse is touching
@@ -368,7 +374,8 @@ function autoRecomputePCM(min,max) {
   return {minCol,maxCol};
 }
 
-function newHistory() {
+function newHistory() {if (!currentSprite) return;
+  pendingHistory = false;
   //console.log(layers[0].snapshotMags);
   if (dontChangeSprites) {dontChangeSprites=false; return;}
   let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
@@ -410,6 +417,8 @@ let sourceStartTime = 0;
 let wasPlayingDuringDrag = false;
 
 initEmptyPCM(false);
+historyStack.push({type:"init",command:initEmptyPCM(true)});
+historyIndex = 1;
 
 function updateCursorLoop() {
   const specCanvas = document.getElementById("spec-"+currentLayer);
@@ -549,7 +558,7 @@ async function playPCM(loop = true, startFrame = null) {
   } catch (e) {
     try { sourceNode.connect(audioCtx.destination); } catch (e2) { console.warn("connect fallback failed", e2); }
   }
-
+  
   const offsetSec = startSample / sampleRate;
   sourceStartTime = audioCtx.currentTime - offsetSec;
   sourceNode.start(0, offsetSec);
@@ -625,9 +634,9 @@ async function playFrame(frameX) {
   playing = true;
   pausedAtSample = null;
 }
-function updateNoiseProfile(d){
+function updateNoiseProfile(d,sid=selectedSpriteId){
   const c = d?"s":"";
-  const e = d?getSpriteById(selectedSpriteId).effect:null;
+  const e = d?getSpriteById(sid).effect:null;
   document.getElementById(c+"setNoiseProfileMin").value = d?e.noiseProfileMin:noiseProfileMin;
   document.getElementById(c+"setNoiseProfileMax").value = d?e.noiseProfileMax:noiseProfileMax;
 }

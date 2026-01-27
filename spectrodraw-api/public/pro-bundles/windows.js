@@ -527,8 +527,8 @@ let panels = [];
             for (let p of edgePanel) {
               if (edgePanel.length===1 && p.size<edge.length) clampToLength(edge,p);
               if (p.size > edge.length) clampToLength(edge,p);
-              //const pn = panels[p.panelIndex];
-              //if (pn.left>total+edge.left) {setX(pn, total+edge.left);console.log(pn.left,total);}
+              const pn = panels[p.panelIndex];
+              if (pn.left>total+edge.left) {setX(pn, total+edge.left);}
               total += p.size;
             }
             if (total === 0) continue;
@@ -574,282 +574,7 @@ function setDocked(panel, dockObj){
       }
       const totalAvailable = dock.length;
       let sumSizes = sizes.reduce((s, v) => s + v, 0);
-      let diff = function combineAndDraw(startSample, endSample) {
-  let avg;
-  let maxLen = layers[0].pcm.length;
-  if (layers.length > 1) {
-    const sum = new Float32Array(maxLen);
-    const count = new Uint16Array(maxLen);
-    for (let ch = 0; ch < layerCount; ch++) {
-      const layer = layers[ch];
-      if (!layer || !layer.pcm) continue;
-      const p = layer.pcm;
-      const L = p.length;
-      for (let i = 0; i < L; i++) {
-        const v = p[i];
-        if (!isFinite(v)) continue;
-        sum[i] += v;
-        count[i] += 1;
-      }
-    }
-    avg = new Float32Array(maxLen);
-    for (let i = 0; i < maxLen; i++) {
-      if (count[i] > 0) {
-        avg[i] = sum[i] / count[i];
-      } else {
-        avg[i] = 0;
-      }
-    }
-  } else {
-    avg = layers[0].pcm;
-  }
-  if (typeof startSample === 'undefined' || startSample === null) startSample = 0;
-  if (typeof endSample === 'undefined' || endSample === null) endSample = maxLen;
-  startSample = Math.max(0, Math.floor(startSample));
-  endSample = Math.min(maxLen, Math.ceil(endSample));
-  if (endSample <= startSample) {
-    startSample = 0;
-    endSample = maxLen;
-  }
-  const WIDTH = 1000;
-  const HEIGHT = 35;
-  const canvas = document.getElementById('waveform');
-  if (!canvas || !canvas.getContext) return;
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, WIDTH, HEIGHT);
-  const halfH = HEIGHT / 2;
-  const scale = halfH / 1.5;
-  const sampleRange = Math.max(1, endSample - startSample);
-  const samplesPerPixel = sampleRange / WIDTH;
-    ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#00aaff';
-  const sampleCount = endSample - startSample;
-  if (sampleCount < WIDTH*12) {
-    ctx.beginPath();
-    for (let i = 0; i < sampleCount; i++) {
-      const x = (i / (sampleCount - 1 || 1)) * WIDTH;
-      const v = avg[startSample + i] || 0;
-      const y = halfH - v * scale;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    return;
-  }
-  ctx.beginPath();
-  for (let x = 0; x < WIDTH; x++) {
-    const start = Math.floor(startSample + x * samplesPerPixel);
-    const end = Math.min(endSample, Math.floor(startSample + (x + 1) * samplesPerPixel));
-    let min = Infinity, max = -Infinity;
-    if (end <= start) {
-      const v = avg[start] || 0;
-      min = max = v;
-    } else {
-      for (let i = start; i < end; i++) {
-        const v = avg[i] || 0;
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-    }
-    const y1 = halfH - max * scale;
-    const y2 = halfH - min * scale;
-    ctx.moveTo(x + 0.5, y1);
-    ctx.lineTo(x + 0.5, y2);
-  }
-  ctx.stroke();
-}
-function recomputePCMForCols(colStart, colEnd) {
-  colStart = Math.max(0, Math.floor(colStart));
-  colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
-  if (colEnd < colStart) return;
-  const marginCols = Math.ceil(fftSize / hop) + 2;
-  const colFirst = Math.max(0, colStart - marginCols);
-  const colLast  = Math.min(specWidth - 1, colEnd + marginCols);
-  const h = specHeight;
-  const window = win;
-  const re = new Float32Array(fftSize);
-  const im = new Float32Array(fftSize);
-  const EPS = 1e-8;
-  const fadeCap = Infinity;
-  for (let ch = 0; ch < layerCount; ch++) {
-    const layer = layers[ch];
-    if (!layer) continue;
-    const pcm = layer.pcm || new Float32Array(0);
-    const sampleStart = Math.max(0, colFirst * hop);
-    const sampleEnd   = Math.min(pcm.length, (colLast * hop) + fftSize);
-    const segmentLen  = sampleEnd - sampleStart;
-    if (segmentLen <= 0) continue;
-    const newSegment = new Float32Array(segmentLen);
-    const overlapCount = new Float32Array(segmentLen);
-    for (let xCol = colFirst; xCol <= colLast; xCol++) {
-      re.fill(0);
-      im.fill(0);
-      const mags = layer.mags;
-      const phases = layer.phases;
-      for (let bin = 0; bin < h && bin < fftSize; bin++) {
-        const idx = xCol * h + bin;
-        const mag = mags[idx];
-        const phase = phases[idx];
-        re[bin] = mag * Math.cos(phase);
-        im[bin] = mag * Math.sin(phase);
-        if (bin > 0 && bin < fftSize / 2) {
-          const sym = fftSize - bin;
-          re[sym] = re[bin];
-          im[sym] = -im[bin];
-        }
-      }
-      im[0] = 0;
-      if (fftSize % 2 === 0) im[fftSize / 2] = 0;
-      ifft_inplace(re, im);
-      const baseSample = xCol * hop;
-      for (let i = 0; i < fftSize; i++) {
-        const globalSample = baseSample + i;
-        if (globalSample < sampleStart || globalSample >= sampleEnd) continue;
-        const segIndex = globalSample - sampleStart;
-        newSegment[segIndex] += re[i] * window[i];
-        overlapCount[segIndex] += window[i] * window[i];
-      }
-    } 
-    for (let i = 0; i < segmentLen; i++) {
-      if (overlapCount[i] > EPS) newSegment[i] /= overlapCount[i];
-      else newSegment[i] = 0;
-    }
-    const oldSegment = pcm.slice(sampleStart, sampleEnd); 
-    const fadeLen = Math.min(Math.max(1, hop), fadeCap, segmentLen);
-    for (let i = 0; i < fadeLen; i++) {
-      const t = i / fadeLen;
-      newSegment[i] = newSegment[i] * t + oldSegment[i] * (1 - t);
-      const j = segmentLen - 1 - i;
-      if (j >= 0 && j < segmentLen) {
-        const oldIdx = oldSegment.length - 1 - i;
-        newSegment[j] = newSegment[j] * t + oldSegment[oldIdx] * (1 - t);
-      }
-    }
-    layer.pcm.set(newSegment, sampleStart);
-  }
-  if (layers && layers[0] && layers[0].pcm) {
-    const startSample = Math.max(0, Math.floor(iLow * hop));
-    const endSample = Math.min(layers[0].pcm.length, Math.ceil(iHigh * hop));
-    combineAndDraw(startSample, endSample);
-  } else {
-    combineAndDraw(); 
-  }
-  if (playing) {
-    stopSource(true);
-    playPCM(true);
-  }
-}
-function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
-  let mags = layers[ch].mags, phases = layers[ch].phases;
-  const specCanvas = document.getElementById("spec-"+ch);
-  const specCtx = specCanvas.getContext("2d");
-  colStart = Math.min(Math.max(0, Math.floor(colStart)),specWidth);
-  colEnd = Math.min(specWidth - 1, Math.max(0,Math.floor(colEnd)));
-  if (!imageBuffer[ch] || !specCtx) return;
-  const h = specHeight;
-  const w = specWidth;
-  for (let xx = colStart; xx <= colEnd; xx++) {
-    for (let yy = 0; yy < h; yy++) {
-      const bin = displayYToBin(yy, h, ch);
-      const idx = xx * h + bin;
-      const mag = mags[idx] || 0;
-      const phase = phases[idx] || 0;
-      const [r,g,b] = magPhaseToRGB(mag, phase);
-      const pix = (yy * w + xx) * 4;
-      imageBuffer[ch].data[pix] = r;
-      imageBuffer[ch].data[pix+1] = g;
-      imageBuffer[ch].data[pix+2] = b;
-      imageBuffer[ch].data[pix+3] = 255;
-    }
-  }
-  specCtx.putImageData(imageBuffer[ch], 0, 0, colStart, 0, (colEnd-colStart+1), specHeight);
-  renderView();
-  drawCursor();
-}
-document.addEventListener('keydown', (ev) => {
-  if (editingExpression !== null) return; 
-  const key = ev.key.toLowerCase();
-  if ((ev.ctrlKey || ev.metaKey) && key === 'z') {
-    ev.preventDefault();
-    if (ev.shiftKey) doRedo();    
-    else doUndo();                
-  } else if ((ev.ctrlKey || ev.metaKey) && key === 'y') {
-    ev.preventDefault();
-    doRedo();                     
-  }
-});
-document.getElementById('undoBtn').addEventListener('click', () => {
-  doUndo();
-});
-document.getElementById('redoBtn').addEventListener('click', () => {
-  doRedo();
-});
-function doUndo() {
-  if (rendering) return;
-  let idx = -1;
-  for (let i = sprites.length - 1; i >= 0; i--) {
-    if (sprites[i].enabled) { idx = i; break; }
-  }
-  if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
-  const sprite = sprites[idx];
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
-  for (let ch=$s;ch<$e;ch++){
-    let mags = layers[ch].mags, phases = layers[ch].phases;
-    console.log("Undoing sprite:", sprite);
-    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
-      const id = x * specHeight + y;
-      mags[id] = prevMag;
-      phases[id] = prevPhase;
-    });
-    sprite.enabled = false;
-    renderSpritesTable();
-    console.log(sprite);
-    const minCol = Math.max(0, sprite.minCol);
-    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
-  }
-  autoRecomputePCM(-1,-1);
-  if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
-  spriteRedoQueue.push(sprite);
-  if (playing) {
-    stopSource(true);
-    playPCM(true);
-  }
-}
-function doRedo() {
-  if (rendering) return;
-  let idx = -1;
-  for (let i = 0; i < sprites.length; i++) {
-    if (!sprites[i].enabled) { idx = i; break; }
-  }
-  if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
-  const sprite = sprites[idx];
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
-  for (let ch=$s;ch<$e;ch++){
-    let mags = layers[ch].mags, phases = layers[ch].phases;
-    forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
-      const id = x * specHeight + y;
-      mags[id] = nextMag;
-      phases[id] = nextPhase;
-    });
-    sprite.enabled = true;
-    renderSpritesTable();
-    const minCol = Math.max(0, sprite.minCol);
-    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
-  }
-  autoRecomputePCM(-1,-1);
-  const rqidx = spriteRedoQueue.indexOf(sprite);
-  if (rqidx !== -1) spriteRedoQueue.splice(rqidx, 1);
-  if (playing) {
-    stopSource(true);
-    playPCM(true);
-  }
-}totalAvailable - sumSizes; 
+      let diff = totalAvailable - sumSizes; 
       const flexibleIdx = [];
       for (let i = 0; i < layerPanels.length; i++) {
         if (!isClamped[i]) flexibleIdx.push(i);
@@ -1052,10 +777,65 @@ function doRedo() {
     minimizeEl.addEventListener("click",minimize);
     closeEl.addEventListener("click",()=>{toggleWindow();});
     if (toggleButton) toggleButton.addEventListener("click",()=>{toggleWindow();});
-    window.addEventListener("resize",()=>{
+    window.addEventListener("resize", () => {
       recomputeEdgeBounds();
       for (let d of edgeDocks) if (d.panels[0].length) layoutDock(d);
+      
+      const id = getPanelId(panelObj);
+      const panel = panels[id];
+      const dock = panel.dockTo; if (!dock) return;
+      let found = null;
+      for (let l=0;l<dock.panels.length;l++) for (let p=0;p<dock.panels[l].length;p++) if (dock.panels[l][p].panelIndex===11) found=[l,p];
+      if (!found) return;
+      const layer = dock.panels[found[0]];
+      if (layer.length<2) return;
+      const aIdx = (found[1]>0)?found[1]-1:found[1];
+      const bIdx = aIdx+1;
+      const aStart = layer[aIdx].size;
+      const bStart = layer[bIdx].size;
+
+      const MAX_11 = 200;
+      const minSz = 120;
+      const ap = dock.panels[0][aIdx];
+      const bp = dock.panels[0][bIdx];
+      const totalStart = (aStart || 0) + (bStart || 0);
+      const delta = 5;
+      let newA = (aStart || 0) + delta;
+      let newB = totalStart - newA;
+      const apIs11 = ap && ap.panelIndex === 11;
+      const bpIs11 = bp && bp.panelIndex === 11;
+      const maxA = apIs11 ? MAX_11 : Infinity;
+      const maxB = bpIs11 ? MAX_11 : Infinity;
+      function clampPreserveTotal(a, b) {
+        a = Math.max(minSz, Math.min(maxA, a));
+        b = totalStart - a;
+        if (b < minSz) {
+          b = minSz;
+          a = totalStart - b;
+          a = Math.max(minSz, Math.min(maxA, a));
+          b = totalStart - a;
+        } else if (b > maxB) {
+          b = maxB;
+          a = totalStart - b;
+          a = Math.max(minSz, Math.min(maxA, a));
+          b = totalStart - a;
+        }
+        a = Math.max(minSz, Math.min(maxA, a));
+        b = Math.max(minSz, Math.min(maxB, b));
+        return [a, b];
+      }
+      [newA, newB] = clampPreserveTotal(newA, newB);
+      ap.size = newA;
+      bp.size = newB;
+      layoutDock(dock);
+      recomputeEdgeBounds();
+      for (let d of edgeDocks) if (d.panels[0].length) layoutDock(d);
+      document.body.style.cursor = "ew-resize";
+      highlightEdgeDock(detectEdgeDocks(panel));
+      return;
+
     });
+
     // if (opts.docked && opts.dockTo) {
     //   const id = panels.indexOf(opts);
     //   if (id !== -1) {
@@ -1585,18 +1365,54 @@ function doRedo() {
       showing:true,
       showHeader:false,
       innerHTML:`<div style="display:flex;flex-direction:row;height:100%;gap:5px;padding-left:5px;">
-    <div class="knob-wrapper">
-      <div class="knob" id="fftSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    <div style="width:200px;">
+      <table id="globalXYTools">
+        <thead>
+          <div style="display:flex;flex-direction:row;">
+            <input type="checkbox" id="globalUseMagsCheckbox" title="Affect magnitudes" checked></input>
+            <label for="globalUseMagsCheckbox">Mags</label>
+            <input type="checkbox" id="globalUsePhasesCheckbox" title="Affect phases" checked></input>
+            <label for="globalUsePhasesCheckbox">Phases</label>
+          </div>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div style="cursor:default;">X:</div></td>
+            <td><div id="x-stretch" title="X stretch">↔</div></td>
+            <td><div id="x-x2" title="2x slower">x2</div></td>
+            <td><div id="x-/2" title="2x faster">/2</div></td>
+            <td><div id="x-flip" title="Reverse time">Flip</div></td>
+            <td><div id="x-translate" title="X translate">⇆</div></td>
+            <td><div id="x-quantize" title="X Quantize" style="display: flex; align-items: center; justify-content: center;">
+              <svg width="13" height="13" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1"  y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="6"  y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="11" y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="16" y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+              </svg>
+            </div></td>
+          </tr>
+          <tr>
+            <td><div style="cursor:default;">Y:</div></td>
+            <td><div id="y-stretch" title="Y stretch">↕</div></td>
+            <td><div id="y-x2" title="Space pitches out 2x">x2</div></td>
+            <td><div id="y-/2" title="Compress pitches by 2x">/2</div></td>
+            <td><div id="y-flip" title="Reverse pitch">Flip</div></td>
+            <td><div id="y-translate" title="Y translate">⇅</div></td>
+            <td><div id="y-quantize" title="Y Quantize" style="display: flex; align-items: center; justify-content: center;">
+              <svg width="13" height="13" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1"  y="1" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="1"  y="6" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="1" y="11" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="1" y="16" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+              </svg>
+            </div></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <button id="lockHopBtn" class="lock-btn" aria-pressed="true"
-      title="Lock time resolution to prevent phase interference" style="background:none;border:none;margin:0;"
-      onclick="toggleLockHop();">
-    </button>
     <div class="knob-wrapper">
-      <div class="knob" id="hopSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
-    </div>
-    <div class="knob-wrapper">
-      <div class="knob" id="masterVolume" data-knob="true" aria-hidden="true">${knobSVG}</div>
+      <div class="knob" id="phaseDisplay" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
     <div class="knob-wrapper">
       <button id="playPause" title="Play (space)" style="background:linear-gradient(180deg,#2b2b2b,#161616);border:0;border-radius:50%;width:75px;height:75px;" onClick="this.blur();">
@@ -1608,7 +1424,20 @@ function doRedo() {
       </button>
     </div>
     <div class="knob-wrapper">
+      <div class="knob" id="masterVolume" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <div class="knob-wrapper">
       <div class="knob" id="emptyAudioLength" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <div class="knob-wrapper">
+      <div class="knob" id="fftSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <button id="lockHopBtn" class="lock-btn" aria-pressed="true"
+      title="Lock time resolution to prevent phase interference" style="background:none;border:none;margin:0;"
+      onclick="toggleLockHop();">
+    </button>
+    <div class="knob-wrapper">
+      <div class="knob" id="hopSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
   </div>`,
   });

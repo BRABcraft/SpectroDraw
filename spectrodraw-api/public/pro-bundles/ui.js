@@ -177,38 +177,13 @@ function angleDiff(a, b) {
   const d = a - b;
   return Math.atan2(Math.sin(d), Math.cos(d));
 }
-function pushHistory(entry, clearRedo = true) {
-  while (historyStack.length >= MAX_HISTORY_ENTRIES) historyStack.shift();
-  historyStack.push(entry);
-  if (clearRedo) redoStack.length = 0;
-}
 
 panelButtons.forEach(btn => {
   if(btn.dataset.tool === currentPanel) {
     btn.style.background = "#4af"; 
   }
 });
-// panelButtons.forEach(btn => {
-//   btn.addEventListener("click", () => {
-//     currentPanel = btn.dataset.tool;
-//     if (movingSprite)document.getElementById('moveSpriteBtn').click();
-//     // Reset all button backgrounds
-//     panelButtons.forEach(b => b.style.background = "");
-//     btn.style.background = "#4af";
 
-//     // Hide all panels and show only the current one
-//     let i = 0;
-//     while (true) {
-//       const panel = document.getElementById("d" + i);
-//       if (!panel) break; // stop when no more panels
-//       panel.style.display = (i == currentPanel) ? "block" : "none";
-//       i++;
-//     }
-//     if (currentPanel == "2") renderSpritesTable();
-//     if (currentPanel == "5") drawEQ();
-//     if (currentPanel == "3") renderUploads();
-//   });
-// });
 
 toolButtons.forEach(btn => {
   if(btn.dataset.tool === currentTool) {
@@ -1291,3 +1266,525 @@ document.querySelectorAll(".wToggle").forEach(b =>{
     el.innerText=(el.innerText==="✓")?" ":"✓";
   });
 });
+function globalXStretch(xFactor) {
+  const sign = xFactor>0;
+  xFactor = Math.abs(xFactor);
+  const useMags = document.getElementById("globalUseMagsCheckbox").checked;
+  const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
+  if (!useMags && !usePhases) return;
+  bufferLengthKnob.setValue(bufferLengthKnob.getValue()*xFactor,false);
+  emptyAudioLength = bufferLengthKnob.getValue();
+
+  // compute old/new frame counts once
+  const oldFrames = framesTotal;
+  const newFrameLength = Math.floor(emptyAudioLength*sampleRate/hop);
+
+  for (let l=0;l<layerCount;l++){
+    // remap mags/phases (time-stretch)
+    const newArrLen = newFrameLength*specHeight;
+    let newMags;
+    if (!useMags) {
+      newMags = new Float32Array(newArrLen).fill(0);
+      if (newArrLen>layers[l].mags.length)newMags.set(layers[l].mags,0);
+    } else {
+      newMags = new Float32Array(newArrLen);
+    }
+    let newPhases;
+    if (!usePhases) {
+      newPhases = Float32Array.from({ length: newArrLen }, () => { return Math.random()*Math.PI*2;});
+      if (newArrLen>layers[l].phases.length)newPhases.set(layers[l].phases,0);
+    } else {
+      newPhases = new Float32Array(newArrLen);
+    }
+    for(let f=0;f<newFrameLength;f++){
+      const oldF = Math.floor((sign?f:newFrameLength-f-1)*oldFrames/newFrameLength);
+      const setP = oldF*specHeight;
+      const magsF = useMags?layers[l].mags.slice(setP,setP+specHeight):null;
+      const phasesF = usePhases?layers[l].phases.slice(setP,setP+specHeight):null;
+      if (useMags) newMags.set(magsF,f*specHeight);
+      if (usePhases) newPhases.set(phasesF,f*specHeight);
+    }
+    layers[l].mags = new Float32Array(newMags);
+    layers[l].phases = new Float32Array(newPhases);
+    layers[l].pcm = new Float32Array(emptyAudioLength*sampleRate);
+  }
+  for (const sprite of sprites) {
+    if (!sprite.pixels) continue;
+    let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
+    for (let l=$s;l<$e;l++){
+      const oldMap = sprite.pixels[l];
+      if (!oldMap) continue;
+      const newMap = new Map();
+      // iterate old columns
+      oldMap.forEach((col, x) => {
+        let newX = Math.floor(x * newFrameLength / Math.max(1, oldFrames));
+        if (!sign) newX = newFrameLength-newX;
+        if (newX < 0) return;
+        const existing = newMap.get(newX);
+        if (!existing) {
+          // clone arrays so we don't alias the old object
+          newMap.set(newX, {
+            ys: col.ys.slice(),
+            prevMags: col.prevMags.slice(),
+            prevPhases: col.prevPhases.slice(),
+            nextMags: col.nextMags.slice(),
+            nextPhases: col.nextPhases.slice()
+          });
+        } else {
+          // merge rows: overwrite if same y, otherwise push
+          for (let i=0;i<col.ys.length;i++){
+            const y = col.ys[i];
+            const idx = existing.ys.indexOf(y);
+            if (idx >= 0) {
+              existing.prevMags[idx] = col.prevMags[i];
+              existing.prevPhases[idx] = col.prevPhases[i];
+              existing.nextMags[idx] = useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY];
+              existing.nextPhases[idx] = usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY];
+            } else {
+              existing.ys.push(y);
+              existing.prevMags.push(col.prevMags[i]);
+              existing.prevPhases.push(col.prevPhases[i]);
+              existing.nextMags.push(useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY]);
+              existing.nextPhases.push(usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY]);
+            }
+          }
+        }
+      });
+      sprite.pixels[l] = newMap;
+      sprite.minCol = Infinity; sprite.maxCol = -Infinity;
+      for (const k of newMap.keys()) {
+        if (k < sprite.minCol) sprite.minCol = k;
+        if (k > sprite.maxCol) sprite.maxCol = k;
+      }
+      if (!isFinite(sprite.minCol)) { sprite.minCol = 0; sprite.maxCol = 0; }
+    }
+  }
+
+  // finalize frame counts and re-render
+  framesTotal = specWidth = newFrameLength;
+  simpleRestartRender(0,framesTotal);
+  restartRender(false);
+}
+function globalYStretch(yFactor) {
+  const useMags = document.getElementById("globalUseMagsCheckbox").checked;
+  const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
+  if (!useMags && !usePhases) return;
+  for (let l=0;l<layerCount;l++){
+    const newMags = useMags?new Float32Array(layers[l].mags):null;
+    const newPhases = usePhases?new Float32Array(layers[l].phases):null;
+    const f = sampleRate / fftSize, $s = sampleRate/2, $l = logScaleVal[ch];
+    for (let b=0;b<specHeight;b++){
+      const newBin = Math.max(Math.min(Math.floor(invlsc(((lsc(b*f,$s,$l)/f-(specHeight/2))/yFactor+(specHeight/2))*f,$s,$l)/f),specHeight),0);
+      for(let f=0;f<framesTotal;f++){
+        const base = f*specHeight;
+        if (useMags) newMags[base+b] = layers[l].mags[base+newBin];
+        if (usePhases) newPhases[base+b] = layers[l].phases[base+newBin];
+      }
+    }
+    if (useMags) layers[l].mags = new Float32Array(newMags);
+    if (usePhases) layers[l].phases = new Float32Array(newPhases);
+
+  }
+  for (const sprite of sprites) {
+    if (!sprite.pixels) continue;
+    let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
+    for (let l=$s;l<$e;l++){
+      const oldMap = sprite.pixels[l];
+      if (!oldMap) continue;
+      const newMap = new Map();
+      oldMap.forEach((col, x) => {
+        const newCol = {
+          ys: [],
+          prevMags: [],
+          prevPhases: [],
+          nextMags: [],
+          nextPhases: []
+        };
+        for (let i=0;i<col.ys.length;i++){//console.log(1421);
+          const oldY = col.ys[i];
+          // invert the same mapping used for mags: target b such that sourceIndex === oldY
+          const f = sampleRate / fftSize, $s = sampleRate/2, $l = logScaleVal[ch];
+          const newY = Math.max(Math.min(Math.floor(invlsc(((lsc(oldY*f,$s,$l)/f-(specHeight/2))*yFactor+(specHeight/2))*f,$s,$l)/f),specHeight),0);
+          const idx = newCol.ys.indexOf(newY);
+          if (idx >= 0) {
+            // overwrite
+            newCol.prevMags[idx] = col.prevMags[i];
+            newCol.prevPhases[idx] = col.prevPhases[i];
+            newCol.nextMags[idx] = useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY];
+            newCol.nextPhases[idx] = usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY];
+          } else {
+            newCol.ys.push(newY);
+            newCol.prevMags.push(col.prevMags[i]);
+            newCol.prevPhases.push(col.prevPhases[i]);
+            newCol.nextMags.push(useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY]);
+            newCol.nextPhases.push(usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY]);
+          }
+
+          // mirror addPixelToSprite's selection update behavior:
+          if (sprite.effect && sprite.effect.shape !== "select") {
+            updateSelections(x, newY, l, col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+          }
+        }
+        // if the column has any entries, set it
+        if (newCol.ys.length) newMap.set(x, newCol);
+      });
+      sprite.pixels[l] = newMap;
+    }
+  }
+  simpleRestartRender(0,framesTotal);
+}
+function globalXTranslate(deltaX) {
+  deltaX = -Math.floor(deltaX);
+  const useMags = document.getElementById("globalUseMagsCheckbox").checked;
+  const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
+  if (!useMags && !usePhases) return;
+
+  for (let l=0;l<layerCount;l++){
+    const newArrLen = framesTotal*specHeight;
+    const newMags = useMags?new Float32Array(newArrLen):null;
+    const newPhases = usePhases?new Float32Array(newArrLen):null;
+    for(let f=0;f<framesTotal;f++){
+      const oldF = f+deltaX;
+      const setP = oldF*specHeight;
+      const magsF = useMags?layers[l].mags.slice(setP,setP+specHeight):null;
+      const phasesF = usePhases?layers[l].phases.slice(setP,setP+specHeight):null;
+      if (useMags) newMags.set(magsF,f*specHeight);
+      if (usePhases) newPhases.set(phasesF,f*specHeight);
+    }
+    if (useMags) layers[l].mags = new Float32Array(newMags);
+    if (usePhases) layers[l].phases = new Float32Array(newPhases);
+  }
+  for (const sprite of sprites) {
+    if (!sprite.pixels) continue;
+    let $s = sprite.ch === "all" ? 0 : sprite.ch,
+        $e = sprite.ch === "all" ? layerCount : sprite.ch + 1;
+    for (let l = $s; l < $e; l++) {
+      const oldMap = sprite.pixels[l];
+      if (!oldMap) continue;
+
+      const newMap = new Map();
+      // move each column by deltaX; drop if out of range
+      oldMap.forEach((col, x) => {
+        const newX = x + deltaX;
+        if (newX < 0 || newX > framesTotal) return; // drop
+        newMap.set(newX, col);
+      });
+
+      sprite.pixels[l] = newMap;
+
+      // recompute min/max columns
+      sprite.minCol = Infinity;
+      sprite.maxCol = -Infinity;
+      for (const k of newMap.keys()) {
+        if (k < sprite.minCol) sprite.minCol = k;
+        if (k > sprite.maxCol) sprite.maxCol = k;
+      }
+      if (!isFinite(sprite.minCol)) { sprite.minCol = 0; sprite.maxCol = 0; }
+    }
+  }
+  maxCol = framesTotal;
+  simpleRestartRender(0,framesTotal);
+}
+function globalYTranslate(deltaY) {
+  deltaY = -Math.floor(deltaY);
+  const useMags = document.getElementById("globalUseMagsCheckbox").checked;
+  const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
+  if (!useMags && !usePhases) return;
+  for (let l=0;l<layerCount;l++){
+    const newMags = useMags?new Float32Array(layers[l].mags):null;
+    const newPhases = usePhases?new Float32Array(layers[l].phases):null;
+    const f = sampleRate / fftSize, $s = sampleRate/2, $l = logScaleVal[ch];
+    for (let b=0;b<specHeight;b++){
+      const newBin = Math.max(Math.min(Math.floor(invlsc((lsc(b*f,$s,$l)/f+deltaY)*f,$s,$l)/f),specHeight),0);
+      for(let f=0;f<framesTotal;f++){
+        const base = f*specHeight;
+        if (useMags) newMags[base+b] = layers[l].mags[base+newBin];
+        if (usePhases) newPhases[base+b] = layers[l].phases[base+newBin];
+      }
+    }
+    if (useMags) layers[l].mags = new Float32Array(newMags);
+    if (usePhases) layers[l].phases = new Float32Array(newPhases);
+
+  }
+  for (const sprite of sprites) {
+    if (!sprite.pixels) continue;
+    let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
+    for (let l=$s;l<$e;l++){
+      const oldMap = sprite.pixels[l];
+      if (!oldMap) continue;
+      const newMap = new Map();
+      oldMap.forEach((col, x) => {
+        const newCol = {
+          ys: [],
+          prevMags: [],
+          prevPhases: [],
+          nextMags: [],
+          nextPhases: []
+        };
+        for (let i=0;i<col.ys.length;i++){//console.log(1421);
+          const oldY = col.ys[i];
+          // invert the same mapping used for mags: target b such that sourceIndex === oldY
+          const f = sampleRate / fftSize, $s = sampleRate/2, $l = logScaleVal[ch];
+          const newY = Math.max(Math.min(Math.floor(invlsc((lsc(oldY*f,$s,$l)/f-deltaY)*f,$s,$l)/f),specHeight),0);
+          const idx = newCol.ys.indexOf(newY);
+          if (idx >= 0) {
+            // overwrite
+            newCol.prevMags[idx] = col.prevMags[i];
+            newCol.prevPhases[idx] = col.prevPhases[i];
+            newCol.nextMags[idx] = useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY];
+            newCol.nextPhases[idx] = usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY];
+          } else {
+            newCol.ys.push(newY);
+            newCol.prevMags.push(col.prevMags[i]);
+            newCol.prevPhases.push(col.prevPhases[i]);
+            newCol.nextMags.push(useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY]);
+            newCol.nextPhases.push(usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY]);
+          }
+
+          // mirror addPixelToSprite's selection update behavior:
+          if (sprite.effect && sprite.effect.shape !== "select") {
+            updateSelections(x, newY, l, col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+          }
+        }
+        // if the column has any entries, set it
+        if (newCol.ys.length) newMap.set(x, newCol);
+      });
+      sprite.pixels[l] = newMap;
+    }
+  }
+  simpleRestartRender(0,framesTotal);
+}
+function xQuantize(columns) {
+  const useMags = document.getElementById("globalUseMagsCheckbox").checked;
+  const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
+  if (!useMags && !usePhases) return;
+  columns = Math.floor(framesTotal/Math.max(1, Math.floor(columns)));
+  const totalFrames = framesTotal;
+  const H = specHeight;
+  for (let l = 0; l < layerCount; l++) {
+    const layerMags = layers[l].mags;
+    const layerPhases = layers[l].phases;
+    const len = totalFrames * H;
+    let newMags = useMags ? new Float32Array(len) : null;
+    let newPhases = usePhases ? new Float32Array(len) : null;
+    for (let start = 0; start < totalFrames; start += columns) {
+      const end = Math.min(totalFrames, start + columns);
+      const blockSize = end - start;
+      for (let bin = 0; bin < H; bin++) {
+        if (useMags) {
+          let sum = 0;
+          for (let f = start; f < end; f++) {
+            sum += layerMags[f * H + bin];
+          }
+          const avg = sum / blockSize;
+          for (let f = start; f < end; f++) {
+            newMags[f * H + bin] = avg;
+          }
+        }
+        if (usePhases) {
+          let sumSin = 0;
+          let sumCos = 0;
+          for (let f = start; f < end; f++) {
+            const a = layerPhases[f * H + bin];
+            sumSin += Math.sin(a);
+            sumCos += Math.cos(a);
+          }
+          const meanAngle = Math.atan2(sumSin, sumCos);
+          for (let f = start; f < end; f++) {
+            newPhases[f * H + bin] = meanAngle;
+          }
+        }
+      }
+    }
+    if (useMags) layers[l].mags = new Float32Array(newMags);
+    if (usePhases) layers[l].phases = new Float32Array(newPhases);
+  }
+  simpleRestartRender(0, framesTotal);
+}
+
+function yQuantize(rows) {
+  const useMags = document.getElementById("globalUseMagsCheckbox").checked;
+  const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
+  if (!useMags && !usePhases) return;
+  rows = Math.max(1, Math.floor(rows));
+
+  const totalFrames = framesTotal;
+  const H = specHeight;
+  const freqPerBin = sampleRate / fftSize;
+  const s = sampleRate / 2;
+
+  for (let l = 0; l < layerCount; l++) {
+    const layerMags = layers[l].mags;
+    const layerPhases = layers[l].phases;
+    const len = totalFrames * H;
+
+    const newMags = useMags ? new Float32Array(len) : null;
+    const newPhases = usePhases ? new Float32Array(len) : null;
+
+    // log-scale parameter for this layer
+    const lscVal = logScaleVal[l];
+
+    // process frame-by-frame
+    for (let fi = 0; fi < totalFrames; fi++) {
+      const base = fi * H;
+
+      // accumulators per region
+      const magSums = useMags ? new Float32Array(rows) : null;
+      const counts = new Uint16Array(rows);
+      const sinSums = usePhases ? new Float32Array(rows) : null;
+      const cosSums = usePhases ? new Float32Array(rows) : null;
+
+      // first pass: accumulate sums for each region (region determined by lsc mapping)
+      for (let b = 0; b < H; b++) {
+        const displayY = lsc(b * freqPerBin, s, lscVal) / freqPerBin;
+        let regionIndex = Math.floor(displayY * rows / H);
+        if (regionIndex < 0) regionIndex = 0;
+        if (regionIndex >= rows) regionIndex = rows - 1;
+
+        if (useMags) magSums[regionIndex] += layerMags[base + b];
+        counts[regionIndex]++;
+
+        if (usePhases) {
+          const a = layerPhases[base + b];
+          sinSums[regionIndex] += Math.sin(a);
+          cosSums[regionIndex] += Math.cos(a);
+        }
+      }
+
+      // second pass: compute averages and write them back into every bin that belongs to that region
+      for (let b = 0; b < H; b++) {
+        const displayY = lsc(b * freqPerBin, s, lscVal) / freqPerBin;
+        let regionIndex = Math.floor(displayY * rows / H);
+        if (regionIndex < 0) regionIndex = 0;
+        if (regionIndex >= rows) regionIndex = rows - 1;
+
+        if (useMags) {
+          const cnt = counts[regionIndex];
+          newMags[base + b] = cnt > 0 ? magSums[regionIndex] / cnt : layerMags[base + b];
+        }
+
+        if (usePhases) {
+          const cnt = counts[regionIndex];
+          if (cnt > 0) {
+            newPhases[base + b] = Math.atan2(sinSums[regionIndex], cosSums[regionIndex]);
+          } else {
+            newPhases[base + b] = layerPhases[base + b];
+          }
+        }
+      }
+    }
+
+    if (useMags) layers[l].mags = new Float32Array(newMags);
+    if (usePhases) layers[l].phases = new Float32Array(newPhases);
+  }
+
+  simpleRestartRender(0, framesTotal);
+}
+function newGlobalXYHistory(type,spriteIdx){
+  function cloneLayerSpriteOptimized(layer,s) {
+    const minCol = s.minCol;
+    const maxCol = s.maxCol;
+    const copy = { ...layer };
+    copy.mags = copy.mags.slice(minCol*specHeight,maxCol*specHeight);
+    copy.phases = copy.phases.slice(minCol*specHeight,maxCol*specHeight);
+    copy.pcm = copy.pcm.slice(minCol*hop,maxCol*hop);
+    return copy;
+  }
+  const s = (spriteIdx)?getSpriteById(spriteIdx):null;
+  if (type==="undo") {
+    historyStack = historyStack.slice(0, historyIndex+1);
+    historyIndex = historyStack.length;
+    const undo = (!spriteIdx) ? {
+      layers: structuredClone(layers),
+      sprites: structuredClone(sprites),
+      emptyAudioLength,
+      ch:null
+    } : {
+      layers: s.ch === "all" ? layers.map(layer => {cloneLayerSpriteOptimized(layer,s)}) : cloneLayerSpriteOptimized(layers[s.ch],s),
+      sprites: structuredClone(s),
+      emptyAudioLength,
+      ch:s.ch,
+      spriteIdx
+    };
+    historyStack.push({
+      type: "globalXYTools",
+      undo,
+      redo: null
+    });
+  } else {
+    historyStack[historyIndex].redo = (!spriteIdx) ? {
+      layers: structuredClone(layers),
+      sprites: structuredClone(sprites),
+      emptyAudioLength,
+      ch:null
+    } : {
+      layers: s.ch === "all" ? layers.map(layer => {cloneLayerSpriteOptimized(layer,s)}) : cloneLayerSpriteOptimized(layers[s.ch],s),
+      sprites: structuredClone(s),
+      emptyAudioLength,
+      ch:s.ch,
+      spriteIdx
+    };
+  }
+}
+
+let Gtarget = null, _gX = 0, _gY = 0, _xQuantize = 4, _yQuantize = 4;
+document.querySelectorAll("#globalXYTools td").forEach(td=>{
+    td.addEventListener("pointerdown",e=>{
+      const v = td.querySelector("div");
+      if (!v.id.includes("stretch")&&!v.id.includes("translate")) return;
+      newGlobalXYHistory("undo");
+      v.style.color = "#4af";
+      Gtarget = v.id;
+      _gX = e.clientX; _gY = e.clientY;
+    });
+    document.addEventListener("pointermove",e=>{
+      const v = td.querySelector("div").id;
+      if (Gtarget!==v) return;
+      if (v==="x-stretch") {
+        const xFactor = ((e.clientX-_gX)-(e.clientY-_gY))/100+1;
+        globalXStretch(xFactor);
+      } else if (v==="y-stretch") {
+        const yFactor = ((e.clientX-_gX)-(e.clientY-_gY))/500+1;
+        globalYStretch(yFactor);
+      } else if (v==="x-translate") {
+        const deltaX = ((e.clientX-_gX)-(e.clientY-_gY))/(window.innerWidth-550)*framesTotal;
+        globalXTranslate(deltaX);
+      } else if (v==="y-translate") {
+        const deltaY = ((e.clientX-_gX)-(e.clientY-_gY))/(window.innerHeight-150)*specHeight;
+        globalYTranslate(deltaY);
+      }
+
+      _gX = e.clientX; _gY = e.clientY;
+    });
+    document.addEventListener("pointerup",()=>{
+      const v = td.querySelector("div").id;
+      if (Gtarget===v) newGlobalXYHistory("redo");
+      Gtarget=null;
+      td.querySelector("div").style.color = "#fff";
+    });
+    td.addEventListener("click",e=>{
+      if (e.button !== 0) return;
+      const v = td.querySelector("div").id;
+      if (v.includes("stretch") || v.includes("translate")) return;
+      newGlobalXYHistory("undo");
+             if (v === "x-x2") {
+        globalXStretch(2);
+      } else if (v === "y-x2") {
+        globalYStretch(2);
+      } else if (v === "x-/2") {
+        globalXStretch(0.5);
+      } else if (v === "y-/2") {
+        globalYStretch(0.5);
+      } else if (v === "x-flip") {
+        globalXStretch(-1);
+      } else if (v === "y-flip") {
+        globalYStretch(-1);
+      } else if (v === "x-quantize") {
+        xQuantize(_xQuantize);
+      } else if (v === "y-quantize") {
+        yQuantize(_yQuantize);
+      }
+      newGlobalXYHistory("redo");
+    });
+  }
+);

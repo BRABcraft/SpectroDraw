@@ -515,6 +515,11 @@ EQcanvas.addEventListener('pointerdown', (evt) => {
       sineOsc.start();
   }
 });
+function makeEqUndoEntry() {
+  historyStack = historyStack.slice(0, historyIndex+1);
+  historyIndex = historyStack.length;
+  historyStack.push({type:"eq",undoeqBands:eqBands.map(band => {return { ...band }}),redoeqBands:null});
+}
 function onEQPointerDown(evt) {
   evt.preventDefault();
   const pos = getCanvasPos(evt);
@@ -526,9 +531,10 @@ function onEQPointerDown(evt) {
     _draggingPointIndex = -1; _draggingTangentIndex = -1;
     if (EQcanvas) EQcanvas.style.cursor = "crosshair";
     window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp, { once: true });
+    window.addEventListener('pointerup', ()=>{onPointerUp(false);}, { once: true });
     return;
   }
+  makeEqUndoEntry();
   if (hit.type === 'point') {
     EQcanvas.style.cursor = "pointer";
     _draggingPointIndex = hit.index;
@@ -543,7 +549,7 @@ function onEQPointerDown(evt) {
     _draggingCanvas = 'main';
   }
   window.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', onPointerUp, { once: true });
+  window.addEventListener('pointerup', ()=>{onPointerUp(true);}, { once: true });
 }
 
 function eqMouseMove(evt) {
@@ -610,9 +616,10 @@ function onEQ2PointerDown(evt) {
     _draggingPointIndex = -1; _draggingTangentIndex = -1;
     if (eqCanvas2) eqCanvas2.style.cursor = "crosshair";
     window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp, { once: true });
+    window.addEventListener('pointerup', ()=>{onPointerUp(false);}, { once: true });
     return;
   }
+  makeEqUndoEntry();
   if (hit.type === 'point') {
     eqCanvas2.style.cursor = "pointer";
     _draggingPointIndex = hit.index;
@@ -624,7 +631,7 @@ function onEQ2PointerDown(evt) {
     _dragOffset.y = pos.y - sy;
   }
   window.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', onPointerUp, { once: true });
+  window.addEventListener('pointerup', ()=>{onPointerUp(true);}, { once: true });
 }
 
 function eq2MouseMove(evt) {
@@ -730,7 +737,8 @@ function onPointerMove(evt) {
 }
 
 
-function onPointerUp(evt) {
+function onPointerUp(makeRedoEntry) {
+  if (makeRedoEntry) historyStack[historyIndex].redoeqBands = eqBands.map(band => {return { ...band }});
   _draggingPointIndex = -1;
   _draggingTangentIndex = -1;draggingCanvas = null;
   window.removeEventListener('pointermove', onPointerMove);

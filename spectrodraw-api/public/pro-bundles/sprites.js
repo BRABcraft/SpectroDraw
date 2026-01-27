@@ -50,6 +50,7 @@ function renderSpritesTable() {
     nameInput.value = sprite.name;
     nameInput.className = 'sprite-name-input';
     nameInput.style = 'background:none;border:none;color:white;';
+    nameInput.style.maxWidth = "150px";
 
     // auto-size function
     function autosize() {
@@ -98,12 +99,12 @@ function renderSpritesTable() {
       renderSpritesTable();
     });
     tdEnabled.appendChild(cb);
-    tr.addEventListener("mouseover", () => {
+    tr.addEventListener("mouseenter", () => {
       spritePath = generateSpriteOutlinePath(sprite, { height: specHeight });
       drawSpriteOutline(false);
     });
 
-    tr.addEventListener("mouseout", () => {
+    tr.addEventListener("mouseleave", () => {
       if (sprite.ch==="all") {
         for (let ch=0;ch<layerCount;ch++){
           const overlayCanvas = document.getElementById("overlay-"+ch);
@@ -168,8 +169,10 @@ function updateEditorSelection(spriteId) {
 document.getElementById('sphaseTexture').addEventListener('change', () => {
   const s = getSpriteById(selectedSpriteId);
   if (!s) return;
+  newGlobalXYHistory("undo",selectedSpriteId);
   s.effect.phaseTexture = document.getElementById('sphaseTexture').value;
   updateSpriteEffects(selectedSpriteId, s.effect);
+  newGlobalXYHistory("redo",selectedSpriteId);
   updateSpritePhaseTextureSettings(s.effect);
 });
 
@@ -232,7 +235,9 @@ document.getElementById("ssetNoiseProfile").addEventListener("click",()=>{
   document.getElementById("ssetNoiseProfile").innerText = changingNoiseProfile?"Setting noise profile frames":"Set noise profile frames";
   if (!changingNoiseProfile) {
     e.noiseProfile = computeNoiseProfileFromFrames(currentLayer, e.noiseProfileMin, e.noiseProfileMax);
+    newGlobalXYHistory("undo",selectedSpriteId);
     updateSpriteEffects(selectedSpriteId,e);
+    newGlobalXYHistory("redo",selectedSpriteId);
   }
 });
 // ---------- config (top) ----------
@@ -270,8 +275,8 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     const s = getSpriteById(selectedSpriteId);
     if (!s) return;
     if (!s.effect) s.effect = {};
-    updateSpriteEffects(selectedSpriteId, s.effect);
     s.effect[effectsKey] = val;
+    updateSpriteEffects(selectedSpriteId, s.effect);
     renderToolEditorSettings(s.effect);
   };
 
@@ -281,7 +286,9 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
   };
 
   // range input → mirror + assign
-  r.addEventListener('input', () => handleValueChange(parseF(r.value)));
+  r.addEventListener('input', () => {t.value = r.value;});
+  r.addEventListener("pointerdown",()=>{newGlobalXYHistory("undo",selectedSpriteId);});
+  r.addEventListener("pointerup",()=>{handleValueChange(parseF(r.value));newGlobalXYHistory("redo",selectedSpriteId);});
 
   // text input → Enter → clamp + assign
   t.addEventListener('keydown', e => {
@@ -291,7 +298,9 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     if (isNaN(val)) val = parseF(r.value);
     val = CLAMP(val, min, max);
     r.value = val;
+    newGlobalXYHistory("undo",selectedSpriteId);
     handleValueChange(val);
+    newGlobalXYHistory("redo",selectedSpriteId);
   });
 
   // optional: detect blur from text input too
@@ -300,7 +309,9 @@ sliderDefs.forEach(([rangeId, textId, effectsKey, extraFn]) => {
     if (isNaN(val)) val = parseF(r.value);
     val = CLAMP(val, parseF(r.min), parseF(r.max));
     r.value = val;
+    newGlobalXYHistory("undo",selectedSpriteId);
     handleValueChange(val);
+    newGlobalXYHistory("redo",selectedSpriteId);
   });
 });
 function updateSpritePhaseTextureSettings(newEffect){
@@ -434,7 +445,6 @@ async function updateSpriteEffects(spriteId, newEffect) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
   let recomputeMin = Infinity, recomputeMax = -Infinity;
-
   let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
   for (let ch=$s;ch<$e;ch++){
@@ -1371,8 +1381,8 @@ function findTForXOnSegment(p0c, p1c, targetX) {
 }
 
 // build canvas-space representation of points (with tangents in pixels)
-function buildCanvasPts(w, h) {
-  const s = getSpriteById(selectedSpriteId);
+function buildCanvasPts(w, h, sid=selectedSpriteId) {
+  const s = getSpriteById(sid);
   const pts = s.fadePoints.map(p => {
     const cx = pxX(p.x, w);
     const cy = pxY(p.y, h);
@@ -1384,8 +1394,8 @@ function buildCanvasPts(w, h) {
 }
 
 // populate spriteFade[] by sampling the curve per pixel column
-function sampleSpriteFade(w, h) {
-  const s = getSpriteById(selectedSpriteId);
+function sampleSpriteFade(w, h, sid=selectedSpriteId) {
+  const s = getSpriteById(sid);
   if (!s) return;
 
   // ensure spriteFade exists and has correct length
@@ -1399,7 +1409,7 @@ function sampleSpriteFade(w, h) {
   // clone values into prevSpriteFade (new buffer, not same reference)
   s.prevSpriteFade = new Float32Array(spriteFade);
 
-  const pts = buildCanvasPts(w, h);
+  const pts = buildCanvasPts(w, h, sid);
   if (pts.length === 0) {
     for (let i = 0; i < w; i++) spriteFade[i] = 1.0;
     return;
@@ -1445,7 +1455,7 @@ function sampleSpriteFade(w, h) {
 
 
 // draw the grid and curve
-function renderSpriteFade() {
+function renderSpriteFade(updateSprite,sid=selectedSpriteId) {
   // ensure canvas size (fixed for now to match reference)
   fadeCanvas.width = GRID_W;
   fadeCanvas.height = GRID_H;
@@ -1543,21 +1553,15 @@ function renderSpriteFade() {
     fcctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
     fcctx.fill();
   }
-
-  // sample into spriteFade per pixel column
   sampleSpriteFade(50, 30);
-  const s = getSpriteById(selectedSpriteId);
-  function areArraysIdentical(arr1, arr2) {
-    for (let i = 0; i < arr1.length; i++) if (Math.abs(arr1[i] - arr2[i])>0.000001) return false;
-    return true;
-  }
-  if (!areArraysIdentical(s.prevSpriteFade,s.spriteFade)) {
-    processSpriteFade();
+  // sample into spriteFade per pixel column
+  if (updateSprite) {
+    processSpriteFade(sid);
   }
 }
 
-function processSpriteFade() {
-  const s = getSpriteById(selectedSpriteId);
+function processSpriteFade(sid=selectedSpriteId) {
+  const s = getSpriteById(sid);
   if (!s) return;
 
   let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?layerCount:s.ch+1;
@@ -1638,6 +1642,7 @@ function onFadePointerDown(evt) {
     draggingTangentIndex = -1;
     return;
   }
+  newGlobalXYHistory("undo",selectedSpriteId);
   if (hit.type === 'point') {
     draggingPointIndex = hit.index;
     const s = getSpriteById(selectedSpriteId);
@@ -1724,7 +1729,7 @@ function onFadePointerMove(evt) {
     s.fadePoints[idx].my = my;
   }
 
-  renderSpriteFade();
+  renderSpriteFade(false);
 }
 
 function updateFadeCursor(evt){
@@ -1745,7 +1750,8 @@ function onFadePointerUp(evt) {
   draggingTangentSide = 0;
   window.removeEventListener('pointermove', onFadePointerMove);
   // final sample
-  renderSpriteFade();
+  renderSpriteFade(true);
+  newGlobalXYHistory("redo",selectedSpriteId);
 }
 
 fadeCanvas.addEventListener('mousemove',(evt)=>updateFadeCursor(evt))

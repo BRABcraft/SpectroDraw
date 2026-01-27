@@ -212,65 +212,112 @@ document.getElementById('undoBtn').addEventListener('click', () => {
 document.getElementById('redoBtn').addEventListener('click', () => {
   doRedo();
 });
-function doUndo() {
-  if (rendering) return;
-  let idx = -1;
-  for (let i = sprites.length - 1; i >= 0; i--) {
-    if (sprites[i].enabled) { idx = i; break; }
-  }
-  if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
-  const sprite = sprites[idx];
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
-  for (let ch=$s;ch<$e;ch++){
-    let mags = layers[ch].mags, phases = layers[ch].phases;
-    console.log("Undoing sprite:", sprite);
-    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
-      const id = x * specHeight + y;
-      mags[id] = prevMag;
-      phases[id] = prevPhase;
-    });
-    sprite.enabled = false;
-    renderSpritesTable();
-    console.log(sprite);
-    const minCol = Math.max(0, sprite.minCol);
-    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
-  }
-  autoRecomputePCM(-1,-1);
-  if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
-  spriteRedoQueue.push(sprite);
-  if (playing) {
-    stopSource(true);
-    playPCM(true);
+function globalXYUpdateLayersAndSprites(h) {
+  if (h.ch !== null) {
+    const minCol = h.sprites.minCol;
+    function setLayer(l,layer) {
+      layers[l].mags.set(layer.mags,minCol*specHeight);
+      layers[l].phases.set(layer.phases,minCol*specHeight);
+      layers[l].pcm.set(layer.pcm,minCol*hop);
+    }
+    if (h.ch==="all") {
+      for (let l=0;l<layerCount;l++) setLayer(l,h.layers[l]);
+    } else {
+      setLayer(h.ch,h.layers);
+    }
+    sprites[getSpriteIndexById(h.spriteIdx)] = h.sprites;
+    if (selectedSpriteId === h.spriteIdx) {
+      renderToolEditorSettings(getSpriteById(h.spriteIdx).effect);
+      renderSpriteFade(true,h.spriteIdx);
+    } else {
+      sampleSpriteFade(50, 30, h.spriteIdx);
+      processSpriteFade(h.spriteIdx);
+    }
+  } else {
+    layers = h.layers;
+    sprites = h.sprites;
   }
 }
-function doRedo() {
-  if (rendering) return;
-  let idx = -1;
-  for (let i = 0; i < sprites.length; i++) {
-    if (!sprites[i].enabled) { idx = i; break; }
-  }
-  if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
-  const sprite = sprites[idx];
-  let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
-  for (let ch=$s;ch<$e;ch++){
-    let mags = layers[ch].mags, phases = layers[ch].phases;
-    forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
-      const id = x * specHeight + y;
-      mags[id] = nextMag;
-      phases[id] = nextPhase;
-    });
-    sprite.enabled = true;
+function doUndo() {
+  if (historyIndex===0) return;
+  const hType = historyStack[historyIndex].type;
+  if (hType==="toggleSprite") {
+    if (rendering) return;
+    let idx = -1;
+    for (let i = sprites.length - 1; i >= 0; i--) {
+      if (sprites[i].enabled) { idx = i; break; }
+    }
+    if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
+    const sprite = sprites[idx];
+    toggleSpriteEnabled(sprite.id,false);
+    autoRecomputePCM(-1,-1);
+    if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
+    spriteRedoQueue.push(sprite);
+    if (playing) {
+      stopSource(true);
+      playPCM(true);
+    }
+  } else if (hType==="knob") {
+    const h = historyStack[historyIndex];
+    h.command(h.knob,h.undoValue);
+  } else if (hType==="globalXYTools") {
+    const h = historyStack[historyIndex].undo;
+    globalXYUpdateLayersAndSprites(h);
+    bufferLengthKnob.setValue(h.emptyAudioLength,false);
+    emptyAudioLength = bufferLengthKnob.getValue();
+    simpleRestartRender(0,Math.floor(emptyAudioLength*sampleRate/hop));
+    restartRender(false);
     renderSpritesTable();
-    const minCol = Math.max(0, sprite.minCol);
-    const maxCol = Math.min(specWidth - 1, sprite.maxCol);
-    renderSpectrogramColumnsToImageBuffer(minCol, maxCol,ch);
+  } else if (hType==="eq") {
+    eqBands = historyStack[historyIndex].undoeqBands;
+    ptsDirty = true;
+    updateGlobalGain();
+    drawEQ();
+  } else {
+    historyStack[historyIndex].undo.command();
   }
-  autoRecomputePCM(-1,-1);
-  const rqidx = spriteRedoQueue.indexOf(sprite);
-  if (rqidx !== -1) spriteRedoQueue.splice(rqidx, 1);
-  if (playing) {
-    stopSource(true);
-    playPCM(true);
+  historyIndex--;
+}
+function doRedo() {
+  historyIndex++;
+  if (historyIndex>=historyStack.length) return;
+  const hType = historyStack[historyIndex].type;
+  if (hType==="toggleSprite") {
+    if (rendering) return;
+    let idx = -1;
+    for (let i = 0; i < sprites.length; i++) {
+      if (!sprites[i].enabled) { idx = i; break; }
+    }
+    if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
+    const sprite = sprites[idx];
+    toggleSpriteEnabled(sprite.id,true);
+    autoRecomputePCM(-1,-1);
+    const rqidx = spriteRedoQueue.indexOf(sprite);
+    if (rqidx !== -1) spriteRedoQueue.splice(rqidx, 1);
+    if (playing) {
+      stopSource(true);
+      playPCM(true);
+    }
+  } else if (hType==="knob") {
+    const h = historyStack[historyIndex];
+    h.command(h.knob,h.redoValue);
+  } else if (hType==="globalXYTools") {
+    const h = historyStack[historyIndex].redo;
+    globalXYUpdateLayersAndSprites(h);
+    bufferLengthKnob.setValue(h.emptyAudioLength,false);
+    emptyAudioLength = bufferLengthKnob.getValue();
+    simpleRestartRender(0,Math.floor(emptyAudioLength*sampleRate/hop));
+    restartRender(false);
+    renderSpritesTable();
+  } else if (hType==="eq") {
+    eqBands = historyStack[historyIndex].redoeqBands;
+    ptsDirty = true;
+    updateGlobalGain();
+    drawEQ();
+  } else if (hType==="moveSprite") {
+    eqBands = historyStack[historyIndex].redoeqBands;
+    ptsDirty = true;
+    updateGlobalGain();
+    drawEQ();
   }
 }

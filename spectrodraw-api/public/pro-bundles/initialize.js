@@ -18,14 +18,14 @@ const ev = document.getElementById("phaseTextureDiv");
 const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
 const alignPitchBtn = document.getElementById("alignPitch");
-const startOnPitchDiv = document.getElementById("startOnPitchDiv");
+const pitchAlignDiv = document.getElementById("pitchAlignDiv");
 const alignTimeBtn = document.getElementById("alignTime");
-const bpmDiv = document.getElementById("bpmDiv");
+const timeAlignDiv = document.getElementById("timeAlignDiv");
 const midiAlignTimeBtn = document.getElementById("midiAlignTime");
 const useAIEl = document.getElementById("useMidiAI");
 const nonAIMidiOptions = document.getElementById("nonAiMidiDiv");
 const matOptions = document.getElementById("matOptions");
-const midiBpmDiv = document.getElementById("midiBpmDiv");
+const miditimeAlignDiv = document.getElementById("miditimeAlignDiv");
 const subBeatDiv = document.getElementById("subBeatDiv");
 const AIMidiOptions = document.getElementById("AiMidiDiv");
 const tQs = document.getElementById("tQs");
@@ -189,6 +189,7 @@ let editingExpression = null;
 let dontChangeSprites = false;
 let uploadingSprite = false;
 let historyStack = [], historyIndex = 0;
+let moveSpritesMode = false, spriteHit = null;
 
 let handlers = {
   "canvas-": (el) => {

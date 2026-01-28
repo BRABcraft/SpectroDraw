@@ -1213,7 +1213,7 @@ function setDocked(panel, dockObj){
           <label class="h1">Brush Alignment</label>
           <!--Auto align pitch-->
           <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
-          <div id="startOnPitchDiv" style="display:none;">
+          <div id="pitchAlignDiv" style="display:none;">
             <div class="slider-row" title="Base Pitch">
               <label class="h2">Base Hz</label>
               <input id="startOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
@@ -1228,7 +1228,7 @@ function setDocked(panel, dockObj){
           </div>
           <!--Auto align time-->
           <button class="leftBtn" id="alignTime" title="Auto align time (k)">Auto Align Time</button>
-          <div id ="bpmDiv" class="slider-row" title="BPM" style="display:none;">
+          <div id ="timeAlignDiv" class="slider-row" title="BPM" style="display:none;">
             <label class="h2">BPM</label>
             <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
             <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
@@ -1364,7 +1364,7 @@ function setDocked(panel, dockObj){
       top:window.innerHeight-80,
       showing:true,
       showHeader:false,
-      innerHTML:`<div style="display:flex;flex-direction:row;height:100%;gap:5px;padding-left:5px;">
+      innerHTML:`<div style="display:flex;flex-direction:row;height:100%;gap:5px;padding-left:5px;overflow-x:auto;">
     <div style="width:200px;">
       <table id="globalXYTools">
         <thead>
@@ -1438,6 +1438,24 @@ function setDocked(panel, dockObj){
     </button>
     <div class="knob-wrapper">
       <div class="knob" id="hopSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
+    </div>
+    <div style="align-content:center;margin-left:10px;">
+      <button title="Toggle move sprites mode" id="moveSpritesModeBtn" style="width:30px;height:30px;background:none;display:flex;align-items:center;justify-content:center;padding:0;border:none">
+        <svg width="30.00" height="30.00" viewBox="0.00 0.00 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7.00 10.50L5.00 13.17C4.42 13.94 4.47 15.01 5.12 15.72L8.91 19.85C9.28 20.26 9.82 20.50 10.38 20.50C11.47 20.50 13.24 20.50 15.00 20.50C17.40 20.50 19.00 19.00 19.00 16.50C19.00 16.50 19.00 16.50 19.00 16.50C19.00 16.50 19.00 9.64 19.00 7.93"
+                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M16.00 8.50C16.00 8.50 16.00 8.37 16.00 7.93C16.00 5.64 19.00 5.64 19.00 7.93"
+                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13.00 8.50C13.00 8.50 13.00 7.92 13.00 7.03M13.00 6.50C13.00 6.50 13.00 6.80 13.00 7.03M16.00 8.50C16.00 8.50 16.00 8.37 16.00 7.93C16.00 7.71 16.00 7.25 16.00 7.03C16.00 4.74 13.00 4.74 13.00 7.03"
+                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13.00 8.50C13.00 8.50 13.00 7.92 13.00 7.03C13.00 4.74 16.00 4.74 16.00 7.03C16.00 7.25 16.00 7.71 16.00 7.93C16.00 8.37 16.00 8.50 16.00 8.50"
+                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10.00 8.50C10.00 8.50 10.00 7.86 10.00 6.50C10.00 4.21 13.00 4.21 13.00 6.50C13.00 6.50 13.00 6.50 13.00 6.50C13.00 6.50 13.00 6.80 13.00 7.03C13.00 7.92 13.00 8.50 13.00 8.50"
+                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7.00 13.50V6.50C7.00 5.67 7.67 5.00 8.50 5.00V5.00C9.33 5.00 10.00 5.56 10.00 6.38C10.00 6.42 10.00 6.46 10.00 6.50C10.00 7.86 10.00 8.50 10.00 8.50"
+                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
   </div>`,
   });
@@ -1531,7 +1549,7 @@ function setDocked(panel, dockObj){
               <input id="sautoTuneStrength"  type="range" min="0" max="1" value="1" step="0.01">
               <input id="sautoTuneStrengthInput" type="number" value="1" min="0" max="1">
           </div>
-          <div class="slider-row" title="Base Pitch" id="sstartOnPitchDiv" style="display:none;">
+          <div class="slider-row" title="Base Pitch" id="spitchAlignDiv" style="display:none;">
             <label class="h2">Base Hz</label>
             <input id="sstartOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
             <input id="sstartOnPitchInput" type="number" value="440">
@@ -1636,7 +1654,7 @@ function setDocked(panel, dockObj){
             </div>
             <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</input>
             <div id="matOptions">
-              <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
+              <div id ="miditimeAlignDiv" class="slider-row" title="Note BPM">
                 <label class="h2">BPM</label>
                 <input id="midiBpm" type="range" min="0.001" max="500" step="0.01" value="120">
                 <input id="midiBpmInput" type="number" value="120" min="0.001" max="5000">

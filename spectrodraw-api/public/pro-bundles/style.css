@@ -532,14 +532,14 @@ select {
   .small { font-size:12px; color:#666; }
   .muted { color:#777; font-size:12px; }
 
-#moveSpriteBtn, #changeClonerPosBtn, #setNoiseProfile, #ssetNoiseProfile {
+#moveSpriteBtn, #changeClonerPosBtn, #setNoiseProfile, #ssetNoiseProfile, #moveSpritesModeBtn {
   position: relative;
   overflow: hidden;
   z-index: 0;  /* establish stacking context */
 }
 
 /* gradient overlay */
-#moveSpriteBtn::before, #changeClonerPosBtn::before, #setNoiseProfile::before, #ssetNoiseProfile::before {
+#moveSpriteBtn::before, #changeClonerPosBtn::before, #setNoiseProfile::before, #ssetNoiseProfile::before, #moveSpritesModeBtn::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -549,7 +549,7 @@ select {
 
   z-index: -1;   /* put gradient behind the text */
 }
-#moveSpriteBtn.moving::before, #changeClonerPosBtn.moving::before, #setNoiseProfile.moving::before, #ssetNoiseProfile.moving::before {
+#moveSpriteBtn.moving::before, #changeClonerPosBtn.moving::before, #setNoiseProfile.moving::before, #ssetNoiseProfile.moving::before, #moveSpritesModeBtn.moving::before {
   opacity: 1;
 }
 .spriteEditorRow {

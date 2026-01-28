@@ -836,7 +836,7 @@
       <label class="h1">Brush Alignment</label>
       <!--Auto align pitch-->
       <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
-      <div id="startOnPitchDiv" style="display:none;">
+      <div id="pitchAlignDiv" style="display:none;">
         <div class="slider-row" title="Base Pitch">
           <label class="h2">Base Hz</label>
           <input id="startOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
@@ -851,7 +851,7 @@
       </div>
       <!--Auto align time-->
       <button class="leftBtn" id="alignTime" title="Auto align time (k)">Auto Align Time</button>
-      <div id ="bpmDiv" class="slider-row" title="BPM" style="display:none;">
+      <div id ="timeAlignDiv" class="slider-row" title="BPM" style="display:none;">
         <label class="h2">BPM</label>
         <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
         <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
@@ -874,7 +874,7 @@
         </div>
         <input type="checkbox" id="midiAlignTime" title="Midi export time filter" checked>Align to tempo</input>
         <div id="matOptions">
-          <div id ="midiBpmDiv" class="slider-row" title="Note BPM">
+          <div id ="miditimeAlignDiv" class="slider-row" title="Note BPM">
             <label class="h2">BPM</label>
             <input id="midiBpm" type="range" min="0.001" max="500" step="0.01" value="120">
             <input id="midiBpmInput" type="number" value="120" min="0.001" max="5000">
@@ -1081,14 +1081,14 @@ const yctx=yAxis.getContext("2d");
 const yAxisMode=document.getElementById("yAxisMode");
 const info = document.getElementById("mouseInfo");
 const alignPitchBtn = document.getElementById("alignPitch");
-const startOnPitchDiv = document.getElementById("startOnPitchDiv");
+const pitchAlignDiv = document.getElementById("pitchAlignDiv");
 const alignTimeBtn = document.getElementById("alignTime");
-const bpmDiv = document.getElementById("bpmDiv");
+const timeAlignDiv = document.getElementById("timeAlignDiv");
 const midiAlignTimeBtn = document.getElementById("midiAlignTime");
 const useAIEl = document.getElementById("useMidiAI");
 const nonAIMidiOptions = document.getElementById("nonAiMidiDiv");
 const matOptions = document.getElementById("matOptions");
-const midiBpmDiv = document.getElementById("midiBpmDiv");
+const miditimeAlignDiv = document.getElementById("miditimeAlignDiv");
 const subBeatDiv = document.getElementById("subBeatDiv");
 const AIMidiOptions = document.getElementById("AiMidiDiv");
 const tQs = document.getElementById("tQs");
@@ -1415,8 +1415,8 @@ window.addEventListener("resize",showOrHideMasterVolume);
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
 uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--accent-gradient)";});
-alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; startOnPitchDiv.style.display=alignPitch?"block":"none";});
-alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; pitchAlignDiv.style.display=alignPitch?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; timeAlignDiv.style.display=alignTime?"block":"none";drawCursor(true);});
 midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
 useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});
 overlayFile.addEventListener("change", e => {

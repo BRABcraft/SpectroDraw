@@ -74,6 +74,41 @@ function newSprite(opts={}){
   historyIndex = historyStack.length;
   historyStack.push({type:"toggleSprite"});
 }
+function handlemoveSpritesMode(cx,cy){
+  cx = Math.floor(cx);
+  cy = Math.floor(cy);
+  spriteHit = null;
+  for (const sprite of sprites){
+    if (!sprite.sigSprite) {
+      const z=(sprite.effect.tool==="sample"||sprite.effect.tool==="autotune");
+      sprite.sigSprite = z?sprite:formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight }));
+    }
+    const s = sprite.sigSprite;
+    if (s.ch!=="all" && currentLayer !== s.ch) continue;
+    if (cx>s.maxCol||cx<s.minCol) continue;
+    let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?layerCount:s.ch+1;
+    for (let ch=$s;ch<$e;ch++){
+      const col = s.pixels[ch].get(cx);
+      const y = displayYToBin(cy,specHeight,ch);
+      if (col.ys.indexOf(y)>0) {
+        spriteHit = sprite.id;
+        break;
+      }
+    }
+  }
+  if (spriteHit) {
+    if (spritePath !== null) return;
+    spritePath = generateSpriteOutlinePath(getSpriteById(spriteHit), { height: specHeight });
+    drawSpriteOutline(false);
+  } else {
+    spritePath = null;
+    for (let ch=0;ch<layerCount;ch++){
+      const overlayCanvas = document.getElementById("overlay-"+ch);
+      const overlayCtx = overlayCanvas.getContext("2d");
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+  }
+}
 let sx2 = 0, sy2 = 0;
 
 let prevMouseX =null, prevMouseY = null;
@@ -82,6 +117,16 @@ function canvasMouseDown(e,touch) {
   if (!touch) zooming=false;
   if (!touch && e.button !== 0) return;
   //if (pendingHistory) return;
+  if (moveSpritesMode) {
+    if (spriteHit) {
+      if (selectedSpriteId !== spriteHit) {
+        selectedSpriteId = spriteHit;
+        updateEditorSelection(spriteHit);
+        if (movingSprite) document.getElementById('moveSpriteBtn').click();
+      }
+    }
+    if (!movingSprite) return;
+  }
   if (!hasSetNoiseProfile) autoSetNoiseProfile();
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   prevMouseX = cx; prevMouseY = cy; vr = 1;
@@ -184,6 +229,7 @@ function canvasMouseMove(e,touch,el) {
   if (recording) return;
   currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  if (moveSpritesMode && !(movingSprite && painting)) {handlemoveSpritesMode(cx,cy);return;}
   let mags = layers[currentLayer].mags; //change to layer that mouse is touching
   if (painting && (movingSprite||changingNoiseProfile||currentShape==="select") || draggingSample.length>0) {previewShape(cx, cy);return;}
   if (changingNoiseProfile) return;
@@ -244,9 +290,14 @@ function canvasMouseMove(e,touch,el) {
   }
 
   currentCursorX = currentFrame;
-}let debugTime = 0;
+}
+let debugTime = 0;
 function canvasMouseUp(e,touch) {debugTime = Date.now();
   previewingShape = false;
+  if (moveSpritesMode && !movingSprite) {
+    if (spriteHit) document.getElementById('moveSpriteBtn').click();
+    return;
+  }
   if (zooming || !painting) return;
   renderSpritesTable();
   

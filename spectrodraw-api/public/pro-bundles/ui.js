@@ -99,8 +99,8 @@ sliders[4][0].addEventListener("input", ()=>{updateAllVariables(null); updateBru
 sliders[4][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
 sliders[5][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
 sliders[5][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[6][0].addEventListener("input", ()=>{npo         =parseInt  (sliders[6][0].value);});
-sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) npo=parseInt  (sliders[6][1].value);});
+sliders[6][0].addEventListener("input", ()=>{const val=parseInt(sliders[6][0].value);updateNoteCircle(val);npo=val;});
+sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) {const val=parseInt(sliders[6][1].value);updateNoteCircle(val);npo=val;}});
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
 sliders[7][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[7][1].value);const min = parseFloat(sliders[7][0].min);const max = parseFloat(sliders[7][0].max);
     if (isNaN(val)) val = noiseFloor;      if (val < min) val = min;if (val > max) val = max;sliders[7][1].value = val;sliders[7][0].value = val;noiseFloor = val;}});
@@ -334,8 +334,8 @@ document.getElementById("brushToolSelect").addEventListener("input",()=>{
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
 uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--button)";});
-alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; startOnPitchDiv.style.display=alignPitch?"block":"none";});
-alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; bpmDiv.style.display=alignTime?"block":"none";drawCursor(true);});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; pitchAlignDiv.style.display=alignPitch?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; timeAlignDiv.style.display=alignTime?"block":"none";drawCursor(true);});
 midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
 useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});
 overlayFile.addEventListener("change", e => {
@@ -1788,3 +1788,88 @@ document.querySelectorAll("#globalXYTools td").forEach(td=>{
     });
   }
 );
+const mvsmbtn = document.getElementById("moveSpritesModeBtn");
+mvsmbtn.addEventListener("click",()=>{
+  moveSpritesMode = !moveSpritesMode;
+  mvsmbtn.classList.toggle('moving', moveSpritesMode);
+  spritePath = null;
+  if (!moveSpritesMode && movingSprite) document.getElementById('moveSpriteBtn').click();
+});
+
+
+function createNoteCircle(notes, size = 200) {
+  let initialNotes = Array.isArray(notes) && notes.length > 0 ? notes.slice() : new Array(12).fill(0);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+  svg.classList.add("note-circle");
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size / 2) - 2; 
+  const bg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  bg.setAttribute("cx", cx);
+  bg.setAttribute("cy", cy);
+  bg.setAttribute("r", r + 1);
+  bg.setAttribute("fill", "#eee");
+  bg.setAttribute("stroke", "none");
+  svg.appendChild(bg);
+  function render(notesArray) {
+    while (svg.childNodes.length > 1) {
+      svg.removeChild(svg.lastChild);
+    }
+    const n = notesArray.length;
+    for (let i = 0; i < n; i++) {
+      const startAngle = (i / n) * Math.PI * 2 - Math.PI / 2; 
+      const endAngle   = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2;
+      const x1 = cx + r * Math.cos(startAngle);
+      const y1 = cy + r * Math.sin(startAngle);
+      const x2 = cx + r * Math.cos(endAngle);
+      const y2 = cy + r * Math.sin(endAngle);
+      const sweep = 1; 
+      const largeArcFlag = (endAngle - startAngle) > Math.PI ? 1 : 0;
+      const d = [
+        `M ${cx} ${cy}`,
+        `L ${x1.toFixed(3)} ${y1.toFixed(3)}`,
+        `A ${r} ${r} 0 ${largeArcFlag} ${sweep} ${x2.toFixed(3)} ${y2.toFixed(3)}`,
+        `Z`
+      ].join(' ');
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", notesArray[i] ? "red" : "white");
+      path.style.cursor = 'pointer';
+      path.dataset.index = i;
+      path.addEventListener('click', function (e) {
+        const idx = Number(this.dataset.index);
+        svg._notes[idx] = svg._notes[idx] ? 0 : 1;
+        this.setAttribute('fill', svg._notes[idx] ? 'red' : 'white');
+      });
+      path.style.stroke = "#222";
+      path.style.strokeWidth = "1";
+      svg.appendChild(path);
+    }
+  }
+  svg._notes = initialNotes.slice();
+  render(initialNotes);
+  svg.setNotes = function(newNotes) {
+    if (!Array.isArray(newNotes) || newNotes.length === 0) {
+      console.warn('setNotes expects a non-empty array; no change made.');
+      return;
+    }
+    svg._notes = newNotes.slice();
+    render(svg._notes);
+  };
+  document.getElementById("pitchAlignDiv").appendChild(svg);
+  return svg;
+}
+function updateNoteCircle(newNPO) {
+  let notes = notesCircle._notes;
+  if (notes.length>newNPO) {
+    notes = notes.slice(0,newNPO);
+  } else {
+    while (notes.length<newNPO) notes.push(1);
+  }
+  notesCircle.setNotes(notes);
+}
+const notesCircle = createNoteCircle([], 80); 
+notesCircle.setNotes(new Array(npo).fill(1));

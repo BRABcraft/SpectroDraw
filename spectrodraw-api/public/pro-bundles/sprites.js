@@ -345,7 +345,7 @@ function renderToolEditorSettings(newEffect) {
   document.getElementById("sblurRadiusDiv").style.display=(c("blur"))?"flex":"none";
   document.getElementById("sautoTuneStrengthDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("snpoDiv").style.display=(c("autotune"))?"flex":"none";
-  document.getElementById("sstartOnPitchDiv").style.display=(c("autotune"))?"flex":"none";
+  document.getElementById("spitchAlignDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("sbrushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner")||c("n/a")||c("sample"))?"none":"flex";
   document.getElementById("sphaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner")||c("n/a")||c("sample"))?"none":"flex";
   updateSpritePhaseTextureSettings(effects);
@@ -576,7 +576,7 @@ async function moveSprite(spriteId, dx, dy) {
   const sprite = getSpriteById(spriteId);
   let recomputeMax = -Infinity, recomputeMin = Infinity;
   if (!sprite) return;
-
+  sprite.sigSprite = null;
   // old range (may be Infinity if empty)
   const oldMinCol = sprite.minCol;
   const oldMaxCol = sprite.maxCol;
@@ -726,9 +726,12 @@ document.getElementById('deleteSpriteBtn').addEventListener('click', () => {
   deleteSprite(selectedSpriteId);
 });
 const mvsbtn=document.getElementById('moveSpriteBtn');
-mvsbtn.addEventListener('click', () => {
+mvsbtn.addEventListener('click', e => {
   if (!selectedSpriteId) return;
   movingSprite = !movingSprite;
+  // if (moveSpritesMode && e.originalEvent === undefined) {
+  //   document.getElementById('moveSpritesModeBtn').click();
+  // }
   mvsbtn.classList.toggle('moving', movingSprite);
   if (movingSprite) {
     document.getElementById("canvas-"+currentLayer).style.cursor = 'grabbing';

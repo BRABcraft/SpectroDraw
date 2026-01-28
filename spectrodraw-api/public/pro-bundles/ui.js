@@ -1794,6 +1794,7 @@ mvsmbtn.addEventListener("click",()=>{
   mvsmbtn.classList.toggle('moving', moveSpritesMode);
   spritePath = null;
   if (!moveSpritesMode && movingSprite) document.getElementById('moveSpriteBtn').click();
+  if (!moveSpritesMode) for (let ch=0;ch<layerCount;ch++)document.getElementById("canvas-"+ch).style.cursor = "crosshair";
 });
 
 

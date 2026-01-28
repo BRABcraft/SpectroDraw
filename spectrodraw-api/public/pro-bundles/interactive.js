@@ -97,10 +97,13 @@ function handlemoveSpritesMode(cx,cy){
     }
   }
   if (spriteHit) {
+    if (!movingSprite || spriteHit!==selectedSpriteId) document.getElementById("canvas-"+currentLayer).style.cursor = "pointer";
     if (spritePath !== null) return;
     spritePath = generateSpriteOutlinePath(getSpriteById(spriteHit), { height: specHeight });
     drawSpriteOutline(false);
   } else {
+    const c = document.getElementById("canvas-"+currentLayer);
+    if (!movingSprite) c.style.cursor = "default"; else c.style.cursor = "grabbing";
     spritePath = null;
     for (let ch=0;ch<layerCount;ch++){
       const overlayCanvas = document.getElementById("overlay-"+ch);

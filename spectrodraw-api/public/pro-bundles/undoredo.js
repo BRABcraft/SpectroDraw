@@ -249,8 +249,9 @@ function doUndo() {
     }
     if (idx === -1) { console.log("Nothing to undo (no enabled sprites)"); return; }
     const sprite = sprites[idx];
-    toggleSpriteEnabled(sprite.id,false);
-    autoRecomputePCM(-1,-1);
+    const tr = document.getElementById('spriteTableBody').querySelector(`[data-sprite-id="${sprite.id}"]`);
+    const cb = tr.querySelector('input[type="checkbox"]');
+    if (cb.checked) cb.click();
     if (iHigh>specWidth) {iHigh = specWidth; updateCanvasScroll();}
     spriteRedoQueue.push(sprite);
     if (playing) {
@@ -290,8 +291,9 @@ function doRedo() {
     }
     if (idx === -1) { console.log("Nothing to redo (no disabled sprites)"); return; }
     const sprite = sprites[idx];
-    toggleSpriteEnabled(sprite.id,true);
-    autoRecomputePCM(-1,-1);
+    const tr = document.getElementById('spriteTableBody').querySelector(`[data-sprite-id="${sprite.id}"]`);
+    const cb = tr.querySelector('input[type="checkbox"]');
+    if (!cb.checked) cb.click();
     const rqidx = spriteRedoQueue.indexOf(sprite);
     if (rqidx !== -1) spriteRedoQueue.splice(rqidx, 1);
     if (playing) {

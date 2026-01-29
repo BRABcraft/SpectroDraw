@@ -300,7 +300,7 @@ button{cursor:pointer;}
 }
 
 /* range slider fixed width — change this width to make sliders shorter/longer */
-.slider-row input[type="range"] {
+input[type="range"] {
   margin-left:auto;
   transform: translateX(-15px);
   width: 70px;
@@ -312,7 +312,7 @@ button{cursor:pointer;}
 }
 #brushSize,#brushSizeInput{transform: translateX(-35px);}
 
-.slider-row input[type="range"].vertical {
+input[type="range"].vertical {
   height: 4px;
 }
 

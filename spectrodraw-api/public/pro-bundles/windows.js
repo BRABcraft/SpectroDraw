@@ -1210,28 +1210,58 @@ function setDocked(panel, dockObj){
       </div>
       <div class="content-wrapper" id="content-4">
         <div class="panel-body">
-          <label class="h1">Brush Alignment</label>
           <!--Auto align pitch-->
           <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
           <div id="pitchAlignDiv" style="display:none;">
-            <div class="slider-row" title="Base Pitch">
+            <div style="display:flex;flex-direction:row;" title="Base Pitch">
               <label class="h2">Base Hz</label>
-              <input id="startOnPitch" type="range" min="261.63" max="523.3" step="0.01" value="440">
-              <input id="startOnPitchInput" type="number" value="440">
+              <input id="startOnPitch" style="width:50px;" type="range" min="261.63" max="523.3" step="0.01" value="440">
+              <input id="startOnPitchInput" type="number" value="440" min="261.63" max="523.3" step="0.01" style="width:60px;">
+              <select id="startOnPitchSelect">
+                <option value="261">C4</option>
+                <option value="277.18">C#4</option>
+                <option value="293.66">D4</option>
+                <option value="311.13">D#4</option>
+                <option value="329.63">E4</option>
+                <option value="349.23">F4</option>
+                <option value="369.99">F#4</option>
+                <option value="392">G4</option>
+                <option value="415.3">G#4</option>
+                <option value="440" selected>A4</option>
+                <option value="466.16">A#4</option>
+                <option value="493.88">B4</option>
+              </select>
             </div>
             <!--Notes per octave (achieve with pitch bends)-->
             <div class="slider-row" title="Notes Per Octave">
-              <label class="h2">Notes per octave</label>
+              <label class="h2">Notes / octave</label>
               <input id="npo" type="range" min="1" max="48" step="1" value="12">
               <input id="npoInput" type="number" value="12" min="1" max="384">
+            </div>
+            <div class="slider-row" title="Scale presets">
+              <label class="h2">Scale preset</label>
+              <select id="notesCircleSelect">
+                <option value="Major">Major</option>
+                <option value="Minor">Minor</option>
+                <option value="Diminished">Diminished</option>
+                <option value="Whole Tone">Whole Tone</option>
+                <option value="Mixolydian">Mixolydian</option>
+                <option value="Lydian">Lydian</option>
+                <option value="Pentatonic">Pentatonic</option>
+                <option value="Blues">Blues</option>
+                <option value="Chromatic" selected>Chromatic</option>
+                <option value="Custom">Custom</option>
+              </select>
             </div>
           </div>
           <!--Auto align time-->
           <button class="leftBtn" id="alignTime" title="Auto align time (k)">Auto Align Time</button>
-          <div id ="timeAlignDiv" class="slider-row" title="BPM" style="display:none;">
-            <label class="h2">BPM</label>
-            <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
-            <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
+          <div id ="timeAlignDiv" style="display:none;">
+            <div id ="bpmDiv" class="slider-row" title="BPM">
+              <label class="h2">BPM</label>
+              <input id="bpm" type="range" min="0.001" max="500" step="0.01" value="120">
+              <input id="bpmInput" type="number" value="120" min="0.001" max="5000">
+            </div>
           </div>
         </div>
       </div>

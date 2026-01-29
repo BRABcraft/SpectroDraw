@@ -708,8 +708,8 @@ async function deleteSprite(spriteId) {
   const minCol = Math.max(0, sprite.minCol || 0);
   const maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
   sprites.splice(idx, 1);
+  for (let ch=0;ch<layerCount;ch++)renderSpectrogramColumnsToImageBuffer(minCol,maxCol,ch);
   recomputePCMForCols(minCol, maxCol);
-  restartRender(false);
 
   if (playing) {
     stopSource(true);

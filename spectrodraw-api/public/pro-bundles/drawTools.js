@@ -618,6 +618,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   const f = getSineFreq(yDisplay);
   if (alignPitch) {
     let nearestPitch = Math.round(npo * Math.log2(f / startOnP));
+    while (notesCircle._notes[nearestPitch % npo] === 0) nearestPitch++;
     nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
     displayYFloat = ftvsy(nearestPitch, ch);
   }

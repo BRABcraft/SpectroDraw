@@ -331,12 +331,12 @@ shapeButtons.forEach(btn => {
 document.getElementById("brushToolSelect").addEventListener("input",()=>{
   onShapeChange(document.getElementById("brushToolSelect").value);
 });
-trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
-yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"var(--accent-gradient)"; drawYAxis();});
-uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"var(--button)";});
-alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"var(--accent-gradient)"; pitchAlignDiv.style.display=alignPitch?"block":"none";});
-alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"var(--accent-gradient)"; timeAlignDiv.style.display=alignTime?"block":"none";drawCursor(true);});
-midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:var(--accent-gradient);margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
+trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"#444"; restartRender(false);});
+yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"#444"; drawYAxis();});
+uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"#444";});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"#444"; pitchAlignDiv.style.display=alignPitch?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#444"; timeAlignDiv.style.display=alignTime?"block":"none";drawCursor(true);});
+midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:#444;margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
 useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});
 overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
@@ -1224,7 +1224,7 @@ document.querySelectorAll('.toolSection').forEach(section => {
   function open(){
     section.classList.add('open');
     header.setAttribute('aria-expanded','true');
-    const h = body.scrollHeight;
+    const h = body.scrollHeight + 10;
     wrapper.style.maxHeight = h + 'px';
   }
   function close(){
@@ -1237,12 +1237,12 @@ document.querySelectorAll('.toolSection').forEach(section => {
   });
   const ro = new ResizeObserver(()=>{
     if (section.classList.contains('open')){
-      wrapper.style.maxHeight = body.scrollHeight + 'px';
+      wrapper.style.maxHeight = body.scrollHeight + 10 + 'px';
     }
   });
   ro.observe(body);
   window.addEventListener('resize', ()=>{
-    if (section.classList.contains('open')) wrapper.style.maxHeight = body.scrollHeight + 'px';
+    if (section.classList.contains('open')) wrapper.style.maxHeight = body.scrollHeight +10+ 'px';
   });
   wrapper.style.maxHeight = 0;
   header.setAttribute('tabindex', 0);
@@ -1800,58 +1800,198 @@ mvsmbtn.addEventListener("click",()=>{
 
 function createNoteCircle(notes, size = 200) {
   let initialNotes = Array.isArray(notes) && notes.length > 0 ? notes.slice() : new Array(12).fill(0);
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+  // SVG root
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
   svg.setAttribute("width", String(size));
   svg.setAttribute("height", String(size));
   svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
   svg.classList.add("note-circle");
+
   const cx = size / 2;
   const cy = size / 2;
-  const r = (size / 2) - 2; 
-  const bg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+
+  // outer/inner radii for ring segments (thickness scales with size)
+  const rOuter = (size / 2) - 4;                     // outer radius
+  const thickness = Math.max(12, Math.round(size * 0.18)); // segment thickness
+  const rInner = rOuter - thickness;                 // inner radius
+
+  // dark plugin-like background
+  const bg = document.createElementNS(svgNS, "circle");
   bg.setAttribute("cx", cx);
   bg.setAttribute("cy", cy);
-  bg.setAttribute("r", r + 1);
-  bg.setAttribute("fill", "#eee");
+  bg.setAttribute("r", (rInner - 6).toString()); // make inner area darker
+  bg.setAttribute("fill", "#0b0b0b");            // plugin dark background
   bg.setAttribute("stroke", "none");
   svg.appendChild(bg);
-  function render(notesArray) {
-    while (svg.childNodes.length > 1) {
-      svg.removeChild(svg.lastChild);
+
+  // helper to build ring-segment (donut slice) path
+  function ringSegmentPath(cx, cy, rO, rI, startA, endA) {
+    const twoPi = Math.PI * 2;
+    // normalize sweep to [0, 2π]
+    let sweep = endA - startA;
+    while (sweep < 0) sweep += twoPi;
+    while (sweep > twoPi) sweep -= twoPi;
+
+    // if the sweep is effectively a full circle, split into two arcs so endpoints aren't identical
+    if (Math.abs(sweep - twoPi) < 1e-6) {
+      const mid = startA + Math.PI; // halfway around
+      // outer points
+      const xStartO = cx + rO * Math.cos(startA), yStartO = cy + rO * Math.sin(startA);
+      const xMidO   = cx + rO * Math.cos(mid),   yMidO   = cy + rO * Math.sin(mid);
+      // inner points
+      const xStartI = cx + rI * Math.cos(startA), yStartI = cy + rI * Math.sin(startA);
+      const xMidI   = cx + rI * Math.cos(mid),    yMidI   = cy + rI * Math.sin(mid);
+
+      // two half-arcs for outer, two half-arcs for inner (reverse direction)
+      return [
+        `M ${xStartO.toFixed(3)} ${yStartO.toFixed(3)}`,
+        `A ${rO.toFixed(3)} ${rO.toFixed(3)} 0 0 1 ${xMidO.toFixed(3)} ${yMidO.toFixed(3)}`,
+        `A ${rO.toFixed(3)} ${rO.toFixed(3)} 0 0 1 ${xStartO.toFixed(3)} ${yStartO.toFixed(3)}`,
+        `L ${xStartI.toFixed(3)} ${yStartI.toFixed(3)}`,
+        `A ${rI.toFixed(3)} ${rI.toFixed(3)} 0 0 0 ${xMidI.toFixed(3)} ${yMidI.toFixed(3)}`,
+        `A ${rI.toFixed(3)} ${rI.toFixed(3)} 0 0 0 ${xStartI.toFixed(3)} ${yStartI.toFixed(3)}`,
+        'Z'
+      ].join(' ');
     }
+
+    // normal (partial) segment case
+    const x1o = cx + rO * Math.cos(startA);
+    const y1o = cy + rO * Math.sin(startA);
+    const x2o = cx + rO * Math.cos(endA);
+    const y2o = cy + rO * Math.sin(endA);
+    const x2i = cx + rI * Math.cos(endA);
+    const y2i = cy + rI * Math.sin(endA);
+    const x1i = cx + rI * Math.cos(startA);
+    const y1i = cy + rI * Math.sin(startA);
+
+    const largeArcFlag = sweep > Math.PI ? 1 : 0;
+    const d = [
+      `M ${x1o.toFixed(3)} ${y1o.toFixed(3)}`,
+      `A ${rO.toFixed(3)} ${rO.toFixed(3)} 0 ${largeArcFlag} 1 ${x2o.toFixed(3)} ${y2o.toFixed(3)}`,
+      `L ${x2i.toFixed(3)} ${y2i.toFixed(3)}`,
+      `A ${rI.toFixed(3)} ${rI.toFixed(3)} 0 ${largeArcFlag} 0 ${x1i.toFixed(3)} ${y1i.toFixed(3)}`,
+      'Z'
+    ].join(' ');
+    return d;
+  }
+
+  // render function (recreates segment paths)
+  function render(notesArray) {
+    // remove all children except the background (index 0)
+    while (svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
+
     const n = notesArray.length;
     for (let i = 0; i < n; i++) {
-      const startAngle = (i / n) * Math.PI * 2 - Math.PI / 2; 
+      const startAngle = (i / n) * Math.PI * 2 - Math.PI / 2;
       const endAngle   = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2;
-      const x1 = cx + r * Math.cos(startAngle);
-      const y1 = cy + r * Math.sin(startAngle);
-      const x2 = cx + r * Math.cos(endAngle);
-      const y2 = cy + r * Math.sin(endAngle);
-      const sweep = 1; 
-      const largeArcFlag = (endAngle - startAngle) > Math.PI ? 1 : 0;
-      const d = [
-        `M ${cx} ${cy}`,
-        `L ${x1.toFixed(3)} ${y1.toFixed(3)}`,
-        `A ${r} ${r} 0 ${largeArcFlag} ${sweep} ${x2.toFixed(3)} ${y2.toFixed(3)}`,
-        `Z`
-      ].join(' ');
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+
+      const path = document.createElementNS(svgNS, "path");
+      const d = ringSegmentPath(cx, cy, rOuter, rInner, startAngle, endAngle);
       path.setAttribute("d", d);
-      path.setAttribute("fill", notesArray[i] ? "red" : "white");
+
+      // rainbow hue per slice
+      const hue = Math.round((i / n) * 360);
+
+      // colors: enabled = brighter; disabled = darker
+      const enabledLight = 55;   // lightness for enabled base
+      const disabledLight = 22;  // lightness for disabled base
+      const saturationOn = 95;
+      const saturationOff = 45;
+
+      const isOn = !!notesArray[i];
+      const baseFill = isOn
+        ? `hsl(${hue}, ${saturationOn}%, ${enabledLight}%)`
+        : `hsl(${hue}, ${saturationOff}%, ${disabledLight}%)`;
+
+      // hover fill (brighter)
+      const hoverFill = `hsl(${hue}, ${Math.min(100, saturationOn + 10)}%, ${Math.min(80, enabledLight + 12)}%)`;
+
+      // initial fill/stroke
+      path.setAttribute("fill", baseFill);
+      path.setAttribute("stroke", "#050505");
+      path.setAttribute("stroke-width", "0.6");
       path.style.cursor = 'pointer';
+
+      // smooth transitions and origin for scaling
+      path.style.transition = "transform 120ms ease, filter 120ms ease, fill 120ms ease";
+      // for transform-origin to work reliably with SVG, provide pixel coordinates
+      path.style.transformOrigin = `${cx}px ${cy}px`;
+
+      // store metadata for event handlers
       path.dataset.index = i;
+      path.dataset.hue = String(hue);
+      path.dataset.sOn = String(saturationOn);
+      path.dataset.sOff = String(saturationOff);
+      path.dataset.lOn = String(enabledLight);
+      path.dataset.lOff = String(disabledLight);
+      path.dataset.hover = hoverFill;
+
+      // click toggles note and updates fill
       path.addEventListener('click', function (e) {
         const idx = Number(this.dataset.index);
         svg._notes[idx] = svg._notes[idx] ? 0 : 1;
-        this.setAttribute('fill', svg._notes[idx] ? 'red' : 'white');
+        // recompute fill for the new state
+        const h = Number(this.dataset.hue);
+        const on = !!svg._notes[idx];
+        const newFill = on
+          ? `hsl(${h}, ${this.dataset.sOn}%, ${this.dataset.lOn}%)`
+          : `hsl(${h}, ${this.dataset.sOff}%, ${this.dataset.lOff}%)`;
+        this.setAttribute('fill', newFill);
       });
-      path.style.stroke = "#222";
-      path.style.strokeWidth = "1";
+
+      // hover interactions: brighten + scale up slightly
+      path.addEventListener('mouseenter', function () {
+        // prefer making hover visible: scale + brighter fill + gentle glow (via filter)
+        this.style.transform = 'scale(1.08)';
+        this.style.filter = 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))';
+        // set brighter fill (use hover stored)
+        this.setAttribute('fill', this.dataset.hover);
+      });
+      path.addEventListener('mouseleave', function () {
+        this.style.transform = 'none';
+        this.style.filter = 'none';
+        // restore fill depending on state
+        const idx = Number(this.dataset.index);
+        const on = !!svg._notes[idx];
+        const h = Number(this.dataset.hue);
+        const restored = on
+          ? `hsl(${h}, ${this.dataset.sOn}%, ${this.dataset.lOn}%)`
+          : `hsl(${h}, ${this.dataset.sOff}%, ${this.dataset.lOff}%)`;
+        this.setAttribute('fill', restored);
+      });
+
       svg.appendChild(path);
+      const midAngle = (startAngle + endAngle) / 2;
+      // place the text halfway through the ring thickness (slightly toward outer edge)
+      const textRadius = rInner - 10 + Math.max(0, Math.round(thickness * 0.06));
+      const tx = cx + textRadius * Math.cos(midAngle);
+      const ty = cy + textRadius * Math.sin(midAngle);
+
+      const txt = document.createElementNS(svgNS, "text");
+      txt.setAttribute("x", tx.toFixed(3));
+      txt.setAttribute("y", ty.toFixed(3));
+      txt.setAttribute("fill", "#ffffff");               // white text
+      txt.setAttribute("text-anchor", "middle");         // center horizontally
+      txt.setAttribute("dominant-baseline", "middle");   // center vertically
+      // scale font to ring thickness (keeps it proportional to size)
+      const fontSize = Math.max(10, Math.round(thickness * 0.45));
+      txt.setAttribute("font-size", String(fontSize));
+      txt.setAttribute("font-family", "sans-serif");
+      // make sure text doesn't intercept pointer events (clicks go to the path)
+      txt.style.pointerEvents = "none";
+
+      txt.textContent = String(i); // the slice index
+
+      svg.appendChild(txt);
     }
   }
+
+  // initial state & api
   svg._notes = initialNotes.slice();
-  render(initialNotes);
+  render(svg._notes);
+
   svg.setNotes = function(newNotes) {
     if (!Array.isArray(newNotes) || newNotes.length === 0) {
       console.warn('setNotes expects a non-empty array; no change made.');
@@ -1860,17 +2000,71 @@ function createNoteCircle(notes, size = 200) {
     svg._notes = newNotes.slice();
     render(svg._notes);
   };
-  document.getElementById("pitchAlignDiv").appendChild(svg);
+
+  // append to DOM (keeps your original behaviour)
+  const mount = document.getElementById("pitchAlignDiv") || document.body;
+  mount.appendChild(svg);
   return svg;
 }
-function updateNoteCircle(newNPO) {
-  let notes = notesCircle._notes;
-  if (notes.length>newNPO) {
+const ncs = document.getElementById("notesCircleSelect");
+const notesCircle = createNoteCircle([], 150);
+notesCircle.setNotes(new Array(npo).fill(1));
+const scales = {
+  //               C # D # E F # G # A # B
+  "Major":        [1,0,1,0,1,1,0,1,0,1,0,1],
+  "Minor":        [1,0,1,1,0,1,0,1,1,0,1,0],
+  "Diminished":   [1,0,1,1,0,1,1,0,1,1,0,1],
+  "Whole Tone":   [1,0,1,0,1,0,1,0,1,0,1,0],
+  "Mixolydian":   [1,0,1,0,1,1,0,1,0,1,1,0],
+  "Lydian":       [1,0,1,0,1,0,1,1,0,1,0,1],
+  "Chromatic":    [1,1,1,1,1,1,1,1,1,1,1,1],
+  "Pentatonic":   [1,0,1,0,1,0,0,1,0,1,0,0],
+  "Blues":        [1,0,0,1,1,1,0,0,1,0,1,0]
+}
+function updateNoteCircle(newNPO) { 
+  let notes = notesCircle._notes; 
+  if (notes.length>newNPO) { 
     notes = notes.slice(0,newNPO);
   } else {
-    while (notes.length<newNPO) notes.push(1);
-  }
+    let i=notes.length-1;
+    while (notes.length<newNPO) {
+      notes.push(scales[ncs.value]?scales[ncs.value][i%12]:1);
+      i++;
+    }
+  } 
   notesCircle.setNotes(notes);
 }
-const notesCircle = createNoteCircle([], 80); 
-notesCircle.setNotes(new Array(npo).fill(1));
+ncs.addEventListener("change",e=>{
+  if (ncs.value === "Custom") return;
+  if (!scales[ncs.value]) {notesCircle.setNotes(new Array(12).fill(0)); return;}
+  let scale = [];
+  for (let i=0;i<npo;i++) {
+    scale.push(scales[ncs.value][i%12]);
+  }
+  notesCircle.setNotes(scale);
+});
+
+const sops = document.getElementById("startOnPitchSelect");
+sops.addEventListener("change",e=>{
+  startOnP = sliders[9][0].value = sliders[9][1].value = parseFloat(e.target.value);
+});
+function findClosestOption(selectEl, targetValue) {
+  let closestOption = null;
+  let smallestDiff = Infinity;
+  for (const option of selectEl.options) {
+    const value = parseFloat(option.value);
+    if (Number.isNaN(value)) continue;
+    const diff = Math.abs(value - targetValue);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      closestOption = option;
+    }
+  }
+  return closestOption;
+}
+sliders[9][0].addEventListener("input",e=>{
+  sops.value = findClosestOption(sops, sliders[9][0].value).value;
+});
+sliders[9][1].addEventListener("input",e=>{
+  sops.value = findClosestOption(sops, sliders[9][1].value).value;
+});

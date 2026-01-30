@@ -1277,6 +1277,13 @@ function setDocked(panel, dockObj){
       </div>
       <div class="content-wrapper" id="content-5">
         <div class="panel-body">
+          <div style="display:flex;flex-direction:row;">
+            <input type="checkbox" id="filterUseMagsCheckbox" title="Affect magnitudes" checked></input>
+            <label for="filterUseMagsCheckbox">Mags</label>
+            <input type="checkbox" id="filterUsePhasesCheckbox" title="Affect phases" checked></input>
+            <label for="filterUsePhasesCheckbox">Phases</label>
+          </div>
+          <div id="filterMasksWrapper"></div>
         </div>
       </div>
     </section>

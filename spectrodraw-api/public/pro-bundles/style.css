@@ -726,7 +726,7 @@ select {
 .more-btn{
   height:10px;border-radius:5px;border:none;background-color:#333;color:white;box-shadow:0 0 10px #000;align-items: center;justify-content: center;display:flex;cursor:pointer;
 }
-#stampsWrapper {
+#stampsWrapper, #filterMasksWrapper {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
@@ -738,6 +738,7 @@ select {
   border: 1px #555 solid;
   border-radius: 5px;
 }
+#filterMasksWrapper{grid-template-columns: repeat(4, 1fr);min-width: 200px;}
 .stamp-tile {
   position: relative;
   width: 80%;

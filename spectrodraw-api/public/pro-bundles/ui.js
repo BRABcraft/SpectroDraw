@@ -2068,3 +2068,64 @@ sliders[9][0].addEventListener("input",e=>{
 sliders[9][1].addEventListener("input",e=>{
   sops.value = findClosestOption(sops, sliders[9][1].value).value;
 });
+function renderFilters(){
+  const wrap = document.getElementById("filterMasksWrapper");
+  
+  wrap.innerHTML = "";
+
+  filterMasks.forEach((mask) => {
+    const tile = document.createElement("div");
+    tile.title = mask.name;
+    tile.className="stamp-tile";
+
+    if (mask.dataUrl) {
+      const img = document.createElement("img");
+      img.src = mask.dataUrl;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = "cover";
+      tile.appendChild(img);
+    }
+    tile.addEventListener('click', (ev) => {
+      const useMags = document.getElementById("filterUseMagsCheckbox").checked;
+      const usePhases = document.getElementById("filterUsePhasesCheckbox").checked;
+
+      // draw mask into temp canvas so we can read pixels
+      const tmp = document.createElement("canvas");
+      tmp.width = specWidth;
+      tmp.height = specHeight;
+      const ctx = tmp.getContext("2d");
+
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, specWidth, specHeight);
+        const maskData = ctx.getImageData(0, 0, specWidth, specHeight).data;
+        newGlobalXYHistory('undo');
+        for (let l = 0; l < layerCount; l++) {
+          let displayYToBin = [];
+          for (let i=0;i<specHeight;i++) {
+            const f = sampleRate / fftSize, $s = sampleRate/2, $l = logScaleVal[l];
+            displayYToBin.push(specHeight-1-Math.floor(lsc(i*f,$s,$l)/f));
+          }
+          for (let i = 0; i < specWidth * specHeight; i++) {
+            const xx = Math.floor(i/specHeight);
+            const yy = displayYToBin[i%specHeight];
+            //const yy = i%specHeight;
+            const px = (yy*specWidth + xx) * 4;              // RGBA index
+            const _opacity = maskData[px] / 255; // R channel → 0..1
+
+            if (useMags)   layers[l].mags[i]   *= _opacity;
+            if (usePhases) layers[l].phases[i] *= _opacity;
+          }
+        }
+        simpleRestartRender(0, framesTotal);
+        newGlobalXYHistory('redo');
+      };
+
+      img.src = mask.dataUrl;
+    });
+
+    wrap.appendChild(tile);
+  });
+}
+renderFilters();

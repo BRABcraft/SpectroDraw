@@ -132,7 +132,7 @@ function updateAllPlayUI() {
         const elapsed = audioCtx.currentTime - it._startedAt;
         posSamples = Math.floor((it._startOffset || 0) + elapsed * (it.sampleRate || sampleRate));
       }
-      const total = it.pcm ? it.pcm.length : 0;
+      const total = it.pcm[0] ? it.pcm[0].length : 0;
       if (slider) {
         slider.min = 0;
         slider.max = total;
@@ -163,8 +163,9 @@ function renderUploads() {
     // ensure numeric defaults so UI shows something stable
     const pos = Number.isFinite(samplePos) ? samplePos : 0;
     const sr = sampleRate || sampleRate === 0 ? sampleRate : window.sampleRate;
-    const totalMs = pcm && pcm.length ? msToMS((pcm.length / (sr || window.sampleRate)) * 1000) : "0:00";
+    const totalMs = msToMS((pcm.length / (sr || window.sampleRate)) * 1000);
     const curMs = msToMS((pos / (sr || window.sampleRate)) * 1000);
+    //console.log(`<label for="timeSlider_${s}" id="timeLabel_${s}" style="font-size:14px;">${curMs}/${totalMs}</label>`);
     return `
     <div class="sample-row" data-sample-id="${s}">
       <div class="sample-controls">
@@ -211,14 +212,14 @@ function renderUploads() {
     const u = uploads[i];
     // ensure samplePos exists
     if (!Number.isFinite(u.samplePos)) u.samplePos = 0;
-    uploadsHtml += buildSampleRow(u.name || `Upload ${i}`, u.pcm || new Float32Array(0), u.samplePos, u.sampleRate || sampleRate, "u" + i);
+    uploadsHtml += buildSampleRow(u.name || `Upload ${i}`, u.pcm[0] || new Float32Array(0), u.samplePos, u.sampleRate || sampleRate, "u" + i);
   }
 
   let layersHtml = "";
   for (let i = 0; i < layers.length; i++) {
     const ch = layers[i];
     if (!Number.isFinite(ch.samplePos)) ch.samplePos = 0;
-    layersHtml += buildSampleRow("Layer " + i, ch.pcm || new Float32Array(0), ch.samplePos, ch.sampleRate || sampleRate, "c" + i);
+    layersHtml += buildSampleRow("Layer " + i, ch.pcm[0] || new Float32Array(0), ch.samplePos, ch.sampleRate || sampleRate, "c" + i);
   }
 
   // 2) Set HTML once
@@ -238,18 +239,18 @@ function renderUploads() {
 
     if (timeSlider) {
       timeSlider.min = 0;
-      timeSlider.max = u.pcm ? u.pcm.length : 0;
+      timeSlider.max = u.pcm[0] ? u.pcm[0].length : 0;
       timeSlider.value = u.samplePos || 0;
 
       // robust numeric parsing + immediate UI update
       timeSlider.addEventListener("input", (e) => {
         const v = Number(e.target.value);
         const newSample = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
-        u.samplePos = Math.min(u.pcm ? u.pcm.length : 0, newSample);
+        u.samplePos = Math.min(u.pcm[0] ? u.pcm[0].length : 0, newSample);
 
         if (timeLabel) {
           const curMs = (u.samplePos / (u.sampleRate || sampleRate)) * 1000;
-          const totMs = (u.pcm ? u.pcm.length : 0) / (u.sampleRate || sampleRate) * 1000;
+          const totMs = (u.pcm[0] ? u.pcm[0].length : 0) / (u.sampleRate || sampleRate) * 1000;
           timeLabel.innerText = `${msToMS(curMs)}/${msToMS(totMs)}`;
         }
 
@@ -279,13 +280,12 @@ function renderUploads() {
         }
       });
     }
-    let us = [], name=[]; for (let c =0;c<layerCount;c++) if (uploads[c].uuid === u.uuid){us.push(uploads[c]); name.push(uploads[c].name);}
-    sampleReplace.addEventListener("pointerdown", (ev) => startDrag(syncLayers?us:[u], ev, name,false));
-    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(syncLayers?us:[u], ev, name,true));
+    sampleReplace.addEventListener("pointerdown", (ev) => startDrag(u, ev, u.name,false));
+    sampleInsert.addEventListener("pointerdown", (ev) => startDrag(u, ev, u.name,true));
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
-        if (!u.pcm || u.pcm.length === 0) return;
+        if (!u.pcm[0] || u.pcm[0].length === 0) return;
         if (u._isPlaying) stopItem(uploads, i, true);
         else await startItem(uploads, i);
       });
@@ -312,17 +312,17 @@ function renderUploads() {
 
     if (timeSlider) {
       timeSlider.min = 0;
-      timeSlider.max = ch.pcm ? ch.pcm.length : 0;
+      timeSlider.max = ch.pcm[0] ? ch.pcm[0].length : 0;
       timeSlider.value = ch.samplePos || 0;
 
       timeSlider.addEventListener("input", (e) => {
         const v = Number(e.target.value);
         const newSample = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
-        ch.samplePos = Math.min(ch.pcm ? ch.pcm.length : 0, newSample);
+        ch.samplePos = Math.min(ch.pcm[0] ? ch.pcm[0].length : 0, newSample);
 
         if (timeLabel) {
           const curMs = (ch.samplePos / (ch.sampleRate || sampleRate)) * 1000;
-          const totMs = (ch.pcm ? ch.pcm.length : 0) / (ch.sampleRate || sampleRate) * 1000;
+          const totMs = (ch.pcm[0] ? ch.pcm[0].length : 0) / (ch.sampleRate || sampleRate) * 1000;
           timeLabel.innerText = `${msToMS(curMs)}/${msToMS(totMs)}`;
         }
 
@@ -350,7 +350,7 @@ function renderUploads() {
 
     if (playbackBtn) {
       playbackBtn.addEventListener("click", async () => {
-        if (!ch.pcm || ch.pcm.length === 0) return;
+        if (!ch.pcm[0] || ch.pcm[0].length === 0) return;
         if (ch._isPlaying) stopItem(layers, i, true);
         else await startItem(layers, i);
       });
@@ -430,48 +430,88 @@ function shiftSpritesForInsert(ch, start, insertLen) {
 }
 
 async function commitSample(sample, X, insert = false) {
-  if (draggingSample.length === 0 || !sample || !sample[0].pcm || X < -30) {draggingSample = []; return;}
-  let $s = syncLayers ? 0 : currentLayer;
-  let $e = syncLayers ? layerCount : currentLayer + 1;
-  let idx = 0;
-  for (let ch = $s; ch < $e; ch++) {
-    const start = Math.max(0, X * hop);
-    const end = start + sample[idx].pcm.length;
-    if (!layers[ch].pcm || layers[ch].pcm.length === 0) {
-      layers[ch].pcm = sample[idx].pcm.slice(0);
-      bufferLengthKnob.setValue(layers[ch].pcm.length / sampleRate);
+  if (!sample || !sample.pcm || X < -30) {draggingSample = null; return;}
+  let idx = 0, ch=currentLayer;
+  const start = Math.max(0, X * hop);
+  const end = start + sample.pcm[0].length;
+  // ensure layers[ch].pcm is a stereo pair
+  if (!layers[ch].pcm[0] || layers[ch].pcm[0].length === 0) {
+    layers[ch].pcm = [sample.pcm[0].slice(0), sample.pcm[1].slice(0)];
+    bufferLengthKnob.setValue(layers[ch].pcm[0].length / sampleRate);
+    drawTimeline();
+  } else {
+    // stereo lengths and safety
+    const existing = layers[ch].pcm;
+    const leftExisting = existing[0] || new Float32Array(0);
+    const rightExisting = existing[1] || new Float32Array(0);
+    const sampleLen = (sample.pcm && sample.pcm[0]) ? sample.pcm[0].length : 0;
+
+    if (insert) {
+      const newLen = Math.max(leftExisting.length, start) + sampleLen;
+      const newL = new Float32Array(newLen);
+      const newR = new Float32Array(newLen);
+
+      // copy head up to start
+      const headLen = Math.min(leftExisting.length, start);
+      if (headLen > 0) {
+        newL.set(leftExisting.subarray(0, headLen), 0);
+        newR.set(rightExisting.subarray(0, headLen), 0);
+      }
+
+      // insert sample
+      if (sampleLen > 0) {
+        newL.set(sample.pcm[0], start);
+        newR.set(sample.pcm[1], start);
+      }
+
+      // copy tail if any
+      if (start < leftExisting.length) {
+        newL.set(leftExisting.subarray(start), start + sampleLen);
+      }
+      if (start < rightExisting.length) {
+        newR.set(rightExisting.subarray(start), start + sampleLen);
+      }
+
+      layers[ch].pcm = [newL, newR];
+      bufferLengthKnob.setValue(layers[ch].pcm[0].length / sampleRate);
       drawTimeline();
-    } else if (insert) {
-      const existing = layers[ch].pcm;
-      const newLen = Math.max(existing.length, start) + sample[idx].pcm.length;
-      const newPCM = new Float32Array(newLen);
-      newPCM.set(existing.subarray(0, Math.min(existing.length, start)), 0);
-      newPCM.set(sample[idx].pcm, start);
-      if (start < existing.length) newPCM.set(existing.subarray(start), start + sample[idx].pcm.length);
-      layers[ch].pcm = newPCM;
-      bufferLengthKnob.setValue(layers[ch].pcm.length / sampleRate);
+      shiftSpritesForInsert(ch, X, Math.floor(sampleLen / hop));
+    } else if (sampleLen > leftExisting.length) {
+      // sample is longer than existing -> replace with sample (stereo)
+      layers[ch].pcm = [sample.pcm[0].slice(0), sample.pcm[1].slice(0)];
+      bufferLengthKnob.setValue(layers[ch].pcm[0].length / sampleRate);
       drawTimeline();
-      shiftSpritesForInsert(ch, X, Math.floor(sample[idx].pcm.length/hop));
-    } else if (sample[idx].pcm.length > layers[ch].pcm.length) {
-      layers[ch].pcm = sample[idx].pcm;
-      bufferLengthKnob.setValue(layers[ch].pcm.length / sampleRate);
-      drawTimeline();
-    } else if (layers[ch].pcm.length < end) {
-      const newPCM = new Float32Array(end);
-      newPCM.set(layers[ch].pcm, 0);
-      newPCM.set(sample[idx].pcm, start);
-      layers[ch].pcm = newPCM;
-      bufferLengthKnob.setValue(layers[ch].pcm.length / sampleRate);
+    } else if (leftExisting.length < end) {
+      // need to grow existing to fit `end`
+      const newLen = end;
+      const newL = new Float32Array(newLen);
+      const newR = new Float32Array(newLen);
+      // copy existing
+      if (leftExisting.length > 0) {
+        newL.set(leftExisting, 0);
+        newR.set(rightExisting, 0);
+      }
+      // place sample at start
+      if (sampleLen > 0) {
+        newL.set(sample.pcm[0], start);
+        newR.set(sample.pcm[1], start);
+      }
+      layers[ch].pcm = [newL, newR];
+      bufferLengthKnob.setValue(layers[ch].pcm[0].length / sampleRate);
       drawTimeline();
     } else {
-      layers[ch].pcm.set(sample[idx].pcm, start);
+      // in-place write (both channels)
+      if (sampleLen > 0) {
+        // ensure target views are large enough (they should be by the previous checks)
+        layers[ch].pcm[0].set(sample.pcm[0], start);
+        layers[ch].pcm[1].set(sample.pcm[1], start);
+      }
     }
-    framesTotal = Math.max(Math.floor(layers[ch].pcm.length / hop), framesTotal);
-    maxCol = framesTotal;
-    if (syncLayers) idx++;
-    layers[ch].snapshotMags = new Float32Array(layers[ch].mags);
-    layers[ch].snapshotPhases = new Float32Array(layers[ch].phases);
   }
+  framesTotal = Math.max(Math.floor(layers[ch].pcm[0].length / hop), framesTotal);
+  maxCol = framesTotal;
+  layers[ch].snapshotMags = new Float32Array(layers[ch].mags);
+  layers[ch].snapshotPhases = new Float32Array(layers[ch].phases);
   //simpleRestartRender(0,Math.floor(emptyAudioLength*sampleRate/hop));
   uploadingSprite = true;
   restartRender(false);
@@ -480,19 +520,13 @@ async function commitSample(sample, X, insert = false) {
   // rendering=true;
   // for (let ch = 0; ch < layerCount; ch++) renderSpectrogramColumnsToImageBuffer(0, framesTotal, ch);
   autoSetNoiseProfile();
-  draggingSample = [];
-  idx = 0;
-  for (let ch = $s; ch < $e; ch++) {
-    console.log("Creating sprite for layer", ch);
-    newUploadSprite({
-      ch,
-      minCol:Math.floor(X),
-      maxCol:Math.floor(X+sample[0].pcm.length/hop),
-      name:sample[idx].name??("layer "+sample[idx].ch),
-      pcm:sample[idx].pcm
-    });
-    if (syncLayers) idx++;
-  }
+  draggingSample = null;
+  newUploadSprite({
+    ch,
+    minCol:Math.floor(X),
+    maxCol:Math.floor(X+sample.pcm[0].length/hop),
+    name:sample.name??("layer "+sample.ch),
+  });
 }
 
 function newUploadSprite(data) {
@@ -652,7 +686,7 @@ function spawnDragBox(name) {
     });
     document.body.appendChild(__dragBox);
   }
-  __dragBox.innerHTML = name.join("<br>");
+  __dragBox.innerHTML = name;
   __dragBox.style.display = "block";
 }
 
@@ -674,10 +708,10 @@ function __onPointerUp(e) {
   stopDrag();
 }
 
-function startDrag(items, ev, name, insert) {
-  if (!items) return;
+function startDrag(item, ev, name, insert) {
+  if (!item) return;
   dragInsert = !!insert;
-  draggingSample = items;
+  draggingSample = item;
   spawnDragBox(name);
 
   const startX = (ev && typeof ev.clientX === "number") ? ev.clientX : window.innerWidth / 2;

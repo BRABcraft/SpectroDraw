@@ -157,7 +157,7 @@ let $x = 0, $y = 0;
 let currentLayer = 0;
 let syncLayers = false;
 let uploads = [], images = []; startCh = 0;
-let draggingSample = [], dragInsert = false;
+let draggingSample = null, dragInsert = false;
 let showToolSettings = true;
 let showEffectSettings = true;
 let harmonics = Array(100).fill(0); harmonics[0]=1;
@@ -227,6 +227,22 @@ let handlers = {
 
 //GLOBAL HELPER FUNCTIONS
 
+function getCanvasCoords(e,touch){
+  const canvas = document.getElementById("canvas-"+currentLayer);
+  if (!canvas) return {cx:0,cy:0};
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width;
+  const scaleY=canvas.height/rect.height;
+  let X; let Y;
+  if (touch && e.touches.length === 0) {
+      X = _cx; Y = _cy;
+  } else {
+      X = touch ? e.touches[0].clientX : e.clientX;
+      Y = touch ? e.touches[0].clientY : e.clientY;
+      _cx = X; _cy = Y;
+  }
+  return {cx:(X-rect.left)*scaleX, cy:(Y-rect.top)*scaleY, scaleX, scaleY};
+}
 async function waitFor(fn, interval = 10) {while (!fn()) await new Promise(r => setTimeout(r, interval));}
 function sanitizeFilename(name) {return (name || "unnamed").replace(/[^a-z0-9\-_\.]/gi, "_");}
 function serializeSprites(sprites) {

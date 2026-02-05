@@ -77,9 +77,9 @@ function drawTimeline() {
     tctx.fillStyle = "#af0";
     tctx.fillRect(tx2-1,0,2,20); 
   }
-  if (layers && layers[0] && layers[0].pcm) {
+  if (layers && layers[0] && layers[0].pcm[0]) {
     const startSample = Math.max(0, Math.floor(iLow * hop));
-    const endSample = Math.min(layers[0].pcm.length, Math.ceil(iHigh * hop));
+    const endSample = Math.min(layers[0].pcm[0].length, Math.ceil(iHigh * hop));
     combineAndDraw(startSample, endSample);
   }
 
@@ -401,9 +401,9 @@ function playPause() {
       const elapsed = audioCtx.currentTime - sourceStartTime;
       let samplePos = Math.floor(elapsed * sampleRate);
       if (sourceNode && sourceNode.loop) {
-          samplePos = samplePos % layers[0].pcm.length;
+          samplePos = samplePos % layers[0].pcm[0].length;
       }
-      pausedAtSample = Math.max(0, Math.min(layers[0].pcm.length - 1, samplePos));
+      pausedAtSample = Math.max(0, Math.min(layers[0].pcm[0].length - 1, samplePos));
       stopSource(true);
       playPauseBtn.innerHTML = playHtml;
   } else {
@@ -425,12 +425,12 @@ document.addEventListener('keydown', function(event) {
 });
 
 function updateTimelineCursor() {
-    if (playing && !draggingTimeline && layers[0].pcm && sourceNode) {
+    if (playing && !draggingTimeline && layers[0].pcm[0] && sourceNode) {
         const elapsed = audioCtx.currentTime - sourceStartTime;
         let samplePos = elapsed * sampleRate;
 
         if (sourceNode.loop) {
-            samplePos = samplePos % layers[0].pcm.length;
+            samplePos = samplePos % layers[0].pcm[0].length;
         }
 
         const frame = Math.floor(samplePos / hop);

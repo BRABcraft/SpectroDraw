@@ -194,39 +194,232 @@ function restartRender(autoPlay){
 }
 
 
-function magPhaseToRGB(mag, phase){
-  const hp = ((phase / (2*Math.PI) + 1) % 1)*6; 
-  const v = Math.min(mag/60,1);
-  const x = v*(1-Math.abs(hp%2-1));
-  let r,g,b;
-  if     (hp < 1){ r=v; g=x; b=0; }
-  else if(hp < 2){ r=x; g=v; b=0; }
-  else if(hp < 3){ r=0; g=v; b=x; }
-  else if(hp < 4){ r=0; g=x; b=v; }
-  else if(hp < 5){ r=x; g=0; b=v; }
-  else           { r=v; g=0; b=x; }
-  const s = phaseDisplayKnob.getValue();
-  const c = r => {return ((mag/60)*(1-s) + r*s);};
-  r = c(r); g=c(g); b=c(b);
-  return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
+// ----------------- setup (run once) -----------------
+const T_R  = 0, T_G  = 1, T_B  = 2, T_Y = 3, T_CR = 4, T_CB = 5;
+const T_H  = 10, T_S = 11, T_V  = 12;
+
+// inputTargets[0] = target for mag
+// inputTargets[1] = target for phase
+// inputTargets[2] = target for pan
+const inputTargets = new Int8Array(3);
+
+// fixed multipliers (very cheap)
+const MUL_MAG   = 1 / 60;
+const MUL_PHASE = 1 / (2 * Math.PI);
+const MUL_PAN   = 1;
+
+// map selection string to constant code
+function selToCode(sel) {
+  // fast switch (runs only on change)
+  switch (sel) {
+    case "r": return T_R;
+    case "g": return T_G;
+    case "b": return T_B;
+    case "y": return T_Y;
+    case "cr": return T_CR;
+    case "cb": return T_CB;
+    case "h": return T_H;
+    case "s": return T_S;
+    case "v": return T_V;
+    default: return -1;
+  }
 }
 
-function rgbToMagPhase(r, g, b) {
-  let rf=r/255,gf=g/255,bf=b/255;
-  const mx=Math.max(rf,gf,bf), mn=Math.min(rf,gf,bf);
-  const d=mx-mn;
-  let h=0,s=0,v=mx;
-  s=mx===0?0:d/mx;
-  if(d!==0){
-    if(mx===rf) h=((gf-bf)/d)%6;
-    else if(mx===gf) h=(bf-rf)/d+2;
-    else h=(rf-gf)/d+4;
-    h/=6; if(h<0) h+=1;
-  }
-  const phase=h*2*Math.PI;
-  const mag=v*60;
-  return [mag, phase];
+// update inputTargets when a selector changes
+function updateMagPhasePanMapping() {
+  inputTargets[0] = selToCode(magCSEl.value);    // mag
+  inputTargets[1] = selToCode(phaseCSEl.value);  // phase
+  inputTargets[2] = selToCode(panCSEl.value);    // pan
+  renderFullSpectrogramToImage();
 }
+
+// attach listeners (run once)
+magCSEl.addEventListener("change", updateMagPhasePanMapping);
+phaseCSEl.addEventListener("change", updateMagPhasePanMapping);
+panCSEl.addEventListener("change", updateMagPhasePanMapping);
+// initialize mapping immediately
+updateMagPhasePanMapping();
+
+// cheap inline clamp to byte (inlined inside function for clarity)
+// ----------------- hot function (called millions of times) -----------------
+function magPhasePanToRGB(mag, phase, pan){
+  // compute normalized values (cheap multiplications)
+  let nMag   = magCSEl.value === "o"?1:mag   * MUL_MAG;      // used for hue/sat/val or direct channel
+  let nPhase = phaseCSEl.value === "o"?0:phase * MUL_PHASE;
+  let nPan   = panCSEl.value === "o"?0:pan   * MUL_PAN;
+
+  // small locals to hold hue/sat/value (floats 0..1-ish)
+  let hueVal = 0, satVal = 1, valueVal = 1;
+
+  // assigned bytes (use -1 to mark "not assigned")
+  let rAssigned = -1, gAssigned = -1, bAssigned = -1;
+  let yAssigned = -1, crAssigned = -1, cbAssigned = -1;
+
+  // map the three inputs according to precomputed targets (very small switch)
+  // order: mag, then phase, then pan (later overwrites earlier for same channel)
+  switch (inputTargets[0]) {
+    case T_R:  rAssigned  = Math.round(Math.max(0, Math.min(255, nMag   * 255))); break;
+    case T_G:  gAssigned  = Math.round(Math.max(0, Math.min(255, nMag   * 255))); break;
+    case T_B:  bAssigned  = Math.round(Math.max(0, Math.min(255, nMag   * 255))); break;
+    case T_Y:  yAssigned  = Math.round(Math.max(0, Math.min(255, nMag   * 255))); break;
+    case T_CR: crAssigned = Math.round(Math.max(0, Math.min(255, nMag   * 255))); break;
+    case T_CB: cbAssigned = Math.round(Math.max(0, Math.min(255, nMag   * 255))); break;
+    case T_H:  hueVal     = nMag; break;
+    case T_S:  satVal     = nMag; break;
+    case T_V:  valueVal   = nMag; break;
+    /* default: do nothing */
+  }
+
+  switch (inputTargets[1]) {
+    case T_R:  rAssigned  = Math.round(Math.max(0, Math.min(255, nPhase * 255))); break;
+    case T_G:  gAssigned  = Math.round(Math.max(0, Math.min(255, nPhase * 255))); break;
+    case T_B:  bAssigned  = Math.round(Math.max(0, Math.min(255, nPhase * 255))); break;
+    case T_Y:  yAssigned  = Math.round(Math.max(0, Math.min(255, nPhase * 255))); break;
+    case T_CR: crAssigned = Math.round(Math.max(0, Math.min(255, nPhase * 255))); break;
+    case T_CB: cbAssigned = Math.round(Math.max(0, Math.min(255, nPhase * 255))); break;
+    case T_H:  hueVal     = nPhase; break;
+    case T_S:  satVal     = nPhase; break;
+    case T_V:  valueVal   = nPhase; break;
+  }
+
+  switch (inputTargets[2]) {
+    case T_R:  rAssigned  = Math.round(Math.max(0, Math.min(255, nPan   * 255))); break;
+    case T_G:  gAssigned  = Math.round(Math.max(0, Math.min(255, nPan   * 255))); break;
+    case T_B:  bAssigned  = Math.round(Math.max(0, Math.min(255, nPan   * 255))); break;
+    case T_Y:  yAssigned  = Math.round(Math.max(0, Math.min(255, nPan   * 255))); break;
+    case T_CR: crAssigned = Math.round(Math.max(0, Math.min(255, nPan   * 255))); break;
+    case T_CB: cbAssigned = Math.round(Math.max(0, Math.min(255, nPan   * 255))); break;
+    case T_H:  hueVal     = nPan; break;
+    case T_S:  satVal     = nPan; break;
+    case T_V:  valueVal   = nPan; break;
+  }
+
+  // ----------------- HSV path (untouched logic) -----------------
+  if (colorSchemeEl.value==="hsv") {
+    const hp = ((hueVal + 1) % 1)*6; 
+    const v = Math.min(valueVal,1);
+    const x = v*(1-Math.abs(hp%2-1));
+    let r,g,b;
+    if     (hp < 1){ r=v; g=x; b=0; }
+    else if(hp < 2){ r=x; g=v; b=0; }
+    else if(hp < 3){ r=0; g=v; b=x; }
+    else if(hp < 4){ r=0; g=x; b=v; }
+    else if(hp < 5){ r=x; g=0; b=v; }
+    else           { r=v; g=0; b=x; }
+    const s = phaseDisplayKnob.getValue()*satVal;
+    const c = r => {return ((mag/60)*(1-s) + r*s);};
+    r = c(r); g=c(g); b=c(b);
+    return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
+  }
+
+  // ----------------- non-HSV: compute missing Y/Cr/Cb and RGB -----------------
+  // If any Y/Cr/Cb were assigned, we'll use YCrCb inverse. Default chroma neutral = 128.
+  let yVal = (yAssigned !== -1 ? yAssigned : undefined);
+  let crVal = (crAssigned !== -1 ? crAssigned : undefined);
+  let cbVal = (cbAssigned !== -1 ? cbAssigned : undefined);
+
+  // If no Y but at least one RGB direct provided, derive Y from them
+  if (yVal === undefined && (rAssigned !== -1 || gAssigned !== -1 || bAssigned !== -1)) {
+    const rtmp = rAssigned !== -1 ? rAssigned : 0;
+    const gtmp = gAssigned !== -1 ? gAssigned : 0;
+    const btmp = bAssigned !== -1 ? bAssigned : 0;
+    yVal = Math.round(0.299 * rtmp + 0.587 * gtmp + 0.114 * btmp);
+  }
+
+  if (yVal === undefined) yVal = 128;
+  if (crVal === undefined) crVal = 128;
+  if (cbVal === undefined) cbVal = 128;
+
+  // Inverse BT.601 (fast math)
+  let rFromYCbCr = Math.round(yVal + 1.402   * (crVal - 128));
+  let gFromYCbCr = Math.round(yVal - 0.344136 * (cbVal - 128) - 0.714136 * (crVal - 128));
+  let bFromYCbCr = Math.round(yVal + 1.772   * (cbVal - 128));
+
+  // clamp each to [0,255] (inline)
+  if (rFromYCbCr < 0) rFromYCbCr = 0; else if (rFromYCbCr > 255) rFromYCbCr = 255;
+  if (gFromYCbCr < 0) gFromYCbCr = 0; else if (gFromYCbCr > 255) gFromYCbCr = 255;
+  if (bFromYCbCr < 0) bFromYCbCr = 0; else if (bFromYCbCr > 255) bFromYCbCr = 255;
+
+  const finalR = (rAssigned !== -1) ? rAssigned : rFromYCbCr;
+  const finalG = (gAssigned !== -1) ? gAssigned : gFromYCbCr;
+  const finalB = (bAssigned !== -1) ? bAssigned : bFromYCbCr;
+
+  return [finalR, finalG, finalB];
+}
+
+function rgbToMagPhasePan(r, g, b) {
+  // normalized floats 0..1
+  const rf = r / 255;
+  const gf = g / 255;
+  const bf = b / 255;
+
+  // --- compute HSV (standard) ---
+  const mx = Math.max(rf, gf, bf);
+  const mn = Math.min(rf, gf, bf);
+  const d  = mx - mn;
+  let h = 0, s = 0, v = mx;
+  if (mx !== 0) s = d === 0 ? 0 : d / mx;
+  if (d !== 0) {
+    if (mx === rf) h = ((gf - bf) / d) % 6;
+    else if (mx === gf) h = (bf - rf) / d + 2;
+    else h = (rf - gf) / d + 4;
+    h /= 6;
+    if (h < 0) h += 1;
+  }
+
+  // --- compute Y / Cb / Cr ---
+  const y  = 0.299 * r + 0.587 * g + 0.114 * b;
+  const cb = -0.168736 * r - 0.331264 * g + 0.5 * b + 128;
+  const cr =  0.5 * r - 0.418688 * g - 0.081312 * b + 128;
+
+  // normalized channel map
+  const channelNorm = [];
+  channelNorm[T_R]  = clamp01(r / 255);
+  channelNorm[T_G]  = clamp01(g / 255);
+  channelNorm[T_B]  = clamp01(b / 255);
+  channelNorm[T_Y]  = clamp01(y / 255);
+  channelNorm[T_CR] = clamp01(cr / 255);
+  channelNorm[T_CB] = clamp01(cb / 255);
+  channelNorm[T_H]  = clamp01(h);
+  channelNorm[T_S]  = clamp01(s);
+  channelNorm[T_V]  = clamp01(v);
+
+  let outMag = 0, outPhase = 0, outPan = 0;
+
+  function rawFromNormForInput(inputIndex, normVal) {
+    if (inputIndex === 0) return normVal / MUL_MAG;      // mag
+    if (inputIndex === 1) return normVal / MUL_PHASE;    // phase
+    return normVal / MUL_PAN;                            // pan
+  }
+
+  for (let i = 0; i < 3; ++i) {
+    const code = inputTargets[i];
+    if (code === undefined || code < 0) continue;
+    const norm = clamp01(channelNorm[code] ?? 0);
+    const raw  = rawFromNormForInput(i, norm);
+    if (i === 0) outMag = raw;
+    else if (i === 1) outPhase = raw;
+    else outPan = raw;
+  }
+
+  // --------------------------------------------------
+  // NEW FEATURE: HSV + "off" selector forces value = 1
+  // --------------------------------------------------
+  if (colorSchemeEl.value === "hsv") {
+    if (magCSEl.value === "o")   outMag   = 1;
+    if (phaseCSEl.value === "o") outPhase = 0;
+    if (panCSEl.value === "o")   outPan   = 0;
+  }
+
+  return [outMag, outPhase, outPan];
+
+  function clamp01(x) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    return x;
+  }
+}
+
 
 function getLogScaleSlider(ch) { return Math.max(1, parseFloat(logScaleVal[ch]) || 1); }
 
@@ -262,25 +455,57 @@ function displayYToBin(y, h, ch) {
 }
 
 function drawFrame(w,h) {
-  if (pos + fftSize > layers[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
+  if (pos + fftSize > layers[0].pcm[0].length) { rendering = false; status.style.display = "none"; return false; }
   let _s = recording?currentLayer:0; _e = recording?currentLayer+1:layerCount;
   for (let ch = _s; ch<_e; ch++){
     const c = layers[ch];
-    let mags = c.mags, phases = c.phases, pcm = c.pcm;
-    const re = new Float32Array(fftSize);
-    const im = new Float32Array(fftSize);
-    for (let i = 0; i < fftSize; i++) { re[i] = (pcm[pos + i] || 0) * win[i]; im[i] = 0; }
-    fft_inplace(re, im);
-    
-    let max=0;
+    let mags = c.mags, phases = c.phases, pans = c.pans;
+    const pcm0 = c.pcm[0];
+    const pcm1 = c.pcm[1] || null; // fallback to mono if no second channel
+
+    // allocate two FFT buffers (one per channel)
+    const re0 = new Float32Array(fftSize);
+    const im0 = new Float32Array(fftSize);
+    const re1 = new Float32Array(fftSize);
+    const im1 = new Float32Array(fftSize);
+
+    for (let i = 0; i < fftSize; i++) {
+      re0[i] = (pcm0[pos + i] || 0) * win[i];
+      im0[i] = 0;
+      re1[i] = (pcm1 ? (pcm1[pos + i] || 0) * win[i] : 0);
+      im1[i] = 0;
+    }
+
+    // FFT each channel
+    fft_inplace(re0, im0);
+    if (pcm1) fft_inplace(re1, im1);
+
+    let max = 0;
+    const EPS = 1e-12;
     for (let bin = 0; bin < h; bin++) {
-      const mag = Math.hypot(re[bin] || 0, im[bin] || 0);
-      const phase = Math.atan2(im[bin] || 0, re[bin] || 0);
-      const idx = x * h + bin; 
+      const reL = re0[bin] || 0, imL = im0[bin] || 0;
+      const magL = Math.hypot(reL, imL);
+
+      const reR = pcm1 ? (re1[bin] || 0) : 0;
+      const imR = pcm1 ? (im1[bin] || 0) : 0;
+      const magR = pcm1 ? Math.hypot(reR, imR) : 0;
+
+      // combined stereo vector (mix)
+      const cre = reL + reR;
+      const cim = imL + imR;
+      const mag = Math.hypot(cre, cim);
+      const phase = Math.atan2(cim, cre);
+
+      const idx = x * h + bin;
       mags[idx] = mag;
       phases[idx] = phase;
-      if (mag>max) max=mag;
+
+      // pan: -1 = left, +1 = right. If mono (no pcm1) this becomes 0.
+      pans[idx] = ((magR - magL) / (magR + magL + EPS) + 1) * 0.5;
+
+      if (mag > max) max = mag;
     }
+
     if (uploadingSprite){
       const s = sprites[sprites.length-1];
       if (x>=s.minCol && x<=s.maxCol){
@@ -289,13 +514,15 @@ function drawFrame(w,h) {
         }
       }
     }
+
     const skipY = (recording?8:1)*layerCount;
     for (let yy = 0; yy < h; yy+=skipY) {
       const mappedBin = displayYToBin(yy, h, ch);
       const idx = x * h + mappedBin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;
-      const [r, g, b] = magPhaseToRGB(mag, phase);
+      const pan = pans[idx] || 0;
+      const [r, g, b] = magPhasePanToRGB(mag, phase, pan);
       for (let i = 0; i < skipY; i++) {       
         const pix = ((yy+i) * w + x) * 4; 
         imageBuffer[ch].data[pix]     = r;
@@ -305,7 +532,7 @@ function drawFrame(w,h) {
       }
     }
   }
-  
+
   pos += hop; x++;
   audioProcessed += hop;
   ch = currentLayer;
@@ -342,6 +569,7 @@ function drawFrame(w,h) {
   }
   return true;
 }
+
 
 let requestSpecUpdate = false;      
 let resolveSpecUpdate = null;       
@@ -394,7 +622,7 @@ function drawLoop() {
   const elapsedMS = performance.now() - startTime;
   const elapsedSec = elapsedMS / 1000;
   const speed = audioProcessed / Math.max(1e-6, elapsedSec); 
-  let pcm = layers[currentLayer].pcm;
+  let pcm = layers[currentLayer].pcm[0];
   const audioSec = pcm.length / sampleRate; 
   const processedSec = audioProcessed / sampleRate;
   status.textContent = `Progress: ${(100*pos/pcm.length).toFixed(1)}% | ` 
@@ -522,24 +750,9 @@ function renderView() {
 let painting=false;
 let paintedPixels=null;
 
-function getCanvasCoords(e,touch){
-  const canvas = document.getElementById("canvas-"+currentLayer);
-  const rect=canvas.getBoundingClientRect();
-  const scaleX=canvas.width/rect.width;
-  const scaleY=canvas.height/rect.height;
-  let X; let Y;
-  if (touch && e.touches.length === 0) {
-      X = _cx; Y = _cy;
-  } else {
-      X = touch ? e.touches[0].clientX : e.clientX;
-      Y = touch ? e.touches[0].clientY : e.clientY;
-      _cx = X; _cy = Y;
-  }
-  return {cx:(X-rect.left)*scaleX, cy:(Y-rect.top)*scaleY, scaleX, scaleY};
-}
 function processPendingFramesLive(){
   let count=0;
-  while (pos + fftSize <= layers[currentLayer].pcm.length) {
+  while (pos + fftSize <= layers[currentLayer].pcm[0].length) {
     if (!drawFrame(specWidth, specHeight)) break;
   }
   
@@ -551,9 +764,10 @@ function processPendingFramesLive(){
 }
 function renderFullSpectrogramToImage() {
   const specCanvas=document.getElementById("spec-"+currentLayer);
+  if (!specCanvas) return;
   const specCtx = specCanvas.getContext("2d");
-  let mags = layers[currentLayer].mags, phases = layers[currentLayer].phases;
-  if (!imageBuffer[currentLayer] || !mags || !phases) return;
+  let mags = layers[currentLayer].mags, phases = layers[currentLayer].phases, pans = layers[currentLayer].pans;
+  if (!imageBuffer[currentLayer] || !mags || !phases || !pans) return;
   const w = specWidth, h = specHeight;
   for(let xx=0; xx<w; xx++){
     for(let yy=0; yy<h; yy++){
@@ -561,7 +775,8 @@ function renderFullSpectrogramToImage() {
       const idx = xx * h + bin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;
-      const [r,g,b] = magPhaseToRGB(mag, phase);
+      const pan = pans[idx] || 0;
+      const [r,g,b] = magPhasePanToRGB(mag, phase, pan);
       const pix = (yy * w + xx) * 4;
       imageBuffer[currentLayer].data[pix] = r;
       imageBuffer[currentLayer].data[pix+1] = g;

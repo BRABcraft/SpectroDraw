@@ -209,13 +209,14 @@ function updateBrushPreview() {
     let avg = Math.max(r,g,b);
     return [r,g,b].map(v => Math.round(avg + (v-avg)*factor));
   }
+  let pan = parseFloat(document.getElementById("brushPan").value);
   let rgb;
   if (currentTool === "amplifier") {
-    rgb = adjustSaturation(magPhaseToRGB((amp*25) * brushOpacity, phaseShift),phaseStrength);
+    rgb = magPhasePanToRGB((amp*25) * brushOpacity, phaseShift,pan);
   } else if (currentTool === "noiseRemover") {
-    rgb = adjustSaturation(magPhaseToRGB(brushOpacity*60, 0),0);
+    rgb = magPhasePanToRGB(brushOpacity*60, 0,pan);
   } else {
-    rgb = adjustSaturation(magPhaseToRGB((brushBrightness / 5) * brushOpacity, phaseShift),phaseStrength);
+    rgb = magPhasePanToRGB((brushBrightness / 5) * brushOpacity, phaseShift,pan);
   }
 
   const color = currentTool === "eraser" ? "#000" : "#"+th(rgb[0])+th(rgb[1])+th(rgb[2]);
@@ -352,8 +353,7 @@ function updateBrushPreview() {
     pctx.imageSmoothingEnabled = false;
     pctx.lineCap = "round";
     pctx.lineJoin = "round";
-
-    for (let i = 0; i < count; ++i) {
+    for (let i = 0; i < count; i++) {
       const s = scales[i];
       const w = Math.max(1, Math.round(baseW));
       const h = Math.max(1, baseH * s);

@@ -82,7 +82,7 @@ function _handleHarmonicsPointer(e) {
   // find nearest bar index
   let bestI = 0;
   let bestDist = Infinity;
-  for (let i = 0; i < bars; i++) {
+  for (let i = 0; i < harmonics.length; i++) {
     const xi = idxToX(i);
     const d = Math.abs(xi - x);
     if (d < bestDist) { bestDist = d; bestI = i; }

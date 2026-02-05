@@ -31,7 +31,7 @@ function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
     const yEnd   = Math.min(specHeight - 1, Math.ceil (yBotF));
 
     // compute RGB once for this bin
-    const [r, g, b] = magPhaseToRGB(mags[idx], phases[idx]);
+    const [r, g, b] = magPhasePanToRGB(mags[idx], phases[idx]);
 
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + x) * 4;

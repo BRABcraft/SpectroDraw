@@ -135,6 +135,7 @@ let panels = [];
     const closeEl = document.getElementById(opts.id+"close");
     const headerEl = document.getElementById(opts.id+"header");
     const toggleButton = document.getElementById(opts.id+"Toggle");
+    const toggleButton2 = document.getElementById(opts.id+"Toggle2");
     const check = document.getElementById(opts.id+"Check");
     if(opts.id!=="main-area"){
       panelObj.style.display = opts.showing?"flex":"none";
@@ -333,12 +334,12 @@ let panels = [];
         }
         panel.showing = false;
         panelObj.style.display = "none";
-        if (toggleButton&&!check) toggleButton.style.background = "";
+        if (toggleButton2) toggleButton2.style.background = "";
         if (check) check.innerText = "✓";
       } else {
         panel.showing = true;
         panelObj.style.display = "block";
-        if (toggleButton&&!check) toggleButton.style.background = "#4af";
+        if (toggleButton2) toggleButton2.style.background = "#4af";
         if (check) check.innerText = "";
         if (panel._savedDock) {
           restoreDock(panel);
@@ -777,6 +778,7 @@ function setDocked(panel, dockObj){
     minimizeEl.addEventListener("click",minimize);
     closeEl.addEventListener("click",()=>{toggleWindow();});
     if (toggleButton) toggleButton.addEventListener("click",()=>{toggleWindow();});
+    if (toggleButton2) toggleButton2.addEventListener("click",()=>{toggleButton.click();});
     window.addEventListener("resize", () => {
       recomputeEdgeBounds();
       for (let d of edgeDocks) if (d.panels[0].length) layoutDock(d);
@@ -967,6 +969,11 @@ function setDocked(panel, dockObj){
         </h3>
         <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
       </div>
+      <div class="slider-row" title="Chorus" id="brushChorusDiv">
+        <label class="h2">Chorus</label>
+        <input id="brushChorus"  type="range" min="0" max="1" value="1" step="0.01">
+        <input id="brushChorusInput" type="number" value="1" min="0" max="1">
+      </div>
     </div>
     <!--Effect settings: Depends on effect. -->
     <div id="effectSettings">
@@ -1054,8 +1061,13 @@ function setDocked(panel, dockObj){
           <input id="phaseStrength"  type="range" min="0" max="1" value="1" step="0.001">
           <input id="phaseStrengthInput" type="number" value="1" min="0" max="1">
       </div>
+      <div class="slider-row" title="Phase strength" id="brushPanDiv">
+          <label class="h2">Pan</label>
+          <input id="brushPan"  type="range" min="0" max="1" value="1" step="0.001">
+          <input id="brushPanInput" type="number" value="1" min="0" max="1">
+      </div>
     </div>
-    </div>
+  </div>
     `,
   });
   newWindow({
@@ -1820,7 +1832,7 @@ function setDocked(panel, dockObj){
       name:"Preferences",
       id:"preferencesWindow",
       width:300,
-      height:240,
+      height:440,
       docked:false,
       dockEdge:"none",
       dockTo:null,
@@ -1830,7 +1842,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:window.innerWidth/2-150,
-      top:window.innerHeight/2-120,
+      top:window.innerHeight/2-220,
       showing:false,
       showHeader:true,
       innerHTML:`<div class="slider-row" title="Playback volume">
@@ -1849,6 +1861,41 @@ function setDocked(panel, dockObj){
             <button id="downloadSpectrogram" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
             <button id="downloadVideo" title="Download video" class="leftBtn">Download video</button>
             <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>
+          </div>
+          <hr>
+          <div class="slider-row" title="Color scheme">
+              <label class="h2">Color scheme</label>
+              <select id="colorScheme">
+                <option value="hsv" selected>Classic</option>
+                <option value="custom">Custom</option>
+              </select>
+          </div>
+          <div class="slider-row" title="Magnitude color scheme">
+              <label class="h2">Magnitude</label>
+              <select id="magnitudeColorScheme">
+                <option value="h">Hue</option>
+                <option value="s">Saturation</option>
+                <option value="v" selected>Value</option>
+                <option value="o">Off</option>
+              </select>
+          </div>
+          <div class="slider-row" title="Phase color scheme">
+              <label class="h2">Phase</label>
+              <select id="phaseColorScheme">
+                <option value="h" selected>Hue</option>
+                <option value="s">Saturation</option>
+                <option value="v">Value</option>
+                <option value="o">Off</option>
+              </select>
+          </div>
+          <div class="slider-row" title="Pan color scheme">
+              <label class="h2">Pan</label>
+              <select id="panColorScheme">
+                <option value="h">Hue</option>
+                <option value="s" selected>Saturation</option>
+                <option value="v">Value</option>
+                <option value="o">Off</option>
+              </select>
           </div>`,
   });
   newWindow({

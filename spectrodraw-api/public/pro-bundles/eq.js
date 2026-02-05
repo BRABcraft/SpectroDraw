@@ -258,11 +258,11 @@ function drawEQ() {
 function drawSpectrals() {
   const bandCount = 128;
   const pos = currentCursorX * hop;
-  if (!layers || !layers[0] || !layers[0].pcm) { return false; }
-  if (pos + fftSize > layers[0].pcm.length) { rendering = false; status.style.display = "none"; return false; }
+  if (!layers || !layers[0] || !layers[0].pcm[0]) { return false; }
+  if (pos + fftSize > layers[0].pcm[0].length) { rendering = false; status.style.display = "none"; return false; }
   const re = new Float32Array(fftSize);
   const im = new Float32Array(fftSize);
-  for (let i = 0; i < fftSize; i++) { re[i] = (layers[0].pcm[pos + i] || 0) * win[i]; im[i] = 0; }
+  for (let i = 0; i < fftSize; i++) { re[i] = (layers[0].pcm[0][pos + i] || 0) * win[i]; im[i] = 0; }
   fft_inplace(re, im);
 
   // compute magnitudes per FFT bin

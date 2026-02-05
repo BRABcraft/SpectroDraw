@@ -250,10 +250,11 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
       if (a <= 0) continue;
       const cxPix = ox + xx;
       const cyPix = oy + yy;
-      let mag, phase;
+      let mag, phase, pan;
       if (currentTool === "eraser") {
         mag = 0;
         phase = 0;
+        pan = 0.5;
       } else if (currentTool === "blur") {
         const binCenter = Math.round(displayYToBin(cyPix, fullH, ch));
         const rB = blurRadius | 0;
@@ -265,13 +266,14 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
         const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
         mag   = sumMag   / count;
         phase = sumPhase / count;
+        pan = layers[ch].pans[xx*specHeight+yy];
       } else {
-        [mag, phase] = rgbToMagPhase(r, g, b);
+        [mag, phase, pan] = rgbToMagPhasePan(r, g, b);
       }
       if (cxPix >= 0 && cyPix >= 0 && cxPix < fullW && cyPix < fullH) {
         const bo = brushOpacity * a * chPressure * boMult;
         const po = phaseStrength * a * poMult;
-        drawPixel(cxPix, cyPix, mag, phase, bo, po, ch);
+        drawPixel(cxPix, cyPix, mag, phase, pan, bo, po, ch);
       }
     }
   }
@@ -351,25 +353,22 @@ function drawSpriteOutline(useDelta,cx,cy){
 }
 function drawSampleRegion(cx) {
   const framesVisible = Math.max(1, iHigh - iLow);
-  let $s = syncLayers ? 0 : currentLayer;
-  let $e = syncLayers ? layerCount : currentLayer + 1;
-  for (let ch = $s; ch < $e; ch++) {
-    const overlayCanvas = document.getElementById("overlay-" + ch);
-    if (!overlayCanvas) continue;
-    const ctx = overlayCanvas.getContext("2d");
-    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    const startFrame = Math.max(0, Math.min(framesTotal - 1, Math.round(cx)));
-    const endFrame = Math.min(framesTotal, cx + Math.floor((draggingSample[0] && draggingSample[0].pcm ? draggingSample[0].pcm.length : 0) / (hop || 1)));
-    const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
-    const xPixel = mapX(startFrame);
-    const endPixel = mapX(endFrame);
-    const width = Math.max(1, Math.round(endPixel - xPixel));
-    ctx.save();
-    ctx.fillStyle = dragInsert?"#0f0":"rgba(255,0,0,0.15)";
-    if (dragInsert) ctx.fillRect(Math.round(xPixel), 0, 5, overlayCanvas.height);
-    else            ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
-    ctx.restore();
-  }
+  let ch = currentLayer;
+  const overlayCanvas = document.getElementById("overlay-" + ch);
+  if (!overlayCanvas) return;
+  const ctx = overlayCanvas.getContext("2d");
+  ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  const startFrame = Math.max(0, Math.min(framesTotal - 1, Math.round(cx)));
+  const endFrame = Math.min(framesTotal, cx + Math.floor((draggingSample ? draggingSample.pcm[0].length : 0) / (hop || 1)));
+  const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
+  const xPixel = mapX(startFrame);
+  const endPixel = mapX(endFrame);
+  const width = Math.max(1, Math.round(endPixel - xPixel));
+  ctx.save();
+  ctx.fillStyle = dragInsert?"#0f0":"rgba(255,0,0,0.15)";
+  if (dragInsert) ctx.fillRect(Math.round(xPixel), 0, 5, overlayCanvas.height);
+  else            ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+  ctx.restore();
 }
 function previewShape(cx, cy) {
   lastPreviewCoords = { cx, cy };
@@ -414,7 +413,7 @@ function previewShape(cx, cy) {
       ctx.restore();
       return;
     }
-    if (draggingSample.length > 0) {
+    if (draggingSample !== null) {
       drawSampleRegion(cx);
       return;
     }
@@ -607,12 +606,11 @@ function updateSelections(x,y,ch,prevMag,prevPhase,nextMag,nextPhase){
     }
   }
 }
-function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
+function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
   const idxBase = xI * specHeight;
   const imgData = imageBuffer[ch].data;
-  const magsArr = layers[ch].mags;
   const phasesArr = layers[ch].phases;
   let displayYFloat = yDisplay;
   const f = getSineFreq(yDisplay);
@@ -625,10 +623,10 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
   function processBin(bin, boScaled) {
     bin = Math.max(0, Math.min(specHeight - 1, Math.round(bin)));
     const idx = idxBase + bin;
-    if (idx < 0 || idx >= magsArr.length) return;
+    if (idx < 0 || idx >= layers[ch].mags.length) return;
     if (visited && visited[ch][idx] === 1) return;
     if (visited) visited[ch][idx] = 1;
-    const oldMag = magsArr[idx] || 0;
+    const oldMag = layers[ch].mags[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     function mod(n, m) {
       return ((n % m) + m) % m;
@@ -664,13 +662,14 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch) {
       phasesArr[idx] = oldPhase * (1 - po) + po * ($phase);
     }
     const clampedMag = Math.min(newMag, 255);
-    magsArr[idx] = clampedMag;
-    layers[ch].mags = magsArr;
+    const newPan = pan;
+    layers[ch].pans[idx] = newPan;
+    layers[ch].mags[idx] = clampedMag;
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
     const yEnd   = Math.min(specHeight - 1, Math.ceil(Math.max(yTopF, yBotF)));
-    const [r, g, b] = magPhaseToRGB(clampedMag, phasesArr[idx]);
+    const [r, g, b] = magPhasePanToRGB(clampedMag, phasesArr[idx], newPan);
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + xI) * 4;
       imgData[pix]     = r;
@@ -756,6 +755,7 @@ function commitShape(cx, cy) {
     const expressionBrushMag = getExpressionById("brushBrightnessDiv");
     function brushMag(){return expressionBrushMag.expression.includes("pixel.")?(currentTool === "eraser" ? 0 : (parseExpression(expressionBrushMag) / 255) * 128):gBrushMag;}
     const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
+    const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPan").value);
     const visitedLocal = Array.from({ length: layerCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
     visited = visitedLocal;
@@ -774,7 +774,7 @@ function commitShape(cx, cy) {
       const endSpecY   = visibleToSpecY(cy);
       let y0Spec = Math.max(0, Math.min(fullH - 1, Math.min(startSpecY, endSpecY)));
       let y1Spec = Math.max(0, Math.min(fullH - 1, Math.max(startSpecY, endSpecY)));
-      function dp(xFrame, yDisplay, mag, phase, bo, po, ch){
+      function dp(xFrame, yDisplay, mag, phase, pan, bo, po, ch){
         if (currentTool === "blur") {
           const binCenter = Math.round(displayYToBin(yDisplay, fullH, ch));
           const r = blurRadius | 0;
@@ -784,9 +784,9 @@ function commitShape(cx, cy) {
           const y1 = Math.min(fullH - 1, binCenter + r);
           const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
           const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-          drawPixel(xFrame, yDisplay, sumMag / count, sumPhase / count, bo, po, ch);
+          drawPixel(xFrame, yDisplay, sumMag / count, sumPhase / count, pan, bo, po, ch);
         } else {
-          drawPixel(xFrame, yDisplay, mag, phase, bo, po, ch);
+          drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch);
         }
       }
       if (currentShape === "rectangle") {
@@ -807,7 +807,7 @@ function commitShape(cx, cy) {
           for (let xx = x0Frame; xx <= x1Frame; xx++) {
             for (let bin = binA; bin <= binB; bin++) {
               const displayY = binToBottomDisplay[ch][bin];
-              dp(xx, displayY, brushMag(), brushPhase, bo(), po(), ch);
+              dp(xx, displayY, brushMag(), brushPhase, brushPan, bo(), po(), ch);
             }
           }
         }
@@ -1012,6 +1012,7 @@ function paint(cx, cy) {
     } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (parseExpression(getExpressionById("brushBrightnessDiv")) / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
+      const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPan").value);
       const p0x = prevMouseX + iLow;
       const p0y = visibleToSpecY(prevMouseY);
       const p1x = cx;   
@@ -1033,7 +1034,7 @@ function paint(cx, cy) {
           const dx = xx - nearestX;
           const dy = yy - nearestY;
           if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.001:1)) continue;
-          drawPixel(xx, yy, brushMag, brushPhase, bo, po, ch);
+          drawPixel(xx, yy, brushMag, brushPhase, brushPan, bo, po, ch);
         }
       }
     } else if (currentTool === "blur") {
@@ -1051,7 +1052,8 @@ function paint(cx, cy) {
           const y1 = Math.min(fullH - 1, binCenter + r);
           const { sumMag, sumPhase } = queryIntegralSum(integral, x0, y0, x1, y1);
           const count = (x1 - x0 + 1) * (y1 - y0 + 1) || 1;
-          drawPixel(xx, yy, sumMag / count, sumPhase / count, bo, po, ch);
+          const pan = layers[currentLayer].pans[xx*specHeight+yy];
+          drawPixel(xx, yy, sumMag / count, sumPhase / count, pan, bo, po, ch);
         }
       }
     } else if (currentTool === "autotune") {
@@ -1093,7 +1095,7 @@ function paint(cx, cy) {
           const dx = xx - nearestX;
           const dy = yy - nearestY;
           if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
-          drawPixel(xx, yy, 1, phaseShift, bo, po, ch);
+          drawPixel(xx, yy, 1, phaseShift, 1, bo, po, ch);
         }
       }
     }
@@ -1239,7 +1241,7 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
       const yBotF = binToBottomDisplay[ch][b];
       const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
       const yEnd = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
-      const [r, g, bl] = magPhaseToRGB(magsArr[dstIdx], phasesArr[dstIdx]);
+      const [r, g, bl] = magPhasePanToRGB(magsArr[dstIdx], phasesArr[dstIdx]);
       for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
         const pix = (yPixel * fullW + xx) * 4;
         pixBuf[pix] = r;

@@ -82,6 +82,7 @@ const sliders = [
   [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
   [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],
   [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
+  [document.getElementById('brushPan'), document.getElementById('brushPanInput')],//30
 ];
   sliders.forEach(pair => {if (!pair[2]&&pair.length) syncNumberAndRange(pair[1], pair[0])});
 // sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
@@ -435,9 +436,7 @@ function keyBind(event) {
     }
   } else {
     if (!event.shiftKey) {
-      if (key === 'p') {
-        document.getElementById("pianoBtn").click();
-      } else if (key === 'd') {
+      if (key === 'd') {
         document.getElementById("settingsBtn").click();
       } else if (key === 'e') {
         document.getElementById("eqBtn").click();
@@ -454,6 +453,8 @@ function keyBind(event) {
         document.getElementById('downloadWav').click();
       } else if (key === 'm') {
         exportMidi();
+      } else if (key === 'p') {
+        document.getElementById("preferencesWindowToggle").click();
       } else if (key === ' ') {
         recordBtn.click();
       } else {return;}
@@ -918,15 +919,15 @@ document.getElementById("saveAndStart").addEventListener('click', async () => {
     if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
     const ab = await resp.arrayBuffer();
     const decoded = await audioCtx.decodeAudioData(ab.slice(0));
-    layers[0].pcm = new Float32Array(decoded.getChannelData(0));
+    layers[0].pcm[0] = new Float32Array(decoded.getChannelData(0));
     sampleRate = decoded.sampleRate || sampleRate;
 
-    status.textContent = `Loaded preset "${val}", ${layers[0].pcm.length} samples @ ${sampleRate} Hz`;
-    let t = layers[0].pcm.length / sampleRate;
+    status.textContent = `Loaded preset "${val}", ${layers[0].pcm[0].length} samples @ ${sampleRate} Hz`;
+    let t = layers[0].pcm[0].length / sampleRate;
     hopSizeKnob.setValue(lockHop?Math.pow(2,fftSizeKnob.getValue()):(t<0.5?128:(t<5?512:1024)));
     emptyAudioLength = Math.ceil(t);
     document.getElementById("emptyAudioLengthInput").value = Math.ceil(t);
-    minCol = 0; maxCol = Math.floor(layers[0].pcm.length/hopSizeKnob.getValue());
+    minCol = 0; maxCol = Math.floor(layers[0].pcm[0].length/hopSizeKnob.getValue());
     iLow = 0;
     iHigh = framesTotal;
     layerCount = 1;
@@ -1018,7 +1019,7 @@ function updatePhaseTextureSettings(){
     document.getElementById("phaseSettingsLabel").innerText = label;
     div.style.display = "flex";
   }
-       if (c("ImpulseAlign")) d(t0,0,layers[0].pcm.length/sampleRate,0.001,"t0");
+       if (c("ImpulseAlign")) d(t0,0,layers[0].pcm[0].length/sampleRate,0.001,"t0");
   else if (c("LinearDelay")) d(tau,0,10,0.01,"tau");
   else if (c("RandomSmall")) d(sigma,0,1,0.01,"sigma");
   else if (c("HarmonicStack")) d(harmonicCenter,0,128,0.01,"Harmonic Center");
@@ -1306,7 +1307,7 @@ function globalXStretch(xFactor) {
     }
     layers[l].mags = new Float32Array(newMags);
     layers[l].phases = new Float32Array(newPhases);
-    layers[l].pcm = new Float32Array(emptyAudioLength*sampleRate);
+    layers[l].pcm[0] = new Float32Array(emptyAudioLength*sampleRate);
   }
   for (const sprite of sprites) {
     if (!sprite.pixels) continue;
@@ -1687,7 +1688,7 @@ function newGlobalXYHistory(type,spriteIdx){
     const copy = { ...layer };
     copy.mags = copy.mags.slice(minCol*specHeight,maxCol*specHeight);
     copy.phases = copy.phases.slice(minCol*specHeight,maxCol*specHeight);
-    copy.pcm = copy.pcm.slice(minCol*hop,maxCol*hop);
+    copy.pcm[0] = copy.pcm[0].slice(minCol*hop,maxCol*hop);
     return copy;
   }
   const s = (spriteIdx)?getSpriteById(spriteIdx):null;
@@ -2129,3 +2130,27 @@ function renderFilters(){
   });
 }
 renderFilters();
+const colorSchemeEl = document.getElementById("colorScheme");
+const magCSEl = document.getElementById("magnitudeColorScheme");
+const phaseCSEl = document.getElementById("phaseColorScheme");
+const panCSEl = document.getElementById("panColorScheme");
+colorSchemeEl.addEventListener("change",()=>{
+  if (colorSchemeEl.value === "custom") {
+    magCSEl.innerHTML = phaseCSEl.innerHTML = panCSEl.innerHTML = `
+                <option value="r">Red</option>
+                <option value="g">Green</option>
+                <option value="b">Blue</option>
+                <option value="y">Luminance</option>
+                <option value="cr">Chrominance Red</option>
+                <option value="cb">Chrominance Blue</option>`;
+    magCSEl.value = "y";phaseCSEl.value = "cr";panCSEl.value = "cb";
+  } else {
+    magCSEl.innerHTML = phaseCSEl.innerHTML = panCSEl.innerHTML = `
+                <option value="h">Hue</option>
+                <option value="s">Saturation</option>
+                <option value="v">Value</option>
+                <option value="o">Off</option>`;
+    magCSEl.value = "v";phaseCSEl.value = "h";panCSEl.value = "s";
+  }
+  updateMagPhasePanMapping();
+});

@@ -6,9 +6,9 @@ async function initEmptyPCM(doReset) {
 
   const length = Math.floor(sampleRateLocal * duration);
   const tinyNoiseAmplitude = 0.0001;
-  if (length>(layers[0] ? layers[0].pcm : []).length || doReset) {
+  if (length>(layers[0] ? layers[0].pcm[0] : []).length || doReset) {
     for (let ch =0; ch<layerCount;ch++){
-      let p = layers[ch] ? layers[ch].pcm : [];
+      let p = layers[ch] ? layers[ch].pcm[0] : [];
       const newPCM = new Float32Array(length);
       if (!doReset){
         newPCM.set(p);
@@ -20,12 +20,15 @@ async function initEmptyPCM(doReset) {
           newPCM[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
         }
       }
+      const magLen = Math.floor(length/hop*specHeight);
       layers[ch] = {
-        pcm: newPCM,
-        mags: new Float32Array(Math.floor(length/hop*specHeight)),
-        phases: new Float32Array(Math.floor(length/hop*specHeight)),
-        snapshotMags: new Float32Array(Math.floor(length/hop*specHeight)),
-        snapshotPhases: new Float32Array(Math.floor(length/hop*specHeight)),
+        pcm: [newPCM,new Float32Array(newPCM)],
+        mags: new Float32Array(magLen),
+        phases: new Float32Array(magLen),
+        pans: new Float32Array(magLen).fill(0.5),
+        snapshotMags: new Float32Array(magLen),
+        snapshotPhases: new Float32Array(magLen),
+        snapshotPans:  new Float32Array(magLen),
         enabled: true,
         volume: 1,
         brushPressure: 1,
@@ -234,14 +237,26 @@ async function startRecording() {
   recordBtn.innerHTML = recHTML;
   if (!recording) return;
 
-  pcmChunks = [];
-  layers[ch].pcm = new Float32Array(0);
+  // --- stereo changes: maintain separate chunk lists per channel
+  let pcmChunksLeft = [];
+  let pcmChunksRight = [];
+  let leftTotal = 0;
+  let rightTotal = 0;
+
+  // ensure layer pcm is a 2-element array of Float32Array
+  layers[ch].pcm[0] = [new Float32Array(0), new Float32Array(0)];
   pos = 0;
   x = 0;
   rendering = false;
 
   try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // request stereo if available
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: { ideal: 2 },
+        // you can add sampleRate/other constraints if desired
+      }
+    });
     mediaSource = audioCtx.createMediaStreamSource(mediaStream);
 
     await audioCtx.resume();
@@ -256,27 +271,84 @@ async function startRecording() {
       workletRegistered = true;
     }
 
-    // create a fresh node every recording
+    // create a fresh node every recording - hint processor to use 2 channels
     workletNode = new AudioWorkletNode(audioCtx, 'recorder-processor', {
       numberOfInputs: 1,
       numberOfOutputs: 1,
-      outputChannelCount: [1],
-      layerCount: 1
+      outputChannelCount: [2],
+      // processorOptions can be read by your worklet if it uses them
+      processorOptions: { channelCount: 2, layerCount: 1 }
     });
 
-    // message handler
-    workletNode.port.onmessage = (ev) => {
-      const chunk = ev.data;
-      if (!(chunk instanceof Float32Array)) return;
-      pcmChunks.push(...chunk);
+    // helper to concatenate many Float32Array chunks into one Float32Array
+    function concatFloat32Arrays(chunks, totalLen) {
+      if (chunks.length === 0) return new Float32Array(0);
+      const out = new Float32Array(totalLen);
+      let off = 0;
+      for (let i = 0; i < chunks.length; ++i) {
+        out.set(chunks[i], off);
+        off += chunks[i].length;
+      }
+      return out;
+    }
 
-      // quick merged view for live display
-      layers[currentLayer].pcm = new Float32Array(pcmChunks);
-      
-      if (Math.floor(pcmChunks.length/hop) != Math.floor((pcmChunks.length-chunk.length)/hop)) processPendingFramesLive();
+    // message handler - accept several chunk formats and push to left/right
+    workletNode.port.onmessage = (ev) => {
+      const data = ev.data;
+
+      // case A: worklet sends [Float32Array_left, Float32Array_right]
+      if (Array.isArray(data) && data.length === 2
+          && data[0] instanceof Float32Array && data[1] instanceof Float32Array) {
+        pcmChunksLeft.push(data[0]);
+        pcmChunksRight.push(data[1]);
+        leftTotal += data[0].length;
+        rightTotal += data[1].length;
+      }
+      // case B: worklet sends an interleaved Float32Array (L,R,L,R...)
+      else if (data instanceof Float32Array && (data.length % 2) === 0) {
+        const samples = data.length / 2;
+        const left = new Float32Array(samples);
+        const right = new Float32Array(samples);
+        // de-interleave
+        for (let i = 0, j = 0; i < data.length; i += 2, ++j) {
+          left[j] = data[i];
+          right[j] = data[i+1];
+        }
+        pcmChunksLeft.push(left);
+        pcmChunksRight.push(right);
+        leftTotal += left.length;
+        rightTotal += right.length;
+      }
+      // case C: worklet sends mono Float32Array -> duplicate into both channels
+      else if (data instanceof Float32Array) {
+        const mono = data;
+        const copyL = mono.slice(0); // create copies so we keep isolation
+        const copyR = mono.slice(0);
+        pcmChunksLeft.push(copyL);
+        pcmChunksRight.push(copyR);
+        leftTotal += copyL.length;
+        rightTotal += copyR.length;
+      } else {
+        // unknown format - ignore
+        return;
+      }
+
+      // create quick merged view for live display (concatenate chunks)
+      const leftView = concatFloat32Arrays(pcmChunksLeft, leftTotal);
+      const rightView = concatFloat32Arrays(pcmChunksRight, rightTotal);
+      layers[currentLayer].pcm[0] = [leftView, rightView];
+
+      // keep old behaviour for triggering render frames / info
+      // use leftTotal as the canonical sample count (they should match normally)
+      const framesSoFar = Math.max(1, Math.floor((leftTotal - fftSize) / hop) + 1);
       iLow = 0;
-      const framesSoFar = Math.max(1, Math.floor((pcmChunks.length - fftSize) / hop) + 1);
-      iHigh = Math.max(Math.floor(emptyAudioLength*sampleRate/hop), framesSoFar);
+      iHigh = Math.max(Math.floor(emptyAudioLength * sampleRate / hop), framesSoFar);
+
+      if (Math.floor(leftTotal / hop) != Math.floor(leftTotal - data.length) / hop) {
+        // best-effort trigger (keeps your previous conditional)
+        processPendingFramesLive();
+      }
+
       info.innerHTML = `Recording...<br>${(framesSoFar/(sampleRate/hop)).toFixed(1)} secs<br>Press record or ctrl+space to stop`;
     };
 
@@ -289,12 +361,20 @@ async function startRecording() {
     workletNode.connect(silentGain);
     silentGain.connect(audioCtx.destination);
 
+    // store pcmChunksLeft/Right so stopRecording can finalize them if needed
+    // (you may have logic in stopRecording that expects pcmChunks; adapt accordingly)
+    window._pcmChunksLeft = pcmChunksLeft;
+    window._pcmChunksRight = pcmChunksRight;
+    window._pcmLeftTotal = () => leftTotal;
+    window._pcmRightTotal = () => rightTotal;
+
   } catch (err) {
     console.error("Mic error:", err);
     status.textContent = "Microphone access denied.";
     stopRecording();
   }
 }
+
 
 /* -------- stopRecording (updated) -------- */
 function stopRecording() {
@@ -373,9 +453,9 @@ async function doUpload(e) {
       ab = await audioCtx.decodeAudioData(buf.slice(0));
       const nChannels = ab.numberOfChannels || 1;
       const uuid = crypto.randomUUID();
-      for (let ch = 0; ch < nChannels; ch++) {
-        uploads.push({name:(f.name+((nChannels>1)?("_layer"+ch):"")), pcm:ab.getChannelData(ch), samplePos: 0, sampleRate: ab.sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid});
-      }
+      let newPCM = [ab.getChannelData(0),nChannels>1?ab.getChannelData(1):ab.getChannelData(0)];
+      uploads.push({name:f.name, pcm:newPCM, samplePos: 0, sampleRate: ab.sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,uuid});
+
       if (document.getElementById("audioSamplesSection").getAttribute('aria-expanded')==='false') {
         document.getElementById("audioSamplesToggle").click();
       }
@@ -390,10 +470,10 @@ async function doUpload(e) {
 async function updateLayers(){
   while (layerCount > layers.length) {
     let length = Math.floor(sampleRate * emptyAudioLength);
-    let pcm = new Float32Array(length);
+    let pcm = [new Float32Array(length),new Float32Array(length)];
     const tinyNoiseAmplitude = 0.0001;
     for (let i = 0; i < length; i++) {
-      pcm[i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+      pcm[0][i] = pcm[1][i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
     }
     if (layerCount>1&&layers.length===1)layers[0].audioDevice="left";
     let ch = layers.length;
@@ -402,6 +482,7 @@ async function updateLayers(){
       pcm,
       mags: [],
       phases: [],
+      pans: [],
       snapshotMags: [],
       snapshotPhases: [],
       enabled: true,           // default props we will sync with UI

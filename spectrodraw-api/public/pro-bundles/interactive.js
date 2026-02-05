@@ -234,7 +234,7 @@ function canvasMouseMove(e,touch,el) {
   const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
   if (moveSpritesMode && !(movingSprite && painting)) {handlemoveSpritesMode(cx,cy);return;}
   let mags = layers[currentLayer].mags; //change to layer that mouse is touching
-  if (painting && (movingSprite||changingNoiseProfile||currentShape==="select") || draggingSample.length>0) {previewShape(cx, cy);return;}
+  if (painting && (movingSprite||changingNoiseProfile||currentShape==="select") || draggingSample!==null) {previewShape(cx, cy);return;}
   if (changingNoiseProfile) return;
   if (zooming) return;
   if (!recording) {
@@ -430,7 +430,6 @@ function autoRecomputePCM(min,max) {
 
 function newHistory() {if (!currentSprite) return;
   pendingHistory = false;
-  //console.log(layers[0].snapshotMags);
   if (dontChangeSprites) {dontChangeSprites=false; return;}
   let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
@@ -478,12 +477,12 @@ function updateCursorLoop() {
   const specCanvas = document.getElementById("spec-"+currentLayer);
   if (!specCanvas) return;
   const specCtx = specCanvas.getContext("2d");
-  if (playing && !painting && layers[currentLayer].pcm && sourceNode) {
+  if (playing && !painting && layers[currentLayer].pcm[0] && sourceNode) {
     const elapsed = audioCtx.currentTime - sourceStartTime; 
     let samplePos = elapsed * sampleRate;
 
     if (sourceNode.loop) {
-      samplePos = samplePos % layers[currentLayer].pcm.length; 
+      samplePos = samplePos % layers[currentLayer].pcm[0].length; 
     }
 
     const frame = Math.floor(samplePos / hop);
@@ -524,20 +523,19 @@ function _getPlaybackTarget() {
 }
 
 
-async function playPCM(loop = true, startFrame = null) {
+async function playPCM(loop = true, startFrame = null) {//console.log(new Float32Array(layers[0].pcm[0]),new Float32Array(layers[0].pcm[1]));
   ensureAudioCtx();
-
-  //stopSource(true);
 
   if (!layers || layers.length === 0) {
     console.warn("No layers to play.");
     return;
   }
 
-  // Determine total length (use longest layer)
+  // Determine total length (use longest channel across all layers)
   const totalSamples = layers.reduce((max, ch) => {
-    const len = ch && ch.pcm ? ch.pcm.length : 0;
-    return Math.max(max, len);
+    const leftLen = ch && ch.pcm && ch.pcm[0] ? ch.pcm[0].length : 0;
+    const rightLen = ch && ch.pcm && ch.pcm[1] ? ch.pcm[1].length : 0;
+    return Math.max(max, leftLen, rightLen);
   }, 0);
 
   if (totalSamples === 0) {
@@ -559,39 +557,44 @@ async function playPCM(loop = true, startFrame = null) {
 
   sourceNode = audioCtx.createBufferSource();
 
-  // We mix all logical layers into a stereo output buffer according to layers[ch].audioDevice
+  // stereo output buffer
   const outChannels = 2; // stereo: 0 = left, 1 = right
   const buffer = audioCtx.createBuffer(outChannels, totalSamples, sampleRate);
 
-  // get direct access to layer arrays
+  // get direct access to output arrays
   const left = buffer.getChannelData(0);
   const right = buffer.getChannelData(1);
 
-  // Mix layers into left/right
+  // Mix layers into left/right (each layer now has pcm[0]=left, pcm[1]=right)
   const nCh = layers.length;
   for (let ch = 0; ch < nCh; ch++) {
     const chObj = layers[ch];
-    if (!chObj || !chObj.pcm) continue;
+    if (!chObj || !chObj.pcm || !chObj.pcm[0]) continue;
 
-    const pcm = chObj.pcm;
+    const leftPcm = chObj.pcm[0];
+    const rightPcm = chObj.pcm[1] || leftPcm; // fallback if right missing
+    const leftLen = leftPcm.length;
+    const rightLen = rightPcm.length;
+
     const device = (chObj.audioDevice || "both").toLowerCase(); // left/right/both/none
-    let vol = chObj.enabled?chObj.volume : 0;
-    // clamp to [0,1]
+    let vol = chObj.enabled ? chObj.volume : 0;
     if (vol < 0) vol = 0;
     else if (vol > 1) vol = 1;
 
     if (device === "none") continue;
 
-    const maxI = Math.min(pcm.length, totalSamples);
+    const maxI = Math.min(totalSamples, Math.max(leftLen, rightLen));
     for (let i = 0; i < maxI; i++) {
-      const s = pcm[i] * vol;
+      const sL = (i < leftLen ? leftPcm[i] : 0) * vol;
+      const sR = (i < rightLen ? rightPcm[i] : 0) * vol;
+
       if (device === "left") {
-        left[i] += s;
+        left[i] += sL;
       } else if (device === "right") {
-        right[i] += s;
+        right[i] += sR;
       } else { // "both" or anything else defaults to both
-        left[i] += s;
-        right[i] += s;
+        left[i] += sL;
+        right[i] += sR;
       }
     }
   }
@@ -605,14 +608,14 @@ async function playPCM(loop = true, startFrame = null) {
   try {
     const targetNode = _getPlaybackTarget();
     const gainNode = audioCtx.createGain();
-    gainNode.gain.setValueAtTime(document.getElementById("playbackVolume").value*masterVolumeKnob.getValue(), audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(document.getElementById("playbackVolume").value * masterVolumeKnob.getValue(), audioCtx.currentTime);
 
     sourceNode.connect(gainNode);
     gainNode.connect(targetNode);
   } catch (e) {
     try { sourceNode.connect(audioCtx.destination); } catch (e2) { console.warn("connect fallback failed", e2); }
   }
-  
+
   const offsetSec = startSample / sampleRate;
   sourceStartTime = audioCtx.currentTime - offsetSec;
   sourceNode.start(0, offsetSec);
@@ -620,6 +623,7 @@ async function playPCM(loop = true, startFrame = null) {
   playing = true;
   pausedAtSample = null;
 }
+
 
 
 
@@ -643,7 +647,7 @@ async function playFrame(frameX) {
 
   // Compute how many samples are available per layer after start, and use the maximum (so we don't cut off any layer).
   const maxRemaining = layers.reduce((max, ch) => {
-    const len = (ch && ch.pcm) ? Math.max(0, ch.pcm.length - start) : 0;
+    const len = (ch && ch.pcm[0]) ? Math.max(0, ch.pcm[0].length - start) : 0;
     return Math.max(max, len);
   }, 0);
 
@@ -655,7 +659,7 @@ async function playFrame(frameX) {
 
   // Copy each layer's slice (or leave as silence if not available)
   for (let ch = 0; ch < layerCount; ch++) {
-    const pcm = (layers[ch] && layers[ch].pcm) ? layers[ch].pcm : null;
+    const pcm = (layers[ch] && layers[ch].pcm[0]) ? layers[ch].pcm[0] : null;
     if (!pcm || pcm.length <= start) {
       // leave layer silent
       continue;

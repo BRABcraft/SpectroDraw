@@ -1,32 +1,53 @@
 function combineAndDraw(startSample, endSample) {
-  let avg;
-  let maxLen = layers[0].pcm[0].length;
-  if (layers.length > 1) {
-    const sum = new Float32Array(maxLen);
-    const count = new Uint16Array(maxLen);
-    for (let ch = 0; ch < layerCount; ch++) {
-      const layer = layers[ch];
-      if (!layer || !layer.pcm[0]) continue;
-      const p = layer.pcm[0];
-      const L = p.length;
-      for (let i = 0; i < L; i++) {
-        const v = p[i];
-        if (!isFinite(v)) continue;
-        sum[i] += v;
-        count[i] += 1;
-      }
+  if (!layers || layers.length === 0) return;
+
+  // figure out maximum length present in pcm[0] across layers
+  let maxLen = 0;
+  for (let ch = 0; ch < layers.length; ch++) {
+    const layer = layers[ch];
+    if (layer && layer.pcm && layer.pcm[0]) {
+      maxLen = Math.max(maxLen, layer.pcm[0].length);
     }
-    avg = new Float32Array(maxLen);
-    for (let i = 0; i < maxLen; i++) {
-      if (count[i] > 0) {
-        avg[i] = sum[i] / count[i];
-      } else {
-        avg[i] = 0;
-      }
-    }
-  } else {
-    avg = layers[0].pcm[0];
   }
+  if (maxLen === 0) return;
+
+  // accumulate sums and counts for left and right channels
+  const sumL = new Float32Array(maxLen);
+  const sumR = new Float32Array(maxLen);
+  const countL = new Uint16Array(maxLen);
+  const countR = new Uint16Array(maxLen);
+
+  for (let ch = 0; ch < layers.length; ch++) {
+    const layer = layers[ch];
+    if (!layer || !layer.pcm || !layer.pcm[0]) continue;
+    const Larr = layer.pcm[0];
+    const Rarr = layer.pcm[1]; // may be undefined
+    const L = Larr.length;
+    for (let i = 0; i < L; i++) {
+      const lv = Larr[i];
+      if (isFinite(lv)) {
+        sumL[i] += lv;
+        countL[i] += 1;
+      }
+      if (Rarr && i < Rarr.length) {
+        const rv = Rarr[i];
+        if (isFinite(rv)) {
+          sumR[i] += rv;
+          countR[i] += 1;
+        }
+      }
+    }
+  }
+
+  // build averaged arrays for left and right
+  const avgL = new Float32Array(maxLen);
+  const avgR = new Float32Array(maxLen);
+  for (let i = 0; i < maxLen; i++) {
+    avgL[i] = countL[i] > 0 ? sumL[i] / countL[i] : 0;
+    avgR[i] = countR[i] > 0 ? sumR[i] / countR[i] : 0;
+  }
+
+  // defaults for start/end
   if (typeof startSample === 'undefined' || startSample === null) startSample = 0;
   if (typeof endSample === 'undefined' || endSample === null) endSample = maxLen;
   startSample = Math.max(0, Math.floor(startSample));
@@ -35,6 +56,7 @@ function combineAndDraw(startSample, endSample) {
     startSample = 0;
     endSample = maxLen;
   }
+
   const WIDTH = 1000;
   const HEIGHT = 35;
   const canvas = document.getElementById('waveform');
@@ -43,49 +65,113 @@ function combineAndDraw(startSample, endSample) {
   canvas.height = HEIGHT;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
   const halfH = HEIGHT / 2;
   const scale = halfH / 1.5;
   const sampleRange = Math.max(1, endSample - startSample);
   const samplesPerPixel = sampleRange / WIDTH;
+
+  // background
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#fff';
+
   const sampleCount = endSample - startSample;
-  if (sampleCount < WIDTH*12) {
-    ctx.beginPath();
-    for (let i = 0; i < sampleCount; i++) {
+
+  // helper: map pan (0..1) to color from white -> blue
+  function panToColor(pan) {
+    // pan=0 => white (255,255,255); pan=1 => blue (0,0,255)
+    const r = Math.round(255 * (1 - pan));
+    const g = Math.round(255 * (1 - pan));
+    const b = 255;
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // Sparse case: draw a smooth polyline, color each short segment according to pan at segment midpoint
+  if (sampleCount < WIDTH * 12) {
+    // draw per-sample line segments with color per segment
+    let prevX = null;
+    let prevY = null;
+    for (let i = 0; i < sampleCount - 1; i++) {
+      const si = startSample + i;
+      const sNext = startSample + i + 1;
       const x = (i / (sampleCount - 1 || 1)) * WIDTH;
-      const v = avg[startSample + i] || 0;
-      const y = halfH - v * scale;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const x2 = ((i + 1) / (sampleCount - 1 || 1)) * WIDTH;
+
+      // combined amplitude is average of left and right
+      const l = avgL[si] || 0;
+      const r = avgR[si] || 0;
+      const combined = (l + r) * 0.5;
+      const y = halfH - combined * scale;
+
+      const ln = avgL[sNext] || 0;
+      const rn = avgR[sNext] || 0;
+      const combinedNext = (ln + rn) * 0.5;
+      const y2 = halfH - combinedNext * scale;
+
+      // pan for this segment: compute using midpoint magnitudes (more stable)
+      const denom = Math.abs(l) + Math.abs(r);
+      const pan = denom > 0 ? Math.abs(r) / denom : 0.5;
+      ctx.strokeStyle = panToColor(pan);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, y);
+      ctx.lineTo(x2 + 0.5, y2);
+      ctx.stroke();
+      prevX = x2;
+      prevY = y2;
     }
-    ctx.stroke();
     return;
   }
-  ctx.beginPath();
+
+  // Dense case: per-pixel aggregation (faster). For each pixel compute min/max combined amplitude
+  // and a weighted average pan (weighted by magnitude).
   for (let x = 0; x < WIDTH; x++) {
     const start = Math.floor(startSample + x * samplesPerPixel);
     const end = Math.min(endSample, Math.floor(startSample + (x + 1) * samplesPerPixel));
     let min = Infinity, max = -Infinity;
+    let panWeighted = 0;
+    let magSum = 0;
+
     if (end <= start) {
-      const v = avg[start] || 0;
+      const l = avgL[start] || 0;
+      const r = avgR[start] || 0;
+      const v = (l + r) * 0.5;
       min = max = v;
+      const denom = Math.abs(l) + Math.abs(r);
+      const pan = denom > 0 ? Math.abs(r) / denom : 0.5;
+      const mag = Math.abs(l) + Math.abs(r);
+      panWeighted += pan * mag;
+      magSum += mag;
     } else {
       for (let i = start; i < end; i++) {
-        const v = avg[i] || 0;
+        const l = avgL[i] || 0;
+        const r = avgR[i] || 0;
+        const v = (l + r) * 0.5;
         if (v < min) min = v;
         if (v > max) max = v;
+
+        const denom = Math.abs(l) + Math.abs(r);
+        const pan = denom > 0 ? Math.abs(r) / denom : 0.5;
+        const mag = Math.abs(l) + Math.abs(r);
+        panWeighted += pan * mag;
+        magSum += mag;
       }
     }
+
+    if (min === Infinity) { min = 0; max = 0; }
+
     const y1 = halfH - max * scale;
     const y2 = halfH - min * scale;
-    ctx.moveTo(x + 0.5, y1);
-    ctx.lineTo(x + 0.5, y2);
+    const height = Math.max(1, Math.abs(y2 - y1));
+
+    const pan = magSum > 0 ? (panWeighted / magSum) : 0.5;
+    ctx.fillStyle = panToColor(pan);
+
+    // draw a 1px vertical bar representing min->max for that pixel
+    ctx.fillRect(x + 0.5, Math.min(y1, y2), 1, height);
   }
-  ctx.stroke();
 }
+
 function recomputePCMForCols(colStart, colEnd) {
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
@@ -106,6 +192,7 @@ function recomputePCMForCols(colStart, colEnd) {
     if (!layer) continue;
 
     // ensure pcm arrays exist
+    //console.log(new Float32Array(layer.pcm[0]));
     if (!layer.pcm) layer.pcm = [new Float32Array(0), new Float32Array(0)];
 
     const pcmL = layer.pcm[0];
@@ -224,6 +311,7 @@ function recomputePCMForCols(colStart, colEnd) {
     }
     layer.pcm[0].set(newSegmentL, sampleStart);
     layer.pcm[1].set(newSegmentR, sampleStart);
+    //console.log(new Float32Array(layer.pcm[0]));
   }
   if (layers && layers[0] && layers[0].pcm[0]) {
     const startSample = Math.max(0, Math.floor(iLow * hop));
@@ -239,7 +327,7 @@ function recomputePCMForCols(colStart, colEnd) {
 }
 
 function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
-  let mags = layers[ch].mags, phases = layers[ch].phases;
+  let mags = layers[ch].mags, phases = layers[ch].phases, pans = layers[ch].pans;
   const specCanvas = document.getElementById("spec-"+ch);
   const specCtx = specCanvas.getContext("2d");
   colStart = Math.min(Math.max(0, Math.floor(colStart)),specWidth);
@@ -253,7 +341,8 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
       const idx = xx * h + bin;
       const mag = mags[idx] || 0;
       const phase = phases[idx] || 0;
-      const [r,g,b] = magPhasePanToRGB(mag, phase);
+      const pan = pans[idx] || 0;
+      const [r,g,b] = magPhasePanToRGB(mag, phase, pan);
       const pix = (yy * w + xx) * 4;
       imageBuffer[ch].data[pix] = r;
       imageBuffer[ch].data[pix+1] = g;

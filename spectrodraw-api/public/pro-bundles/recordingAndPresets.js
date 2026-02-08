@@ -244,7 +244,7 @@ async function startRecording() {
   let rightTotal = 0;
 
   // ensure layer pcm is a 2-element array of Float32Array
-  layers[ch].pcm[0] = [new Float32Array(0), new Float32Array(0)];
+  layers[ch].pcm = [new Float32Array(0), new Float32Array(0)];
   pos = 0;
   x = 0;
   rendering = false;
@@ -473,7 +473,8 @@ async function updateLayers(){
     let pcm = [new Float32Array(length),new Float32Array(length)];
     const tinyNoiseAmplitude = 0.0001;
     for (let i = 0; i < length; i++) {
-      pcm[0][i] = pcm[1][i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+      pcm[0][i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
+      pcm[1][i] = (Math.random() * 2 - 1) * tinyNoiseAmplitude;
     }
     if (layerCount>1&&layers.length===1)layers[0].audioDevice="left";
     let ch = layers.length;
@@ -488,7 +489,6 @@ async function updateLayers(){
       enabled: true,           // default props we will sync with UI
       volume: 1,
       brushPressure: 1,
-      audioDevice: layerCount==1?"both":(ch==0?"left":(ch==1?"right":"none")),
       samplePos: 0,
       sampleRate, _playbackBtn:null,_isPlaying:false,_wasPlayingDuringDrag:false,_startedAt:0,
       uuid:crypto.randomUUID(),
@@ -512,13 +512,6 @@ async function updateLayers(){
       <div style="display:flex;gap:10px;margin-top:5px;">
         <b>Layer ${ch}</b>
         <input id="layerEnable-${ch}" type="checkbox" checked aria-label="Enable layer ${ch}">
-        <label class="h2" style="margin-left:60px;" id="speakerLabel${ch}">Speaker</label>
-        <select id="audioDevices-${ch}" class="layer-audio-devices" aria-label="Audio device for layer ${ch}">
-          <option value="left"${layers[ch].audioDevice=="left"?"selected":""}>Left</option>
-          <option value="right"${layers[ch].audioDevice=="right"?"selected":""}>Right</option>
-          <option value="both"${layers[ch].audioDevice=="both"?"selected":""}>Both</option>
-          <option value="none"${layers[ch].audioDevice=="none"?"selected":""}>None</option>
-        </select>
       </div>
       <div id="chsliders${ch}">
         <div class="slider-row" title="Layer Volume">
@@ -538,7 +531,6 @@ async function updateLayers(){
 
     // === Wire up controls ===
     const enableEl = wrapper.querySelector(`#layerEnable-${ch}`);
-    const audioSelect = wrapper.querySelector(`#audioDevices-${ch}`);
     const volRange = wrapper.querySelector(`#layerVolume-${ch}`);
     const volInput = wrapper.querySelector(`#layerVolumeInput-${ch}`);
     const brushRange = wrapper.querySelector(`#layerBrushPressure-${ch}`);
@@ -550,17 +542,12 @@ async function updateLayers(){
     enableEl.addEventListener('change', e => {
       layers[ch].enabled = !!e.target.checked;
       if (enableEl.checked){
-        audioSelect.classList.remove("disabled");
         speakerLabel.classList.remove("disabled");
         chsliders.classList.remove("disabled");
       } else {
-        audioSelect.classList.add("disabled");
         speakerLabel.classList.add("disabled");
         chsliders.classList.add("disabled");
       }
-    });
-    audioSelect.addEventListener('change', e => {
-      layers[ch].audioDevice = audioSelect.value;
     });
 
     // Volume sync

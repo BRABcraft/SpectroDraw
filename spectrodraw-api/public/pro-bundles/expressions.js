@@ -137,10 +137,14 @@ const defaultExpressions={
   "autoTuneStrengthDiv":"brush.effect.autotuneStrength",
   "astartOnPitchDiv":"brush.effect.baseHz",
   "anpoDiv":"brush.effect.notesPerOctave",
-  "phaseTextureDiv":"return (Math.random() * 2 - 1) * Math.PI + brush.effect.phaseShift;",
+  "phaseTextureDiv":"(Math.random() * 2 - 1) * Math.PI + brush.effect.phaseShift;",
   "phaseSettingsDiv":"brush.effect.phaseSettings",
   "phaseDiv":"brush.effect.phaseShift",
   "phaseStrengthDiv":"brush.effect.phaseStrength",
+  "brushPanTextureDiv":"brush.effect.panShift;",
+  "brushPanShiftDiv":"brush.effect.panShift",
+  "brushPanStrengthDiv":"brush.effect.panStrength",
+  "brushPanBandDiv":"brush.effect.panBand",
   "brushWidthDiv":"brush.tool.width",
   "brushHeightDiv":"brush.tool.height",
   "opacityDiv":"brush.tool.opacity",
@@ -183,6 +187,10 @@ function addExpressionBtns(){
     "phaseSettingsDiv",
     "phaseDiv",
     "phaseStrengthDiv",
+    "brushPanTextureDiv",
+    "brushPanShiftDiv",
+    "brushPanStrengthDiv",
+    "brushPanBandDiv",
     "brushWidthDiv",
     "brushHeightDiv",
     "opacityDiv",
@@ -264,7 +272,7 @@ function addExpressionBtns(){
     div.appendChild(btn);
   }
 }
-const predefinedConstVars = new Set([ "brush", "tool", "size", "width", "height", "opacity", "harmonics", "effect", "brightness", "blurRadius", "amplify", "aggressiveness", "autotuneStrength", "baseHz", "notesPerOctave", "phaseTexture", "phaseSettings", "phaseStrength", "phaseShift", "eqBands", "mouse", "frame", "bin", "zoom", "x", "min", "max", "y", "currentLayer", "logScale", "sampleRate", "specHeight", "specWidth", "clonerScale", "currentTool", "currentEffect","pixel"]);
+const predefinedConstVars = new Set([ "brush", "tool", "size", "width", "height", "opacity", "harmonics", "effect", "brightness", "blurRadius", "amplify", "aggressiveness", "autotuneStrength", "baseHz", "notesPerOctave", "phaseTexture", "phaseSettings", "phaseStrength", "phaseShift", "panTexture", "panShift", "panStrength", "panBand", "eqBands", "mouse", "frame", "bin", "zoom", "x", "min", "max", "y", "currentLayer", "logScale", "sampleRate", "specHeight", "specWidth", "clonerScale", "currentTool", "currentEffect","pixel"]);
 
 // ------------ Editor core (per-instance) ----------------
 function initEditor(expr){

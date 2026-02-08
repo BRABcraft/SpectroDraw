@@ -13,12 +13,13 @@ function applyEQChanges(){
     scheduleDraw();
 }
 const mainAreaPopOutEl = document.getElementById("main-areapopOut");
-function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
+function setPixelMagPhasePanAtCursor(x, y, mag = undefined, phase = undefined, pan=undefined){
     const idx = x*specHeight + y
     
-    let mags = layers[currentLayer].mags,phases = layers[currentLayer].phases;
+    let mags = layers[currentLayer].mags,phases = layers[currentLayer].phases, pans=layers[currentLayer].pans;
     mags[idx] = mag;
     phases[idx] = phase;
+    pans[idx] = pan;
     const topEdge = binToDisplayY(y - 0.5, specHeight,currentLayer);
     const botEdge = binToDisplayY(y + 0.5, specHeight,currentLayer);
 
@@ -31,7 +32,7 @@ function setPixelMagPhaseAtCursor(x, y, mag = undefined, phase = undefined){
     const yEnd   = Math.min(specHeight - 1, Math.ceil (yBotF));
 
     // compute RGB once for this bin
-    const [r, g, b] = magPhasePanToRGB(mags[idx], phases[idx]);
+    const [r, g, b] = magPhasePanToRGB(mags[idx], phases[idx], pans[idx]);
 
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + x) * 4;
@@ -249,7 +250,7 @@ function makeCanvasMenu(cx0, cy0){
   const specCanvas = document.getElementById("spec-"+currentLayer);
   const specCtx = specCanvas.getContext("2d");
 
-  let hz = 0, secs = 0, i = -1, normalizedMag = 0, db = -200, phaseVal = 0;
+  let hz = 0, secs = 0, i = -1, normalizedMag = 0, db = -200, phaseVal = 0, panVal = 0.5;
   try {
     hz = getSineFreq(visibleToSpecY(cy));
     secs = Math.floor(cx / (Number(sampleRate)/Number(hop)) * 10000) / 10000;
@@ -260,6 +261,7 @@ function makeCanvasMenu(cx0, cy0){
     normalizedMag = Math.min(1, mags[i]/256);
     db = (normalizedMag > 0) ? (20 * Math.log10(normalizedMag)) : -200;
     phaseVal = Number(phases[i]) || 0;
+    panVal = Number(layers[currentLayer].pans[i]);
   } catch(e){ console.warn(e); }
 
   // compact items creation (keeps same entries as before)
@@ -269,6 +271,7 @@ function makeCanvasMenu(cx0, cy0){
     { type:'input', label:'Magnitude', value:normalizedMag },
     { type:'input', label:'dB', value:db },
     { type:'input', label:'Phase', value:phaseVal },
+    { type:'input', label:'Pan', value:panVal },
     { type:'separator' },
     ...TOOLS.map(t => ({ type:'radio', label: t[0].toUpperCase()+t.slice(1), group:'tool', value:t, checked:currentTool===t, onSelect: v => { if (!shouldHide(currentShape)){currentTool=v;updateTools();}}})),
     { type:'separator' },
@@ -294,10 +297,11 @@ function makeCanvasMenu(cx0, cy0){
 
   // find the three input placeholder items created by buildMenu and replace with richer innerHTML
   const inputs = Array.from(menu.querySelectorAll('.ctx-input'));
-  const [magItem, dbItem, phaseItem] = [
+  const [magItem, dbItem, phaseItem, panItem] = [
     inputs[0].closest('.ctx-item'),
     inputs[1].closest('.ctx-item'),
-    inputs[2].closest('.ctx-item')
+    inputs[2].closest('.ctx-item'),
+    inputs[3].closest('.ctx-item'),
   ];
 
   // numeric row template helper (inline)
@@ -315,8 +319,14 @@ function makeCanvasMenu(cx0, cy0){
   phaseItem.innerHTML = `
     <div class="slider-row2">
       <label>Phase</label>
-      <input type="range" class="phase-slider" min="${-Math.PI}" max="${Math.PI}" step="0.001" style="flex:0 0 80px;margin-left:2px">
-      <input type="number" class="ctx-input" id="phase-num-input" step="0.001" min="${-Math.PI}" max="${Math.PI}" style="flex:0 0 50px;margin-left:2px" value="${phaseVal.toFixed(3)}">
+      <input type="range" class="phase-slider" min="${0}" max="${2*Math.PI}" step="0.001" style="flex:0 0 80px;margin-left:2px">
+      <input type="number" class="ctx-input" id="phase-num-input" step="0.001" min="${0}" max="${2*Math.PI}" style="flex:0 0 50px;margin-left:2px" value="${phaseVal.toFixed(3)}">
+    </div>`;
+  panItem.innerHTML = `
+    <div class="slider-row2">
+      <label>Pan</label>
+      <input type="range" class="phase-slider" min="${0}" max="${1}" step="0.001" style="flex:0 0 80px;margin-left:2px">
+      <input type="number" class="ctx-input" id="phase-num-input" step="0.001" min="${0}" max="${1}" style="flex:0 0 50px;margin-left:2px" value="${panVal.toFixed(3)}">
     </div>`;
 
   // re-query inputs after innerHTML replacement
@@ -325,6 +335,8 @@ function makeCanvasMenu(cx0, cy0){
   const dbInput  = dbItem.querySelector('.ctx-input');
   const phaseRange = phaseItem.querySelector('.phase-slider');
   const phaseInput = phaseItem.querySelector('.ctx-input');
+  const panRange = panItem.querySelector('.phase-slider');
+  const panInput = panItem.querySelector('.ctx-input');
   phaseRange.value = phaseInput.value = phaseVal;
 
   // compact helper conversions
@@ -334,9 +346,9 @@ function makeCanvasMenu(cx0, cy0){
   // schedule live update (single compact function)
   const scheduleLiveUpdate = () => requestAnimationFrame(()=>{
     const magVal = Math.max(0, Math.min(128, Number(magInput.value)||0));
-    const phaseClamped = Math.max(-Math.PI, Math.min(Math.PI, Number(phaseInput.value)||0));
+    const phaseClamped = Math.max(0, Math.min(2*Math.PI, Number(phaseInput.value)||0));
     const bin = Math.floor(hz/(sampleRate/fftSize));
-    setPixelMagPhaseAtCursor(Math.floor(cx), bin, magVal, phaseClamped);
+    setPixelMagPhasePanAtCursor(Math.floor(cx), bin, magVal, phaseClamped, Math.max(0,Math.min(1,Number(panInput.value))));
     specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
     pos = Math.floor(cx) * hop;
     autoRecomputePCM(Math.floor(cx), Math.floor(cx));
@@ -349,8 +361,13 @@ function makeCanvasMenu(cx0, cy0){
   dbInput.addEventListener('input',  () => { magInput.value = dbToMag(dbInput.value).toFixed(3); scheduleLiveUpdate(); });
   phaseRange.addEventListener('input', e => { phaseInput.value = Number(e.target.value).toFixed(3); scheduleLiveUpdate(); });
   phaseInput.addEventListener('input', () => {
-    let v = Math.max(-Math.PI, Math.min(Math.PI, Number(phaseInput.value)||0));
+    let v = Math.max(0, Math.min(2*Math.PI, Number(phaseInput.value)||0));
     phaseInput.value = v.toFixed(3); phaseRange.value = v; scheduleLiveUpdate();
+  });
+  panRange.addEventListener('input', e => { panInput.value = Number(e.target.value).toFixed(3); scheduleLiveUpdate(); });
+  panInput.addEventListener('input', () => {
+    let v = Math.max(0, Math.min(1, Number(panInput.value)||0));
+    panInput.value = v.toFixed(3); panRange.value = v; scheduleLiveUpdate();
   });
 
   return menu;

@@ -27,13 +27,11 @@ function restartRender(autoPlay){
       wrapper.id = "canvasWrapper-"+ch;
       timeline = document.createElement("canvas");
       timeline.id = `timeline-${ch}`;
-      timeline.style.cssText ="height:40px;background:#222;position:absolute;left:40px;z-index:9998;top:"+(0 + ch*offsetY)+"px";
       wrapper.appendChild(timeline);
 
       // main canvas
       canvas = document.createElement("canvas");
       canvas.id = `canvas-${ch}`;
-      canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
       // prefer pixelated rendering at DOM-level (extra protection)
       canvas.style.imageRendering = "pixelated";
       canvas.style.webkitImageRendering = "pixelated";
@@ -42,7 +40,6 @@ function restartRender(autoPlay){
       // overlay
       overlayCanvas = document.createElement("canvas");
       overlayCanvas.id = `overlay-${ch}`;
-      overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
       // overlay should also be pixelated
       overlayCanvas.style.imageRendering = "pixelated";
       wrapper.appendChild(overlayCanvas);
@@ -50,13 +47,11 @@ function restartRender(autoPlay){
       // freq bar
       yAxis = document.createElement("canvas");
       yAxis.id = `freq-${ch}`;
-      yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
       wrapper.appendChild(yAxis);
       
       // logscale
       logscaleEl = document.createElement("canvas");
       logscaleEl.id = `logscale-${ch}`;logscaleEl.width=40;logscaleEl.height=40;
-      logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
       wrapper.appendChild(logscaleEl);
 
       // specCanvas bar (hidden source canvas)
@@ -81,6 +76,11 @@ function restartRender(autoPlay){
       logscaleEl = document.getElementById(`logscale-${ch}`);
       specCanvas = document.getElementById(`spec-${ch}`);
     }
+    timeline.style.cssText ="height:40px;background:#222;position:absolute;left:40px;z-index:9998;top:"+(0 + ch*offsetY)+"px";
+    canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
+    overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
+    yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
+    logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
     timeline.style.display=(ch<layerCount)?"block":"none";
     canvas.style.display=(ch<layerCount)?"block":"none";
     overlayCanvas.style.display=(ch<layerCount)?"block":"none";
@@ -151,6 +151,7 @@ function restartRender(autoPlay){
 
     if (!layers[ch].mags) layers[ch].mags = new Float32Array(specWidth * specHeight).fill(0);
     if (!layers[ch].phases) layers[ch].phases = new Float32Array(specWidth * specHeight).fill(0);
+    if (!layers[ch].pans) layers[ch].pans = new Float32Array(specWidth * specHeight).fill(0);
 
     // IMPORTANT: after (re)setting canvas.width/height the context is reset, so re-obtain it
     const ctx = canvas.getContext("2d");
@@ -174,9 +175,9 @@ function restartRender(autoPlay){
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
   buildBinDisplayLookup();
-
-  let startFrame = calcMinMaxCol().minCol;
-  if (startFrame == Infinity) startFrame = 0;
+  minCol=0;startFrame=0;maxCol = framesTotal;
+  // let startFrame = calcMinMaxCol().minCol;
+  // if (startFrame == Infinity) startFrame = 0;
   pos = startFrame * hop;
   x = startFrame;
   rendering = true;
@@ -306,8 +307,7 @@ function magPhasePanToRGB(mag, phase, pan){
     else if(hp < 4){ r=0; g=x; b=v; }
     else if(hp < 5){ r=x; g=0; b=v; }
     else           { r=v; g=0; b=x; }
-    const s = phaseDisplayKnob.getValue()*satVal;
-    const c = r => {return ((mag/60)*(1-s) + r*s);};
+    const c = r => {return ((mag/60)*(1-satVal) + r*satVal);};
     r = c(r); g=c(g); b=c(b);
     return [Math.floor(r*255), Math.floor(g*255), Math.floor(b*255)];
   }
@@ -510,7 +510,7 @@ function drawFrame(w,h) {
       const s = sprites[sprites.length-1];
       if (x>=s.minCol && x<=s.maxCol){
         for (let i=x * h;i<(x+1) * h;i++){
-          addPixelToSprite(s, Math.floor(i / specHeight), i%specHeight, Math.random()*0.00001, Math.random()*6.315, mags[i], phases[i], s.ch);
+          addPixelToSprite(s, Math.floor(i / specHeight), i%specHeight, Math.random()*0.00001, Math.random()*6.315, 0.5, mags[i], phases[i], pans[i], s.ch);
         }
       }
     }

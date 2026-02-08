@@ -569,7 +569,7 @@ function buildBinDisplayLookup() {
     }
   }
 }
-function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,l) {
+function addPixelToSprite(sprite, x, y, prevMag, prevPhase, prevPan, nextMag, nextPhase, nextPan,l) {
   let col;
   try{col=sprite.pixels[l].get(x);}catch(e){col=null};
   if (!col) {
@@ -577,34 +577,65 @@ function addPixelToSprite(sprite, x, y, prevMag, prevPhase, nextMag, nextPhase,l
       ys: [],
       prevMags: [],
       prevPhases: [],
+      prevPans: [],
       nextMags: [],
-      nextPhases: []
+      nextPhases: [],
+      nextPans: [],
     };
     if (sprite.pixels[l]) sprite.pixels[l].set(x, col);
   }
+  //console.log(col);
   if (col.ys.includes(y)){
     const idx = col.ys.indexOf(y);
     col.prevMags[idx]=prevMag;
     col.prevPhases[idx]=prevPhase;
+    col.prevPans[idx]=prevPan;
     col.nextMags[idx]=nextMag;
     col.nextPhases[idx]=nextPhase;
+    col.nextPans[idx]=nextPan;
   } else {
     col.ys.push(y);
     col.prevMags.push(prevMag);
     col.prevPhases.push(prevPhase);
+    col.prevPans.push(prevPan);
     col.nextMags.push(nextMag);
     col.nextPhases.push(nextPhase);
+    col.nextPans.push(nextPan);
   }
   if (x < sprite.minCol) sprite.minCol = x;
   if (x > sprite.maxCol) sprite.maxCol = x;
-  if (sprite.effect.shape!=="select")updateSelections(x,y,l,prevMag,prevPhase,nextMag,nextPhase);
+  if (sprite.effect.shape!=="select")updateSelections(x,y,l,prevMag,prevPhase,prevPan,nextMag,nextPhase,nextPan);
 }
-function updateSelections(x,y,ch,prevMag,prevPhase,nextMag,nextPhase){
+function updateSelections(x,y,ch,prevMag,prevPhase,prevPan,nextMag,nextPhase,nextPan){
   for (let s of sprites){
     if (s.effect.shape==="select" && s.ch===ch && x>=s.minCol && x<=s.maxCol && y>=s.minY && y<=s.maxY){
-      addPixelToSprite(s,x,y,prevMag,prevPhase,nextMag,nextPhase,ch);
+      addPixelToSprite(s,x,y,prevMag,prevPhase,prevPan,nextMag,nextPhase,nextPan,ch);
     }
   }
+}
+function computePanTexture(type,initialPan,panStrength,x,y,pan,useExpressions,useAmplifier,factor){
+  if (useAmplifier) {
+    return initialPan*panStrength;
+  }
+  if (useExpressions) {
+    const expr = getExpressionById("brushPanTextureDiv");
+    if (expr.hasChanged || type==="Custom") return parseExpression(expr);
+  }
+  const $pan = ((pan, x, y) => {
+    switch (type) {
+      case 'Flat':
+        return pan;
+      case 'Random':
+        return (Math.random() + pan) % 1;
+      case 'XCircles':
+        return (Math.sin(x/(sampleRate*0.63661/hop))/2+0.5 + pan) % 1;
+      case 'YCircles':
+        return (Math.sin(y/(sampleRate*0.63661/hop))/2+0.5 + pan) % 1;
+      case 'Band':
+        return (Math.pow((1/(specHeight*10)+1),(0-Math.pow(y-(parseInt(document.getElementById(useExpressions?"brushPanBand":"sbrushPanBand").value)),2))) + pan) % 1;
+    }
+  })(pan, x, y);
+  return initialPan*(1-panStrength) + $pan*panStrength;
 }
 function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
@@ -659,17 +690,16 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
           else {$phase = computePhaseTexture(type, bin, xI, phase, false);}
         }
       }
-      phasesArr[idx] = oldPhase * (1 - po) + po * ($phase);
+      layers[ch].phases[idx] = oldPhase * (1 - po) + po * ($phase);
     }
     const clampedMag = Math.min(newMag, 255);
-    const newPan = pan;
-    layers[ch].pans[idx] = newPan;
+    layers[ch].pans[idx] = computePanTexture(document.getElementById("brushPanTexture").value,layers[ch].pans[idx],parseFloat(document.getElementById("brushPanStrength").value),xI,bin,pan,true,currentTool==="amplifier");
     layers[ch].mags[idx] = clampedMag;
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
     const yEnd   = Math.min(specHeight - 1, Math.ceil(Math.max(yTopF, yBotF)));
-    const [r, g, b] = magPhasePanToRGB(clampedMag, phasesArr[idx], newPan);
+    const [r, g, b] = magPhasePanToRGB(clampedMag, layers[ch].phases[idx], pan);
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + xI) * 4;
       imgData[pix]     = r;
@@ -707,7 +737,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
     processBin(bin, bo*velFactor);
   }
 }
-function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
+function applyEffectToPixel(oldMag, oldPhase, oldPan, x, bin, newEffect, integral) {
   const tool = newEffect.tool || currentTool;
   let mag, phase;
   if (tool === "blur") {
@@ -736,7 +766,9 @@ function applyEffectToPixel(oldMag, oldPhase, x, bin, newEffect, integral) {
   let $phase = computePhaseTexture(type, bin, x+0.5, phase, true);
   const newPhase = (tool === "sample")?(oldPhase+phase):(oldPhase * (1-po) + po * ($phase + phase*2));
   const clampedMag = Math.min(newMag, 255);
-  return { mag: clampedMag, phase: newPhase};
+
+  const newPan = computePanTexture(newEffect.panTexture,0.5,newEffect.panStrength,x+0.5,bin,newEffect.panShift,false,newEffect.tool==="amplifier");
+  return { mag: clampedMag, phase: newPhase, pan: newPan};
 }
 function commitShape(cx, cy) {
   let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
@@ -755,7 +787,7 @@ function commitShape(cx, cy) {
     const expressionBrushMag = getExpressionById("brushBrightnessDiv");
     function brushMag(){return expressionBrushMag.expression.includes("pixel.")?(currentTool === "eraser" ? 0 : (parseExpression(expressionBrushMag) / 255) * 128):gBrushMag;}
     const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-    const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPan").value);
+    const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPanShift").value);
     const visitedLocal = Array.from({ length: layerCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
     visited = visitedLocal;
@@ -1012,7 +1044,7 @@ function paint(cx, cy) {
     } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (parseExpression(getExpressionById("brushBrightnessDiv")) / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-      const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPan").value);
+      const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPanShift").value);
       const p0x = prevMouseX + iLow;
       const p0y = visibleToSpecY(prevMouseY);
       const p1x = cx;   
@@ -1241,7 +1273,7 @@ function applyAutotuneToPixels(ch, pixels, opts = {}) {
       const yBotF = binToBottomDisplay[ch][b];
       const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
       const yEnd = Math.min(fullH - 1, Math.ceil(Math.max(yTopF, yBotF)));
-      const [r, g, bl] = magPhasePanToRGB(magsArr[dstIdx], phasesArr[dstIdx]);
+      const [r, g, bl] = magPhasePanToRGB(magsArr[dstIdx], phasesArr[dstIdx], layers[ch].pans[dstIdx]);
       for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
         const pix = (yPixel * fullW + xx) * 4;
         pixBuf[pix] = r;

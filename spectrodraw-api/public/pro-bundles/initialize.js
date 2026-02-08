@@ -620,12 +620,3 @@ const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
   range: [0,1],
   value: 1,
 });
-const phaseDisplayKnob = new Knob(document.getElementById('phaseDisplay'), {
-  name:'Phase Display',
-  type: 'continuous',
-  range: [0,1],
-  value: 1,
-  onInput: (knob)=>{
-    renderFullSpectrogramToImage();
-  }
-});

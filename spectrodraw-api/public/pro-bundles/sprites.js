@@ -7,7 +7,7 @@ function forEachSpritePixelInOrder(sprite, ch, cb) {
     const order = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
     for (const entry of order) {
       const i = entry.i;
-      cb(x, col.ys[i], col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+      cb(x, col.ys[i], col.prevMags[i], col.prevPhases[i], col.prevPans[i], col.nextMags[i], col.nextPhases[i], col.nextPans[i]);
     }
   }
 }
@@ -175,6 +175,15 @@ document.getElementById('sphaseTexture').addEventListener('change', () => {
   newGlobalXYHistory("redo",selectedSpriteId);
   updateSpritePhaseTextureSettings(s.effect);
 });
+document.getElementById('sbrushPanTexture').addEventListener('change', () => {
+  const s = getSpriteById(selectedSpriteId);
+  if (!s) return;
+  newGlobalXYHistory("undo",selectedSpriteId);
+  s.effect.panTexture = document.getElementById('sbrushPanTexture').value;
+  updateSpriteEffects(selectedSpriteId, s.effect);
+  newGlobalXYHistory("redo",selectedSpriteId);
+  document.getElementById("sbrushPanBandDiv").style.display = (document.getElementById("sbrushPanTexture").value==="Band")?"flex":"none";
+});
 
 function onSpritePhaseSettingsChange(id) {
   const el = document.getElementById(id);
@@ -248,6 +257,9 @@ const sliderDefs = [
   ['sphaseShift',        'sphaseShiftInput',         'phaseShift'],
   ['sbrushOpacity',    'sbrushOpacityInput',     'brushOpacity'],
   ['sphaseStrength',    'sphaseStrengthInput',     'phaseStrength'],
+  ['sbrushPanStrength',    'sbrushPanStrengthInput',     'panStrength'],
+  ['sbrushPanShift',    'sbrushPanShiftInput',     'panShift'],
+  ['sbrushPanBand',    'sbrushPanBandInput',     'panBand'],
   ['sblurRadius',      'sblurRadiusInput',       'blurRadius'      ],
   ['samp',             'sampInput',              'amp'             ],
   ['snoiseAgg','snoiseAggInput', 'noiseAgg'],
@@ -354,6 +366,12 @@ function renderToolEditorSettings(newEffect) {
   document.getElementById("sbrushOpacityDiv").style.display=(c("n/a")||c("sample"))?"none":"flex";
   document.getElementById("sWidthDiv").style.display=c("n/a")?"flex":"none";
   document.getElementById("sHeightDiv").style.display=c("n/a")?"flex":"none";
+  document.getElementById("sbrushPanShiftDiv").style.display=(c("autotune")||c("noiseRemover")||c("amplifier"))?"none":"flex";
+  document.getElementById("sbrushPanStrengthDiv").style.display=(c("autotune")||c("noiseRemover"))?"none":"flex";
+  document.getElementById("sbrushPanTextureDiv").style.display=(c("autotune")||c("noiseRemover")||c("amplifier"))?"none":"flex";
+  document.getElementById("sbrushPanBandDiv").style.display = (document.getElementById("sbrushPanTexture").value==="Band"&&!(c("autotune")||c("noiseRemover")||c("amplifier")))?"flex":"none";
+  document.getElementById("sbrushPanStrength").max=document.getElementById("sbrushPanStrengthInput").max=c("amplifier")?2:1;
+  if (!c("amplifier")&&document.getElementById("sbrushPanStrengthInput").value>1)document.getElementById("sbrushPanStrength").value=document.getElementById("sbrushPanStrengthInput").value=1;
   updateNoiseProfile(true);
 
   // Ensure effects object exists to read from
@@ -390,6 +408,7 @@ function renderToolEditorSettings(newEffect) {
     if (typeof extraFn === 'function') extraFn(val);
   });
   document.getElementById('sphaseTexture').value = effects.phaseTexture || 'none';
+  document.getElementById('sbrushPanTexture').value = effects.panTexture || 'Flat';
 }
 
 document.getElementById("spriteLayer").addEventListener("change",()=>{updateSpriteChannels();});
@@ -407,13 +426,14 @@ async function updateSpriteChannels(){
         s.pixels[c] = new Map();
       }
     }
-    forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
+    forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, prevPan, nextMag, nextPhase, nextPan)=>{
       const id = x * specHeight + y;
       for (let ch=0;ch<layerCount;ch++) {
         if (ch==v) continue;
-        addPixelToSprite(s, x, y, layers[ch].mags[id], layers[ch].phases[id], nextMag, nextPhase, ch);
+        addPixelToSprite(s, x, y, layers[ch].mags[id], layers[ch].phases[id], layers[ch].pans[id], nextMag, nextPhase, nextPan, ch);
         layers[ch].mags[id] = nextMag;
         layers[ch].phases[id] = nextPhase;
+        layers[ch].pans[id] = nextPan;
       }
     });
   } else {
@@ -422,13 +442,15 @@ async function updateSpriteChannels(){
     let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?layerCount:s.ch+1;
     for (let c = $s;c<$e;c++){
       if (c==ch) continue;
-      forEachSpritePixelInOrder(s, c, (x, y, prevMag, prevPhase, nextMag, nextPhase)=>{
+      forEachSpritePixelInOrder(s, c, (x, y, prevMag, prevPhase, prevPan, nextMag, nextPhase, nextPan)=>{
         const id = x * specHeight + y;
-        if (s.ch!=="all")addPixelToSprite(s, x, y, layers[ch].mags[id], layers[ch].phases[id], nextMag, nextPhase, ch);
+        if (s.ch!=="all")addPixelToSprite(s, x, y, layers[ch].mags[id], layers[ch].phases[id], layers[ch].pans[id], nextMag, nextPhase, nextPan, ch);
         layers[ch].mags[id] = nextMag;
         layers[c].mags[id] = prevMag;
         layers[ch].phases[id] = nextPhase;
         layers[c].phases[id] = prevPhase;
+        layers[ch].pans[id] = nextPan;
+        layers[c].pans[id] = prevPan;
       });
       s.pixels[c] = null;
     }
@@ -448,7 +470,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
   let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
   for (let ch=$s;ch<$e;ch++){
-    const mags = layers[ch].mags, phases = layers[ch].phases;
+    const mags = layers[ch].mags, phases = layers[ch].phases, pans = layers[ch].pans;
     // keep a copy of the old effect to detect instant zeroing
     const oldEffect = Object.assign({}, sprite.effect || {});
 
@@ -468,21 +490,22 @@ async function updateSpriteEffects(spriteId, newEffect) {
         for (const bin of bins) {
           const i = bin.i;
           const id = x * specHeight + col.ys[i];
-          mags[id] = col.prevMags[i];
+          mags[id] = col.prevMags[i]; pans[id] = col.prevPans[i];
           pixels[Math.floor(col.ys[i]/rowH)].push([x,col.ys[i]]);
         }
       }
       for (const pixel of pixels) if (pixel.length>0) applyAutotuneToPixels(ch, pixel,{npo:newEffect.anpo,startOnP:newEffect.aStartOnP,strength:newEffect.autoTuneStrength});
     } else {
       const integral = buildIntegral(specWidth, specHeight, mags, phases);
-      forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, newMag, newPhase) => {
+      forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, prevPan, newMag, newPhase, newPan) => {
         if (x<sprite.maxCol&&x>sprite.minCol) {
           const id = x * specHeight + y;
-          const newPixel = (sprite.effect.shape==="select")?{mag:newMag,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift}
-          :applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, x, y, newEffect, integral);
+          const newPixel = (sprite.effect.shape==="select")?{mag:newMag,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift,pan:newPan}
+          :applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, z?newPan:prevPan, x, y, newEffect, integral);
           //console.log(newPixel.mag,z?newMag:prevMag);
           mags[id] = newPixel.mag;
           phases[id] = newPixel.phase;
+          pans[id] = newPixel.pan;
         }
       });
     }
@@ -514,6 +537,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
   }
   // Recompute PCM for the expanded area and restart render / audio
   dontChangeSprites = (sprite.effect.tool !== "autotune");
+  //console.log(new Float32Array(layers[0].pcm[0]));
   simpleRestartRender(-1,-1);
   //console.log(recomputeMin,recomputeMax);
 
@@ -532,7 +556,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
 
 nameEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.name = nameEl.value;renderSpritesTable();});
 toolEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.effect.tool = toolEl.value;updateSpriteEffects(selectedSpriteId,c.effect);renderSpritesTable();renderToolEditorSettings(c.effect);});
-enabledEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.enabled = enabledEl.checked;toggleSpriteEnabled(selectedSpriteId,c.enabled);renderSpritesTable();});
+enabledEl.addEventListener('change', ev => {const c = getSpriteById(selectedSpriteId); c.enabled = enabledEl.checked;toggleSpriteEnabled(selectedSpriteId,c.enabled);});
 
 // Toggle sprite (apply prev or next values)
 function toggleSpriteEnabled(spriteId, enable) {
@@ -542,23 +566,27 @@ function toggleSpriteEnabled(spriteId, enable) {
   let maxCol = Math.min(specWidth - 1, sprite.maxCol || (specWidth - 1));
   let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = layers[ch].mags, phases = layers[ch].phases;
+    let mags = layers[ch].mags, phases = layers[ch].phases, pans = layers[ch].pans;
 
     // apply prev (disable) or next (enable)
     if (enable) {
       // write next values at recorded coords
-      forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, nextMag, nextPhase) => {
+      forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, _prevPan, nextMag, nextPhase, nextPan) => {
         const id = x * specHeight + y;
+        if (Math.abs(_prevMag-nextMag)<0.002) return;
         mags[id] = nextMag;
         phases[id] = nextPhase;
+        pans[id] = nextPan;
       });
       sprite.enabled = true;
     } else {
       // write prev values back
-      forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+      forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase, prevPan, nextMag) => {
         const id = x * specHeight + y;
+        if (Math.abs(prevMag-nextMag)<0.002) return;
         mags[id] = prevMag;
         phases[id] = prevPhase;
+        pans[id] = prevPan;
       });
       sprite.enabled = false;
     }
@@ -582,13 +610,14 @@ async function moveSprite(spriteId, dx, dy) {
   const oldMaxCol = sprite.maxCol;
   let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = layers[ch].mags, phases = layers[ch].phases;
+    let mags = layers[ch].mags, phases = layers[ch].phases, pans = layers[ch].pans;
 
     // 1) restore prev values at old positions (keep same behaviour)
-    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase, prevPan) => {
       const idOld = x * specHeight + y;
       mags[idOld] = prevMag;
       phases[idOld] = prevPhase;
+      pans[idOld] = prevPan;
     });
 
     // We'll build a fresh map for the new sprite pixels.
@@ -606,6 +635,7 @@ async function moveSprite(spriteId, dx, dy) {
         const oldY = col.ys[i];
         const nextMag = col.nextMags ? col.nextMags[i] : col.prevMags[i]; // keep your pattern
         const nextPhase = col.nextPhases ? col.nextPhases[i] : col.prevPhases[i];
+        const nextPan = col.nextPans ? col.nextPans[i] : col.prevPans[i];
 
         const nx = Math.floor(oldX + dx);
         const f = sampleRate / fftSize;
@@ -623,7 +653,7 @@ async function moveSprite(spriteId, dx, dy) {
         let ncol = newMap.get(nx);
         if (!ncol) {
           // Only store the arrays we actually need. We'll capture prev values lazily.
-          ncol = { ys: [], prevMags: [], prevPhases: [], nextMags: [], nextPhases: [] };
+          ncol = { ys: [], prevMags: [], prevPhases: [], prevPans: [], nextMags: [], nextPhases: [], nextPans: [] };
           newMap.set(nx, ncol);
         }
 
@@ -632,8 +662,10 @@ async function moveSprite(spriteId, dx, dy) {
           ncol.ys.push(j);
           ncol.prevMags.push(mags[destIdx]);
           ncol.prevPhases.push(phases[destIdx]);
+          ncol.prevPans.push(pans[destIdx]);
           ncol.nextMags.push(nextMag);
           ncol.nextPhases.push(phases[destIdx] + nextPhase);
+          ncol.nextPans.push(pans[destIdx] + nextPan);
           if (j < newMinY) newMinY = j;
           if (j > newMaxY) newMaxY = j;
         }
@@ -698,11 +730,12 @@ async function deleteSprite(spriteId) {
   const sprite = sprites[idx];
   let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?layerCount:spritePath.ch+1;
   for (let ch=$s;ch<$e;ch++){
-    const mags = layers[ch].mags, phases = layers[ch].phases;
-    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase) => {
+    const mags = layers[ch].mags, phases = layers[ch].phases, pans = layers[ch].pans;
+    forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase, prevPan) => {
       const id = x * specHeight + y;
       mags[id] = prevMag;
       phases[id] = prevPhase;
+      pans[id] = prevPan;
     });
   }
   const minCol = Math.max(0, sprite.minCol || 0);
@@ -772,12 +805,14 @@ function formatSignificantAsSprite(origSprite, sig) {
               if (idx !== -1) {
                 if (srcCol.prevMags && srcCol.prevMags[idx] != null) prevMag = srcCol.prevMags[idx];
                 if (srcCol.prevPhases && srcCol.prevPhases[idx] != null) prevPhase = srcCol.prevPhases[idx];
+                if (srcCol.prevPans && srcCol.prevPans[idx] != null) prevPan = srcCol.prevPans[idx];
                 if (srcCol.nextMags && srcCol.nextMags[idx] != null) nextMag = srcCol.nextMags[idx];
                 if (srcCol.nextPhases && srcCol.nextPhases[idx] != null) nextPhase = srcCol.nextPhases[idx];
+                if (srcCol.nextPans && srcCol.nextPans[idx] != null) nextPan = srcCol.nextPans[idx];
               }
             }
           }
-          addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, nextMag, nextPhase, ch);
+          addPixelToSprite(out, xGlobal, yGlobal, prevMag, prevPhase, prevPan, nextMag, nextPhase, nextPan, ch);
         }
       }
       if (out.pixels[ch].size === 0) out = null;
@@ -1577,7 +1612,7 @@ function processSpriteFade(sid=selectedSpriteId) {
     if (cols.length === 0) return;
     const last = Math.max(0, s.spriteFade.length - 1);
     const span = Math.max(1, s.maxCol - s.minCol);
-    forEachSpritePixelInOrder(sigSprite, ch, (x, y, _prevMag, _prevPhase, nextMag /*, nextPhase */) => {
+    forEachSpritePixelInOrder(sigSprite, ch, (x, y, _prevMag, _prevPhase, _prevPan, nextMag /*, nextPhase */) => {
       const t = (x - s.minCol) / span;
       const idx = Math.round(t * last);
       const factor = s.spriteFade[idx] || 0;
@@ -1814,9 +1849,10 @@ sHeight.addEventListener("input",()=>{sHeightI.value = sHeight.value; updateSele
 function updateSelectionSize(){
   const s = getSpriteById(selectedSpriteId);
   const e = s.effect;
-  forEachSpritePixelInOrder(s, s.ch, (x, y, prevMag, prevPhase, nextMag, nextPhase) => {
+  forEachSpritePixelInOrder(s, s.ch, (x, y, prevMag, prevPhase, prevPan) => {
     layers[s.ch].mags[x * specHeight + y] = prevMag;
     layers[s.ch].phases[x * specHeight + y] = prevPhase;
+    layers[s.ch].pans[x * specHeight + y] = prevPan;
   });
 
   // Capture old bounds BEFORE changing them:
@@ -1850,20 +1886,6 @@ function updateSelectionSize(){
     return newMinY + ((y - oldMinY) / oldHeight) * (newMaxY - newMinY);
   };
 
-  // Iterator you provided
-  function forEachSpritePixelInOrder(sprite, ch, cb) {
-    if (!sprite) return;
-    const cols = Array.from(sprite.pixels[ch].keys()).sort((a,b)=>a-b);
-    for (const x of cols) {
-      const col = sprite.pixels[ch].get(x);
-      const order = col.ys.map((y, i) => ({y, i})).sort((a,b)=>a.y - b.y);
-      for (const entry of order) {
-        const i = entry.i;
-        cb(x, col.ys[i], col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
-      }
-    }
-  }
-
   // sanity / environment:
   const specH = typeof specHeight !== 'undefined' ? specHeight : (oldHeight > 0 ? Math.ceil(oldHeight) : 1);
 
@@ -1875,7 +1897,8 @@ function updateSelectionSize(){
   for (let v = 0; v < s.pixels.length; v++) {
     const mags = layers[currentLayer].mags;
     const phases = layers[currentLayer].phases;
-    forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, nextMag, nextPhase) => {
+    const pans = layers[currentLayer].pans;
+    forEachSpritePixelInOrder(s, v, (x, y, prevMag, prevPhase, prevPan, nextMag, nextPhase, nextPan) => {
       // old id (source index into layers arrays)
       const oldX = Math.round(x);
       const oldY = Math.round(y);
@@ -1890,6 +1913,7 @@ function updateSelectionSize(){
           const newId = xx * specH + yy;
           mags[newId] = nextMag;
           phases[newId] = nextPhase;
+          pans[newId] = nextPan;
         }
       }
 
@@ -1909,20 +1933,25 @@ function updateSelectionSize(){
             y: my,
             prevMag: prevMag,
             prevPhase: prevPhase,
+            prevPan: prevPan,
             nextMag: nextMag,
-            nextPhase: nextPhase
+            nextPhase: nextPhase,
+            nextPan: nextPan,
           });
-        } else {
+        } else {console.log(1912);
           // use the value we copied into newChannels as prev, and next from the owning layer (keeps painting propagation similar to your snippet)
           const copiedMag = newChannelsMags[ch][newId];
           const copiedPhase = newChannelsPhases[ch][newId];
+          const copiedPan = newChannelsPans[ch][newId];
           // Use nextMag/nextPhase from the owning layer to follow the snippet pattern:
           col.entries.push({
             y: my,
             prevMag: copiedMag,
             prevPhase: copiedPhase,
+            prevPan: copiedPan,
             nextMag: nextMag,
-            nextPhase: nextPhase
+            nextPhase: nextPhase,
+            nextPan: nextPan,
           });
         }
       }
@@ -1939,20 +1968,24 @@ function updateSelectionSize(){
         yMap.set(entry.y, entry);
       }
       const ysSorted = Array.from(yMap.keys()).sort((a,b)=>a-b);
-      const prevMags = [], prevPhases = [], nextMags = [], nextPhases = [];
+      const prevMags = [], prevPhases = [], prevPans = [], nextMags = [], nextPhases = [], nextPans = [];
       for (const yy of ysSorted) {
         const ent = yMap.get(yy);
         prevMags.push(ent.prevMag);
         prevPhases.push(ent.prevPhase);
+        prevPans.push(ent.prevPan);
         nextMags.push(ent.nextMag);
         nextPhases.push(ent.nextPhase);
+        nextPans.push(ent.nextPan);
       }
       finalColMap.set(colX, {
         ys: ysSorted,
         prevMags,
         prevPhases,
+        prevPans,
         nextMags,
-        nextPhases
+        nextPhases,
+        nextPans,
       });
     }
     newPixels.push(finalColMap);

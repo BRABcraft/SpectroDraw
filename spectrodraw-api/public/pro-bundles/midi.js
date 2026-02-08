@@ -134,6 +134,22 @@ self.addEventListener('message', async (ev) => {
     if (worker && typeof worker.postMessage === 'function') start(worker);
   });
 }
+function mixToMono(pcmData) {
+  // If it's already a single Float32Array, just return it
+  if (pcmData instanceof Float32Array) return pcmData;
+
+  // If it's the new [Float32Array, Float32Array] structure
+  if (Array.isArray(pcmData) && pcmData.length === 2) {
+    const left = pcmData[0];
+    const right = pcmData[1];
+    const mono = new Float32Array(left.length);
+    for (let i = 0; i < left.length; i++) {
+      mono[i] = (left[i] + (right[i] || 0)) / 2;
+    }
+    return mono;
+  }
+  return pcmData;
+}
 async function isModelInIndexedDB(idbKey = DEFAULT_IDB_KEY) {
   if (typeof window === 'undefined') return false;
   if (typeof window.tf === 'undefined') {
@@ -326,6 +342,7 @@ async function runBasicPitchAndReturnNotes({ pcmFloat32, sampleRate, hopSamples 
   } else if (typeof BProot === 'function') {
     BasicPitchClass = BProot;
   }
+  pcmFloat32 = mixToMono(pcmFloat32);
   if (!pcmFloat32 || !(pcmFloat32 instanceof Float32Array) || pcmFloat32.length === 0) {
     console.warn('BasicPitch runner: pcmFloat32 invalid/empty; returning []');
     setGlobalProgress(0);
@@ -619,15 +636,20 @@ function normalizeNoteFromModel(n) {
 function determinePcm(ch) {
   let pcm;
   if (layerCount == 1) {
-    pcm = layers[0].pcm;
-  } else if (midiLayerMode.value==="single") {
-    pcm = layers[parseInt(document.getElementById("midiSingleLayer").value)].pcm;
-  } else if (midiLayerMode.value==="allMixToMono") {
-    const pcs = layers.map(ch => ch.pcm);
+    // Wrap the access in mixToMono
+    pcm = mixToMono(layers[0].pcm);
+  } else if (midiLayerMode.value === "single") {
+    const idx = parseInt(document.getElementById("midiSingleLayer").value);
+    pcm = mixToMono(layers[idx].pcm);
+  } else if (midiLayerMode.value === "allMixToMono") {
+    // Map each layer to mono first, then average the layers
+    const pcs = layers.map(l => mixToMono(l.pcm));
     const len = pcs[0].length;
-    pcm = Float32Array.from({ length: len },(_, i) => pcs.reduce((sum, a) => sum + a[i], 0) / pcs.length);
-  } else if (midiLayerMode.value==="all") {
-    pcm = layers[ch].pcm;
+    pcm = Float32Array.from({ length: len }, (_, i) => 
+      pcs.reduce((sum, a) => sum + a[i], 0) / pcs.length
+    );
+  } else if (midiLayerMode.value === "all") {
+    pcm = mixToMono(layers[ch].pcm);
   }
   return pcm;
 }

@@ -209,7 +209,7 @@ function updateBrushPreview() {
     let avg = Math.max(r,g,b);
     return [r,g,b].map(v => Math.round(avg + (v-avg)*factor));
   }
-  let pan = parseFloat(document.getElementById("brushPan").value);
+  let pan = parseFloat(document.getElementById("brushPanShift").value);
   let rgb;
   if (currentTool === "amplifier") {
     rgb = magPhasePanToRGB((amp*25) * brushOpacity, phaseShift,pan);

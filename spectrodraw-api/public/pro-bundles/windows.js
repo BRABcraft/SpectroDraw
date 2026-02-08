@@ -1027,7 +1027,7 @@ function setDocked(panel, dockObj){
         <input id="anpoInput" type="number" value="12" min="1" max="384">
       </div>
       <div id="phaseTextureDiv" class="slider-row" title="Phase texture">
-        <label class="h2" for="phaseTexture">Phase texture</label>
+        <label class="h2" for="phaseTexture" style="width:100px;">Phase texture</label>
         <select id="phaseTexture" style="width:117.5px;margin-right:15px;margin-left:50px;">
           <option value="Static" selected>Static</option>
           <option value="Harmonics">Harmonics</option>
@@ -1061,10 +1061,31 @@ function setDocked(panel, dockObj){
           <input id="phaseStrength"  type="range" min="0" max="1" value="1" step="0.001">
           <input id="phaseStrengthInput" type="number" value="1" min="0" max="1">
       </div>
-      <div class="slider-row" title="Phase strength" id="brushPanDiv">
-          <label class="h2">Pan</label>
-          <input id="brushPan"  type="range" min="0" max="1" value="1" step="0.001">
-          <input id="brushPanInput" type="number" value="1" min="0" max="1">
+      <div id="brushPanTextureDiv" class="slider-row" title="Pan texture">
+        <label class="h2" for="brushPanTexture" style="width:100px;">Pan texture</label>
+        <select id="brushPanTexture" style="width:117.5px;margin-right:15px;margin-left:75px;">
+          <option value="Flat" selected>Flat</option>
+          <option value="Random">Random</option>
+          <option value="XCircles">X Circles</option>
+          <option value="YCircles">Y circles</option>
+          <option value="Band">Frequency Band</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <div class="slider-row" title="Pan band bin" id="brushPanBandDiv" style="display:none;">
+          <label class="h2">Pan band bin</label>
+          <input id="brushPanBand"  type="range" min="0" max="2048" value="100" step="1">
+          <input id="brushPanBandInput" type="number" value="100" min="0" max="2048">
+      </div>
+      <div class="slider-row" title="Pan shift" id="brushPanShiftDiv">
+          <label class="h2">Pan shift</label>
+          <input id="brushPanShift"  type="range" min="0" max="1" value="0.5" step="0.001">
+          <input id="brushPanShiftInput" type="number" value="0.5" min="0" max="1">
+      </div>
+      <div class="slider-row" title="Pan strength" id="brushPanStrengthDiv">
+          <label class="h2">Pan strength</label>
+          <input id="brushPanStrength"  type="range" min="0" max="1" value="1" step="0.001">
+          <input id="brushPanStrengthInput" type="number" value="1" min="0" max="1">
       </div>
     </div>
   </div>
@@ -1422,6 +1443,8 @@ function setDocked(panel, dockObj){
             <label for="globalUseMagsCheckbox">Mags</label>
             <input type="checkbox" id="globalUsePhasesCheckbox" title="Affect phases" checked></input>
             <label for="globalUsePhasesCheckbox">Phases</label>
+            <input type="checkbox" id="globalUsePansCheckbox" title="Affect pans" checked></input>
+            <label for="globalUsePansCheckbox">Pans</label>
           </div>
         </thead>
         <tbody>
@@ -1459,9 +1482,6 @@ function setDocked(panel, dockObj){
           </tr>
         </tbody>
       </table>
-    </div>
-    <div class="knob-wrapper">
-      <div class="knob" id="phaseDisplay" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
     <div class="knob-wrapper">
       <button id="playPause" title="Play (space)" style="background:linear-gradient(180deg,#2b2b2b,#161616);border:0;border-radius:50%;width:75px;height:75px;" onClick="this.blur();">
@@ -1646,6 +1666,32 @@ function setDocked(panel, dockObj){
               <label class="h2">Phase Strength</label>
               <input id="sphaseStrength"  type="range" min="0" max="1" value="0" step="0.01">
               <input id="sphaseStrengthInput" type="number" value="0" min="0" max="1">
+          </div>
+          <div id="sbrushPanTextureDiv" class="slider-row" title="Pan texture">
+            <label class="h2" for="sbrushPanTexture" style="width:100px;">Pan texture</label>
+            <select id="sbrushPanTexture" style="width:117.5px;margin-right:15px;margin-left:75px;">
+              <option value="Flat" selected>Flat</option>
+              <option value="Random">Random</option>
+              <option value="XCircles">X Circles</option>
+              <option value="YCircles">Y circles</option>
+              <option value="Band">Frequency Band</option>
+              <option value="Custom">Custom</option>
+            </select>
+          </div>
+          <div class="slider-row" title="Pan band bin" id="sbrushPanBandDiv" style="display:none;">
+              <label class="h2">Pan band bin</label>
+              <input id="sbrushPanBand"  type="range" min="0" max="2048" value="100" step="1">
+              <input id="sbrushPanBandInput" type="number" value="100" min="0" max="2048">
+          </div>
+          <div class="slider-row" title="Pan shift" id="sbrushPanShiftDiv">
+              <label class="h2">Pan shift</label>
+              <input id="sbrushPanShift"  type="range" min="0" max="1" value="0.5" step="0.001">
+              <input id="sbrushPanShiftInput" type="number" value="0.5" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Pan strength" id="sbrushPanStrengthDiv">
+              <label class="h2">Pan strength</label>
+              <input id="sbrushPanStrength"  type="range" min="0" max="1" value="1" step="0.001">
+              <input id="sbrushPanStrengthInput" type="number" value="1" min="0" max="1">
           </div>
           <div class="slider-row" title="Width" id="sWidthDiv">
               <label class="h2">Selection Width</label>

@@ -435,6 +435,7 @@ async function commitSample(sample, X, insert = false) {
   const start = Math.max(0, X * hop);
   const end = start + sample.pcm[0].length;
   // ensure layers[ch].pcm is a stereo pair
+  function makeAllNull(){layers[ch].mags=layers[ch].phases=layers[ch].pans=layers[ch].snapshotMags=layers[ch].snapshotPhases=layers[ch].snapshotPans=null;}
   if (!layers[ch].pcm[0] || layers[ch].pcm[0].length === 0) {
     layers[ch].pcm = [sample.pcm[0].slice(0), sample.pcm[1].slice(0)];
     bufferLengthKnob.setValue(layers[ch].pcm[0].length / sampleRate);
@@ -450,6 +451,7 @@ async function commitSample(sample, X, insert = false) {
       const newLen = Math.max(leftExisting.length, start) + sampleLen;
       const newL = new Float32Array(newLen);
       const newR = new Float32Array(newLen);
+      makeAllNull();
 
       // copy head up to start
       const headLen = Math.min(leftExisting.length, start);
@@ -480,6 +482,8 @@ async function commitSample(sample, X, insert = false) {
       // sample is longer than existing -> replace with sample (stereo)
       layers[ch].pcm = [sample.pcm[0].slice(0), sample.pcm[1].slice(0)];
       bufferLengthKnob.setValue(layers[ch].pcm[0].length / sampleRate);
+      X = 0;
+      makeAllNull();
       drawTimeline();
     } else if (leftExisting.length < end) {
       // need to grow existing to fit `end`
@@ -498,6 +502,7 @@ async function commitSample(sample, X, insert = false) {
       }
       layers[ch].pcm = [newL, newR];
       bufferLengthKnob.setValue(layers[ch].pcm[0].length / sampleRate);
+      makeAllNull();
       drawTimeline();
     } else {
       // in-place write (both channels)

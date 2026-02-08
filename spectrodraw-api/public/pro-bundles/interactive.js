@@ -57,7 +57,9 @@ function newSprite(opts={}){
     id: nextSpriteId++,
     effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg,
       blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,
-      refPhaseFrame,chirpRate,shape:currentShape,noiseProfileMin,noiseProfileMax,noiseProfile,width:opts.width??0,height:opts.height??0},
+      refPhaseFrame,chirpRate,shape:currentShape,noiseProfileMin,noiseProfileMax,noiseProfile,width:opts.width??0,height:opts.height??0,
+      panShift:parseFloat(document.getElementById("brushPanShift").value),panStrength:parseFloat(document.getElementById("brushPanStrength").value),panTexture:document.getElementById("brushPanTexture").value,
+    },
     enabled: true,
     pixels: pixelmap,
     minCol: Infinity,
@@ -158,6 +160,7 @@ function canvasMouseDown(e,touch) {
   for (let ch=$s;ch<$e;ch++){
     layers[ch].snapshotMags = new Float32Array(layers[ch].mags);
     layers[ch].snapshotPhases = new Float32Array(layers[ch].phases);
+    layers[ch].snapshotPans = new Float32Array(layers[ch].pans);
   }
 
   visited = Array.from({ length: layerCount }, () => new Uint8Array(mags.length));
@@ -374,17 +377,18 @@ function calcMinMaxCol() {
   if (isFinite(minCol) && isFinite(maxCol)) {return {minCol,maxCol};}
   const mags = layers[currentLayer].mags, snapshotMags = layers[currentLayer].snapshotMags;
   if (snapshotMags === null || snapshotMags.length !== mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
-  const epsMag = 1e-2;
+  const EPS = 1e-2;
   const h = specHeight;
   const total = mags.length;
   for (let idx = 0; idx < total; idx++) {
     const oldM = snapshotMags[idx];
     const newM = mags[idx];
-    if (Math.abs(oldM - newM) > epsMag) {
+    if (Math.abs(oldM - newM) > EPS ||
+      Math.abs(layers[currentLayer].snapshotPhases[idx] - layers[currentLayer].phases[idx]) > EPS ||
+      Math.abs(layers[currentLayer].snapshotPans[idx] - layers[currentLayer].pans[idx]) > EPS) {
       const col = Math.floor(idx / h);
       if (col < minCol) minCol = col;
       if (col > maxCol) maxCol = col;
-      continue;
     }
   }
   if (isFinite(minCol)) {
@@ -433,8 +437,8 @@ function newHistory() {if (!currentSprite) return;
   if (dontChangeSprites) {dontChangeSprites=false; return;}
   let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
-    let mags = layers[ch].mags, phases = layers[ch].phases;
-    let snapshotMags = layers[ch].snapshotMags, snapshotPhases = layers[ch].snapshotPhases;
+    let mags = layers[ch].mags, phases = layers[ch].phases, pans=layers[ch].pans;
+    let snapshotMags = layers[ch].snapshotMags, snapshotPhases = layers[ch].snapshotPhases, snapshotPans=layers[ch].snapshotPans;
     const startF = minCol*specHeight;
     const endF = maxCol*specHeight;
     let totalDiff = 0;
@@ -447,9 +451,11 @@ function newHistory() {if (!currentSprite) return;
       countDiff++;
       totalDiff += Math.abs(oldM - newM);  
       if (Math.abs(oldM - newM) > Math.min(0.4,(totalDiff/countDiff)*0.2)){
-        const oldP = snapshotPhases[idx] || 0;
-        const newP = phases[idx] || 0;
-        addPixelToSprite(currentSprite, Math.floor(idx/specHeight), bin, oldM, oldP, newM, newP, ch);
+        const oldPhase = snapshotPhases[idx] || 0;
+        const newPhase = phases[idx] || 0;
+        const oldPan = snapshotPans[idx] || 0;
+        const newPan = pans[idx] || 0;
+        addPixelToSprite(currentSprite, Math.floor(idx/specHeight), bin, oldM, oldPhase, oldPan, newM, newPhase, newPan, ch);
       }
     }
   }
@@ -523,7 +529,7 @@ function _getPlaybackTarget() {
 }
 
 
-async function playPCM(loop = true, startFrame = null) {//console.log(new Float32Array(layers[0].pcm[0]),new Float32Array(layers[0].pcm[1]));
+async function playPCM(loop = true, startFrame = null) {
   ensureAudioCtx();
 
   if (!layers || layers.length === 0) {
@@ -533,8 +539,9 @@ async function playPCM(loop = true, startFrame = null) {//console.log(new Float3
 
   // Determine total length (use longest channel across all layers)
   const totalSamples = layers.reduce((max, ch) => {
-    const leftLen = ch && ch.pcm && ch.pcm[0] ? ch.pcm[0].length : 0;
-    const rightLen = ch && ch.pcm && ch.pcm[1] ? ch.pcm[1].length : 0;
+    if (!ch || !ch.pcm) return max;
+    const leftLen = ch.pcm[0] ? ch.pcm[0].length : 0;
+    const rightLen = ch.pcm[1] ? ch.pcm[1].length : 0;
     return Math.max(max, leftLen, rightLen);
   }, 0);
 
@@ -566,49 +573,64 @@ async function playPCM(loop = true, startFrame = null) {//console.log(new Float3
   const right = buffer.getChannelData(1);
 
   // Mix layers into left/right (each layer now has pcm[0]=left, pcm[1]=right)
-  const nCh = layers.length;
-  for (let ch = 0; ch < nCh; ch++) {
+  for (let ch = 0; ch < layers.length; ch++) {
     const chObj = layers[ch];
-    if (!chObj || !chObj.pcm || !chObj.pcm[0]) continue;
+    if (!chObj || !chObj.pcm) continue;
 
-    const leftPcm = chObj.pcm[0];
-    const rightPcm = chObj.pcm[1] || leftPcm; // fallback if right missing
-    const leftLen = leftPcm.length;
-    const rightLen = rightPcm.length;
+    // Skip layers that have neither channel
+    if (!chObj.pcm[0] && !chObj.pcm[1]) continue;
 
-    const device = (chObj.audioDevice || "both").toLowerCase(); // left/right/both/none
-    let vol = chObj.enabled ? chObj.volume : 0;
+    // Use pcm[0] or fallback to pcm[1]; likewise for right channel
+    const leftPcm = chObj.pcm[0] || chObj.pcm[1];
+    const rightPcm = chObj.pcm[1] || chObj.pcm[0];
+
+    const leftLen = leftPcm ? leftPcm.length : 0;
+    const rightLen = rightPcm ? rightPcm.length : 0;
+
+    // enabled defaults to true if not provided
+    const enabled = ('enabled' in chObj) ? !!chObj.enabled : true;
+    let vol = (typeof chObj.volume === 'number') ? chObj.volume : 1;
+    if (!enabled || vol <= 0) continue;
+    if (vol > 1) vol = 1;
     if (vol < 0) vol = 0;
-    else if (vol > 1) vol = 1;
 
-    if (device === "none") continue;
-
+    // max samples this layer can contribute (don't read past available data)
     const maxI = Math.min(totalSamples, Math.max(leftLen, rightLen));
+
     for (let i = 0; i < maxI; i++) {
       const sL = (i < leftLen ? leftPcm[i] : 0) * vol;
       const sR = (i < rightLen ? rightPcm[i] : 0) * vol;
 
-      if (device === "left") {
-        left[i] += sL;
-      } else if (device === "right") {
-        right[i] += sR;
-      } else { // "both" or anything else defaults to both
-        left[i] += sL;
-        right[i] += sR;
-      }
+      left[i] += sL;
+      right[i] += sR;
     }
   }
 
-  // NOTE: this simple additive mix can clip if summed samples exceed [-1,1].
-  // Consider normalization or soft clipping if needed.
+  // Avoid clipping: simple normalization if peak > 1
+  let peak = 0;
+  for (let i = 0; i < totalSamples; i++) {
+    const a = Math.abs(left[i]);
+    const b = Math.abs(right[i]);
+    if (a > peak) peak = a;
+    if (b > peak) peak = b;
+  }
+  if (peak > 1) {
+    const scale = 1 / peak;
+    for (let i = 0; i < totalSamples; i++) {
+      left[i] *= scale;
+      right[i] *= scale;
+    }
+  }
 
   sourceNode.buffer = buffer;
   sourceNode.loop = !!loop;
 
   try {
     const targetNode = _getPlaybackTarget();
+    const volumeEl = document.getElementById("playbackVolume");
+    const playbackVol = volumeEl ? Number(volumeEl.value) : 1;
     const gainNode = audioCtx.createGain();
-    gainNode.gain.setValueAtTime(document.getElementById("playbackVolume").value * masterVolumeKnob.getValue(), audioCtx.currentTime);
+    gainNode.gain.setValueAtTime((isNaN(playbackVol) ? 1 : playbackVol) * (masterVolumeKnob ? masterVolumeKnob.getValue() : 1), audioCtx.currentTime);
 
     sourceNode.connect(gainNode);
     gainNode.connect(targetNode);
@@ -623,8 +645,6 @@ async function playPCM(loop = true, startFrame = null) {//console.log(new Float3
   playing = true;
   pausedAtSample = null;
 }
-
-
 
 
 
@@ -645,38 +665,109 @@ async function playFrame(frameX) {
 
   const start = Math.floor(frameX * hop);
 
-  // Compute how many samples are available per layer after start, and use the maximum (so we don't cut off any layer).
-  const maxRemaining = layers.reduce((max, ch) => {
-    const len = (ch && ch.pcm[0]) ? Math.max(0, ch.pcm[0].length - start) : 0;
-    return Math.max(max, len);
+  // Compute how many samples are available across all layers after start.
+  const maxRemaining = layers.reduce((max, layer) => {
+    if (!layer) return max;
+    const len0 = (layer.pcm && layer.pcm[0]) ? Math.max(0, layer.pcm[0].length - start) : 0;
+    const len1 = (layer.pcm && layer.pcm[1]) ? Math.max(0, layer.pcm[1].length - start) : 0;
+    return Math.max(max, len0, len1);
   }, 0);
 
   // frame length limited by fftSize and what's remaining
   const frameLen = Math.min(fftSize, maxRemaining);
   if (frameLen <= 0) return;
 
-  const buffer = audioCtx.createBuffer(layerCount, frameLen, sampleRate);
+  // Create stereo buffer (2 channels: left=0, right=1)
+  const outChannels = 2;
+  const buffer = audioCtx.createBuffer(outChannels, frameLen, sampleRate);
 
-  // Copy each layer's slice (or leave as silence if not available)
-  for (let ch = 0; ch < layerCount; ch++) {
-    const pcm = (layers[ch] && layers[ch].pcm[0]) ? layers[ch].pcm[0] : null;
-    if (!pcm || pcm.length <= start) {
-      // leave layer silent
+  // Accumulate mixed samples into temp arrays (left, right)
+  const mixL = new Float32Array(frameLen);
+  const mixR = new Float32Array(frameLen);
+  let contributorCount = 0;
+
+  for (let li = 0; li < layers.length; li++) {
+    const layer = layers[li];
+    if (!layer || !layer.pcm) continue;
+
+    const srcL = layer.pcm[0];
+    const srcR = layer.pcm[1] || null; // may be undefined
+    if ((!srcL || srcL.length <= start) && (!srcR || srcR.length <= start)) {
+      // nothing to contribute from this layer
       continue;
     }
-    const available = pcm.length - start;
-    const copyLen = Math.min(frameLen, available);
-    const slice = pcm.subarray(start, start + copyLen);
 
+    // Determine how many samples are available for this layer (left/right separately)
+    const availL = srcL && srcL.length > start ? Math.min(frameLen, srcL.length - start) : 0;
+    const availR = srcR && srcR.length > start ? Math.min(frameLen, srcR.length - start) : 0;
+    const copyLen = Math.max(availL, availR);
+
+    // If copyLen is zero, continue
+    if (copyLen <= 0) continue;
+
+    // Add into mix arrays, using 0 for missing samples (padding)
+    contributorCount++;
     if (copyLen === frameLen) {
-      buffer.copyToChannel(slice, ch);
+      // fast path: both channels (or one) supply a full-length slice
+      if (availL === frameLen) {
+        const sliceL = srcL.subarray(start, start + frameLen);
+        for (let i = 0; i < frameLen; i++) mixL[i] += sliceL[i];
+      } else if (availL > 0) {
+        const sliceL = srcL.subarray(start, start + availL);
+        for (let i = 0; i < availL; i++) mixL[i] += sliceL[i];
+        // remaining samples remain unchanged (silence)
+      }
+
+      if (srcR) {
+        if (availR === frameLen) {
+          const sliceR = srcR.subarray(start, start + frameLen);
+          for (let i = 0; i < frameLen; i++) mixR[i] += sliceR[i];
+        } else if (availR > 0) {
+          const sliceR = srcR.subarray(start, start + availR);
+          for (let i = 0; i < availR; i++) mixR[i] += sliceR[i];
+        }
+      } else {
+        // no right channel on this layer: mirror left into right
+        if (availL > 0) {
+          const sliceL = srcL.subarray(start, start + availL);
+          for (let i = 0; i < availL; i++) mixR[i] += sliceL[i];
+        }
+      }
     } else {
-      // pad smaller slice into a tmp buffer of frameLen
-      const tmp = new Float32Array(frameLen);
-      tmp.set(slice, 0);
-      buffer.copyToChannel(tmp, ch);
+      // partial-length contribution; add sample-by-sample
+      for (let i = 0; i < copyLen; i++) {
+        const sIdx = start + i;
+        const lv = (srcL && sIdx < srcL.length) ? srcL[sIdx] : 0;
+        let rv = 0;
+        if (srcR && sIdx < srcR.length) rv = srcR[sIdx];
+        else if (!srcR) rv = lv; // fallback: duplicate left to right if no right channel
+        mixL[i] += lv;
+        mixR[i] += rv;
+      }
+      // rest remain silent (already 0)
     }
   }
+
+  // Optional: Avoid clipping by normalizing if the peak exceeds 1.0
+  // (We preserve overall gainNode / masterVolume knob for volume control.)
+  let peak = 0;
+  for (let i = 0; i < frameLen; i++) {
+    const a = Math.abs(mixL[i]);
+    const b = Math.abs(mixR[i]);
+    if (a > peak) peak = a;
+    if (b > peak) peak = b;
+  }
+  if (peak > 1.0) {
+    const s = 1.0 / peak;
+    for (let i = 0; i < frameLen; i++) {
+      mixL[i] *= s;
+      mixR[i] *= s;
+    }
+  }
+
+  // Copy mixed data into AudioBuffer channels
+  buffer.copyToChannel(mixL, 0); // left
+  buffer.copyToChannel(mixR, 1); // right
 
   sourceNode = audioCtx.createBufferSource();
   sourceNode.buffer = buffer;
@@ -692,6 +783,7 @@ async function playFrame(frameX) {
   playing = true;
   pausedAtSample = null;
 }
+
 function updateNoiseProfile(d,sid=selectedSpriteId){
   const c = d?"s":"";
   const e = d?getSpriteById(sid).effect:null;
@@ -714,12 +806,14 @@ function createNewSpriteFromSelection(startX, startY, endX, endY) {
   s.maxY = maxY;
   const mags = layers[currentLayer].mags;
   const phases = layers[currentLayer].phases;
+  const pans = layers[currentLayer].pans;
   for (let x = minX; x <= maxX; x++) {
     for (let y = minY; y <= maxY; y++) {
       const idx = x * specHeight + y;
       const mag = mags[idx];
       const phase = phases[idx];
-      addPixelToSprite(s, x, y, 0, 0, mag, phase, currentLayer);
+      const pan = pans[idx];
+      addPixelToSprite(s, x, y, 0, 0, 0, mag, phase, pan, currentLayer);
     }
   }
   renderSpritesTable();

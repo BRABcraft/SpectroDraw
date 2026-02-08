@@ -30,6 +30,9 @@ function updateAllVariables(keyWord){
   conditionalEvaluateExpression("anpoDiv",            v => {sliders[24][0].value = sliders[24][1].value = anpo = v});
   conditionalEvaluateExpression("phaseDiv",           v => {sliders[3][0].value = sliders[3][1].value = phaseShift = v});
   conditionalEvaluateExpression("phaseStrengthDiv",   v => {sliders[5][0].value = sliders[5][1].value = phaseStrength = v});
+  conditionalEvaluateExpression("brushPanShiftDiv",   v => {sliders[30][0].value = sliders[30][1].value = v});
+  conditionalEvaluateExpression("brushPanStrengthDiv",   v => {sliders[31][0].value = sliders[31][1].value = v});
+  conditionalEvaluateExpression("brushPanBandDiv",   v => {sliders[32][0].value = sliders[32][1].value = v});
   conditionalEvaluateExpression("brushWidthDiv",      v => {sliders[21][0].value = sliders[21][1].value = brushWidth = v});
   conditionalEvaluateExpression("brushHeightDiv",     v => {sliders[22][0].value = sliders[22][1].value = brushHeight = v});
   conditionalEvaluateExpression("opacityDiv",         v => {sliders[4][0].value = sliders[4][1].value = brushOpacity = v});
@@ -82,7 +85,9 @@ const sliders = [
   [document.getElementById('phaseSettings'), document.getElementById('phaseSettingsInput')],
   [document.getElementById('drawVolume'), document.getElementById('drawVolumeInput')],
   [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
-  [document.getElementById('brushPan'), document.getElementById('brushPanInput')],//30
+  [document.getElementById('brushPanShift'), document.getElementById('brushPanShiftInput')],//30
+  [document.getElementById('brushPanStrength'), document.getElementById('brushPanStrengthInput')],
+  [document.getElementById('brushPanBand'), document.getElementById('brushPanBandInput')],
 ];
   sliders.forEach(pair => {if (!pair[2]&&pair.length) syncNumberAndRange(pair[1], pair[0])});
 // sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
@@ -230,7 +235,13 @@ function updateBrushSettingsDisplay(){
     s(0,                   c("cloner"),"changeClonerPosDiv");
     s("clonerScaleDiv",    c("cloner"));
     s("opacityDiv",        !c("autotune"));
+    s("brushPanShiftDiv",     !(c("autotune")||c("noiseRemover")||c("amplifier")));
+    s("brushPanStrengthDiv",  !(c("autotune")||c("noiseRemover")));
+    s("brushPanTextureDiv",   !(c("autotune")||c("noiseRemover")||c("amplifier")));
+    document.getElementById("brushPanBandDiv").style.display = (document.getElementById("brushPanTexture").value==="Band"&&!(c("autotune")||c("noiseRemover")||c("amplifier")))?"flex":"none";
     sliders[17][0].value=sliders[17][1].value=c("cloner")?cAmp:amp;
+    sliders[31][0].max=sliders[31][1].max=c("amplifier")?2:1;
+    if (!c("amplifier")&&sliders[31][1].value>1)sliders[31][0].value=sliders[31][1].value=1;
   }
   const bs = document.getElementById("brushSizeDiv");
 
@@ -572,26 +583,16 @@ async function saveProject() {
   const srcChannels = (typeof layers !== "undefined" && Array.isArray(layers)) ? layers : null;
 
   for (let i = 0; i < outChannels.length; ++i) {
-    let src = null;
-    if (srcChannels && srcChannels[i]) {
-      src = srcChannels[i];
-    } else {
-      // fallback: place top-level mags/phases into layer 0
-      if (i === 0 && typeof mags !== "undefined" && (mags || phases)) {
-        src = { mags: mags || null, phases: phases || null };
-      } else {
-        src = { mags: null, phases: null };
-      }
-    }
+    let src = layers[i];
 
     // Quantize & delta-encode per-layer (keep only mags & phases in saved file)
     const encoded = {
       mags: src.mags ? deltaEncode(src.mags, 8) : null,
       phases: src.phases ? deltaEncode(src.phases, 3) : null,
+      pans: src.pans ? deltaEncode(src.pans, 2) : null,
       volume: src.volume,
       enabled: src.enabled,
       brushPressure: src.brushPressure,
-      audioDevice: src.audioDevice
     };
     outChannels[i] = encoded;
   }
@@ -740,7 +741,7 @@ function openProject(file) {
 
       // Reconstruct layers from parsed data
       const reconstructedChannels = [];
-
+      const pcmLen = parsed.bufferLength * sampleRate;
       if (Array.isArray(parsed.layers)) {
         // New format: layers array present
         for (let i = 0; i < parsed.layers.length; i++) {
@@ -748,15 +749,16 @@ function openProject(file) {
           reconstructedChannels[i] = {
             mags: deltaDecodeToFloat32(src.mags),
             phases: deltaDecodeToFloat32(src.phases),
-            pcm: new Float32Array(parsed.bufferLength * sampleRate),
+            pans: deltaDecodeToFloat32(src.pans),
+            pcm: [new Float32Array(pcmLen),new Float32Array(pcmLen)],
             snapshotMags: [],
             snapshotPhases: [],
+            snapshotPans: [],
             volume: src.volume,
             enabled: src.enabled,
             brushPressure: src.brushPressure,
             samplePos: 0,
             sampleRate,
-            audioDevice: src.audioDevice,
             hasCanvases: false
           };
         }
@@ -765,7 +767,7 @@ function openProject(file) {
       // Ensure reconstructedChannels length matches parsed.layerCount (fill with empty layers if needed)
       const desiredCount = parsed.layerCount || reconstructedChannels.length || 1;
       while (reconstructedChannels.length < desiredCount) {
-        reconstructedChannels.push({ mags: null, phases: null, pcm: [], snapshotMags: [], snapshotPhases: []});
+        reconstructedChannels.push({ mags: null, phases: null, pans: null, pcm: [[],[]], snapshotMags: [], snapshotPhases: [], snapshotPans: null});
       }
       if (reconstructedChannels.length > desiredCount) {
         reconstructedChannels.length = desiredCount;
@@ -920,6 +922,7 @@ document.getElementById("saveAndStart").addEventListener('click', async () => {
     const ab = await resp.arrayBuffer();
     const decoded = await audioCtx.decodeAudioData(ab.slice(0));
     layers[0].pcm[0] = new Float32Array(decoded.getChannelData(0));
+    layers[0].pcm[1] = decoded.getChannelData(1)?new Float32Array(decoded.getChannelData(1)):new Float32Array(decoded.getChannelData(0));
     sampleRate = decoded.sampleRate || sampleRate;
 
     status.textContent = `Loaded preset "${val}", ${layers[0].pcm[0].length} samples @ ${sampleRate} Hz`;
@@ -1027,11 +1030,11 @@ function updatePhaseTextureSettings(){
   else if (c("CopyFromRef")) d(refPhaseFrame,0,framesTotal,1,"Reference Frame");
   else if (c("Chirp")) d(chirpRate,0,0.1,0.0001,"Chirp Rate");
 }
-let customExpr = "brush.effect.phaseShift", prevPhaseTexture="Static";
+let customPhaseExpr = "brush.effect.phaseShift", prevPhaseTexture="Static";
 function updatePhaseTextureExpression() {
   const exprObj = getExpressionById("phaseTextureDiv");
   if (phaseTextureEl.value=== "Custom" && !exprObj.showing) showExpression("phaseTextureDiv");
-  if (prevPhaseTexture === "Custom") customExpr = exprObj.expression;
+  if (prevPhaseTexture === "Custom") customPhaseExpr = exprObj.expression;
   prevPhaseTexture = phaseTextureEl.value;
   let expr = "";
   switch (phaseTextureEl.value) {
@@ -1045,27 +1048,27 @@ function updatePhaseTextureExpression() {
       expr = "brush.effect.phaseShift;";
       break;
     case 'ImpulseAlign':
-      expr = "brush.effect.phaseShift - (Math.PI * k * sampleRate * brush.effect.phaseSettings.t0) / specHeight;";
+      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.t0) / specHeight;";
       break;
     case 'FrameAlignedImpulse': 
       expr=`const frameTime = (pixel.frame * hop) / sampleRate;
 const t0f = frameTime + (hop / (2 * sampleRate));
-return brush.effect.phaseShift - (Math.PI * k * sampleRate * t0f) / specHeight;`;
+return brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * t0f) / specHeight;`;
       break;
     case 'ExpectedAdvance':
-      expr="brush.effect.phaseShift + (Math.PI * k * pixel.frame * hop) / specHeight";
+      expr="brush.effect.phaseShift + (Math.PI * pixel.bin * pixel.frame * hop) / specHeight";
       break;
     case 'PhasePropagate':
-      expr=`const prevIdx = (pixel.frame - 1) * specHeight + k;
+      expr=`const prevIdx = (pixel.frame - 1) * specHeight + pixel.bin;
 let prevPhase = null;
 if (pixel.frame > 0 && layers[currentLayer].phases[prevIdx] !== undefined) {
   prevPhase = layers[currentLayer].phases[prevIdx];
 }
 if (prevPhase !== null && isFinite(prevPhase)) {
-  const expected = prevPhase + (Math.PI * k * hop) / specHeight;
+  const expected = prevPhase + (Math.PI * pixel.bin * hop) / specHeight;
   phi = expected + brush.effect.phaseSettings.userDelta;
 } else {
-  phi = (Math.PI * k * pixel.frame * hop) / specHeight;
+  phi = (Math.PI * pixel.bin * pixel.frame * hop) / specHeight;
 }`;
       break;
     case 'RandomSmall':
@@ -1073,23 +1076,23 @@ if (prevPhase !== null && isFinite(prevPhase)) {
       break;
     case 'HarmonicStack': 
       expr = `const center = Math.max(1, brush.effect.phaseSettings.harmonicCenter);
-return brush.effect.phaseShift - (Math.PI * k * sampleRate * brush.effect.phaseSettings.t0) / specHeight + (k % center) * 0.12;`;
+return brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.t0) / specHeight + (k % center) * 0.12;`;
       break;
     case 'LinearDelay':
-      expr = "brush.effect.phaseShift - (Math.PI * k * sampleRate * brush.effect.phaseSettings.tau) / specHeight;";
+      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.tau) / specHeight;";
       break;
     case 'Chirp':
-      expr = "brush.effect.phaseShift - (Math.PI * k * pixel.frame * hop) / specHeight - Math.pow(k, 1.05) * brush.effect.phaseSettings.chirpRate;";
+      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * pixel.frame * hop) / specHeight - Math.pow(pixel.bin, 1.05) * brush.effect.phaseSettings.chirpRate;";
       break;
     case 'CopyFromRef': 
-      expr = `const refIx = (brush.effect.phaseSettings.refPhaseFrame * specHeight + k) | 0;
+      expr = `const refIx = (brush.effect.phaseSettings.refPhaseFrame * specHeight + pixel.bin) | 0;
 phi = layers[currentLayer].phases[refIx];`;
       break;
     case 'HopArtifact':
       expr = "//Expressions disabled for HopArtifact";
       break;
     case 'Custom':
-      expr = customExpr;
+      expr = customPhaseExpr;
       break;
   }
   exprObj.expression = expr;
@@ -1099,6 +1102,41 @@ phaseTextureEl.addEventListener("input",()=>{
   updatePhaseTextureSettings();
   updateBrushPreview();
   updatePhaseTextureExpression();
+});
+let customPanExpr = "brush.effect.phaseShift", prevPanTexture="Static";
+function updatePanTextureExpression() {
+  const exprObj = getExpressionById("brushPanTextureDiv");
+  const panTextureEl = document.getElementById("brushPanTexture");
+  if (panTextureEl.value=== "Custom" && !exprObj.showing) showExpression("brushPanTextureDiv");
+  if (prevPanTexture === "Custom") customPanExpr = exprObj.expression;
+  prevPanTexture = panTextureEl.value;
+  let expr = "";
+  switch (panTextureEl.value) {
+    case 'Flat':
+      expr = "brush.effect.panShift;";
+      break;
+    case 'Random':
+      expr = "(Math.random() + brush.effect.panShift) % 1;";
+      break;
+    case 'XCircles':
+      expr = "(Math.sin(pixel.frame/(sampleRate*0.63661/hop))/2+0.5 + brush.effect.panShift) % 1";
+      break;
+    case 'YCircles':
+      expr = "(Math.sin(pixel.bin/(sampleRate*0.63661/hop))/2+0.5  + brush.effect.panShift) % 1";
+      break;
+    case 'Band':
+      expr = "(Math.pow((1/(specHeight*10)+1),(0-Math.pow(pixel.bin-(1000),2))) + brush.effect.panShift) % 1";
+      break;
+    case 'Custom':
+      expr = customPanExpr;
+      break;
+  }
+  exprObj.expression = expr;
+  exprObj.lines = expr.split(/\r\n|\r|\n/);
+}
+document.getElementById("brushPanTexture").addEventListener("input",()=>{
+  updatePanTextureExpression();
+  document.getElementById("brushPanBandDiv").style.display = (document.getElementById("brushPanTexture").value==="Band")?"flex":"none";
 });
 document.getElementById("amp").addEventListener("input",()=>{
   updateBrushPreview();
@@ -1272,7 +1310,8 @@ function globalXStretch(xFactor) {
   xFactor = Math.abs(xFactor);
   const useMags = document.getElementById("globalUseMagsCheckbox").checked;
   const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
-  if (!useMags && !usePhases) return;
+  const usePans = document.getElementById("globalUsePansCheckbox").checked;
+  if (!useMags && !usePhases && !usePans) return;
   bufferLengthKnob.setValue(bufferLengthKnob.getValue()*xFactor,false);
   emptyAudioLength = bufferLengthKnob.getValue();
 
@@ -1281,7 +1320,7 @@ function globalXStretch(xFactor) {
   const newFrameLength = Math.floor(emptyAudioLength*sampleRate/hop);
 
   for (let l=0;l<layerCount;l++){
-    // remap mags/phases (time-stretch)
+    // remap mags/phases/pans (time-stretch)
     const newArrLen = newFrameLength*specHeight;
     let newMags;
     if (!useMags) {
@@ -1297,17 +1336,29 @@ function globalXStretch(xFactor) {
     } else {
       newPhases = new Float32Array(newArrLen);
     }
+    let newPans;
+    if (!usePans) {
+      newPans = new Float32Array(newArrLen).fill(0);
+      if (newArrLen>layers[l].pans.length) newPans.set(layers[l].pans,0);
+    } else {
+      newPans = new Float32Array(newArrLen);
+    }
+
     for(let f=0;f<newFrameLength;f++){
       const oldF = Math.floor((sign?f:newFrameLength-f-1)*oldFrames/newFrameLength);
       const setP = oldF*specHeight;
       const magsF = useMags?layers[l].mags.slice(setP,setP+specHeight):null;
       const phasesF = usePhases?layers[l].phases.slice(setP,setP+specHeight):null;
+      const pansF = usePans?layers[l].pans.slice(setP,setP+specHeight):null;
       if (useMags) newMags.set(magsF,f*specHeight);
       if (usePhases) newPhases.set(phasesF,f*specHeight);
+      if (usePans) newPans.set(pansF,f*specHeight);
     }
-    layers[l].mags = new Float32Array(newMags);
-    layers[l].phases = new Float32Array(newPhases);
+    if (useMags) layers[l].mags = new Float32Array(newMags);
+    if (usePhases) layers[l].phases = new Float32Array(newPhases);
+    if (usePans) layers[l].pans = new Float32Array(newPans);
     layers[l].pcm[0] = new Float32Array(emptyAudioLength*sampleRate);
+    layers[l].pcm[1] = new Float32Array(emptyAudioLength*sampleRate);
   }
   for (const sprite of sprites) {
     if (!sprite.pixels) continue;
@@ -1326,10 +1377,12 @@ function globalXStretch(xFactor) {
           // clone arrays so we don't alias the old object
           newMap.set(newX, {
             ys: col.ys.slice(),
-            prevMags: col.prevMags.slice(),
-            prevPhases: col.prevPhases.slice(),
-            nextMags: col.nextMags.slice(),
-            nextPhases: col.nextPhases.slice()
+            prevMags: col.prevMags ? col.prevMags.slice() : [],
+            prevPhases: col.prevPhases ? col.prevPhases.slice() : [],
+            nextMags: col.nextMags ? col.nextMags.slice() : [],
+            nextPhases: col.nextPhases ? col.nextPhases.slice() : [],
+            prevPans: col.prevPans ? col.prevPans.slice() : [],
+            nextPans: col.nextPans ? col.nextPans.slice() : []
           });
         } else {
           // merge rows: overwrite if same y, otherwise push
@@ -1337,16 +1390,20 @@ function globalXStretch(xFactor) {
             const y = col.ys[i];
             const idx = existing.ys.indexOf(y);
             if (idx >= 0) {
-              existing.prevMags[idx] = col.prevMags[i];
-              existing.prevPhases[idx] = col.prevPhases[i];
-              existing.nextMags[idx] = useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY];
-              existing.nextPhases[idx] = usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY];
+              existing.prevMags[idx] = col.prevMags ? col.prevMags[i] : existing.prevMags[idx];
+              existing.prevPhases[idx] = col.prevPhases ? col.prevPhases[i] : existing.prevPhases[idx];
+              existing.nextMags[idx] = useMags ? (col.nextMags ? col.nextMags[i] : layers[l].mags[x*specHeight+y]) : existing.nextMags[idx];
+              existing.nextPhases[idx] = usePhases ? (col.nextPhases ? col.nextPhases[i] : layers[l].phases[x*specHeight+y]) : existing.nextPhases[idx];
+              existing.prevPans[idx] = col.prevPans ? col.prevPans[i] : existing.prevPans[idx];
+              existing.nextPans[idx] = usePans ? (col.nextPans ? col.nextPans[i] : layers[l].pans[x*specHeight+y]) : existing.nextPans[idx];
             } else {
               existing.ys.push(y);
-              existing.prevMags.push(col.prevMags[i]);
-              existing.prevPhases.push(col.prevPhases[i]);
-              existing.nextMags.push(useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY]);
-              existing.nextPhases.push(usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY]);
+              existing.prevMags.push(col.prevMags ? col.prevMags[i] : 0);
+              existing.prevPhases.push(col.prevPhases ? col.prevPhases[i] : 0);
+              existing.nextMags.push(useMags ? (col.nextMags ? col.nextMags[i] : layers[l].mags[x*specHeight+y]) : 0);
+              existing.nextPhases.push(usePhases ? (col.nextPhases ? col.nextPhases[i] : layers[l].phases[x*specHeight+y]) : 0);
+              existing.prevPans.push(col.prevPans ? col.prevPans[i] : 0);
+              existing.nextPans.push(usePans ? (col.nextPans ? col.nextPans[i] : layers[l].pans[x*specHeight+y]) : 0);
             }
           }
         }
@@ -1366,13 +1423,16 @@ function globalXStretch(xFactor) {
   simpleRestartRender(0,framesTotal);
   restartRender(false);
 }
+
 function globalYStretch(yFactor) {
   const useMags = document.getElementById("globalUseMagsCheckbox").checked;
   const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
-  if (!useMags && !usePhases) return;
+  const usePans = document.getElementById("globalUsePansCheckbox").checked;
+  if (!useMags && !usePhases && !usePans) return;
   for (let l=0;l<layerCount;l++){
     const newMags = useMags?new Float32Array(layers[l].mags):null;
     const newPhases = usePhases?new Float32Array(layers[l].phases):null;
+    const newPans = usePans?new Float32Array(layers[l].pans):null;
     const f = sampleRate / fftSize, $s = sampleRate/2, $l = logScaleVal[ch];
     for (let b=0;b<specHeight;b++){
       const newBin = Math.max(Math.min(Math.floor(invlsc(((lsc(b*f,$s,$l)/f-(specHeight/2))/yFactor+(specHeight/2))*f,$s,$l)/f),specHeight),0);
@@ -1380,10 +1440,12 @@ function globalYStretch(yFactor) {
         const base = f*specHeight;
         if (useMags) newMags[base+b] = layers[l].mags[base+newBin];
         if (usePhases) newPhases[base+b] = layers[l].phases[base+newBin];
+        if (usePans) newPans[base+b] = layers[l].pans[base+newBin];
       }
     }
     if (useMags) layers[l].mags = new Float32Array(newMags);
     if (usePhases) layers[l].phases = new Float32Array(newPhases);
+    if (usePans) layers[l].pans = new Float32Array(newPans);
 
   }
   for (const sprite of sprites) {
@@ -1399,7 +1461,9 @@ function globalYStretch(yFactor) {
           prevMags: [],
           prevPhases: [],
           nextMags: [],
-          nextPhases: []
+          nextPhases: [],
+          prevPans: [],
+          nextPans: []
         };
         for (let i=0;i<col.ys.length;i++){//console.log(1421);
           const oldY = col.ys[i];
@@ -1409,21 +1473,25 @@ function globalYStretch(yFactor) {
           const idx = newCol.ys.indexOf(newY);
           if (idx >= 0) {
             // overwrite
-            newCol.prevMags[idx] = col.prevMags[i];
-            newCol.prevPhases[idx] = col.prevPhases[i];
-            newCol.nextMags[idx] = useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY];
-            newCol.nextPhases[idx] = usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY];
+            newCol.prevMags[idx] = col.prevMags ? col.prevMags[i] : newCol.prevMags[idx];
+            newCol.prevPhases[idx] = col.prevPhases ? col.prevPhases[i] : newCol.prevPhases[idx];
+            newCol.nextMags[idx] = useMags? (col.nextMags ? col.nextMags[i] : layers[l].mags[x*specHeight+newY]) : newCol.nextMags[idx];
+            newCol.nextPhases[idx] = usePhases? (col.nextPhases ? col.nextPhases[i] : layers[l].phases[x*specHeight+newY]) : newCol.nextPhases[idx];
+            newCol.prevPans[idx] = col.prevPans ? col.prevPans[i] : newCol.prevPans[idx];
+            newCol.nextPans[idx] = usePans? (col.nextPans ? col.nextPans[i] : layers[l].pans[x*specHeight+newY]) : newCol.nextPans[idx];
           } else {
             newCol.ys.push(newY);
-            newCol.prevMags.push(col.prevMags[i]);
-            newCol.prevPhases.push(col.prevPhases[i]);
-            newCol.nextMags.push(useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY]);
-            newCol.nextPhases.push(usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY]);
+            newCol.prevMags.push(col.prevMags ? col.prevMags[i] : 0);
+            newCol.prevPhases.push(col.prevPhases ? col.prevPhases[i] : 0);
+            newCol.nextMags.push(useMags? (col.nextMags ? col.nextMags[i] : layers[l].mags[x*specHeight+newY]) : 0);
+            newCol.nextPhases.push(usePhases? (col.nextPhases ? col.nextPhases[i] : layers[l].phases[x*specHeight+newY]) : 0);
+            newCol.prevPans.push(col.prevPans ? col.prevPans[i] : 0);
+            newCol.nextPans.push(usePans? (col.nextPans ? col.nextPans[i] : layers[l].pans[x*specHeight+newY]) : 0);
           }
 
           // mirror addPixelToSprite's selection update behavior:
           if (sprite.effect && sprite.effect.shape !== "select") {
-            updateSelections(x, newY, l, col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+            updateSelections(x, newY, l, col.prevMags ? col.prevMags[i] : 0, col.prevPhases ? col.prevPhases[i] : 0, col.prevPans ? col.prevPans[i] : 0, col.nextMags ? col.nextMags[i] : 0, col.nextPhases ? col.nextPhases[i] : 0, col.nextPans ? col.nextPans[i] : 0);
           }
         }
         // if the column has any entries, set it
@@ -1434,26 +1502,32 @@ function globalYStretch(yFactor) {
   }
   simpleRestartRender(0,framesTotal);
 }
+
 function globalXTranslate(deltaX) {
   deltaX = -Math.floor(deltaX);
   const useMags = document.getElementById("globalUseMagsCheckbox").checked;
   const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
-  if (!useMags && !usePhases) return;
+  const usePans = document.getElementById("globalUsePansCheckbox").checked;
+  if (!useMags && !usePhases && !usePans) return;
 
   for (let l=0;l<layerCount;l++){
     const newArrLen = framesTotal*specHeight;
     const newMags = useMags?new Float32Array(newArrLen):null;
     const newPhases = usePhases?new Float32Array(newArrLen):null;
+    const newPans = usePans?new Float32Array(newArrLen):null;
     for(let f=0;f<framesTotal;f++){
       const oldF = f+deltaX;
       const setP = oldF*specHeight;
-      const magsF = useMags?layers[l].mags.slice(setP,setP+specHeight):null;
-      const phasesF = usePhases?layers[l].phases.slice(setP,setP+specHeight):null;
+      const magsF = useMags?layers[l].mags.slice(setP,setP+specHeight):new Float32Array(specHeight);
+      const phasesF = usePhases?layers[l].phases.slice(setP,setP+specHeight):new Float32Array(specHeight);
+      const pansF = usePans?layers[l].pans.slice(setP,setP+specHeight):new Float32Array(specHeight);
       if (useMags) newMags.set(magsF,f*specHeight);
       if (usePhases) newPhases.set(phasesF,f*specHeight);
+      if (usePans) newPans.set(pansF,f*specHeight);
     }
     if (useMags) layers[l].mags = new Float32Array(newMags);
     if (usePhases) layers[l].phases = new Float32Array(newPhases);
+    if (usePans) layers[l].pans = new Float32Array(newPans);
   }
   for (const sprite of sprites) {
     if (!sprite.pixels) continue;
@@ -1486,14 +1560,17 @@ function globalXTranslate(deltaX) {
   maxCol = framesTotal;
   simpleRestartRender(0,framesTotal);
 }
+
 function globalYTranslate(deltaY) {
   deltaY = -Math.floor(deltaY);
   const useMags = document.getElementById("globalUseMagsCheckbox").checked;
   const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
-  if (!useMags && !usePhases) return;
+  const usePans = document.getElementById("globalUsePansCheckbox").checked;
+  if (!useMags && !usePhases && !usePans) return;
   for (let l=0;l<layerCount;l++){
     const newMags = useMags?new Float32Array(layers[l].mags):null;
     const newPhases = usePhases?new Float32Array(layers[l].phases):null;
+    const newPans = usePans?new Float32Array(layers[l].pans):null;
     const f = sampleRate / fftSize, $s = sampleRate/2, $l = logScaleVal[ch];
     for (let b=0;b<specHeight;b++){
       const newBin = Math.max(Math.min(Math.floor(invlsc((lsc(b*f,$s,$l)/f+deltaY)*f,$s,$l)/f),specHeight),0);
@@ -1501,10 +1578,12 @@ function globalYTranslate(deltaY) {
         const base = f*specHeight;
         if (useMags) newMags[base+b] = layers[l].mags[base+newBin];
         if (usePhases) newPhases[base+b] = layers[l].phases[base+newBin];
+        if (usePans) newPans[base+b] = layers[l].pans[base+newBin];
       }
     }
     if (useMags) layers[l].mags = new Float32Array(newMags);
     if (usePhases) layers[l].phases = new Float32Array(newPhases);
+    if (usePans) layers[l].pans = new Float32Array(newPans);
 
   }
   for (const sprite of sprites) {
@@ -1520,7 +1599,9 @@ function globalYTranslate(deltaY) {
           prevMags: [],
           prevPhases: [],
           nextMags: [],
-          nextPhases: []
+          nextPhases: [],
+          prevPans: [],
+          nextPans: []
         };
         for (let i=0;i<col.ys.length;i++){//console.log(1421);
           const oldY = col.ys[i];
@@ -1530,21 +1611,25 @@ function globalYTranslate(deltaY) {
           const idx = newCol.ys.indexOf(newY);
           if (idx >= 0) {
             // overwrite
-            newCol.prevMags[idx] = col.prevMags[i];
-            newCol.prevPhases[idx] = col.prevPhases[i];
-            newCol.nextMags[idx] = useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY];
-            newCol.nextPhases[idx] = usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY];
+            newCol.prevMags[idx] = col.prevMags ? col.prevMags[i] : newCol.prevMags[idx];
+            newCol.prevPhases[idx] = col.prevPhases ? col.prevPhases[i] : newCol.prevPhases[idx];
+            newCol.nextMags[idx] = useMags? (col.nextMags ? col.nextMags[i] : layers[l].mags[x*specHeight+newY]) : newCol.nextMags[idx];
+            newCol.nextPhases[idx] = usePhases? (col.nextPhases ? col.nextPhases[i] : layers[l].phases[x*specHeight+newY]) : newCol.nextPhases[idx];
+            newCol.prevPans[idx] = col.prevPans ? col.prevPans[i] : newCol.prevPans[idx];
+            newCol.nextPans[idx] = usePans? (col.nextPans ? col.nextPans[i] : layers[l].pans[x*specHeight+newY]) : newCol.nextPans[idx];
           } else {
             newCol.ys.push(newY);
-            newCol.prevMags.push(col.prevMags[i]);
-            newCol.prevPhases.push(col.prevPhases[i]);
-            newCol.nextMags.push(useMags?col.nextMags[i]:layers[l].mags[x*specHeight+newY]);
-            newCol.nextPhases.push(usePhases?col.nextPhases[i]:layers[l].phases[x*specHeight+newY]);
+            newCol.prevMags.push(col.prevMags ? col.prevMags[i] : 0);
+            newCol.prevPhases.push(col.prevPhases ? col.prevPhases[i] : 0);
+            newCol.nextMags.push(useMags? (col.nextMags ? col.nextMags[i] : layers[l].mags[x*specHeight+newY]) : 0);
+            newCol.nextPhases.push(usePhases? (col.nextPhases ? col.nextPhases[i] : layers[l].phases[x*specHeight+newY]) : 0);
+            newCol.prevPans.push(col.prevPans ? col.prevPans[i] : 0);
+            newCol.nextPans.push(usePans? (col.nextPans ? col.nextPans[i] : layers[l].pans[x*specHeight+newY]) : 0);
           }
 
           // mirror addPixelToSprite's selection update behavior:
           if (sprite.effect && sprite.effect.shape !== "select") {
-            updateSelections(x, newY, l, col.prevMags[i], col.prevPhases[i], col.nextMags[i], col.nextPhases[i]);
+            updateSelections(x, newY, l, col.prevMags ? col.prevMags[i] : 0, col.prevPhases ? col.prevPhases[i] : 0, col.prevPans ? col.prevPans[i] : 0, col.nextMags ? col.nextMags[i] : 0, col.nextPhases ? col.nextPhases[i] : 0, col.nextPans ? col.nextPans[i] : 0);
           }
         }
         // if the column has any entries, set it
@@ -1555,19 +1640,23 @@ function globalYTranslate(deltaY) {
   }
   simpleRestartRender(0,framesTotal);
 }
+
 function xQuantize(columns) {
   const useMags = document.getElementById("globalUseMagsCheckbox").checked;
   const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
-  if (!useMags && !usePhases) return;
+  const usePans = document.getElementById("globalUsePansCheckbox").checked;
+  if (!useMags && !usePhases && !usePans) return;
   columns = Math.floor(framesTotal/Math.max(1, Math.floor(columns)));
   const totalFrames = framesTotal;
   const H = specHeight;
   for (let l = 0; l < layerCount; l++) {
     const layerMags = layers[l].mags;
     const layerPhases = layers[l].phases;
+    const layerPans = layers[l].pans;
     const len = totalFrames * H;
     let newMags = useMags ? new Float32Array(len) : null;
     let newPhases = usePhases ? new Float32Array(len) : null;
+    let newPans = usePans ? new Float32Array(len) : null;
     for (let start = 0; start < totalFrames; start += columns) {
       const end = Math.min(totalFrames, start + columns);
       const blockSize = end - start;
@@ -1595,10 +1684,21 @@ function xQuantize(columns) {
             newPhases[f * H + bin] = meanAngle;
           }
         }
+        if (usePans) {
+          let sumPan = 0;
+          for (let f = start; f < end; f++) {
+            sumPan += layerPans[f * H + bin];
+          }
+          const avgPan = sumPan / blockSize;
+          for (let f = start; f < end; f++) {
+            newPans[f * H + bin] = avgPan;
+          }
+        }
       }
     }
     if (useMags) layers[l].mags = new Float32Array(newMags);
     if (usePhases) layers[l].phases = new Float32Array(newPhases);
+    if (usePans) layers[l].pans = new Float32Array(newPans);
   }
   simpleRestartRender(0, framesTotal);
 }
@@ -1606,7 +1706,8 @@ function xQuantize(columns) {
 function yQuantize(rows) {
   const useMags = document.getElementById("globalUseMagsCheckbox").checked;
   const usePhases = document.getElementById("globalUsePhasesCheckbox").checked;
-  if (!useMags && !usePhases) return;
+  const usePans = document.getElementById("globalUsePansCheckbox").checked;
+  if (!useMags && !usePhases && !usePans) return;
   rows = Math.max(1, Math.floor(rows));
 
   const totalFrames = framesTotal;
@@ -1617,10 +1718,12 @@ function yQuantize(rows) {
   for (let l = 0; l < layerCount; l++) {
     const layerMags = layers[l].mags;
     const layerPhases = layers[l].phases;
+    const layerPans = layers[l].pans;
     const len = totalFrames * H;
 
     const newMags = useMags ? new Float32Array(len) : null;
     const newPhases = usePhases ? new Float32Array(len) : null;
+    const newPans = usePans ? new Float32Array(len) : null;
 
     // log-scale parameter for this layer
     const lscVal = logScaleVal[l];
@@ -1634,6 +1737,7 @@ function yQuantize(rows) {
       const counts = new Uint16Array(rows);
       const sinSums = usePhases ? new Float32Array(rows) : null;
       const cosSums = usePhases ? new Float32Array(rows) : null;
+      const panSums = usePans ? new Float32Array(rows) : null;
 
       // first pass: accumulate sums for each region (region determined by lsc mapping)
       for (let b = 0; b < H; b++) {
@@ -1649,6 +1753,9 @@ function yQuantize(rows) {
           const a = layerPhases[base + b];
           sinSums[regionIndex] += Math.sin(a);
           cosSums[regionIndex] += Math.cos(a);
+        }
+        if (usePans) {
+          panSums[regionIndex] += layerPans[base + b];
         }
       }
 
@@ -1672,31 +1779,54 @@ function yQuantize(rows) {
             newPhases[base + b] = layerPhases[base + b];
           }
         }
+
+        if (usePans) {
+          const cnt = counts[regionIndex];
+          newPans[base + b] = cnt > 0 ? (panSums[regionIndex] / cnt) : layerPans[base + b];
+        }
       }
     }
 
     if (useMags) layers[l].mags = new Float32Array(newMags);
     if (usePhases) layers[l].phases = new Float32Array(newPhases);
+    if (usePans) layers[l].pans = new Float32Array(newPans);
   }
 
   simpleRestartRender(0, framesTotal);
 }
+
 function newGlobalXYHistory(type,spriteIdx){
-  function cloneLayerSpriteOptimized(layer,s) {
+  function cloneLayerSpriteOptimized(layer, s) {
     const minCol = s.minCol;
     const maxCol = s.maxCol;
     const copy = { ...layer };
-    copy.mags = copy.mags.slice(minCol*specHeight,maxCol*specHeight);
-    copy.phases = copy.phases.slice(minCol*specHeight,maxCol*specHeight);
-    copy.pcm[0] = copy.pcm[0].slice(minCol*hop,maxCol*hop);
+    copy.pcm = layer.pcm.map(chArr => {
+      if (!chArr || typeof chArr.slice !== 'function') return chArr;
+      return chArr.slice(minCol * hop, maxCol * hop);
+    });
+    copy.mags = copy.mags ? copy.mags.slice(minCol * specHeight, maxCol * specHeight) : copy.mags;
+    copy.phases = copy.phases ? copy.phases.slice(minCol * specHeight, maxCol * specHeight) : copy.phases;
     return copy;
+  }
+  function cloneLayersSafe(layers) {
+    return structuredClone(
+      layers.map(layer => {
+        const {
+          _playbackBtn,
+          _startedAt,
+          _wasPlayingDuringDrag,
+          ...cloneable
+        } = layer;
+        return cloneable;
+      })
+    );
   }
   const s = (spriteIdx)?getSpriteById(spriteIdx):null;
   if (type==="undo") {
     historyStack = historyStack.slice(0, historyIndex+1);
     historyIndex = historyStack.length;
     const undo = (!spriteIdx) ? {
-      layers: structuredClone(layers),
+      layers: cloneLayersSafe(layers),
       sprites: structuredClone(sprites),
       emptyAudioLength,
       ch:null
@@ -1714,7 +1844,7 @@ function newGlobalXYHistory(type,spriteIdx){
     });
   } else {
     historyStack[historyIndex].redo = (!spriteIdx) ? {
-      layers: structuredClone(layers),
+      layers: cloneLayersSafe(layers),
       sprites: structuredClone(sprites),
       emptyAudioLength,
       ch:null

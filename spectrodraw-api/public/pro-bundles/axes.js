@@ -375,6 +375,7 @@ function yAxisMousemove(e,touch) {
   } else {
       yAxis.style.cursor = "default";
   }
+  if (!draggingFreq) return;
   drawTimeline();
   drawYAxis();
   drawLogScale();

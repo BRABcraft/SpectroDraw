@@ -232,11 +232,6 @@ function setClonerYShift(){
 let previewingShape = false;
 let mouseVelocity = 0;
 function canvasMouseMove(e,touch,el) {
-  // if (Date.now()-debugTime>200) {
-  //   debugTime = Date.now();
-  // } else {
-  //   return;
-  // }
   if (recording) return;
   currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);
   const {cx,cy} = getCanvasCoords(e,touch);

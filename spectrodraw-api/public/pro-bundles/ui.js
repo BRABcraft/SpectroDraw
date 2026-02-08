@@ -1,6 +1,7 @@
 function updateAllVariables(keyWord){
   const p = keyWord===null;
   function conditionalEvaluateExpression(expressionId, setValue) {
+    if (typeof getExpressionById !== "function") return;
     const exprObj = getExpressionById(expressionId);
     if (!exprObj) return;
     const expr = exprObj.expression;
@@ -176,6 +177,13 @@ function onPhaseSettingsChange(idx) {
 }
 sliders[27][0].addEventListener("input", ()=>{onPhaseSettingsChange(0);});
 sliders[27][1].addEventListener("input", ()=>{onPhaseSettingsChange(1);});
+sliders[30][0].addEventListener("input", ()=>{val=(sliders[30][0].value); panShift=val; updateBrushPreview();});
+sliders[30][1].addEventListener("input", ()=>{val=(sliders[30][1].value); panShift=val; updateBrushPreview();});
+sliders[31][0].addEventListener("input", ()=>{val=(sliders[31][0].value); panStrength=val; updateBrushPreview();});
+sliders[31][1].addEventListener("input", ()=>{val=(sliders[31][1].value); panStrength=val; updateBrushPreview();});
+sliders[32][0].addEventListener("input", ()=>{val=(sliders[32][0].value); panBand=val; updateBrushPreview();});
+sliders[32][1].addEventListener("input", ()=>{val=(sliders[32][1].value); panBand=val; updateBrushPreview();});
+
 recordBtn.innerHTML = micHTML;
 lockHopBtn.innerHTML = unlockHTML;
 
@@ -389,7 +397,7 @@ async function toggleLockHop() {
   lockHop = !lockHop;
 }
 document.addEventListener('mousemove', e=>{
-  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,false);
+  const {cx,cy} = getCanvasCoords(e,false);
   $x=cx;$y=cy;
   updateAllVariables("mouse");
   updateAllVariables("Math.random()");

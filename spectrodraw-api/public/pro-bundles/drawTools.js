@@ -613,7 +613,7 @@ function updateSelections(x,y,ch,prevMag,prevPhase,prevPan,nextMag,nextPhase,nex
     }
   }
 }
-function computePanTexture(type,initialPan,panStrength,x,y,pan,useExpressions,useAmplifier,factor){
+function computePanTexture(type,initialPan,panStrength,x,y,pan,useExpressions,useAmplifier,band){
   if (useAmplifier) {
     return initialPan*panStrength;
   }
@@ -632,7 +632,7 @@ function computePanTexture(type,initialPan,panStrength,x,y,pan,useExpressions,us
       case 'YCircles':
         return (Math.sin(y/(sampleRate*0.63661/hop))/2+0.5 + pan) % 1;
       case 'Band':
-        return (Math.pow((1/(specHeight*10)+1),(0-Math.pow(y-(parseInt(document.getElementById(useExpressions?"brushPanBand":"sbrushPanBand").value)),2))) + pan) % 1;
+        return (Math.pow((1/(specHeight*10)+1),(0-Math.pow(y-band),2)) + pan) % 1;
     }
   })(pan, x, y);
   return initialPan*(1-panStrength) + $pan*panStrength;
@@ -693,7 +693,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
       layers[ch].phases[idx] = oldPhase * (1 - po) + po * ($phase);
     }
     const clampedMag = Math.min(newMag, 255);
-    layers[ch].pans[idx] = computePanTexture(document.getElementById("brushPanTexture").value,layers[ch].pans[idx],parseFloat(document.getElementById("brushPanStrength").value),xI,bin,pan,true,currentTool==="amplifier");
+    layers[ch].pans[idx] = computePanTexture(document.getElementById("brushPanTexture").value,layers[ch].pans[idx],panStrength,xI,bin,pan,true,currentTool==="amplifier",panBand);
     layers[ch].mags[idx] = clampedMag;
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
@@ -767,7 +767,7 @@ function applyEffectToPixel(oldMag, oldPhase, oldPan, x, bin, newEffect, integra
   const newPhase = (tool === "sample")?(oldPhase+phase):(oldPhase * (1-po) + po * ($phase + phase*2));
   const clampedMag = Math.min(newMag, 255);
 
-  const newPan = computePanTexture(newEffect.panTexture,0.5,newEffect.panStrength,x+0.5,bin,newEffect.panShift,false,newEffect.tool==="amplifier");
+  const newPan = computePanTexture(newEffect.panTexture,0.5,newEffect.panStrength,x+0.5,bin,newEffect.panShift,false,newEffect.tool==="amplifier",newEffect.panBand);
   return { mag: clampedMag, phase: newPhase, pan: newPan};
 }
 function commitShape(cx, cy) {
@@ -787,7 +787,7 @@ function commitShape(cx, cy) {
     const expressionBrushMag = getExpressionById("brushBrightnessDiv");
     function brushMag(){return expressionBrushMag.expression.includes("pixel.")?(currentTool === "eraser" ? 0 : (parseExpression(expressionBrushMag) / 255) * 128):gBrushMag;}
     const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-    const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPanShift").value);
+    const brushPan = currentTool === "eraser" ? 0.5 : panShift;
     const visitedLocal = Array.from({ length: layerCount }, () => new Uint8Array(fullW * fullH));
     const savedVisited = visited;
     visited = visitedLocal;
@@ -1044,7 +1044,7 @@ function paint(cx, cy) {
     } else if (currentTool === "fill" || currentTool === "eraser" || currentTool === "amplifier" || currentTool === "noiseRemover") {
       const brushMag = currentTool === "eraser" ? 0 : (parseExpression(getExpressionById("brushBrightnessDiv")) / 255) * 128;
       const brushPhase = currentTool === "eraser" ? 0 : phaseShift;
-      const brushPan = currentTool === "eraser" ? 0.5 : parseFloat(document.getElementById("brushPanShift").value);
+      const brushPan = currentTool === "eraser" ? 0.5 : panShift;
       const p0x = prevMouseX + iLow;
       const p0y = visibleToSpecY(prevMouseY);
       const p1x = cx;   

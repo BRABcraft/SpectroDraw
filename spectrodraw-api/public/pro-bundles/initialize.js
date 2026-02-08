@@ -190,6 +190,7 @@ let dontChangeSprites = false;
 let uploadingSprite = false;
 let historyStack = [], historyIndex = 0;
 let moveSpritesMode = false, spriteHit = null;
+let panShift=0.5,panStrength=1,panBand=100;
 
 let handlers = {
   "canvas-": (el) => {
@@ -241,7 +242,7 @@ function getCanvasCoords(e,touch){
       Y = touch ? e.touches[0].clientY : e.clientY;
       _cx = X; _cy = Y;
   }
-  return {cx:(X-rect.left)*scaleX, cy:(Y-rect.top)*scaleY, scaleX, scaleY};
+  return {cx:(X-rect.left)*scaleX, cy:(Y-rect.top)*scaleY};
 }
 async function waitFor(fn, interval = 10) {while (!fn()) await new Promise(r => setTimeout(r, interval));}
 function sanitizeFilename(name) {return (name || "unnamed").replace(/[^a-z0-9\-_\.]/gi, "_");}
@@ -353,7 +354,7 @@ function updateOptionValue(select, oldValue, newValue, newText = newValue) {
   opt.textContent = newText;
   return true;
 }
-
+function logDebugTime(msg){console.log(msg,Date.now()-debugTime);debugTime=Date.now();}
 
 
 class Knob {

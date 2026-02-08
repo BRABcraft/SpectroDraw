@@ -58,7 +58,7 @@ function newSprite(opts={}){
     effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg,
       blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,
       refPhaseFrame,chirpRate,shape:currentShape,noiseProfileMin,noiseProfileMax,noiseProfile,width:opts.width??0,height:opts.height??0,
-      panShift:parseFloat(document.getElementById("brushPanShift").value),panStrength:parseFloat(document.getElementById("brushPanStrength").value),panTexture:document.getElementById("brushPanTexture").value,
+      panShift,panStrength,panTexture:document.getElementById("brushPanTexture").value,panBand,
     },
     enabled: true,
     pixels: pixelmap,
@@ -133,7 +133,7 @@ function canvasMouseDown(e,touch) {
     if (!movingSprite) return;
   }
   if (!hasSetNoiseProfile) autoSetNoiseProfile();
-  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  const {cx,cy} = getCanvasCoords(e,touch);
   prevMouseX = cx; prevMouseY = cy; vr = 1;
   const mags = layers[currentLayer].mags, phases = layers[currentLayer].phases;
   const overlayCanvas = document.getElementById("overlay-"+currentLayer)
@@ -232,9 +232,14 @@ function setClonerYShift(){
 let previewingShape = false;
 let mouseVelocity = 0;
 function canvasMouseMove(e,touch,el) {
+  // if (Date.now()-debugTime>200) {
+  //   debugTime = Date.now();
+  // } else {
+  //   return;
+  // }
   if (recording) return;
   currentLayer = parseInt(el.id.match(/(\d+)$/)[1], 10);
-  const {cx,cy,scaleX,scaleY} = getCanvasCoords(e,touch);
+  const {cx,cy} = getCanvasCoords(e,touch);
   if (moveSpritesMode && !(movingSprite && painting)) {handlemoveSpritesMode(cx,cy);return;}
   let mags = layers[currentLayer].mags; //change to layer that mouse is touching
   if (painting && (movingSprite||changingNoiseProfile||currentShape==="select") || draggingSample!==null) {previewShape(cx, cy);return;}
@@ -248,7 +253,7 @@ function canvasMouseMove(e,touch,el) {
     const i = hx*specHeight+hy;
     let normalizedMag = Math.min(1, mags[i] / 256);
     let db = (20 * Math.log10(normalizedMag)).toFixed(1);
-    info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
+    info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`;
   }
   if (!painting && (currentShape === "brush" ||currentShape === "note" || (!document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image"))) && !movingSprite) {
     previewShape(cx, cy);
@@ -494,8 +499,8 @@ function updateCursorLoop() {
     const frame = Math.floor(samplePos / hop);
     currentCursorX = Math.min(frame, specWidth - 1);
 
-    specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
-    renderView();
+    //specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
+    //renderView();
     drawCursor(false);
     drawEQ();
   }

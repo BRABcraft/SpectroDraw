@@ -99,10 +99,10 @@ function logScaleMouseDown(e,touch,logscaleEl) {
 }
 
 async function logScaleMouseMove(e,touch) {
+  if (!changingLogScale) return;
   const logscaleEl = document.getElementById("logscale-"+currentLayer);
   if (!logscaleEl) return;
   logscaleEl.style.cursor = "n-resize";
-  if (!changingLogScale) return;
   logScaleVal[currentLayer] -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
   if (logScaleVal[currentLayer] < 1) logScaleVal[currentLayer] = 1;
   if (logScaleVal[currentLayer] > 2) logScaleVal[currentLayer] = 2;

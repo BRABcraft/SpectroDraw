@@ -129,7 +129,7 @@ let zooming = false;
 let brushSize=parseInt(brushSizeEl.value), brushWidth = brushSize, brushHeight = brushSize;
 let brushOpacity=parseInt(brushOpacityEl.value);
 let phaseStrength=parseInt(phaseStrengthEl.value);
-let brushBrightness=parseInt(brushBrightnessEl.value);
+let brushBrightness=parseInt(brushBrightnessEl.value),magStrength=1;
 let blurRadius=parseInt(blurRadiusEl.value);
 let amp=parseInt(ampEl.value),cAmp=1;
 let noiseAgg = parseInt(noiseAggEl.value);
@@ -191,6 +191,7 @@ let uploadingSprite = false;
 let historyStack = [], historyIndex = 0;
 let moveSpritesMode = false, spriteHit = null;
 let panShift=0.5,panStrength=1,panBand=100;
+let chorusVoices=1,chorusVoiceStrength=0.6,chorusDetune=20,chorusPanSpread=0.25,chorusRandomness=0.1;
 
 let handlers = {
   "canvas-": (el) => {

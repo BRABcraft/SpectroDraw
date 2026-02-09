@@ -58,7 +58,7 @@ function newSprite(opts={}){
     effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg,
       blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,
       refPhaseFrame,chirpRate,shape:currentShape,noiseProfileMin,noiseProfileMax,noiseProfile,width:opts.width??0,height:opts.height??0,
-      panShift,panStrength,panTexture:document.getElementById("brushPanTexture").value,panBand,
+      panShift,panStrength,panTexture:document.getElementById("brushPanTexture").value,panBand,magStrength,
     },
     enabled: true,
     pixels: pixelmap,
@@ -364,6 +364,7 @@ function simpleRestartRender(min=-1,max=-1){
   pendingPlayAfterRender = true; 
   let startFrame = a.minCol;
   if (startFrame === Infinity) startFrame = 0;
+  if (maxCol === -Infinity) maxCol = framesTotal;
   pos = startFrame * hop;
   x = startFrame;
   rendering = true;

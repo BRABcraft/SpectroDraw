@@ -948,31 +948,67 @@ function setDocked(panel, dockObj){
         <input id="brushOpacity"  type="range" min="0" max="1" value="1" step="0.01">
         <input id="brushOpacityInput" type="number" value="1" min="0" max="1">
       </div>
-      <div class="slider-row" title="Harmonics Preset" id="harmonicsPresetSelectDiv" style="display:none;">
-        <label class="h2">Harmonics preset</label>
-        <select id="harmonicsPresetSelect">
-          <option value="sine" selected>Sine wave</option>
-          <option value="triangle">Triangle wave</option>
-          <option value="square">Square wave</option>
-          <option value="saw">Saw wave</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div id="brushHarmonicsEditorDiv" style="margin-left:10px;display:none;">
-        <h3 style="font-size:15px;margin:0;"id="brushHarmonicsEditorh3">Advanced Harmonics
-          <button type="button"
-                  class="section-toggle"
-                  data-target="brushHarmonicsEditorDiv"
-                  aria-expanded="false"
-                  aria-label="Toggle Harmonics editor settings"
-                  id="brushHarmonicsEditorDivToggleBtn"style="margin-right:15px;"></button>
-        </h3>
-        <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
-      </div>
-      <div class="slider-row" title="Chorus" id="brushChorusDiv">
-        <label class="h2">Chorus</label>
-        <input id="brushChorus"  type="range" min="0" max="1" value="1" step="0.01">
-        <input id="brushChorusInput" type="number" value="1" min="0" max="1">
+      <div id="synthSettingsDiv" style="display:none;">
+        <div class="slider-row" title="Harmonics Preset" id="harmonicsPresetSelectDiv">
+          <label class="h2">Harmonics preset</label>
+          <select id="harmonicsPresetSelect">
+            <option value="sine" selected>Sine wave</option>
+            <option value="triangle">Triangle wave</option>
+            <option value="square">Square wave</option>
+            <option value="saw">Saw wave</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div id="brushHarmonicsEditorDiv" style="margin-left:10px;">
+          <h3 style="font-size:15px;margin:0;"id="brushHarmonicsEditorh3">Advanced Harmonics
+            <button type="button"
+                    class="section-toggle"
+                    data-target="brushHarmonicsEditorDiv"
+                    aria-expanded="false"
+                    aria-label="Toggle Harmonics editor settings"
+                    id="brushHarmonicsEditorDivToggleBtn"style="margin-right:15px;"></button>
+          </h3>
+          <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
+        </div>
+        <div id="chorusDiv">
+          <h3 style="font-size:15px;margin:0;margin-left:10px;">Chorus
+            <button type="button"
+                    class="section-toggle"
+                    data-target="chorusDiv"
+                    aria-expanded="false"
+                    aria-label="Toggle Chorus editor settings"
+                    id="chorusDivToggleBtn"style="margin-right:15px;"></button>
+          </h3>
+          <div class="slider-row" title="Enable Chorus" id="enableChorusDiv">
+            <label class="h2">Enable chorus</label>
+            <input type="checkbox" id="enableChorus" checked></input>
+          </div>
+          <div class="slider-row" title="Chorus voices" id="chorusVoicesDiv">
+            <label class="h2">Voices</label>
+            <input id="chorusVoices"  type="range" min="1" max="8" value="1">
+            <input id="chorusVoicesInput" type="number" value="1" min="0" max="8">
+          </div>
+          <div class="slider-row" title="Voice magnitude strength" id="chorusVoiceStrengthDiv">
+            <label class="h2">Voice Strength</label>
+            <input id="chorusVoiceStrength"      type="range"  min="0" max="1" value="0.6" step="0.001">
+            <input id="chorusVoiceStrengthInput" type="number" min="0" max="1" value="0.6" >
+          </div>
+          <div class="slider-row" title="Chorus detune (cents)" id="chorusDetuneDiv">
+            <label class="h2">Detune</label>
+            <input id="chorusDetune"      type="range"  min="0" max="120" value="20">
+            <input id="chorusDetuneInput" type="number" min="0" max="120" value="20" >
+          </div>
+          <div class="slider-row" title="Pan spread across voices" id="chorusPanSpreadDiv">
+            <label class="h2">Pan spread</label>
+            <input id="chorusPanSpread"      type="range"  min="0" max="1" value="0.25" step="0.001">
+            <input id="chorusPanSpreadInput" type="number" min="0" max="1" value="0.25" >
+          </div>
+          <div class="slider-row" title="Voice randomness" id="chorusRandomnessDiv">
+            <label class="h2">Randomness</label>
+            <input id="chorusRandomness"      type="range"  min="0" max="1" value="0.1" step="0.001">
+            <input id="chorusRandomnessInput" type="number" min="0" max="1" value="0.1" >
+          </div>
+        </div>
       </div>
     </div>
     <!--Effect settings: Depends on effect. -->
@@ -987,9 +1023,14 @@ function setDocked(panel, dockObj){
                 id="beffectSettingsToggleBtn"></button>
       </h3>
       <div class="slider-row" title="Brightness" id="brushBrightnessDiv">
-          <label class="h2">Brush Brightness</label>
+          <label class="h2">Brightness</label>
           <input id="brushBrightness" type="range" min="0" max="255" value="255">
           <input id="brushBrightnessInput" type="number" value="255" min="0" max="255">
+      </div>
+      <div class="slider-row" title="Brightness strength" id="brushMagStrengthDiv">
+          <label class="h2">Brightness strength</label>
+          <input id="brushMagStrength" type="range" min="0" max="1" value="1" step="0.001">
+          <input id="brushMagStrengthInput" type="number" value="1" min="0" max="1">
       </div>
       <div class="slider-row" title="Blur Radius" style="display:none;" id="blurRadiusDiv">
           <label class="h2">Blur Radius</label>
@@ -1592,6 +1633,11 @@ function setDocked(panel, dockObj){
               <label class="h2">Brush Brightness</label>
               <input id="sbrushBrightness" type="range" min="0" max="255" value="255">
               <input id="sbrushBrightnessInput" type="number" value="255" min="0" max="255">
+          </div>
+          <div class="slider-row" title="Brightness strength" id="sbrushMagStrengthDiv">
+              <label class="h2">Brightness strength</label>
+              <input id="sbrushMagStrength" type="range" min="0" max="1" value="1" step="0.001">
+              <input id="sbrushMagStrengthInput" type="number" value="1" min="0" max="1">
           </div>
           <div class="slider-row" title="Blur Radius" id="sblurRadiusDiv">
               <label class="h2">Blur Radius</label>

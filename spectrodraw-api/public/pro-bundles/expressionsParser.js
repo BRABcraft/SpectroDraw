@@ -425,6 +425,7 @@ parseExpression.vars = {
   "brush.tool.clonerRefY": ()=> clonerY,
   "brush.tool.clonerScale": ()=> parseFloat(sliders[26][0].value),
   "brush.effect.brightness": () => parseFloat(sliders[2][0].value),
+  "brush.effect.magnitudeStrength": () => parseFloat(sliders[33][0].value),
   "brush.effect.blurRadius": () => parseFloat(sliders[16][0].value),
   "brush.effect.amplify": () => parseFloat(sliders[17][0].value),
   "brush.effect.aggressiveness": () => parseFloat(sliders[18][0].value),
@@ -464,6 +465,12 @@ parseExpression.vars = {
   "brush.effect.phaseSettings.chirpRate": () => chirpRate,
   "currentLayer": () => currentLayer,
   "layers": () => layers,
+  "brush.effect.chorus.enabled": ()=>document.getElementById("enableChorus").checked,
+  "brush.effect.chorus.voices": ()=>chorusVoices,
+  "brush.effect.chorus.strength": ()=>chorusVoiceStrength,
+  "brush.effect.chorus.detune": ()=>chorusDetune,
+  "brush.effect.chorus.panSpread": ()=>chorusPanSpread,
+  "brush.effect.chorus.randomness": ()=>chorusRandomness,
 };
 // keep helper to set vars
 parseExpression.setVars = function(map) {

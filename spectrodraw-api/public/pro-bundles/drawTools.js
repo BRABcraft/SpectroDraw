@@ -637,6 +637,14 @@ function computePanTexture(type,initialPan,panStrength,x,y,pan,useExpressions,us
   })(pan, x, y);
   return initialPan*(1-panStrength) + $pan*panStrength;
 }
+function pseudoRand(seed) {
+  // simple xorshift-ish
+  let x = (seed * 1664525 + 1013904223) | 0;
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  return (x >>> 0) / 4294967295;
+}
 function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
@@ -651,7 +659,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
     nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
     displayYFloat = ftvsy(nearestPitch, ch);
   }
-  function processBin(bin, boScaled) {
+  function processBin(bin, boScaled,opts={}) {
     bin = Math.max(0, Math.min(specHeight - 1, Math.round(bin)));
     const idx = idxBase + bin;
     if (idx < 0 || idx >= layers[ch].mags.length) return;
@@ -659,6 +667,9 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
     if (visited) visited[ch][idx] = 1;
     const oldMag = layers[ch].mags[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
+    const panToUse = (typeof opts.panOverride !== 'undefined') ? opts.panOverride : pan;
+    const phaseToUse = (typeof opts.phaseOverride !== 'undefined') ? opts.phaseOverride : phase;
+    const magToUse = (typeof opts.magOverride !== 'undefined') ? opts.magOverride : mag;
     function mod(n, m) {
       return ((n % m) + m) % m;
     }
@@ -672,7 +683,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
                 ? Math.max(oldMag * (1 - boScaled) + (oldMag*(1 - (noiseAgg * noiseProfile[bin]) / oldMag)) * boScaled,0)
                 : (currentTool === "cloner")
                 ? (oldMag * (1 - bo) + (layers[clonerCh].mags[clonerPos] * cAmp) * bo)
-                : (oldMag * (1 - boScaled) + mag * boScaled);
+                : (oldMag * (1 - boScaled) + magToUse * boScaled);
     const type = phaseTextureEl.value;
     parseExpression.vars["pixel.frame"]= xI;
     parseExpression.vars["pixel.bin"]= bin;
@@ -683,18 +694,18 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
         $phase = layers[clonerCh].phases[clonerPos];
       } else {
         if (type==="HopArtifact") {
-          $phase = computePhaseTexture(type, bin, xI, phase, false);
+          $phase = computePhaseTexture(type, bin, xI, phaseToUse, false);
         } else {
           const expr = getExpressionById("phaseTextureDiv");
           if (expr.hasChanged || type==="Custom") {$phase = parseExpression(expr);}
-          else {$phase = computePhaseTexture(type, bin, xI, phase, false);}
+          else {$phase = computePhaseTexture(type, bin, xI, phaseToUse, false);}
         }
       }
       layers[ch].phases[idx] = oldPhase * (1 - po) + po * ($phase);
     }
     const clampedMag = Math.min(newMag, 255);
-    layers[ch].pans[idx] = computePanTexture(document.getElementById("brushPanTexture").value,layers[ch].pans[idx],panStrength,xI,bin,pan,true,currentTool==="amplifier",panBand);
-    layers[ch].mags[idx] = clampedMag;
+    layers[ch].pans[idx] = computePanTexture(document.getElementById("brushPanTexture").value,layers[ch].pans[idx],panStrength,xI,bin,panToUse,true,currentTool==="amplifier",panBand);
+    layers[ch].mags[idx] = oldMag*(1-magStrength)+clampedMag*magStrength;
     const yTopF = binToTopDisplay[ch][bin];
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
@@ -719,7 +730,43 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
       const displayY_i = ftvsy(freqI, ch);
       binF = displayYToBin(displayY_i, specHeight, ch);
       const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
-      processBin(binF, bo * harmVal * velFactor);
+      if (document.getElementById("enableChorus").checked && chorusVoices > 1) {
+        // split harmonic energy across voices; preserve approximate total energy:
+        // main voice gets some portion, others get (chorusWet / voices) each.
+        const baseMag = mag * harmVal * 1;
+        const perVoiceMag = baseMag * (chorusVoiceStrength / chorusVoices);
+        const mainMagRemain = baseMag * (1 - chorusVoiceStrength);
+
+        // main (center) voice - write the central (unshifted) bin
+        processBin(binF, bo * (mainMagRemain / mag), { panOverride: pan, magOverride: mainMagRemain });
+
+        // voices
+        for (let v = 0; v < chorusVoices; v++) {
+          // spread voices across [-detune, +detune] linearly, plus some randomness
+          const t = (chorusVoices === 1) ? 0.5 : (v / (chorusVoices - 1)); // 0..1
+          const detuneBase = (t - 0.5) * 2 * chorusDetune; // range [-detune, +detune] cents
+          const r = pseudoRand((xI << 16) ^ (i << 8) ^ v);
+          const detuneJ = (r - 0.5) * 2 * chorusRandomness * chorusDetune; // jitter in cents
+          const detuneCents = detuneBase + detuneJ;
+          const freqVoice = freqI * Math.pow(2, detuneCents / 1200);
+          const displayY_voice = ftvsy(freqVoice, ch);
+          const binVoice = displayYToBin(displayY_voice, specHeight, ch);
+
+          // pan per voice: linearly map across spread, plus jitter
+          const panBase = pan + (t - 0.5) * (chorusPanSpread*2-1);
+          const panJ = (r - 0.5) * 2 * chorusRandomness * (chorusPanSpread*2-1);
+          const panVoice = Math.max(-1, Math.min(1, panBase + panJ));
+
+          const phaseJ = (r - 0.5) * 2 * chorusRandomness * Math.PI * 0.4; // small phase jitter
+          const phaseVoice = phase + phaseJ;
+
+          // call processBin for this voice with its own pan and mag
+          processBin(binVoice, bo * (perVoiceMag), { panOverride: panVoice, phaseOverride: phaseVoice, magOverride: perVoiceMag });
+        }
+      } else {
+        // no chorus: normal single harmonic
+        processBin(binF, bo * harmVal * velFactor);
+      }
       i++;
     }
     return;
@@ -768,7 +815,7 @@ function applyEffectToPixel(oldMag, oldPhase, oldPan, x, bin, newEffect, integra
   const clampedMag = Math.min(newMag, 255);
 
   const newPan = computePanTexture(newEffect.panTexture,0.5,newEffect.panStrength,x+0.5,bin,newEffect.panShift,false,newEffect.tool==="amplifier",newEffect.panBand);
-  return { mag: clampedMag, phase: newPhase, pan: newPan};
+  return { mag: oldMag*(1-newEffect.magStrength)+clampedMag*newEffect.magStrength, phase: newPhase, pan: newPan};
 }
 function commitShape(cx, cy) {
   let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
@@ -855,7 +902,7 @@ function commitShape(cx, cy) {
         const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         const dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = (dx > dy ? dx : -dy) / 2;
-        const half = Math.floor(brushSize / 8);
+        const half = (document.getElementById("enableChorus").checked&&chorusVoices>1)?0.5:Math.floor(brushSize / 8);
         let pixels = [];
         while (true) {
           for (let dx = -half; dx <= half; dx++) {
@@ -863,7 +910,7 @@ function commitShape(cx, cy) {
             const py = y0;
             if (px >= 0 && px < specWidth && py >= 0 && py < specHeight) {
               if (currentTool !== "autotune") {
-                dp(px, py, brushMag(), brushPhase, bo(), po(), ch);
+                dp(px, py, brushMag(), brushPhase, brushPan, bo(), po(), ch);
               } else {
                 pixels.push([px,py]);
               }

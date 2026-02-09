@@ -131,6 +131,7 @@ function ensureExpressionShape(expr){
 }
 const defaultExpressions={
   "brushBrightnessDiv":"brush.effect.brightness",
+  "brushMagStrengthDiv":"brush.effect.magnitudeStrength",
   "blurRadiusDiv":"brush.effect.blurRadius",
   "amplifyDiv":"brush.effect.amplify",
   "noiseAggDiv":"brush.effect.aggressiveness",
@@ -165,6 +166,11 @@ return brush.tool.harmonics;`,
 //];
 return eqBands;`,
   "clonerScaleDiv":"brush.tool.clonerScale",
+  "chorusVoicesDiv":"brush.effect.chorus.voices",
+  "chorusVoiceStrengthDiv":"brush.effect.chorus.strength",
+  "chorusDetuneDiv":"brush.effect.chorus.detune",
+  "chorusPanSpreadDiv":"brush.effect.chorus.panSpread",
+  "chorusRandomnessDiv":"brush.effect.chorus.randomness",
 }
 addExpressionBtns();
 function addExpressionBtns(){
@@ -177,6 +183,7 @@ function addExpressionBtns(){
 
   const targetDivIds = [
     "brushBrightnessDiv",
+    "brushMagStrengthDiv",
     "blurRadiusDiv",
     "amplifyDiv",
     "noiseAggDiv",
@@ -197,6 +204,11 @@ function addExpressionBtns(){
     "brushHarmonicsEditorh3",
     "eqPresetsDiv",
     "clonerScaleDiv",
+    "chorusVoicesDiv",
+    "chorusVoiceStrengthDiv",
+    "chorusDetuneDiv",
+    "chorusPanSpreadDiv",
+    "chorusRandomnessDiv",
   ];
   for (const id of targetDivIds) {
     const div = document.getElementById(id);
@@ -272,7 +284,7 @@ function addExpressionBtns(){
     div.appendChild(btn);
   }
 }
-const predefinedConstVars = new Set([ "brush", "tool", "size", "width", "height", "opacity", "harmonics", "effect", "brightness", "blurRadius", "amplify", "aggressiveness", "autotuneStrength", "baseHz", "notesPerOctave", "phaseTexture", "phaseSettings", "phaseStrength", "phaseShift", "panTexture", "panShift", "panStrength", "panBand", "eqBands", "mouse", "frame", "bin", "zoom", "x", "min", "max", "y", "currentLayer", "logScale", "sampleRate", "specHeight", "specWidth", "clonerScale", "currentTool", "currentEffect","pixel"]);
+const predefinedConstVars = new Set([ "brush", "tool", "size", "width", "height", "opacity", "harmonics", "effect", "brightness", "magnitudeStrength", "blurRadius", "amplify", "aggressiveness", "autotuneStrength", "baseHz", "notesPerOctave", "phaseTexture", "phaseSettings", "phaseStrength", "phaseShift", "panTexture", "panShift", "panStrength", "panBand", "eqBands", "mouse", "frame", "bin", "zoom", "x", "min", "max", "y", "currentLayer", "logScale", "sampleRate", "specHeight", "specWidth", "clonerScale", "currentTool", "currentEffect","pixel","chorus","voices","strength","detune","panSpread","randomness","enabled"]);
 
 // ------------ Editor core (per-instance) ----------------
 function initEditor(expr){
@@ -1092,6 +1104,7 @@ document.addEventListener('mousedown', (e) => {
       }
       evaluateExpressionToVar("brushBrightnessDiv", v => {sliders[2][0].value = sliders[2][1].value = brushBrightness = v;});
       evaluateExpressionToVar("blurRadiusDiv",      v => {sliders[16][0].value = sliders[16][1].value = blurRadius = v});
+      evaluateExpressionToVar("brushMagStrengthDiv", v => {sliders[33][0].value = sliders[33][1].value = magStrength = v;});
       evaluateExpressionToVar("amplifyDiv",         v => {sliders[17][0].value = sliders[17][1].value = amp = v});
       evaluateExpressionToVar("noiseAggDiv",        v => {sliders[18][0].value = sliders[18][1].value = noiseAgg = v});
       evaluateExpressionToVar("autoTuneStrengthDiv",v => {sliders[23][0].value = sliders[23][1].value = autoTuneStrength = v});
@@ -1099,12 +1112,20 @@ document.addEventListener('mousedown', (e) => {
       evaluateExpressionToVar("anpoDiv",            v => {sliders[24][0].value = sliders[24][1].value = anpo = v});
       evaluateExpressionToVar("phaseDiv",           v => {sliders[3][0].value = sliders[3][1].value = phaseShift = v});
       evaluateExpressionToVar("phaseStrengthDiv",   v => {sliders[5][0].value = sliders[5][1].value = phaseStrength = v});
+      evaluateExpressionToVar("brushPanShiftDiv",   v => {sliders[30][0].value = sliders[30][1].value = panShift = v});
+      evaluateExpressionToVar("brushPanStrengthDiv",   v => {sliders[31][0].value = sliders[31][1].value = panStrength = v});
+      evaluateExpressionToVar("brushPanBandDiv",   v => {sliders[32][0].value = sliders[32][1].value = panBand = v});
       evaluateExpressionToVar("brushWidthDiv",      v => {sliders[21][0].value = sliders[21][1].value = brushWidth = v});
       evaluateExpressionToVar("brushHeightDiv",     v => {sliders[22][0].value = sliders[22][1].value = brushHeight = v});
       evaluateExpressionToVar("opacityDiv",         v => {sliders[4][0].value = sliders[4][1].value = brushOpacity = v});
       evaluateExpressionToVar("clonerScaleDiv",     v => {sliders[26][0].value = sliders[26][1].value = clonerScale = v});
       evaluateExpressionToVar("brushHarmonicsEditorh3",v => {harmonics = v; renderHarmonicsCanvas(); updateBrushPreview();});
       evaluateExpressionToVar("eqPresetsDiv",       v => {eqBands = v; updateGlobalGain();updateEQ();drawEQ();});
+      evaluateExpressionToVar("chorusVoicesDiv",    v => {sliders[34][0].value = sliders[34][1].value = chorusVoices = v});
+      evaluateExpressionToVar("chorusVoiceStrengthDiv",v =>{sliders[35][0].value=sliders[35][1].value = chorusVoiceStrength = v});
+      evaluateExpressionToVar("chorusDetuneDiv",    v => {sliders[36][0].value = sliders[36][1].value = chorusDetune = v});
+      evaluateExpressionToVar("chorusPanSpreadDiv", v => {sliders[37][0].value = sliders[37][1].value = chorusPanSpread = v});
+      evaluateExpressionToVar("chorusRandomnessDiv",v => {sliders[38][0].value = sliders[38][1].value = chorusRandomness = v});
     }
     editingExpression = null;
   }

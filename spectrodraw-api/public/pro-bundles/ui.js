@@ -1,6 +1,6 @@
 function updateAllVariables(keyWord){
   const p = keyWord===null;
-  function conditionalEvaluateExpression(expressionId, setValue) {
+  function conditionalEvaluateExpression(expressionId, setValue, setValue2) {
     if (typeof getExpressionById !== "function") return;
     const exprObj = getExpressionById(expressionId);
     if (!exprObj) return;
@@ -17,12 +17,14 @@ function updateAllVariables(keyWord){
         }
         setValue(parseExpression(exprObj,defaultExpressions[expressionId]));
       } else {
-        setValue(result);
+        if (exprObj.expression===defaultExpressions[expressionId] && setValue2) setValue2();
+        else setValue(result);
       }
       if (expressionId==="eqPresetsDiv") {updateGlobalGain(); updateEQ(); drawEQ();} else {updateBrushPreview();}
     }
   }
   conditionalEvaluateExpression("brushBrightnessDiv", v => {sliders[2][0].value = sliders[2][1].value = brushBrightness = v;});
+  conditionalEvaluateExpression("brushMagStrengthDiv", v => {sliders[33][0].value = sliders[33][1].value = magStrength = v;});
   conditionalEvaluateExpression("blurRadiusDiv",      v => {sliders[16][0].value = sliders[16][1].value = blurRadius = v});
   conditionalEvaluateExpression("amplifyDiv",         v => {sliders[17][0].value = sliders[17][1].value = amp = v});
   conditionalEvaluateExpression("noiseAggDiv",        v => {sliders[18][0].value = sliders[18][1].value = noiseAgg = v});
@@ -31,16 +33,20 @@ function updateAllVariables(keyWord){
   conditionalEvaluateExpression("anpoDiv",            v => {sliders[24][0].value = sliders[24][1].value = anpo = v});
   conditionalEvaluateExpression("phaseDiv",           v => {sliders[3][0].value = sliders[3][1].value = phaseShift = v});
   conditionalEvaluateExpression("phaseStrengthDiv",   v => {sliders[5][0].value = sliders[5][1].value = phaseStrength = v});
-  conditionalEvaluateExpression("brushPanShiftDiv",   v => {sliders[30][0].value = sliders[30][1].value = v});
-  conditionalEvaluateExpression("brushPanStrengthDiv",   v => {sliders[31][0].value = sliders[31][1].value = v});
-  conditionalEvaluateExpression("brushPanBandDiv",   v => {sliders[32][0].value = sliders[32][1].value = v});
+  conditionalEvaluateExpression("brushPanShiftDiv",   v => {sliders[30][0].value = sliders[30][1].value = panShift = v});
+  conditionalEvaluateExpression("brushPanStrengthDiv",   v => {sliders[31][0].value = sliders[31][1].value = panStrength = v});
+  conditionalEvaluateExpression("brushPanBandDiv",   v => {sliders[32][0].value = sliders[32][1].value = panBand = v});
   conditionalEvaluateExpression("brushWidthDiv",      v => {sliders[21][0].value = sliders[21][1].value = brushWidth = v});
   conditionalEvaluateExpression("brushHeightDiv",     v => {sliders[22][0].value = sliders[22][1].value = brushHeight = v});
   conditionalEvaluateExpression("opacityDiv",         v => {sliders[4][0].value = sliders[4][1].value = brushOpacity = v});
   conditionalEvaluateExpression("clonerScaleDiv",     v => {sliders[26][0].value = sliders[26][1].value = clonerScale = Math.max(v,0.001)});
   conditionalEvaluateExpression("brushHarmonicsEditorh3",v => {harmonics = v});
   conditionalEvaluateExpression("eqPresetsDiv",       v => {eqBands = v});
-
+  conditionalEvaluateExpression("chorusVoicesDiv",    v => {sliders[34][0].value = sliders[34][1].value = chorusVoices = v}, ()=>{chorusVoices=sliders[34][0].value;});
+  conditionalEvaluateExpression("chorusVoiceStrengthDiv",v =>{sliders[35][0].value=sliders[35][1].value = chorusVoiceStrength = v}, ()=>{chorusVoiceStrength=sliders[35][0].value;});
+  conditionalEvaluateExpression("chorusDetuneDiv",    v => {sliders[36][0].value = sliders[36][1].value = chorusDetune = v}, ()=>{chorusDetune=sliders[36][0].value;});
+  conditionalEvaluateExpression("chorusPanSpreadDiv", v => {sliders[37][0].value = sliders[37][1].value = chorusPanSpread = v}, ()=>{chorusPanSpread=sliders[37][0].value;});
+  conditionalEvaluateExpression("chorusRandomnessDiv",v => {sliders[38][0].value = sliders[38][1].value = chorusRandomness = v}, ()=>{chorusRandomness=sliders[38][0].value;});
 }
 function syncNumberAndRange(numberInput, rangeInput) {
   numberInput.addEventListener('input', () => {
@@ -89,6 +95,12 @@ const sliders = [
   [document.getElementById('brushPanShift'), document.getElementById('brushPanShiftInput')],//30
   [document.getElementById('brushPanStrength'), document.getElementById('brushPanStrengthInput')],
   [document.getElementById('brushPanBand'), document.getElementById('brushPanBandInput')],
+  [document.getElementById('brushMagStrength'), document.getElementById('brushMagStrengthInput')],
+  [document.getElementById('chorusVoices'), document.getElementById('chorusVoicesInput')],
+  [document.getElementById('chorusVoiceStrength'), document.getElementById('chorusVoiceStrengthInput')],//35
+  [document.getElementById('chorusDetune'), document.getElementById('chorusDetuneInput')],
+  [document.getElementById('chorusPanSpread'), document.getElementById('chorusPanSpreadInput')],
+  [document.getElementById('chorusRandomness'), document.getElementById('chorusRandomnessInput')],
 ];
   sliders.forEach(pair => {if (!pair[2]&&pair.length) syncNumberAndRange(pair[1], pair[0])});
 // sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
@@ -98,14 +110,7 @@ const sliders = [
 function rs_(i){const v = sliders[1][i].value; const f = v/brushSize; sliders[21][0].value=sliders[21][1].value=Math.round(brushWidth *= f); sliders[22][0].value=sliders[22][1].value=Math.round(brushHeight *= f); brushSize=v; updateBrushPreview();}
 sliders[1][0].addEventListener("input", ()=>{rs_(0);updateAllVariables(null);});
 sliders[1][1].addEventListener("input", ()=>{rs_(1);updateAllVariables(null);});
-sliders[2][0].addEventListener("input",()=>{updateAllVariables(null);updateBrushPreview();});
-sliders[2][1].addEventListener("input",()=>{updateAllVariables(null);updateBrushPreview();});
-sliders[3][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[3][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[4][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[4][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[5][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[5][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
+for (const i of [ 2, 3, 4, 5, 23, 24, 25, 26, 33, 34, 35, 36, 37, 38 ]) for (let j = 0; j < 2; j++) sliders[i][j].addEventListener("input", () => {updateAllVariables(null); updateBrushPreview();});
 sliders[6][0].addEventListener("input", ()=>{const val=parseInt(sliders[6][0].value);updateNoteCircle(val);npo=val;});
 sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) {const val=parseInt(sliders[6][1].value);updateNoteCircle(val);npo=val;}});
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
@@ -152,14 +157,6 @@ sliders[21][0].addEventListener("input", ()=>{updateAllVariables(null); rs(); up
 sliders[21][1].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
 sliders[22][0].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
 sliders[22][1].addEventListener("input", ()=>{updateAllVariables(null); rs(); updateBrushPreview();});
-sliders[23][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[23][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[24][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[24][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[25][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[25][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[26][0].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
-sliders[26][1].addEventListener("input", ()=>{updateAllVariables(null); updateBrushPreview();});
 function onPhaseSettingsChange(idx) {
   const v = sliders[27][idx].valueAsNumber;
 
@@ -262,11 +259,9 @@ function updateBrushSettingsDisplay(){
   if (dragToDraw) disp=false;
   s("brushWidthDiv", disp);
   s("brushHeightDiv", disp);
-  const showHarmonics = d("note") || d("line");
-  document.getElementById("harmonicsPresetSelectDiv").style.display = showHarmonics?"block":"none";
-  document.getElementById("brushHarmonicsEditorDiv").style.display = showHarmonics?"block":"none";
-  s("brushHarmonicsEditorh3", showHarmonics, 0);
-  if (showHarmonics) renderHarmonicsCanvas();
+  const showSynthSettings = d("note") || d("line");
+  document.getElementById("synthSettingsDiv").style.display = showSynthSettings?"block":"none";
+  if (showSynthSettings) renderHarmonicsCanvas();
   document.getElementById("stampsDiv").style.display = d("stamp")?"block":"none";
   if (currentShape==='stamp') {renderStamps();}
   document.getElementById("dragToDrawDiv").style.display = (d("stamp") || d("image"))?"flex":"none";

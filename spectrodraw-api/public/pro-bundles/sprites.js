@@ -253,19 +253,20 @@ document.getElementById("ssetNoiseProfile").addEventListener("click",()=>{
 // [ rangeId, textId, assignFn, optionalExtraFn ]
 const sliderDefs = [
   // [rangeId, textId, effectsKey, optionalCallback]
-  ['sbrushBrightness',      'sbrushBrightnessInput',       'brushBrightness'],
-  ['sphaseShift',        'sphaseShiftInput',         'phaseShift'],
-  ['sbrushOpacity',    'sbrushOpacityInput',     'brushOpacity'],
-  ['sphaseStrength',    'sphaseStrengthInput',     'phaseStrength'],
-  ['sbrushPanStrength',    'sbrushPanStrengthInput',     'panStrength'],
-  ['sbrushPanShift',    'sbrushPanShiftInput',     'panShift'],
-  ['sbrushPanBand',    'sbrushPanBandInput',     'panBand'],
-  ['sblurRadius',      'sblurRadiusInput',       'blurRadius'      ],
-  ['samp',             'sampInput',              'amp'             ],
-  ['snoiseAgg','snoiseAggInput', 'noiseAgg'],
-  ['sautoTuneStrength','sautoTuneStrengthInput', 'autoTuneStrength'],
-  ['snpo',             'snpoInput',              'anpo'],
-  ['sstartOnPitch',    'sstartOnPitchInput',     'aStartOnP'],
+  ['sbrushBrightness', 'sbrushBrightnessInput', 'brushBrightness'],
+  ['sbrushMagStrength','sbrushMagStrengthInput','magStrength'],
+  ['sphaseShift',      'sphaseShiftInput',      'phaseShift'],
+  ['sbrushOpacity',    'sbrushOpacityInput',    'brushOpacity'],
+  ['sphaseStrength',   'sphaseStrengthInput',   'phaseStrength'],
+  ['sbrushPanStrength','sbrushPanStrengthInput','panStrength'],
+  ['sbrushPanShift',   'sbrushPanShiftInput',   'panShift'],
+  ['sbrushPanBand',    'sbrushPanBandInput',    'panBand'],
+  ['sblurRadius',      'sblurRadiusInput',      'blurRadius'],
+  ['samp',             'sampInput',             'amp'            ],
+  ['snoiseAgg',        'snoiseAggInput',        'noiseAgg'],
+  ['sautoTuneStrength','sautoTuneStrengthInput','autoTuneStrength'],
+  ['snpo',             'snpoInput',             'anpo'],
+  ['sstartOnPitch',    'sstartOnPitchInput',    'aStartOnP'],
 ];
 
 const $ = id => document.getElementById(id);
@@ -359,6 +360,7 @@ function renderToolEditorSettings(newEffect) {
   document.getElementById("snpoDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("spitchAlignDiv").style.display=(c("autotune"))?"flex":"none";
   document.getElementById("sbrushBrightnessDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner")||c("n/a")||c("sample"))?"none":"flex";
+  document.getElementById("sbrushMagStrengthDiv").style.display=(c("amplifier") || c("noiseRemover") || c("blur") || c("autotune") || c("cloner")||c("n/a")||c("sample"))?"none":"flex";
   document.getElementById("sphaseTextureDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner")||c("n/a")||c("sample"))?"none":"flex";
   updateSpritePhaseTextureSettings(effects);
   document.getElementById("sphaseDiv").style.display=(c("noiseRemover")||c("autotune")||c("cloner"))?"none":"flex";

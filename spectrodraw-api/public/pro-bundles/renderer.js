@@ -27,11 +27,13 @@ function restartRender(autoPlay){
       wrapper.id = "canvasWrapper-"+ch;
       timeline = document.createElement("canvas");
       timeline.id = `timeline-${ch}`;
+      timeline.style.cssText ="height:40px;background:#222;position:absolute;left:40px;z-index:9998;top:"+(0 + ch*offsetY)+"px";
       wrapper.appendChild(timeline);
 
       // main canvas
       canvas = document.createElement("canvas");
       canvas.id = `canvas-${ch}`;
+      canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
       // prefer pixelated rendering at DOM-level (extra protection)
       canvas.style.imageRendering = "pixelated";
       canvas.style.webkitImageRendering = "pixelated";
@@ -40,6 +42,7 @@ function restartRender(autoPlay){
       // overlay
       overlayCanvas = document.createElement("canvas");
       overlayCanvas.id = `overlay-${ch}`;
+      overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
       // overlay should also be pixelated
       overlayCanvas.style.imageRendering = "pixelated";
       wrapper.appendChild(overlayCanvas);
@@ -47,11 +50,13 @@ function restartRender(autoPlay){
       // freq bar
       yAxis = document.createElement("canvas");
       yAxis.id = `freq-${ch}`;
+      yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
       wrapper.appendChild(yAxis);
       
       // logscale
       logscaleEl = document.createElement("canvas");
       logscaleEl.id = `logscale-${ch}`;logscaleEl.width=40;logscaleEl.height=40;
+      logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
       wrapper.appendChild(logscaleEl);
 
       // specCanvas bar (hidden source canvas)
@@ -76,11 +81,11 @@ function restartRender(autoPlay){
       logscaleEl = document.getElementById(`logscale-${ch}`);
       specCanvas = document.getElementById(`spec-${ch}`);
     }
-    timeline.style.cssText ="height:40px;background:#222;position:absolute;left:40px;z-index:9998;top:"+(0 + ch*offsetY)+"px";
-    canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
-    overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
-    yAxis.style.cssText ="width:40px;background:#222;position:absolute;left:0;top:"+(40 + ch*offsetY)+"px";
-    logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
+    timeline.style.top =(0 + ch*offsetY)+"px";
+    canvas.style.top = (40 + ch*offsetY)+"px";
+    overlayCanvas.style.top = (40 + ch*offsetY)+"px";
+    yAxis.style.top =(40 + ch*offsetY)+"px";
+    logscaleEl.style.top =(ch*offsetY)+"px";
     timeline.style.display=(ch<layerCount)?"block":"none";
     canvas.style.display=(ch<layerCount)?"block":"none";
     overlayCanvas.style.display=(ch<layerCount)?"block":"none";

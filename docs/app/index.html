@@ -155,6 +155,7 @@
         function close() {
           document.body.removeChild(_overlay);
         }
+        document.addEventListener("keydown",e=>{if (e.key==="Escape") close();});
         closeBtn.onclick = close;
         _overlay.onclick = (e) => {
           if (e.target === _overlay) close();
@@ -666,7 +667,54 @@
             <input id="softness"  type="range" min="0" max="1" value="0" step="0.01">
             <input id="softnessInput" type="number" value="0" min="0" max="1">
         </div>
-      </div> 
+      </div>
+
+
+      <hr>
+      <h3>Quick Effects</h3>
+      <table id="globalXYTools"style="width:100%;">
+        <thead>
+          <div style="display:flex;flex-direction:row;" id="gxycbsrow">
+            <p style="height:30px;margin:0;margin-top:5px;margin-right:5px;">Affect:</p>
+            <button id="globalUseMagsCheckbox" class="gxycbs">Mags</button>
+            <button id="globalUsePhasesCheckbox" class="gxycbs">Phases</button>
+          </div>
+        </thead>
+        <tbody style="font-size:20px;">
+          <tr>
+            <td><div style="cursor:default;">X:</div></td>
+            <td><div id="x-stretch" title="X stretch">↔</div></td>
+            <td><div id="x-x2" title="2x slower">x2</div></td>
+            <td><div id="x-/2" title="2x faster">/2</div></td>
+            <td><div id="x-flip" title="Reverse time">Flip</div></td>
+            <td><div id="x-translate" title="X translate">⇆</div></td>
+            <td><div id="x-quantize" title="X Quantize" style="display: flex; align-items: center; justify-content: center;">
+              <svg width="26" height="26" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1"  y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="6"  y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="11" y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="16" y="1" width="5"  height="20" fill="none" stroke="white" stroke-width="2"/>
+              </svg>
+            </div></td>
+          </tr>
+          <tr>
+            <td><div style="cursor:default;">Y:</div></td>
+            <td><div id="y-stretch" title="Y stretch">↕</div></td>
+            <td><div id="y-x2" title="Space pitches out 2x">x2</div></td>
+            <td><div id="y-/2" title="Compress pitches by 2x">/2</div></td>
+            <td><div id="y-flip" title="Reverse pitch">Flip</div></td>
+            <td><div id="y-translate" title="Y translate">⇅</div></td>
+            <td><div id="y-quantize" title="Y Quantize" style="display: flex; align-items: center; justify-content: center;">
+              <svg width="26" height="26" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1"  y="1" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="1"  y="6" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="1" y="11" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="1" y="16" width="20"  height="5" fill="none" stroke="white" stroke-width="2"/>
+              </svg>
+            </div></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     <div id="d2" style="display:none;">
       <h3 style="margin:6px 0 10px 0;">Sprites</h3>
@@ -1305,7 +1353,11 @@ function pushHistory(entry, clearRedo = true) {
   historyStack.push(entry);
   if (clearRedo) redoStack.length = 0;
 }
-
+const g_useMagsEl = document.getElementById("globalUseMagsCheckbox");
+const g_usePhasesEl = document.getElementById("globalUsePhasesCheckbox");
+let g_useMags = true, g_usePhases = true;
+g_useMagsEl.addEventListener("click",()=>{g_useMags = !g_useMags; g_useMagsEl.style.background=g_useMags?"#4af":"var(--accent-gradient)";})
+g_usePhasesEl.addEventListener("click",()=>{g_usePhases = !g_usePhases; g_usePhasesEl.style.background=g_usePhases?"#4af":"var(--accent-gradient)";})
 panelButtons.forEach(btn => {
   if(btn.dataset.tool === currentPanel) {
     btn.style.background = "#4af"; 
@@ -1587,8 +1639,8 @@ function initEmptyPCM() {
     restartRender(false);
 }
 async function onReset() {
-  snapshotMags=mags;
-  snapshotPhases=phases;
+  snapshotMags=new Float32Array(mags);
+  snapshotPhases=new Float32Array(phases);
   await initEmptyPCM();
   minCol = 0; maxCol = sampleRate/hop*emptyAudioLengthEl.value;
   newHistory();
@@ -1678,7 +1730,7 @@ if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}
 fftSizeEl.addEventListener("change",()=>{if (lockHop) {hopSizeEl.value = parseInt(fftSizeEl.value);}restartRender();buildBinDisplayLookup();});
 hopSizeEl.addEventListener("change",()=>{restartRender();buildBinDisplayLookup();});
 
-function restartRender(autoPlay){
+function restartRender(autoPlay, clear=true){
     if(!pcm) return;
     autoPlayOnFinish = !!playing || !!autoPlay;
     fftSize = parseInt(fftSizeEl.value);
@@ -1733,9 +1785,9 @@ function restartRender(autoPlay){
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
     specCtx.putImageData(imageBuffer, 0, 0);
 
-    mags = new Float32Array(specWidth * specHeight);
-    phases = new Float32Array(specWidth * specHeight);
-    for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
+    if (clear) mags = new Float32Array(specWidth * specHeight);
+    if (clear) phases = new Float32Array(specWidth * specHeight);
+    if (clear) for(let i=0;i<specWidth*specHeight;i++){ mags[i]=0; phases[i]=0; }
 
     let startFrame = calcMinMaxCol().minCol;
     if (startFrame == Infinity) startFrame = 0;
@@ -1862,7 +1914,7 @@ function drawFrame(w,h) {
     if (x >= (maxCol==0?w:maxCol)) {
       rendering = false;
       if (pendingHistory && snapshotMags && snapshotPhases && mags && phases) {
-        pendingHistory = false; 
+        
 
         newHistory();
 
@@ -2124,7 +2176,7 @@ function frameToCx(frame) {
 }
 let sx2 = 0, sy2 = 0;
 
-function canvasMouseDown(e,touch) {
+function canvasMouseDown(e,touch) {console.log(pendingHistory);
     if (!touch) zooming=false;
     if (!mags || !phases) return;
     if (!touch && e.button !== 0) return;
@@ -2357,6 +2409,7 @@ function autoRecomputePCM(min,max) {
 }
 
 function newHistory() {
+  pendingHistory = false; 
   const epsMag = 0.001;
   const epsPhase = 0.001;
 

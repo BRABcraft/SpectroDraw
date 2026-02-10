@@ -227,7 +227,7 @@ function closeMenu(){
   document.removeEventListener('click', onDocClick);
   document.removeEventListener('keydown', onDocKey);
 }
-function onDocClick(e){ closeMenu(); }
+function onDocClick(e){ if (!MENU_ROOT.innerHTML.includes("applyval")) closeMenu(); }
 function onDocKey(e){ if (e.key === 'Escape') closeMenu(); }
 
 // -------------------------
@@ -668,4 +668,60 @@ window.addEventListener('scroll', closeMenu, true);
   el.addEventListener('mousedown', (ev)=> {
     ev.preventDefault();
   });
+});
+function makeGlobalXYMenu(command,value,id) {
+  const menu = buildMenu([],false);
+  const d = document.createElement("div");
+  d.style.display="flex";
+  d.style.flexDirection="row";
+  d.style.gap="10px";
+  d.innerHTML = `<p style="margin:0;">${id}</p>
+  <input type="number" id="${id}setVal" min="0" max="128" value="${value}" style="width:60px;" step="0.01">
+    <button style="background:#333;color:#fff;border:1px solid #444;border-radius:2px;" id="${id}applyval">Apply</button>`;
+  menu.appendChild(d);
+  menu.querySelector("#"+id+"applyval").addEventListener("click",()=>{
+    const setVal = menu.querySelector("#"+id+"setVal");
+    command(parseFloat(setVal.value));
+    setVal.value = 1;
+  });
+  return menu;
+}
+
+function makeXYQuantizeMenu(setter,getter) {
+  const menu = buildMenu([],false);
+  const d = document.createElement("div");
+  d.style.display="flex";
+  d.style.flexDirection="row";
+  d.style.gap="10px";
+  d.innerHTML = `<p style="margin:0;">Amount</p>
+  <input type="number" id="XYsetVal" min="1" max="${framesTotal}" value="${getter()}" style="width:60px;" applyval="true">`;
+  menu.appendChild(d);
+  menu.querySelector("#XYsetVal").addEventListener("input",()=>{
+    setter(parseInt(menu.querySelector("#XYsetVal").value));
+  });
+  return menu;
+}
+document.getElementById("x-stretch").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();e.stopPropagation();
+  preventAndOpen(e, ()=> makeGlobalXYMenu(xFactor=>{globalXStretch(xFactor);},1,"x-stretch"));
+});
+document.getElementById("y-stretch").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();e.stopPropagation();
+  preventAndOpen(e, ()=> makeGlobalXYMenu(yFactor=>{globalYStretch(yFactor);},1,"y-stretch"));
+});
+document.getElementById("x-translate").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();e.stopPropagation();
+  preventAndOpen(e, ()=> makeGlobalXYMenu(deltaX=>{globalXTranslate(deltaX);},0,"x-translate"));
+});
+document.getElementById("y-translate").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();e.stopPropagation();
+  preventAndOpen(e, ()=> makeGlobalXYMenu(deltaY=>{globalYTranslate(deltaY);},0,"y-translate"));
+});
+document.getElementById("x-quantize").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();e.stopPropagation();
+  preventAndOpen(e, ()=> makeXYQuantizeMenu(v=>{_xQuantize = v;},()=>_xQuantize));
+});
+document.getElementById("y-quantize").addEventListener("contextmenu",(e)=>{
+  e.preventDefault();e.stopPropagation();
+  preventAndOpen(e, ()=> makeXYQuantizeMenu(v=>{_yQuantize = v;},()=>_yQuantize));
 });

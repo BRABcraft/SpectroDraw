@@ -1072,7 +1072,23 @@ html, body {
   overscroll-behavior-y: none;
   height: 100%;
   touch-action: pan-x;
+  user-select: none;
 }
 #canvas, #overlayCanvas{
   touch-action: none;
+}
+
+.gxycbs{height:30px;width:50%;background:#4af;cursor:pointer;border:none;border-radius:2px;margin-right:2px;}
+
+#globalXYTools {
+  margin-top:7px;
+  border-collapse: collapse;
+}
+#globalXYTools td {
+  width:25px;
+  height:22px;
+  text-align: center;
+}
+#globalXYTools td div {
+  cursor:pointer;
 }

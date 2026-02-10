@@ -1,13 +1,13 @@
 if (lockHop) {hopSizeKnob.setValue(fftSizeKnob.getValue());}
-function restartRender(autoPlay){
+function restartRender(autoPlay,overrideHasCanvases=false){
   autoPlayOnFinish = !!playing || !!autoPlay;
   fftSize = fftSizeKnob.getValue();
   hop = Math.floor(hopSizeKnob.getValue());
   win = hann(fftSize);
 
   framesTotal = Math.max(1, Math.floor((emptyAudioLength*sampleRate - fftSize) / hop) + 1);
-  iLow = 0;
-  iHigh = framesTotal;
+  // iLow = 0;
+  // iHigh = framesTotal;
   const freqBins = Math.floor(fftSize / 2);
   
   const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (getLayerHeight()) / freqBins, 1) : layerHeight;
@@ -20,7 +20,7 @@ function restartRender(autoPlay){
   if (currentLayer >= layerCount) currentLayer = layerCount-1;
   for (let ch = 0; ch < layers.length; ch++){
     let timeline, canvas, overlayCanvas, yAxis, specCanvas, logscaleEl;
-    if (!layers[ch].hasCanvases) {
+    if (!layers[ch].hasCanvases||overrideHasCanvases) {
       let w = document.getElementById("canvasWrapper-"+ch);
       const wrapper = (w!==null)?w:document.createElement("div");
       wrapper.innerHTML = "";
@@ -86,6 +86,12 @@ function restartRender(autoPlay){
     overlayCanvas.style.top = (40 + ch*offsetY)+"px";
     yAxis.style.top =(40 + ch*offsetY)+"px";
     logscaleEl.style.top =(ch*offsetY)+"px";
+
+    if (document.getElementById("blurX").checked) {
+      canvas.style.cssText = "cursor:"+(movingSprite?'grabbing':'crosshair')+";position:absolute;left:40px;top:"+(40 + ch*offsetY)+"px";
+      overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
+    }
+    
     timeline.style.display=(ch<layerCount)?"block":"none";
     canvas.style.display=(ch<layerCount)?"block":"none";
     overlayCanvas.style.display=(ch<layerCount)?"block":"none";

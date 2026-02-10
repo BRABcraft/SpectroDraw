@@ -250,7 +250,7 @@ function canvasMouseMove(e,touch,el) {
     let db = (20 * Math.log10(normalizedMag)).toFixed(1);
     info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`;
   }
-  if (!painting && (currentShape === "brush" ||currentShape === "note" || (!document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image"))) && !movingSprite) {
+  if (!painting && (currentShape === "brush" ||currentShape === "synth" || (!document.getElementById("dragToDraw").checked&&(currentShape === "stamp"||currentShape === "image"))) && !movingSprite) {
     previewShape(cx, cy);
     previewingShape = true;
     return;
@@ -270,7 +270,7 @@ function canvasMouseMove(e,touch,el) {
   if(!painting && currentTool != "image") return;
   
   mouseVelocity = Math.sqrt(Math.pow(cx-prevMouseX,2)+Math.pow(cy-prevMouseY,2));
-  if (currentShape !== "brush"&&currentShape !== "note") {
+  if (currentShape !== "brush"&&currentShape !== "synth") {
     previewShape(cx, cy);
     previewingShape = true;
   } else {
@@ -340,7 +340,7 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
     const startFrame = Math.round(cx + iLow);
     const snapSize = 30/bpm/subBeat;
     let brushS = (brushSize)*((fHigh-fLow)/(sampleRate/4));
-    if (currentShape === "note") brushS = 1;
+    if (currentShape === "synth") brushS = 1;
 
     let startTime = Math.floor((sx2/(sampleRate/hop))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
     let startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);

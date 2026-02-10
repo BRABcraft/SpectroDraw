@@ -226,7 +226,8 @@ let handlers = {
     el.addEventListener('contextmenu', (e)=> preventAndOpen(e, makeLogscaleMenu));
   }
 }
-
+//REDUNDANT FUNCTIONS
+function updateBrushPreview() {}
 //GLOBAL HELPER FUNCTIONS
 
 function getCanvasCoords(e,touch){

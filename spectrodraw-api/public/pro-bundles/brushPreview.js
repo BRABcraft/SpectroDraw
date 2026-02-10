@@ -188,7 +188,6 @@ function updateBrushWH() {
     bh.value = bh1.value = brushHeight = prevBrushDims[2];
   }
 }
-// ---------- Replace your existing updateBrushPreview function with this ----------
 function updateBrushPreview() {
   if (currentShape !== 'image' && currentShape !== 'stamp') prevBrushDims = [brushSize, brushWidth, brushHeight];
   const preview = document.getElementById("strokePreview");
@@ -204,10 +203,6 @@ function updateBrushPreview() {
       hex = '0' + hex;
     }
     return hex;
-  }
-  function adjustSaturation([r,g,b], factor){
-    let avg = Math.max(r,g,b);
-    return [r,g,b].map(v => Math.round(avg + (v-avg)*factor));
   }
   let pan = panShift;
   let rgb;
@@ -330,7 +325,7 @@ function updateBrushPreview() {
   }
 
   // Special shapes that had big custom code (note, cloner) are left as original behavior:
-  if (currentShape === "note" && !(currentTool==="cloner"&&changingClonerPos)) {
+  if (currentShape === "synth" && !(currentTool==="cloner"&&changingClonerPos)) {
     // keep original note code (unchanged)
     // ... (we'll reuse your original 'note' block)
     // We'll copy-paste original note code here to preserve behavior:

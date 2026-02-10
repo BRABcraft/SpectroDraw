@@ -655,7 +655,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
   const f = getSineFreq(yDisplay);
   if (alignPitch) {
     let nearestPitch = Math.round(npo * Math.log2(f / startOnP));
-    while (notesCircle._notes[nearestPitch % npo] === 0) nearestPitch++;
+    while (notesCircle._notes[(nearestPitch+npo*1000) % npo] === 0) nearestPitch++;
     nearestPitch = startOnP * Math.pow(2, nearestPitch / npo);
     displayYFloat = ftvsy(nearestPitch, ch);
   }
@@ -720,7 +720,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
     }
   }
   const binShift = (currentTool==="cloner")?displayYToBin(clonerY+(yDisplay-visibleToSpecY(startY))/clonerScale,specHeight,ch):null;
-  if (currentShape === "note" || currentShape === "line") {
+  if (currentShape === "synth" || currentShape === "line") {
     const harmArr = harmonics;
     let i = 0, binF = 0;
     while (binF<specHeight && i<400) {
@@ -729,11 +729,11 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
       const freqI = getSineFreq(displayYFloat) * (i + 1);
       const displayY_i = ftvsy(freqI, ch);
       binF = displayYToBin(displayY_i, specHeight, ch);
-      const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
+      const velFactor = (currentShape==="synth")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
       if (document.getElementById("enableChorus").checked && chorusVoices > 1) {
         // split harmonic energy across voices; preserve approximate total energy:
         // main voice gets some portion, others get (chorusWet / voices) each.
-        const baseMag = mag * harmVal * 1;
+        const baseMag = mag * harmVal;
         const perVoiceMag = baseMag * (chorusVoiceStrength / chorusVoices);
         const mainMagRemain = baseMag * (1 - chorusVoiceStrength);
 
@@ -780,7 +780,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
   binStart = Math.max(0, binStart);
   binEnd   = Math.min(specHeight - 1, binEnd);
   for (let bin = binStart; bin <= binEnd; bin++) {
-    const velFactor = (currentShape==="note")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
+    const velFactor = (currentShape==="synth")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
     processBin(bin, bo*velFactor);
   }
 }
@@ -1023,7 +1023,7 @@ function paint(cx, cy) {
     vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
     const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
     const radiusXFrames = Math.floor((brushWidth/2/canvas.getBoundingClientRect().width*canvas.width)*vr);
-    const z = (currentShape==="note")
+    const z = (currentShape==="synth")
     const dx = (z?0:radiusXFrames), dy = (z?0:radiusY);
     const minXFrame = Math.max(0, Math.floor(Math.min(cx,prevMouseX) - dx));
     const maxXFrame = Math.min(fullW - 1, Math.ceil(Math.max(cx,prevMouseX) + dx));
@@ -1112,7 +1112,7 @@ function paint(cx, cy) {
           const nearestY = p0y + t * vy;
           const dx = xx - nearestX;
           const dy = yy - nearestY;
-          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.001:1)) continue;
+          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="synth"?0.001:1)) continue;
           drawPixel(xx, yy, brushMag, brushPhase, brushPan, bo, po, ch);
         }
       }
@@ -1173,7 +1173,7 @@ function paint(cx, cy) {
           const nearestY = p0y + t * vy;
           const dx = xx - nearestX;
           const dy = yy - nearestY;
-          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="note"?0.1:1)) continue;
+          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="synth"?0.1:1)) continue;
           drawPixel(xx, yy, 1, phaseShift, 1, bo, po, ch);
         }
       }

@@ -13,7 +13,7 @@ function updateAllVariables(keyWord){
           errorEl.style.display = "block";
           errorEl.innerText = result;
         } else {
-          console.log(result);
+          console.log(expr,result);
         }
         setValue(parseExpression(exprObj,defaultExpressions[expressionId]));
       } else {
@@ -222,7 +222,7 @@ function updateBrushSettingsDisplay(){
     }
   }
   if (c("cloner")&&(d("image")||d("stamp"))) currentTool = "fill";
-  if (c("autotune")&&(d("image")||d("note"))) currentTool = "fill";
+  if (c("autotune")&&(d("image")||d("synth"))) currentTool = "fill";
   if (c("noiseRemover")&&d("image")) currentTool = "fill";
   if (showEffectSettings) {
     s("amplifyDiv",       c("amplifier")||c("cloner"));
@@ -254,12 +254,13 @@ function updateBrushSettingsDisplay(){
   bs.style.display = (showToolSettings && (((d('line') || d('image') && !dragToDraw)) || (!(d('line') || d('image')) && !(d('rectangle') || d('note')))))?"flex":"none";
 
   let disp = showToolSettings?true:false;;
-  if (d("line") || d("rectangle") || d("note")) disp = false;
+  if (d("line") || d("rectangle") || d("synth")) disp = false;
   if (d("image")) disp=true;
   if (dragToDraw) disp=false;
   s("brushWidthDiv", disp);
   s("brushHeightDiv", disp);
-  const showSynthSettings = d("note") || d("line");
+  const showSynthSettings = d("synth") || d("line");
+  document.getElementById("synthPresetsDiv").style.display = showSynthSettings?"block":"none";
   document.getElementById("synthSettingsDiv").style.display = showSynthSettings?"block":"none";
   if (showSynthSettings) renderHarmonicsCanvas();
   document.getElementById("stampsDiv").style.display = d("stamp")?"block":"none";
@@ -271,7 +272,7 @@ function updateBrushSettingsDisplay(){
           <option value="fill">Fill</option> 
           ${d("image")?"":'<option value="noiseRemover">AI Noise Remover</option>'}
           ${(d("image")||d("stamp"))?"":'<option value="cloner">Cloner</option>'}
-          ${(d("image")||d("note"))?"":'<option value="autotune">Autotune</option>'}
+          ${(d("image")||d("synth"))?"":'<option value="autotune">Autotune</option>'}
           <option value="amplifier">Amplifier</option>
           <option value="eraser">Eraser</option>
           <option value="blur">Blur</option>
@@ -287,7 +288,7 @@ document.getElementById("dragToDraw").addEventListener("input",()=>{updateBrushS
 function shouldHide(t){
   function d(b){return currentShape===b;}
   return (t==="cloner"      &&(d("image")||d("stamp")))
-       ||(t==="autotune"    &&(d("image")||d("note" )))
+       ||(t==="autotune"    &&(d("image")||d("synth" )))
        ||(t==="noiseRemover"&& d("image")
        ||(d("select")));
 }
@@ -295,7 +296,7 @@ function onToolChange(tool){
   function c(b){return tool===b;}
   function d(b){return currentShape===b;}
   if (c("cloner")&&(d("image")||d("stamp"))) tool = "fill";
-  else if (c("autotune")&&(d("image")||d("note"))) tool = "fill";
+  else if (c("autotune")&&(d("image")||d("synth"))) tool = "fill";
   else if (c("noiseRemover")&&d("image")) tool = "fill";
   currentTool = tool;
   toolButtons.forEach(b => {
@@ -333,7 +334,7 @@ function onShapeChange(shape){
   function c(b){return currentTool===b;}
   function d(b){return shape===b;}
   if (c("cloner")&&(d("image")||d("stamp"))) onToolChange('fill');
-  else if (c("autotune")&&(d("image")||d("note"))) onToolChange('fill');
+  else if (c("autotune")&&(d("image")||d("synth"))) onToolChange('fill');
   else if (c("noiseRemover")&&d("image")) onToolChange('fill');
   else onToolChange(currentTool);
   updateBrushSettingsDisplay();
@@ -427,7 +428,7 @@ function keyBind(event) {
       } else if (key === 'l') {
         document.getElementById("lineBtn").click();
       } else if (key === 'o') {
-        document.getElementById("noteBtn").click();
+        document.getElementById("synthBtn").click();
       } else if (key === 's') {
         document.getElementById("stampBtn").click();
       } else if (key === 'x') {
@@ -2286,4 +2287,8 @@ colorSchemeEl.addEventListener("change",()=>{
     magCSEl.value = "v";phaseCSEl.value = "h";panCSEl.value = "s";
   }
   updateMagPhasePanMapping();
+});
+document.getElementById("blurX").addEventListener("input",()=>{
+  minCol=0;maxCol=framesTotal;
+  restartRender(false,true);
 });

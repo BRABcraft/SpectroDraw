@@ -868,14 +868,14 @@ function setDocked(panel, dockObj){
       showHeader:true,
       innerHTML:`<div style="overflow-y:auto;overflow-x:hidden;">
     <canvas id="strokePreview" width="300" height="100" style="border:1px solid #ccc; display:block; margin-top:10px;"></canvas>
-    <!--Tool select: Common: {Note brush (harmonics), Stamp, Cloner, Line}, Special: {Pressure brush, Rectangle, Image overlay} -->
+    <!--Tool select: Common: {Synth Brush (harmonics), Stamp, Cloner, Line}, Special: {Pressure brush, Rectangle, Image overlay} -->
     <div class="slider-row" title="Size" id="brushToolSelectDiv">
       <label class="h2">Tool</label>
       <select id="brushToolSelect">
-        <option value="note" selected>Note Brush</option>
+        <option value="synth">Synth Brush</option>
         <option value="stamp">Stamp</option>
         <option value="line">Line</option>
-        <option value="brush">Pressure Brush</option>
+        <option value="brush" selected>Pressure Brush</option>
         <option value="rectangle">Rectangle</option>
         <option value="image">Image Overlay</option>
         <option value="select">Selection</option>
@@ -948,19 +948,15 @@ function setDocked(panel, dockObj){
         <input id="brushOpacity"  type="range" min="0" max="1" value="1" step="0.01">
         <input id="brushOpacityInput" type="number" value="1" min="0" max="1">
       </div>
+      <div class="slider-row" title="Synths Preset" id="synthPresetsDiv" style="display:none;">
+        <label class="h2">Synth preset</label>
+        <select id="synthPresets"></select>
+        <button id="saveSynthPreset" style="background:#333;color:#fff;border:none;border-radius:2px;">Save Preset</button>
+        <input id="loadSynthPreset" type="file" accept=".json" style="display:none;">
+      </div>
       <div id="synthSettingsDiv" style="display:none;">
-        <div class="slider-row" title="Harmonics Preset" id="harmonicsPresetSelectDiv">
-          <label class="h2">Harmonics preset</label>
-          <select id="harmonicsPresetSelect">
-            <option value="sine" selected>Sine wave</option>
-            <option value="triangle">Triangle wave</option>
-            <option value="square">Square wave</option>
-            <option value="saw">Saw wave</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
         <div id="brushHarmonicsEditorDiv" style="margin-left:10px;">
-          <h3 style="font-size:15px;margin:0;"id="brushHarmonicsEditorh3">Advanced Harmonics
+          <h3 style="font-size:15px;margin:0;"id="brushHarmonicsEditorh3">Harmonics
             <button type="button"
                     class="section-toggle"
                     data-target="brushHarmonicsEditorDiv"
@@ -968,6 +964,16 @@ function setDocked(panel, dockObj){
                     aria-label="Toggle Harmonics editor settings"
                     id="brushHarmonicsEditorDivToggleBtn"style="margin-right:15px;"></button>
           </h3>
+          <div class="slider-row" title="Harmonics Preset">
+            <label class="h2">Harmonics preset</label>
+            <select id="harmonicsPresetSelect">
+              <option value="sine" selected>Sine wave</option>
+              <option value="triangle">Triangle wave</option>
+              <option value="square">Square wave</option>
+              <option value="saw">Saw wave</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
           <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
         </div>
         <div id="chorusDiv">
@@ -1168,7 +1174,7 @@ function setDocked(panel, dockObj){
               </button>
             </td>
             <td>
-              <button title="Note brush (o)" class="shape-btn" id="noteBtn" data-shape="note">
+              <button title="Synth brush (o)" class="shape-btn" id="synthBtn" data-shape="synth">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20px" height="20px"><path fill="#333" d="M28.6,178.2c0,0-13.7,53.7-18.6,74.8l26.3-36c-2.4-5.3-0.9-13.4,3.2-17.9c5.6-6.1,15.6-6.1,21.7-0.5c6.2,5.6,6.5,15.1,1,21.2c-4.3,4.6-12.1,6.5-17.7,4.4l-32.9,30.9l69.3-26.8l27.8-41.7l-36.4-34.1L28.6,178.2z M223.3,1.4c-10.5,7.2-142,140.9-142,140.9l37,35.4c0,0,111.5-132,127.7-158.8C243.6-3.8,223.3,1.4,223.3,1.4z"/></svg>
               </button>
             </td>
@@ -1953,6 +1959,10 @@ function setDocked(panel, dockObj){
             <button id="downloadSpectrogram" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
             <button id="downloadVideo" title="Download video" class="leftBtn">Download video</button>
             <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>
+          </div>
+          <div class="slider-row" title="Blur X">
+              <label class="h2">Blur X</label>
+              <input id="blurX" type="checkbox">
           </div>
           <hr>
           <div class="slider-row" title="Color scheme">

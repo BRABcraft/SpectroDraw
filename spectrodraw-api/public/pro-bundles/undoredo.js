@@ -171,11 +171,11 @@ function combineAndDraw(startSample, endSample) {
     ctx.fillRect(x + 0.5, Math.min(y1, y2), 1, height);
   }
 }
-
 function recomputePCMForCols(colStart, colEnd) {
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;
+  if (pianoMode) recomputeNotesForCols(colStart,colEnd);
   const marginCols = Math.ceil(fftSize / hop) + 2;
   const colFirst = Math.max(0, colStart - marginCols);
   const colLast  = Math.min(specWidth - 1, colEnd + marginCols);

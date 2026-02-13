@@ -1,7 +1,5 @@
-
 function recomputePCMForCols(colStart, colEnd, opts = {}) {
   if (!pcm || !mags || !phases) return;
-
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;

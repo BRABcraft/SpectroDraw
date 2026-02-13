@@ -402,6 +402,7 @@ input[type="number"],input[type="text"] {
   display: inline-grid;
   place-items: center;
 }
+input[type="checkbox"] {cursor:pointer;}
 .ctx-check.checked { background: #2b8aef; color: white; }
 .ctx-sep { height: 1px; margin: 6px 0; background: rgba(255,255,255,0.03); }
 .ctx-submenu {
@@ -532,14 +533,14 @@ select {
   .small { font-size:12px; color:#666; }
   .muted { color:#777; font-size:12px; }
 
-#moveSpriteBtn, #changeClonerPosBtn, #setNoiseProfile, #ssetNoiseProfile, #moveSpritesModeBtn {
+#moveSpriteBtn, #changeClonerPosBtn, #setNoiseProfile, #ssetNoiseProfile, #moveSpritesModeBtn, #pianoModeButton {
   position: relative;
   overflow: hidden;
   z-index: 0;  /* establish stacking context */
 }
 
 /* gradient overlay */
-#moveSpriteBtn::before, #changeClonerPosBtn::before, #setNoiseProfile::before, #ssetNoiseProfile::before, #moveSpritesModeBtn::before {
+#moveSpriteBtn::before, #changeClonerPosBtn::before, #setNoiseProfile::before, #ssetNoiseProfile::before, #moveSpritesModeBtn::before, #pianoModeButton::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -549,7 +550,7 @@ select {
 
   z-index: -1;   /* put gradient behind the text */
 }
-#moveSpriteBtn.moving::before, #changeClonerPosBtn.moving::before, #setNoiseProfile.moving::before, #ssetNoiseProfile.moving::before, #moveSpritesModeBtn.moving::before {
+#moveSpriteBtn.moving::before, #changeClonerPosBtn.moving::before, #setNoiseProfile.moving::before, #ssetNoiseProfile.moving::before, #moveSpritesModeBtn.moving::before, #pianoModeButton.moving::before {
   opacity: 1;
 }
 .spriteEditorRow {
@@ -778,7 +779,7 @@ select {
 .expressionBox{
   border: 1px solid #fff;
   position:relative;
-  width:300px;
+  width:calc(100% - 10px);
   margin:0;
   background:#0b1220;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Consolas,monospace;
@@ -934,3 +935,19 @@ select {
 #globalXYTools td div {
   cursor:pointer;
 }
+.synthRow { display:flex; gap:3px; margin-bottom:3px; align-items:center; flex-wrap:wrap; }
+.synthControls select,
+.synthControls input[type=range],
+.synthControls input[type=number],
+.synthControls button {
+  background:#0b1220;
+  color:#fff;
+  border:1px solid #222;
+  border-radius:6px;
+  transform: none;
+  margin:0;
+}
+.synthSmall { font-size:12px; color:#fff; padding:6px;}
+.synthControl-row { display:flex; gap:3px; align-items:center; }
+.synthGroup { padding:4px; border-radius:6px; background:linear-gradient(180deg,#06121a,#07131b); border:1px solid #152a3a; }
+.synthPanel { background:#111; border:1px solid #222; padding:10px; border-radius:2px; }

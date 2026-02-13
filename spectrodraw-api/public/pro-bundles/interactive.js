@@ -484,17 +484,18 @@ function updateCursorLoop() {
   const specCanvas = document.getElementById("spec-"+currentLayer);
   if (!specCanvas) return;
   const specCtx = specCanvas.getContext("2d");
-  if (playing && !painting && layers[currentLayer].pcm[0] && sourceNode) {
-    const elapsed = audioCtx.currentTime - sourceStartTime; 
-    let samplePos = elapsed * sampleRate;
-
-    if (sourceNode.loop) {
-      samplePos = samplePos % layers[currentLayer].pcm[0].length; 
+  if (playing && !painting && layers[currentLayer].pcm[0] && (sourceNode||pianoMode)) {
+    if (!pianoMode) {
+      const elapsed = audioCtx.currentTime - sourceStartTime; 
+      let samplePos = elapsed * sampleRate;
+      if (sourceNode&&sourceNode.loop) {
+        samplePos = samplePos % layers[currentLayer].pcm[0].length; 
+      }
+      const frame = Math.floor(samplePos / hop);
+      currentCursorX = Math.min(frame, specWidth - 1);
+    } else {
+      currentCursorX = (notesStartOffset + (audioCtx.currentTime - notesStartTime))/emptyAudioLength*framesTotal;
     }
-
-    const frame = Math.floor(samplePos / hop);
-    currentCursorX = Math.min(frame, specWidth - 1);
-
     //specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
     //renderView();
     drawCursor(false);
@@ -505,13 +506,14 @@ function updateCursorLoop() {
 updateCursorLoop();
 
 function stopSource(preservePaused=false){
-    if(sourceNode){
-      sourceNode.stop();
-        sourceNode = null;
-    }
+  if (pianoMode) stopNotesPlayback();
+  if(sourceNode){
+    sourceNode.stop();
+      sourceNode = null;
+  }
 
-    if (!preservePaused) pausedAtSample = null;
-    playing = false;
+  if (!preservePaused) pausedAtSample = null;
+  playing = false;
 }
 
 function _getPlaybackTarget() {
@@ -532,6 +534,7 @@ function _getPlaybackTarget() {
 
 async function playPCM(loop = true, startFrame = null) {
   ensureAudioCtx();
+  if (pianoMode) {if (startFrame) currentCursorX = startFrame; playNotes();return;}
 
   if (!layers || layers.length === 0) {
     console.warn("No layers to play.");
@@ -652,7 +655,7 @@ async function playPCM(loop = true, startFrame = null) {
 async function playFrame(frameX) {
   currentCursorX = frameX;
   ensureAudioCtx();
-
+  if (pianoMode) return;
   if (!layers || layers.length === 0) {
     console.warn("No layers available to play.");
     return;

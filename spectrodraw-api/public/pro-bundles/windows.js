@@ -1530,6 +1530,48 @@ function setDocked(panel, dockObj){
         </tbody>
       </table>
     </div>
+    <div style="align-content:center;margin-right:10px;">
+      <button title="Toggle piano mode" id="pianoModeButton" style="width:30px;height:30px;background:none;display:flex;align-items:center;justify-content:center;padding:0;border:none" onClick="this.blur();">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+            width="24" height="24" viewBox="0 0 24 22" 
+            fill="none" stroke="#fff" stroke-width="2" 
+            stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+          <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
+          <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
+          <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
+        </svg>
+      </button>
+      <button title="Open piano mode synth" id="pianoModeSettingsToggle" style="width:30px;height:30px;background:none;display:flex;align-items:center;justify-content:center;padding:0;border:none" onClick="this.blur();">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+            width="20" height="20" viewBox="0 0 24 24" 
+            fill="none" stroke="white" stroke-width="2" 
+            stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 
+                  1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 
+                  1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 
+                  1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 
+                  1 1-2.83-2.83l.06-.06a1.65 
+                  1.65 0 0 0 .33-1.82 1.65 
+                  1.65 0 0 0-1.51-1H3a2 2 0 
+                  1 1 0-4h.09a1.65 1.65 0 
+                  0 0 1.51-1 1.65 1.65 0 
+                  0 0-.33-1.82l-.06-.06a2 
+                  2 0 1 1 2.83-2.83l.06.06a1.65 
+                  1.65 0 0 0 1.82.33H9a1.65 
+                  1.65 0 0 0 1-1.51V3a2 2 
+                  0 1 1 4 0v.09a1.65 1.65 0 
+                  0 0 1 1.51 1.65 1.65 0 
+                  0 0 1.82-.33l.06-.06a2 
+                  2 0 1 1 2.83 2.83l-.06.06a1.65 
+                  1.65 0 0 0-.33 1.82V9c0 
+                  .69.28 1.35.77 1.82.49.47 
+                  1.15.77 1.82.77h.09a2 2 
+                  0 1 1 0 4h-.09c-.69 0-1.35.28-1.82.77z"/>
+        </svg>
+      </button>
+    </div>
     <div class="knob-wrapper">
       <button id="playPause" title="Play (space)" style="background:linear-gradient(180deg,#2b2b2b,#161616);border:0;border-radius:50%;width:75px;height:75px;" onClick="this.blur();">
         <svg xmlns="http://www.w3.org/2000/svg" fill="#333" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
@@ -1773,7 +1815,7 @@ function setDocked(panel, dockObj){
       name:"MIDI Export",
       id:"midiExportWindow",
       width:300,
-      height:240,
+      height:440,
       docked:false,
       dockEdge:"none",
       dockTo:null,
@@ -1782,8 +1824,8 @@ function setDocked(panel, dockObj){
       moving:false,
       resizing:false,
       minimized:false,
-      left:window.innerWidth/2-150,
-      top:window.innerHeight/2-120,
+      left:window.innerWidth/2-250,
+      top:window.innerHeight/2-220,
       showing:false,
       showHeader:true,
       innerHTML:`<input type="checkbox" id="useMidiAI" title="Use AI model (Ideal for songs)">Use BasicPitch AI</input>
@@ -2052,6 +2094,162 @@ function setDocked(panel, dockObj){
       </div>
       <div id="layersMixerDiv"></div>`
   });
+  
+  newWindow({
+      name:"Piano Mode Synth Editor",
+      id:"pianoModeSettings",
+      width:900,
+      height:700,
+      docked:false,
+      dockEdge:"none",
+      dockTo:null,
+      layer:1,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:window.innerWidth/2-450,
+      top:window.innerHeight/2-350,
+      showing:false,
+      showHeader:true,
+      innerHTML:`<div class="synthControls">
+    <div class="synthGroup synthPanel">
+      <div class="synthRow" style="display:flex; align-items:center; gap:8px;">
+        
+        <label for="presetSelect">Preset</label>
+        <select id="presetSelect"></select>
+        <button id="savePresetBtn">Save</button>
+        <button id="loadPresetBtn">Load</button>
+        <input id="uploadPresets" style="display:none;" type="file" accept=".json" />
+
+        <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+          <label class="synthSmall">Detune (cents)</label>
+          <input id="detune" type="range" min="-1200" max="1200" step="1" value="0" />
+          <span id="detuneVal" class="synthSmall">0</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="synthGroup synthPanel">
+      <div style="display: flex;align-items: center;">
+        <label>Harmonics</label>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+          <select id="waveSelect"></select>
+        </div>
+      </div>
+      <canvas id="harmonicCanvas"
+              width="800"
+              height="100"
+              style="width:100%;background:#07101a; border:1px solid #123; border-radius:6px; cursor:n-resize;">
+      </canvas>
+    </div>
+    <div style="display:flex;flex-direction:row;">
+      <div class="synthGroup synthPanel" style="width:35%;">
+        <label>Modulation</label>
+        <canvas id="filterPad" width="200" height="200" style="border:1px solid #444;cursor:crosshair;"></canvas>
+        <div class="synthRow">
+          <label class="synthSmall">X - Lowpass (hz)</label>
+          <input id="lpVal" type="number" value="18000" min="20" max="22050" />
+        </div>
+        <div class="synthRow">
+          <label class="synthSmall">Y - Highpass (hz)</label>
+          <input id="hpVal" type="number" value="20" min="20" max="22050" />
+        </div>
+        <div class="synthRow">
+          <label class="synthSmall">Resonance (Q)</label>
+          <input id="filterQ" type="range" min="0.1" max="30" step="0.1" value="0.7" />
+          <span id="filterQVal" class="synthSmall">0.7</span>
+        </div>
+      </div>
+
+      <div class="synthGroup synthPanel" id="envelopePanel" style="width:65%;">
+        <label>Envelopes</label>
+
+        <!-- Tabs -->
+        <div class="env-tabs" style="margin:6px 0;">
+          <button class="env-tab active" data-tab="Volume">Volume</button>
+          <button class="env-tab" data-tab="Pitch">Pitch</button>
+          <button class="env-tab" data-tab="Pan">Pan</button>
+          <button class="env-tab" data-tab="Mod">Mod</button>
+        </div>
+
+        <!-- Canvas -->
+        <canvas id="envCanvas" width="620" height="170" style="width:100%;border:1px solid #333;border-radius:6px;display:block;touch-action:none;cursor:pointer;"></canvas>
+
+        <!-- Knobs row -->
+        <div class="env-knobs" style="display:flex;gap:14px;margin-top:10px;align-items:center;">
+          <div class="knob-wrapper">
+            <div class="knob" id="attackKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+          </div>
+          <div class="knob-wrapper">
+            <div class="knob" id="delayKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+          </div>
+          <div class="knob-wrapper">
+            <div class="knob" id="sustainKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+          </div>
+          <div class="knob-wrapper">
+            <div class="knob" id="releaseKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+          </div>
+          <div class="knob-wrapper">
+            <div class="knob" id="amtKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="synthGroup synthPanel">
+      <label>Effects</label>
+      <div class="synthRow" style="gap:0; align-items:flex-start;">
+        <div style="min-width:200px;width:33%;border:1px solid #333;border-radius:4px;">
+          <input id="chorusEnable" type="checkbox">
+          <label class="synthsmall" style="font-size:14px;">Chorus</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+            <div class="knob-wrapper">
+              <div class="knob" id="chorusRateKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+            <div class="knob-wrapper">
+              <div class="knob" id="chorusDepthKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+            <div class="knob-wrapper">
+              <div class="knob" id="chorusMixKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-width:200px;width:33%;border:1px solid #333;border-radius:4px;">
+          <input id="delayEnable" type="checkbox">
+          <label class="synthsmall" style="font-size:14px;">Delay</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+            <div class="knob-wrapper">
+              <div class="knob" id="delayTimeKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+            <div class="knob-wrapper">
+              <div class="knob" id="delayFBKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+            <div class="knob-wrapper">
+              <div class="knob" id="delayMixKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-width:200px;width:33%;border:1px solid #333;border-radius:4px;">
+          <input id="reverbEnable" type="checkbox">
+          <label class="synthsmall" style="font-size:14px;">Reverb</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+            <div class="knob-wrapper">
+              <div class="knob" id="reverbDecayKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+            <div class="knob-wrapper">
+              <div class="knob" id="reverbMixKnob" data-knob="true" aria-hidden="true">${knobSVG}</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>`
+  });
 })();
 function getLayerHeight(){
   return parseInt(panels[5].obj.style.height);
@@ -2072,4 +2270,5 @@ uploads: 9
 preferences: 10
 eq: 11
 layers: 12
+pianoModeSettings: 13
 */

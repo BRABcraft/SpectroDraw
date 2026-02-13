@@ -258,30 +258,114 @@ function drawEQ() {
 function drawSpectrals() {
   const bandCount = 128;
   const pos = currentCursorX * hop;
-  if (!layers || !layers[0] || !layers[0].pcm[0]) { return false; }
-  if (pos + fftSize > layers[0].pcm[0].length) { rendering = false; status.style.display = "none"; return false; }
-  const re = new Float32Array(fftSize);
-  const im = new Float32Array(fftSize);
-  for (let i = 0; i < fftSize; i++) { re[i] = (layers[0].pcm[0][pos + i] || 0) * win[i]; im[i] = 0; }
-  fft_inplace(re, im);
 
-  // compute magnitudes per FFT bin
-  const magBuf = new Float32Array(fftSize / 2);
-  for (let i = 0; i < magBuf.length; i++) {
-    magBuf[i] = Math.hypot(re[i] || 0, im[i] || 0);
+  // magBuf will be filled by either PCM branch or pianoMode (oscillator) branch
+  let magBuf = null;
+
+  if (pianoMode) {
+    // --- piano/oscillator branch: sample from WebAudio graph via AnalyserNode ---
+    if (!audioCtx) return false;
+    const ctx = audioCtx;
+    //console.log(269);
+
+    // create a persistent analyser on the audioCtx if not present or if fftSize changed
+    if (!ctx._spectralAnalyser || ctx._spectralAnalyser.fftSize !== fftSize) {
+      try {
+        const a = ctx.createAnalyser();
+        a.fftSize = fftSize;
+        a.minDecibels = -100;
+        a.maxDecibels = 0;
+        a.smoothingTimeConstant = 0.05;
+        ctx._spectralAnalyser = a;
+        // NOTE: analyser does not need to be connected to destination; it must receive inputs from sources.
+      } catch (e) {
+        console.warn("Failed to create analyser:", e);
+        return false;
+      }
+    }
+    const analyser = ctx._spectralAnalyser;
+
+    // scheduledNodes should exist from playNotes; bail if nothing playing
+    if (!scheduledNodes || scheduledNodes.length === 0) {
+      // nothing to sample
+      return false;
+    }
+
+    // Connect each scheduled node's gain to the analyser (if not already connected).
+    // Prefer connecting a single shared masterGain if available for efficiency.
+    try {
+      // If you have a global master gain that all notes feed through, connect that and skip per-note tapping:
+      // if (typeof masterGain !== 'undefined' && masterGain && !masterGain.__spectralTapped) { masterGain.connect(analyser); masterGain.__spectralTapped = true; }
+
+      for (const sn of scheduledNodes) {
+        try {
+          const g = sn.gain;
+          if (g && !g.__spectralTapped) {
+            // connecting a gain node to analyser just taps audio for analysis (summing is fine)
+            try { g.connect(analyser); } catch (connectErr) { /* ignore if already connected */ }
+            g.__spectralTapped = true;
+          }
+        } catch (e) {
+          // ignore malformed scheduledNodes entries
+        }
+      }
+    } catch (e) {
+      console.warn("Error while connecting scheduled nodes to analyser:", e);
+    }
+
+    // read frequency-domain data (dB) then convert to linear magnitude array like original code expects
+    try {
+      const freqBins = new Float32Array(analyser.frequencyBinCount); // fftSize/2
+      analyser.getFloatFrequencyData(freqBins); // values are in dB (negative)
+      magBuf = new Float32Array(freqBins.length);
+      for (let i = 0; i < freqBins.length; i++) {
+        const db = freqBins[i];
+        // convert dB to linear amplitude. db may be -Infinity or very small.
+        if (!isFinite(db) || db <= -100) {
+          magBuf[i] = 0;
+        } else {
+          magBuf[i] = Math.pow(10, db / 20);
+        }
+      }
+    } catch (e) {
+      console.warn("analyser getFloatFrequencyData failed:", e);
+      return false;
+    }
+  } else {
+    // --- original PCM branch (unchanged behavior) ---
+    if (!layers || !layers[0] || !layers[0].pcm || !layers[0].pcm[0]) { return false; }
+    if (pos + fftSize > layers[0].pcm[0].length) { rendering = false; status.style.display = "none"; return false; }
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+    for (let i = 0; i < fftSize; i++) { re[i] = (layers[0].pcm[0][pos + i] || 0) * win[i]; im[i] = 0; }
+    try {
+      fft_inplace(re, im);
+    } catch (e) {
+      console.warn("fft_inplace error:", e);
+      return false;
+    }
+
+    // compute magnitudes per FFT bin
+    magBuf = new Float32Array(fftSize / 2);
+    for (let i = 0; i < magBuf.length; i++) {
+      magBuf[i] = Math.hypot(re[i] || 0, im[i] || 0);
+    }
   }
+
+  // if we still don't have magBuf, abort
+  if (!magBuf || magBuf.length === 0) return false;
 
   // --- draw on main EQ canvas (existing behaviour) ---
   try {
     eCtx.strokeStyle = "rgba(255, 255, 255, 0.48)";
     eCtx.lineWidth = EQcanvas.height / bandCount / 1.25;
+    const magToDb = m => (m <= 0 ? -200 : 20 * Math.log10(m));
     for (let yy = 0; yy < bandCount; yy++) {
       // map lane 0..bandCount -> frequency (use fractional mapping through yToFreq)
       const freq = yToFreq((yy / bandCount) * EQcanvas.height, EQcanvas.height);
       // find corresponding FFT bin
       const bin = Math.min(magBuf.length - 1, Math.floor(freq / (sampleRate / 2) * (magBuf.length)));
       const mag = magBuf[bin] || 0;
-      const magToDb = m => (m <= 0 ? -200 : 20 * Math.log10(m));
       const magDb = magToDb(mag);
       // get the curve's gain at this displayed Y using the main canvas mapping
       const XonSpline = evalEQGainAtY((yy / bandCount) * EQcanvas.height);
@@ -337,7 +421,64 @@ function drawSpectrals() {
       }
     } catch (e) { console.warn("drawSpectrals eqCanvas2 error:", e); }
   }
+  return true;
 }
+
+
+// Extracted drawing routine (keeps the original plotting code; expects magBuf length = fftSize/2)
+function _drawUsingMagBuf(magBuf) {
+  try {
+    eCtx.strokeStyle = "rgba(255, 255, 255, 0.48)";
+    eCtx.lineWidth = EQcanvas.height / 128 / 1.25;
+    for (let yy = 0; yy < 128; yy++) {
+      const freq = yToFreq((yy / 128) * EQcanvas.height, EQcanvas.height);
+      const bin = Math.min(magBuf.length - 1, Math.floor(freq / (sampleRate / 2) * (magBuf.length)));
+      const mag = magBuf[bin] || 0;
+      const magToDb = m => (m <= 0 ? -200 : 20 * Math.log10(m));
+      const magDb = magToDb(mag);
+      const XonSpline = evalEQGainAtY((yy / 128) * EQcanvas.height);
+      const gain = xToGain(XonSpline || 0, EQcanvas.width);
+      const db = magDb + (gain || 0);
+      const normalized = clamp((db + 60) / 120, 0, 1);
+      const lineTo = normalized * (EQcanvas.width);
+      eCtx.beginPath();
+      eCtx.moveTo(0, (yy / 128) * EQcanvas.height);
+      eCtx.lineTo(lineTo, (yy / 128) * EQcanvas.height);
+      eCtx.stroke();
+    }
+  } catch (e) { console.warn("drawSpectrals main canvas error:", e); }
+
+  // compact sideways spectral on eqCanvas2
+  if (eqCanvas2 && eCtx2) {
+    try {
+      const w2 = eqCanvas2.width, h2 = eqCanvas2.height;
+      const magToDb = m => (m <= 0 ? -200 : 20 * Math.log10(m));
+      eCtx2.lineWidth = 3;
+      const samples = Math.min(64, w2);
+      for (let sx = 0; sx < samples; sx++) {
+        const frac = sx / Math.max(1, samples - 1);
+        const freq = Math.pow(frac, FREQ_LOG_SCALE) * (sampleRate * 0.5);
+        const bin = Math.min(magBuf.length - 1, Math.floor(freq / (sampleRate / 2) * (magBuf.length)));
+        const mag = magBuf[bin] || 0;
+        const magDb = magToDb(mag);
+        const yOnMain = freqToY(freq, EQcanvas.height);
+        const XonSpline = evalEQGainAtY(yOnMain);
+        const gainDb = xToGain(XonSpline || 0, EQcanvas.width);
+        const db = magDb + (gainDb || 0);
+        const norm = clamp((db + 60) / 120, 0, 1);
+        const barTop = (1 - norm) * h2;
+        const px = Math.floor(freqToXSide(freq, w2));
+        eCtx2.strokeStyle = "rgba(255, 255, 255, 0.48)";
+        const barW = Math.max(1, Math.floor(w2 / samples));
+        eCtx2.beginPath();
+        eCtx2.moveTo(px - Math.floor(barW / 2), h2);
+        eCtx2.lineTo(px - Math.floor(barW / 2), barTop);
+        eCtx2.stroke();
+      }
+    } catch (e) { console.warn("drawSpectrals eqCanvas2 error:", e); }
+  }
+}
+
 
 
 function findHit(pos) {

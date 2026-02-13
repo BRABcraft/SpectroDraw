@@ -463,7 +463,6 @@ function keyBind(event) {
         document.getElementById("uploadsBtn").click();
       } else if (key === 'o') {
         document.getElementById("uploadsBtn").click();
-        fileEl.click();
       } else if (key === 's') {
         document.getElementById('downloadWav').click();
       } else if (key === 'm') {
@@ -1043,16 +1042,16 @@ function updatePhaseTextureExpression() {
   let expr = "";
   switch (phaseTextureEl.value) {
     case 'Harmonics':
-      expr = "pixel.bin + brush.effect.phaseShift;";
+      expr = "pixel.bin + brush.effect.phaseShift";
       break;
     case 'Static':
-      expr = "Math.random() * 2 * Math.PI + brush.effect.phaseShift;";
+      expr = "Math.random() * 2 * Math.PI + brush.effect.phaseShift";
       break;
     case 'Flat':
-      expr = "brush.effect.phaseShift;";
+      expr = "brush.effect.phaseShift";
       break;
     case 'ImpulseAlign':
-      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.t0) / specHeight;";
+      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.t0) / specHeight";
       break;
     case 'FrameAlignedImpulse': 
       expr=`const frameTime = (pixel.frame * hop) / sampleRate;
@@ -1070,23 +1069,23 @@ if (pixel.frame > 0 && layers[currentLayer].phases[prevIdx] !== undefined) {
 }
 if (prevPhase !== null && isFinite(prevPhase)) {
   const expected = prevPhase + (Math.PI * pixel.bin * hop) / specHeight;
-  phi = expected + brush.effect.phaseSettings.userDelta;
+  return expected + brush.effect.phaseSettings.userDelta;
 } else {
-  phi = (Math.PI * pixel.bin * pixel.frame * hop) / specHeight;
+  return (Math.PI * pixel.bin * pixel.frame * hop) / specHeight;
 }`;
       break;
     case 'RandomSmall':
-      expr = "brush.effect.phaseShift + (Math.random() * 2 - 1) * brush.effect.phaseSettings.sigma;";
+      expr = "brush.effect.phaseShift + (Math.random() * 2 - 1) * brush.effect.phaseSettings.sigma";
       break;
     case 'HarmonicStack': 
       expr = `const center = Math.max(1, brush.effect.phaseSettings.harmonicCenter);
 return brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.t0) / specHeight + (k % center) * 0.12;`;
       break;
     case 'LinearDelay':
-      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.tau) / specHeight;";
+      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * sampleRate * brush.effect.phaseSettings.tau) / specHeight";
       break;
     case 'Chirp':
-      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * pixel.frame * hop) / specHeight - Math.pow(pixel.bin, 1.05) * brush.effect.phaseSettings.chirpRate;";
+      expr = "brush.effect.phaseShift - (Math.PI * pixel.bin * pixel.frame * hop) / specHeight - Math.pow(pixel.bin, 1.05) * brush.effect.phaseSettings.chirpRate";
       break;
     case 'CopyFromRef': 
       expr = `const refIx = (brush.effect.phaseSettings.refPhaseFrame * specHeight + pixel.bin) | 0;
@@ -1101,13 +1100,16 @@ phi = layers[currentLayer].phases[refIx];`;
   }
   exprObj.expression = expr;
   exprObj.lines = expr.split(/\r\n|\r|\n/);
+  exprObj.hasChanged = false;
+  hideExpression(exprObj.id);
+  showExpression(exprObj.id);
 }
 phaseTextureEl.addEventListener("input",()=>{
   updatePhaseTextureSettings();
   updateBrushPreview();
   updatePhaseTextureExpression();
 });
-let customPanExpr = "brush.effect.phaseShift", prevPanTexture="Static";
+let customPanExpr = "brush.effect.panShift", prevPanTexture="Flat";
 function updatePanTextureExpression() {
   const exprObj = getExpressionById("brushPanTextureDiv");
   const panTextureEl = document.getElementById("brushPanTexture");
@@ -1117,10 +1119,10 @@ function updatePanTextureExpression() {
   let expr = "";
   switch (panTextureEl.value) {
     case 'Flat':
-      expr = "brush.effect.panShift;";
+      expr = "brush.effect.panShift";
       break;
     case 'Random':
-      expr = "(Math.random() + brush.effect.panShift) % 1;";
+      expr = "(Math.random() + brush.effect.panShift) % 1";
       break;
     case 'XCircles':
       expr = "(Math.sin(pixel.frame/(sampleRate*0.63661/hop))/2+0.5 + brush.effect.panShift) % 1";
@@ -1930,6 +1932,16 @@ mvsmbtn.addEventListener("click",()=>{
   spritePath = null;
   if (!moveSpritesMode && movingSprite) document.getElementById('moveSpriteBtn').click();
   if (!moveSpritesMode) for (let ch=0;ch<layerCount;ch++)document.getElementById("canvas-"+ch).style.cursor = "crosshair";
+});
+const pianoModeBtn = document.getElementById("pianoModeButton");
+pianoModeBtn.addEventListener("click",()=>{
+  pianoMode = !pianoMode;
+  if (pianoMode) {
+    if(!notes || !Array.isArray(notes) || notes.length === 0){
+      recomputePCMForCols(0,framesTotal);
+    }
+  }
+  pianoModeBtn.classList.toggle('moving', pianoMode);
 });
 
 

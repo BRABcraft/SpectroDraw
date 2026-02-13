@@ -39,6 +39,7 @@ async function initEmptyPCM(doReset) {
       };
     }
   }
+  if (pianoMode) recomputeNotesForCols(0,framesTotal);
   sampleRate = sampleRateLocal;
   iLow = 0; iHigh = framesTotal;
   restartRender(false);

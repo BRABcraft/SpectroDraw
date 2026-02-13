@@ -192,6 +192,7 @@ let historyStack = [], historyIndex = 0;
 let moveSpritesMode = false, spriteHit = null;
 let panShift=0.5,panStrength=1,panBand=100;
 let chorusVoices=1,chorusVoiceStrength=0.6,chorusDetune=20,chorusPanSpread=0.25,chorusRandomness=0.1;
+let pianoMode = false;
 
 let handlers = {
   "canvas-": (el) => {
@@ -527,8 +528,7 @@ class Knob {
   _buildLabels() {
     this.labelsEl.innerHTML = "";
     if (!Array.isArray(this.range) || this.range.length < 2) return;
-
-    const size = this.el.clientWidth || 96;
+    const size = this.el.clientWidth || 72;
     const radius = size * 0.5 * 0.8;
     const cx = size / 2;
     const cy = size / 2;

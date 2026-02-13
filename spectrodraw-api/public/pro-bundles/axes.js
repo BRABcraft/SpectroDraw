@@ -426,22 +426,22 @@ document.addEventListener('keydown', function(event) {
 });
 
 function updateTimelineCursor() {
-    if (playing && !draggingTimeline && layers[0].pcm[0] && sourceNode) {
-        const elapsed = audioCtx.currentTime - sourceStartTime;
-        let samplePos = elapsed * sampleRate;
+  if (playing && !draggingTimeline && layers[0].pcm[0] && (sourceNode||pianoMode)) {
+    const elapsed = pianoMode?((notesStartOffset + (audioCtx.currentTime - notesStartTime))):audioCtx.currentTime - sourceStartTime;
+    let samplePos = elapsed * sampleRate;
 
-        if (sourceNode.loop) {
-            samplePos = samplePos % layers[0].pcm[0].length;
-        }
-
-        const frame = Math.floor(samplePos / hop);
-        timelineCursorX = Math.min(frame, specWidth-1);
-        currentCursorX = timelineCursorX;
-        drawTimeline();
-        drawYAxis();
-        drawCursor(true);
+    if (sourceNode&&sourceNode.loop) {
+        samplePos = samplePos % layers[0].pcm[0].length;
     }
-    requestAnimationFrame(updateTimelineCursor);
+
+    const frame = Math.floor(samplePos / hop);
+    timelineCursorX = Math.min(frame, specWidth-1);
+    currentCursorX = timelineCursorX;
+    drawTimeline();
+    drawYAxis();
+    drawCursor(true);
+  }
+  requestAnimationFrame(updateTimelineCursor);
 }
 
 // --- Zoom-on-pinch / wheel handlers -------------------------

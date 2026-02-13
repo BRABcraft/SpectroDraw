@@ -499,7 +499,7 @@ body{
     </div>
   </nav>
   <div id="early-access-banner">
-    <a style="text-decoration: none;" href="/buy-pro">Early access deal: Get Pro for free!</a>
+    <a style="text-decoration: none;" href="/buy-pro" id="countdown">Early access deal: Ends in </a>
   </div>
   <div id="login-panel" class="modal-overlay" aria-hidden="true">
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
@@ -925,6 +925,24 @@ body{
         if(e.key === 'Enter' || e.key === ' ') { el.querySelector('img')?.click(); }
       });
     });
+  </script>
+  <script>
+    const targetDate = new Date("February 28, 2026 00:00:00").getTime();
+    const content = document.getElementById("countdown");
+    function updateCountdown() {
+      const now = Date.now();
+      let diff = targetDate - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      diff %= 1000 * 60 * 60 * 24;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      diff %= 1000 * 60 * 60;
+      const minutes = Math.floor(diff / (1000 * 60));
+      diff %= 1000 * 60;
+      const seconds = Math.floor(diff / 1000);
+      content.innerHTML = `Early access deal: Get Pro for free! Ends in ${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>

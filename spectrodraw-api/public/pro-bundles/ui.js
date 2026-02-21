@@ -932,7 +932,7 @@ document.getElementById("saveAndStart").addEventListener('click', async () => {
     let t = layers[0].pcm[0].length / sampleRate;
     hopSizeKnob.setValue(lockHop?Math.pow(2,fftSizeKnob.getValue()):(t<0.5?128:(t<5?512:1024)));
     emptyAudioLength = Math.ceil(t);
-    document.getElementById("emptyAudioLengthInput").value = Math.ceil(t);
+    bufferLengthKnob.setValue(Math.ceil(t));
     minCol = 0; maxCol = Math.floor(layers[0].pcm[0].length/hopSizeKnob.getValue());
     iLow = 0;
     iHigh = framesTotal;

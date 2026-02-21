@@ -173,6 +173,12 @@
 .btn-primary:hover::before {
   background: rgba(7, 8, 11, 0.3); 
 }
+#sneakPeekButton {
+  transition: transform 0.2s ease;
+}
+#sneakPeekButton:hover {
+  transform: scale(1.02);
+}
 @media (max-width: 900px) {
   #countdown{
     font-size: 40px !important;
@@ -183,6 +189,32 @@
   }
 }
 #signin-cta,#signup-cta{color:#800;}
+#inlineSneak .loader-container {
+  background:#333;
+  height:100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px; /* space between spinner and text */
+  margin: 20px auto;
+  font-family: sans-serif;
+  font-size: 16px;
+  color: #ffffff; /* accent color */
+}
+
+#inlineSneak .loader {
+  border: 4px solid rgba(0,0,0,0.1);
+  border-left-color: #4f46e5;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+button{cursor:pointer;}
   </style>
 </head>
 <body>
@@ -192,9 +224,9 @@
       <div class="tagline">Interactive Spectrogram Editor</div>
     </div>
     <div class="nav-right">
-      <a href="/app" class="nav-link">Launch App</a>
-      <a href="/faq" class="nav-link">FAQ</a>
-      <a href="/pricing" class="nav-link">Pricing</a>
+      <a href="../app" class="nav-link">Launch App</a>
+      <a href="../faq" class="nav-link">FAQ</a>
+      <a href="../pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
       <div id="account-wrap" style="display:none; position:relative;">
@@ -244,7 +276,7 @@
           <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
           <button id="google-login" type="button" class="google">
             <span class="g-icon" aria-hidden="true">
-              <img src="/assets/Google__G__logo.svg" alt="">
+              <img src="../assets/Google__G__logo.svg" alt="">
             </span>
             <span id="google-btn-text">Log in with Google</span>
           </button>
@@ -262,9 +294,8 @@
     </div>
   </header>
 
-<main class="wrap">
   <div style="align-items: center; justify-content: center; display:flex;"><h1 id="countdown" style="font-size:50px;padding:0;margin:0;height:100px;color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);"></h1></div>
-  <section class="section body-copy">
+  <section class="section body-copy wrap">
     <h1 id="body-placeholder">Congratulations, you made it here early! 🎉</h1>
 <p>SpectroDraw Pro is still in development and hasn’t been officially released yet, <strong>but as an early visitor, you can get lifetime access for free (no credit card required).</strong><br>
 This early-access offer is limited and may end in about a month (exact date TBD).<br></p>
@@ -275,8 +306,15 @@ This early-access offer is limited and may end in about a month (exact date TBD)
 <p>Once your account is activated, you’ll be automatically notified when Pro launches, and you’ll get full access to all new features at no cost, forever.
 We’ll never ask you to pay for Pro after your early acess activation.</p>
   </section>
+  
+<div id="sneakPeekButton" style="cursor:pointer;margin: 18px auto;max-width:980px;height:150px;display:flex;align-items:center;justify-content:center;font-size:2rem;background:linear-gradient(45deg,#0f1b45,#3d2490);border-radius:12px;border: 4px dashed #fff;box-shadow:var(--card-glow2);font-weight:1000;margin-bottom:3rem;">Take a sneak peak at Pro</div>
+<div id="inlineSneakDiv" style="display:none;width:80%;margin:18px auto;">
+  <button id="openInNewTab">Open in new tab</button>
+  <div id="inlineSneak" style="height:600px;box-sizing:border-box;"></div>
+</div>
+<main class="wrap">
   <!-- Progress / "checkout" style flow -->
-  <section class="section" aria-labelledby="progress-title" style="margin-top:18px;">
+  <section class="section" aria-labelledby="progress-title" style="margin-top:18px;" id="checkout">
     <div id="requireSignin" style="font-size:2rem;color:red;">You must be signed in to claim Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signup-cta" href="#">Sign up</a></div>
     <h3 id="progress-title" style="margin:0 0 20px 0;">Claim SpectroDraw Pro for Free</h3>
     <div id="progress-wrap" style="display:flex;flex-direction:column;gap:18px;align-items:stretch;">
@@ -382,12 +420,12 @@ We’ll never ask you to pay for Pro after your early acess activation.</p>
               }
             </style>
             <div id="social-row" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;">
-              <button class="social-btn" data-provider="facebook"  title="Facebook"  style="background:#3b5998;"><img src="/assets/social-icons/facebook.svg"></button>
-              <button class="social-btn" data-provider="X"         title="X"         style="background:#000000;"><img src="/assets/social-icons/x.svg"></button>
-              <button class="social-btn" data-provider="pinterest" title="Pinterest" style="background:#E60023;"><img src="/assets/social-icons/pinterest.svg"></button>
-              <button class="social-btn" data-provider="linkedin"  title="LinkedIn"  style="background:#0072B1;"><img src="/assets/social-icons/linkedin.svg"></button>
-              <button class="social-btn" data-provider="reddit"    title="Reddit"    style="background:#FF4500;"><img src="/assets/social-icons/reddit.svg"></button>
-              <button class="social-btn" data-provider="gmail"     title="Gmail"     style="background:#FFFFFF;"><img src="/assets/social-icons/gmail.svg"></button>
+              <button class="social-btn" data-provider="facebook"  title="Facebook"  style="background:#3b5998;"><img src="../assets/social-icons/facebook.svg"></button>
+              <button class="social-btn" data-provider="X"         title="X"         style="background:#000000;"><img src="../assets/social-icons/x.svg"></button>
+              <button class="social-btn" data-provider="pinterest" title="Pinterest" style="background:#E60023;"><img src="../assets/social-icons/pinterest.svg"></button>
+              <button class="social-btn" data-provider="linkedin"  title="LinkedIn"  style="background:#0072B1;"><img src="../assets/social-icons/linkedin.svg"></button>
+              <button class="social-btn" data-provider="reddit"    title="Reddit"    style="background:#FF4500;"><img src="../assets/social-icons/reddit.svg"></button>
+              <button class="social-btn" data-provider="gmail"     title="Gmail"     style="background:#FFFFFF;"><img src="../assets/social-icons/gmail.svg"></button>
             </div>
 
             <div id="social-status" style="margin-top:8px;color:var(--muted);font-size:.95rem"></div>
@@ -2170,5 +2208,6 @@ window.addEventListener('message', async (ev) => {
     updateCountdown();
     const timer = setInterval(updateCountdown, 1000);
   </script>
+  <script src="sneakpeek.js"></script>
 </body>
 </html>

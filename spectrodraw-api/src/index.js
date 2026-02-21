@@ -21,8 +21,10 @@ export default {
       const user = await parseAuth(request, env);
 
       // Protect /api/* routes as before
-      if (pathname.startsWith("/api/") && !user) {
-        return addCors(json({ message: "Unauthorized request.header:" + (request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email")) + "; env: " + env }, 401), request);
+      if (pathname.startsWith("/api/") && pathname !== "/api/load-sneak-peak" && !user) {
+        return addCors(json({
+          message: "Unauthorized request.header:" + (request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email") || null)
+        }, 401), request);
       }
       // upload endpoint (no /api prefix so you can call POST /upload directly)
       if (pathname === "/upload" && request.method === "POST") {
@@ -58,6 +60,9 @@ export default {
       }
       if (pathname === "/api/pro-token" && request.method === "POST") {
         return addCors(await handleProToken(request, env), request);
+      }
+      if (request.method === "GET" && pathname === "/api/load-sneak-peak") {
+        return addCors(await handleSneakPeak(request, env), request);
       }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
         const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
@@ -776,5 +781,38 @@ async function handleProductList(request, user, env) {
   } catch (err) {
     console.error('handleProductList error:', err);
     return json({ message: err.message || 'Failed to list products' }, 500);
+  }
+}
+async function handleSneakPeak(request, env) {
+  try {
+    const kvBindingName = "SNEAK_PEAK";
+    const kv = env && env[kvBindingName];
+
+    if (!kv || typeof kv.get !== "function") {
+      console.error("SneakPeak: KV binding missing:", kvBindingName);
+      return new Response("Server misconfigured", { status: 500 });
+    }
+
+    // Your key name in KV
+    const key = "sneak-peak";
+
+    const js = await kv.get(key, { type: "arrayBuffer" });
+
+    if (!js) {
+      console.warn("SneakPeak: key not found in KV:", key);
+      return new Response("Sneak peak not available", { status: 404 });
+    }
+
+    return new Response(js, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "private, no-store, max-age=0"
+      }
+    });
+
+  } catch (err) {
+    console.error("SneakPeak error:", err);
+    return new Response("Internal server error", { status: 500 });
   }
 }

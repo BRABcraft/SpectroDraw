@@ -34,6 +34,10 @@
     {
       "binding": "__spectrodraw-api-workers_sites_assets",
       "id": "ee7ba8fe235947228299d7be7c0486e0"
+    },
+    {
+      "binding": "SNEAK_PEAK",
+      "id": "c3f4b080419142dfba58fe004ba4c66a"
     }
   ],
 

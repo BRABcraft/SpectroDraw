@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SpectroDraw — Sneak Peek</title>
+  <style>
+    /* ensure the inlineSneak element fills the viewport */
+    html, body { height: 100%; margin: 0; }
+    #inlineSneak { width: 100%; height: 100%; box-sizing: border-box; position: relative; overflow-y:hidden;}
+
+    /* loader styles */
+    .loader-container {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 22px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border-radius: 8px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      z-index: 9999;
+    }
+    .loader {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.15);
+      border-top-color: rgba(255,255,255,0.9);
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* basic safe container for the Pro iframe or content */
+    .pro-container { width:100%; height:100%; }
+    .pro-iframe { width:100%; height:100%; border:0; display:block; }
+
+    /* small fallback message */
+    .fallback-msg { position:absolute; left: 8px; bottom: 8px; font-size:13px; color: rgba(0,0,0,0.6); }
+  </style>
+</head>
+<body>
+  <div id="inlineSneak" aria-live="polite"></div>
+
+  <script>
+    // sneakpeek bootstrap script — loads SpectroDraw Pro bundle from KV and waits for 'spectrodraw-pro-ready'
+    (function () {
+      let hasLoadedPro = false;
+
+      async function loadPro() {
+        if (window.__spectrodraw_pro_loading) return;
+        if (hasLoadedPro) return;
+        window.__spectrodraw_pro_loading = true;
+
+        const inlineSneak = document.getElementById('inlineSneak');
+        if (!inlineSneak) {
+          console.warn('inlineSneak not found, aborting loadPro');
+          window.__spectrodraw_pro_loading = false;
+          return;
+        }
+
+        // create and show loader container
+        const loaderContainer = document.createElement("div");
+        loaderContainer.className = "loader-container";
+        loaderContainer.innerHTML = `\n          <span>Loading SpectroDraw Pro, please wait...</span>\n          <div class="loader" aria-hidden="true"></div>\n        `;
+        inlineSneak.appendChild(loaderContainer);
+
+        const KV_URL = 'https://api.spectrodraw.com/api/load-sneak-peak';
+
+        // helper to cleanup
+        let cleaned = false;
+        function cleanup(success) {
+          if (cleaned) return;
+          cleaned = true;
+          try { loaderContainer.remove(); } catch (e) {}
+          window.__spectrodraw_pro_loading = false;
+          if (success) hasLoadedPro = true;
+          try { window.removeEventListener('spectrodraw-pro-ready', onReady); } catch (e) {}
+        }
+
+        // event handler when bootstrap indicates iframe loaded
+        function onReady(ev) {
+          console.log('spectrodraw-pro-ready', ev && ev.detail);
+          clearTimeout(readyTimeout);
+          cleanup(true);
+        }
+
+        // fallback in case load event never fires
+        const readyTimeout = setTimeout(() => {
+          console.warn('sneak-peek ready timeout — cleaning up anyway');
+          cleanup(true); // mark as loaded to avoid repeated tries
+        }, 15000); // 15s
+
+        window.addEventListener('spectrodraw-pro-ready', onReady, { once: true });
+
+        try {
+          const res = await fetch(KV_URL, { cache: 'no-cache' });
+          if (!res.ok) throw new Error('KV fetch failed: ' + res.status);
+
+          // IMPORTANT: read as arrayBuffer (preserve bytes)
+          const arr = await res.arrayBuffer();
+          const blob = new Blob([arr], { type: 'application/javascript' });
+          const blobUrl = URL.createObjectURL(blob);
+
+          const scriptEl = document.createElement('script');
+          scriptEl.src = blobUrl;
+          scriptEl.onload = () => {
+            // bootstrap loaded in parent; do not cleanup here — wait for 'spectrodraw-pro-ready'
+            URL.revokeObjectURL(blobUrl);
+            console.log('bootstrap script loaded; waiting for iframe ready event...');
+          };
+          scriptEl.onerror = (e) => {
+            console.error('Error executing fetched bundle', e);
+            URL.revokeObjectURL(blobUrl);
+            clearTimeout(readyTimeout);
+            cleanup(false);
+          };
+
+          document.head.appendChild(scriptEl);
+        } catch (err) {
+          console.error('loadPro error:', err);
+          clearTimeout(readyTimeout);
+          cleanup(false);
+        }
+      }
+
+      // start loading as soon as the DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadPro, { once: true });
+      } else {
+        loadPro();
+      }
+
+      // expose to window for manual retry or debugging
+      window.spectrodrawSneak = { loadPro };
+    })();
+    window.addEventListener('message', function (ev) {console.log(ev);
+      const msg = ev && ev.data;
+      if (msg && msg.type === 'spectrodraw:continueToCheckout') {
+        window.open("./index.html", "_blank");
+      }
+    });
+  </script>
+</body>
+</html>

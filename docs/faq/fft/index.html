@@ -92,18 +92,21 @@
     h2 { color:#fff; margin-top:18px; font-size:1.45rem; }
     h3 { color:#e8eefc; margin-top:14px; font-size:1.15rem; }
     footer{ padding:2rem 1rem; text-align:center; color:var(--muted); margin-top:2rem; border-top:1px solid rgba(255,255,255,0.02); }
+    
+    @media(max-width:600px) {.tagline{display:none;}}
   </style>
 </head>
 <body>
   <nav class="nav">
     <div class="nav-left">
-      <a href="/" class="brand">SpectroDraw</a>
+      <a href="../../" class="brand">SpectroDraw</a>
       <div class="tagline">Interactive Spectrogram Editor</div>
     </div>
     <div class="nav-right">
-      <a href="/app" class="nav-link">Launch App</a>
-      <a href="/faq" class="nav-link">FAQ</a>
-      <a href="/pricing" class="nav-link">Pricing</a>
+      <a href="../../app" class="nav-link">Launch App</a>
+      <a href="../../faq" class="nav-link">FAQ</a>
+      <a href="../../news" class="nav-link">News</a>
+      <a href="../../pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
       <div id="account-wrap" style="display:none; position:relative;">
@@ -162,8 +165,8 @@
       </form>
     </div>
   </div>
-  <link rel="stylesheet" type="text/css" href="/accounts.css">
-  <script src="/accounts.js"></script>
+  <link rel="stylesheet" type="text/css" href="../accounts.css">
+  <script src="../accounts.js"></script>
 
   <!-- hero -->
   <header class="hero" role="banner" aria-label="FFT hero">

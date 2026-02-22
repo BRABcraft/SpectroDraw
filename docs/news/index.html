@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FAQ - SpectroDraw</title>
+  <title>News - SpectroDraw</title>
   <link rel="icon" type="image/x-icon" href="../favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
@@ -16,14 +16,14 @@
   </script>
   <style>
     :root{
-      --bg:#07080b;
-      --panel:#0f1720;
-      --muted:#9aa4b2;
-      --text:#e6eefc;
+      --bg:#fff;
+      --panel:#ccc;
+      --muted:#222;
+      --text:#000;
       --accent1:#4f46e5;
       --accent2:#9333ea;
       --accent3:#ec4899;
-      --soft-border: rgba(255,255,255,0.04);
+      --soft-border: rgba(0, 0, 0, 0.24);
       --card-glow: 0 6px 30px rgba(147,51,234,0.12);
       --glass-2: rgba(255,255,255,0.02);
       --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
@@ -33,12 +33,19 @@
     html,body{
       height:100%;
       margin:0;
-      background: radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
+      background:
+        linear-gradient(
+          0deg,
+          var(--bg) 0%,
+          #eee 50%,
+          var(--bg) 100%
+        );
       color:var(--text);
       font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
       line-height:1.6;
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
+      font-size:20px;
     }
 
     nav{
@@ -54,101 +61,171 @@
       border-bottom: 1px solid var(--soft-border);
     }
     .nav-left{display:flex;align-items:center;gap:1rem}
-    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;font-size:1.05rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:#9333ea;text-decoration:none;font-size:1.05rem}
     .nav-right{display:flex;gap:1rem;align-items:center}
     .nav-right a{
       font-weight:600;
       text-decoration:none;
-      color:#dfe7ff;
+      color:#000 !important;
       opacity:0.95;
       padding:.45rem .6rem;
       border-radius:8px
     }
     .nav-right a:hover{
-      color:white;
+      color:black;
       background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
       box-shadow:0 8px 30px rgba(79,70,229,0.12);
     }
 
     header.hero{
       position:relative;
-      padding:56px 20px;
+      padding:10px 20px;
       display:flex;
-      justify-content:center;
-      align-items:center;
+      justify-content:left;
+      align-items:left;
       overflow:hidden;
+      margin-bottom:30px;
+    }
+    .hero::before{
+      content:"";              /* REQUIRED */
+      position:absolute;       /* REQUIRED to size it */
+      inset:0;                 /* fill the hero */
+      background-image:url('../assets/spectrogram-hero2.jpg');
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      filter: contrast(105%) saturate(110%) brightness(0.72);
+      transform: scale(1.02);
+      z-index:0;
     }
     .hero-inner{
-      max-width:980px;
-      width:100%;
-      text-align:center;
+      margin-left:280px;
+      text-align:left;
       padding:28px;
-      border-radius:14px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
-      box-shadow:var(--card-glow);
-      border:1px solid var(--glass-2);
+      position:relative;       /* keep text above image */
+      z-index:1;
     }
     .title{
       font-size:2.1rem;
       font-weight:800;
-      margin:6px 0 8px 0;
       background:var(--cta-grad);
       -webkit-background-clip:text;background-clip:text;
       -webkit-text-fill-color:transparent;
-      text-shadow:0 8px 30px rgba(147,51,234,0.08);
+      text-shadow:0 0px 15px rgba(120, 26, 208, 0.8);
     }
 
-    main{
-      padding:36px 20px;
-      max-width:1100px;
-      margin:0 auto 36px;
+    p{margin:12px 0;color:#000}
+    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
+    .section:first-of-type{border-top:0;padding-top:8px}
+
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    footer{
+      padding:2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+      margin-top:2rem;
+      border-top:1px solid var(--soft-border);
+      font-size:.95rem
     }
-    .wrap{max-width:980px;margin:18px auto;padding:24px;}
-    p{margin:12px 0;color:#d0d9e9}
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+    .btn-primary {
+  position: relative;
+  background: var(--cta-grad);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1.2rem 2.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  overflow: hidden;
+  transition: transform .4s ease, box-shadow .6s ease, background .4s ease;
+  box-shadow:
+    0 0 50px rgba(79,70,229,0.5),
+    0 0 70px rgba(147,51,234,0.45),
+    inset 0 0 50px rgba(147,51,234,0.3);
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: none;
+  border-radius: inherit;
+  z-index: 0;
+  backdrop-filter: blur(4px);
+  transition: background .5s ease, box-shadow .5s ease;
+}
+.btn-primary span {
+  position: relative;
+  z-index: 1;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 15px rgba(79,70,229,0.6),
+    0 0 25px rgba(147,51,234,0.7),
+    inset 0 0 60px rgba(147,51,234,0.8); 
+}
+.btn-primary:hover::before {
+  background: rgba(7, 8, 11, 0.3); 
+}
+.nav-link {
+  font-size: 16px;
+  line-height: 1.0;
+}
+    .account-menu {background:#eee !important;}
 
     /* FAQ Cards */
-    .faq-grid{
+    .news-grid{
       display:flex;
       flex-direction:column;
       gap:20px;
     }
-    .faq-card{
+    .news-card{
       display:flex;
       align-items:center;
       gap:20px;
       text-decoration:none;
       color:inherit;
-      padding:16px;
-      border-radius:12px;
       background:rgba(255,255,255,0.02);
       border:1px solid var(--soft-border);
       transition:transform .25s ease, box-shadow .25s ease, background .25s ease;
     }
-    .faq-card:hover{
+    .news-card:hover{
       background:rgba(255,255,255,0.04);
       box-shadow:var(--card-glow);
       transform:translateY(-3px);
     }
-    .faq-card img{
-      width:110px;
-      height:80px;
-      border-radius:10px;
+    .news-card img{
+      width:400px;
+      height:250px;
       object-fit:cover;
       flex-shrink:0;
     }
-    .faq-card-content{
+    .news-card-content{
       flex:1;
+      padding:20px;
     }
-    .faq-card h3{
+    .news-card h3{
       margin:0;
       font-size:1.1rem;
       font-weight:700;
-      color:white;
+      color:rgb(0, 0, 0);
     }
-    .faq-card p{
+    .news-card p{
       margin:.3rem 0 0;
       color:var(--muted);
       font-size:.95rem;
+    }
+    @media(max-width:600px) {
+      .news-card img{width:150px;height:250px;}
+      .news-card p, .news-card h3, .news-card{font-size:17px;}
+      .news-card-content{padding:5px;}
+      .news-card{gap:5px;}
+      .hero-inner{margin-left:0;width:100%;text-align:center;}
     }
 
     footer{
@@ -162,6 +239,9 @@
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
     @media(max-width:600px) {.tagline{display:none;}}
+    small{color:#444;}
+    .wrap{max-width:1000px;margin:18px auto;}
+    .subtitle{color:#eee;}
   </style>
 </head>
 <body>
@@ -173,6 +253,7 @@
     <div class="nav-right">
       <a href="../app" class="nav-link">Launch App</a>
       <a href="../faq" class="nav-link">FAQ</a>
+      <a href="../news" class="nav-link">News</a>
       <a href="../pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
@@ -237,47 +318,27 @@
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <h1 class="title">Frequently Asked Questions</h1>
+      <h1 class="title">SpectroDraw News</h1>
+      <p class="subtitle">2 articles</p>
     </div>
   </header>
 
   <main class="wrap">
-    <div class="faq-grid">
-      <a href="../faq/basic-features/" class="faq-card">
-        <img src="../assets/features/amplify.jpg" alt="Basic features">
-        <div class="faq-card-content">
-          <h3>Basic features</h3>
-          <p>A description of SpectroDraw's tools and how to use them.</p>
+    <div class="news-grid">
+      <a href="./spectrodraw-pro-sneakpeek/" class="news-card">
+        <img src="./spectrodraw-pro-sneakpeek/assets/2.jpg" alt="SpectroDraw Pro Preview">
+        <div class="news-card-content">
+          <h3>SpectroDraw Pro Preview Is Out!</h3>
+          <p>2/21/2026</p>
+          <small>The first public preview of SpectroDraw Pro is officially live. This version includes the full program and all Pro features (exporting will arrive lat...</small>
         </div>
       </a>
-
-      <a href="../faq/pro-features/" class="faq-card">
-        <img src="../assets/vstdemo2.jpg" alt="Pro features">
-        <div class="faq-card-content">
-          <h3>Pro features</h3>
-          <p>Explore advanced features exclusive to SpectroDraw Pro, including stereo editing and automation.</p>
-        </div>
-      </a>
-      <a href="../faq/fft/" class="faq-card">
-        <img src="../assets/fft3.jpg" alt="How does SpectroDraw work">
-        <div class="faq-card-content">
-          <h3>How does SpectroDraw work?</h3>
-          <p>Learn the basics of how the FFT converts sound into a visual spectrogram that you can draw on.</p>
-        </div>
-      </a>
-
-      <a href="../faq/about-the-creator/" class="faq-card">
-        <img src="../assets/randommangos.jpg" alt="About the creator">
-        <div class="faq-card-content">
-          <h3>About the creator</h3>
-          <p>Meet Bradley (RandomMangos), the developer behind SpectroDraw, and learn what inspired the project.</p>
-        </div>
-      </a>
-      <a href="../faq/expressions-documentation/" class="faq-card">
-        <img src="../assets/expressions.jpg" alt="Expressions documentation">
-        <div class="faq-card-content">
-          <h3>Expressions documentation</h3>
-          <p>A reference for SpectroDraw Pro's javascript expressions</p>
+      <a href="./what-is-spectrodraw/" class="news-card">
+        <img src="./what-is-spectrodraw/assets/5.jpg" alt="What is SpectroDraw?">
+        <div class="news-card-content">
+          <h3>What is SpectroDraw?</h3>
+          <p>1/8/2026</p>
+          <small>SpectroDraw is a free, browser-based interactive spectrogram editor that lets you visually draw, edit, and sculpt audio directly in the frequency doma...</small>
         </div>
       </a>
     </div>
@@ -289,7 +350,94 @@
     <a href="../privacy" style="color:white; margin-right:20px;">Privacy</a>
     <a href="../terms" style="color:white;">Terms</a>
   </footer>
+  <script>
+(function() {
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const DAYS_THRESHOLD = 7;
 
+  function parseDateString(txt) {
+    txt = (txt || "").trim();
+    // Try mm/dd/yyyy or m/d/yyyy
+    const mdy = txt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mdy) {
+      const month = Number(mdy[1]);
+      const day = Number(mdy[2]);
+      const year = Number(mdy[3]);
+      // JS month is 0-indexed
+      return new Date(year, month - 1, day);
+    }
+    // Try iso or other parseable formats as fallback
+    const d = new Date(txt);
+    if (!isNaN(d)) return d;
+    return null;
+  }
+
+  // Remove any existing badges created by this script to avoid duplicates
+  function removeExistingBadges(container) {
+    const existing = container.querySelectorAll('.news-new-badge');
+    existing.forEach(b => b.remove());
+  }
+
+  document.querySelectorAll('.news-card-content').forEach(content => {
+    // clean previous run
+    removeExistingBadges(content);
+
+    const p = content.querySelector('p');
+    if (!p) return;
+    const dateText = p.textContent.trim();
+    const parsed = parseDateString(dateText);
+    if (!parsed) return;
+
+    const now = new Date();
+    const diff = now.getTime() - parsed.getTime();
+
+    // only consider if date is not in the future and within threshold
+    if (diff >= 0 && diff <= DAYS_THRESHOLD * MS_PER_DAY) {
+      const h3 = content.querySelector('h3');
+      if (!h3) return;
+
+      // create badge
+      const badge = document.createElement('div');
+      badge.className = 'news-new-badge';
+      badge.textContent = 'New 🔥';
+
+      // compute h3 computed font size to match height
+      const h3Style = window.getComputedStyle(h3);
+      // fallback values if parsing fails
+      const h3FontSize = parseFloat(h3Style.fontSize) || 16;
+      const badgeHeight = Math.round(h3FontSize); // px
+
+      // inline styles to satisfy requirements
+      Object.assign(badge.style, {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: badgeHeight + 'px',
+        lineHeight: badgeHeight + 'px',
+        padding: '0 8px',
+        fontWeight: '700',
+        borderRadius: '10px',
+        background: 'linear-gradient(90deg, orange, purple)',
+        color: 'white',
+        fontSize: (h3FontSize * 0.85) + 'px',
+        marginRight: '10px',
+        verticalAlign: 'middle',
+        boxSizing: 'border-box',
+        flexShrink: '0',
+        // a tiny text-shadow to improve legibility on gradient
+        textShadow: '0 1px 1px rgba(0,0,0,0.25)'
+      });
+
+      // insert badge to the left of the h3
+      // we want the badge and h3 to appear on the same line; insert badge before the h3 node
+      
+      if (window.innerWidth>600) h3.prepend(badge); else {
+        content.insertBefore(badge, h3);
+      }
+    }
+  });
+})();
+</script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>

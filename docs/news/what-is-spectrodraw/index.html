@@ -75,6 +75,7 @@
       padding:.45rem .6rem;
       border-radius:8px
     }
+    .account-menu {background:#eee !important;}
     .nav-right a:hover{
       color:black;
       background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
@@ -181,6 +182,12 @@ img{
   font-size: 16px;
   line-height: 1.0;
 }
+@media (max-width:600px) {
+  .wrap{padding:10px;margin-left:10px !important;}
+  .title{font-size:1.5rem;}
+  p,li{font-size:15px;}
+  .tagline{display:none;}
+}
   </style>
 </head>
 <body>
@@ -192,6 +199,7 @@ img{
     <div class="nav-right">
       <a href="../../app" class="nav-link">Launch App</a>
       <a href="../../faq" class="nav-link">FAQ</a>
+      <a href="../../news" class="nav-link">News</a>
       <a href="../../pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
@@ -257,45 +265,36 @@ img{
 
   <main class="wrap" style="margin-left:150px;">
 
-<h1 class="title">Get Your Hands on SpectroDraw Pro: Public Preview Live Now!</h1>
-<h4>3 min read &bullet; Published: Feb 21, 2026</h4>
-<p>The first public preview of <strong>SpectroDraw Pro</strong> is officially live. This version includes the full program and <strong>all Pro features</strong> except for exporting. You can access it directly from the buy-pro page, and the preview will remain available even after the early-access promotion ends.</p>
-<br><br><a class="btn btn-primary" href="../../buy-pro/sneakpeek.html"><span>Take me to the preview!</span></a><br><br><br>
-<h3><strong>Major New Features</strong></h3>
-<p><strong>Professional interface</strong></p>
-<p>SpectroDraw Pro introduces a fully dockable window system, replacing the fixed panels of the original version. Arrange, hide, or minimize windows to create a workspace tailored to your workflow.</p>
-<img src="assets/1.jpg"><br>
-<p><strong>Stereo audio</strong></p>
-<p>Each spectrogram now supports independent left and right channels. Pan is displayed as saturation by default, and you can freely assign magnitude, phase, and pan to HSV, RGB, or YCbCr color models for advanced visualization control.</p>
-<img src="assets/2.jpg"><br>
-<p><strong>Synth brush</strong></p>
-<p>Draw synthesized sounds directly onto the spectrogram using customizable harmonics, chorus, and tone shaping.</p>
-<img src="assets/3.jpg"><br>
-<p><strong>Code expressions</strong></p>
-<p>Write custom JavaScript expressions to control any brush parameter. This allows deep automation and creative effects, like linking mouse position to brightness to generate dynamic fades. A full list of controllable parameters is available here.</p>
-<img src="assets/4.jpg"><br>
-<p><strong>Sprites system</strong></p>
-<p>Every drawing on the spectrogram becomes its own editable sprite. Move, tweak, enable, disable, or readjust past edits at any time, making it easy to undo mistakes or tweak past actions.</p>
-<img src="assets/5.jpg"><br>
-<p><strong>Piano mode</strong></p>
-<p>Instead of directly playing the spectrogram audio, this mode converts it to MIDI and performs it using a customizable synthesizer for new creative possibilities.</p>
+<h1 class="title">What is SpectroDraw?</h1>
+<h4>3 min read &bullet; Published: Jan 8, 2026</h4>
+<p>SpectroDraw is a free, browser-based interactive spectrogram editor that lets you
+visually draw, edit, and sculpt audio directly in the frequency domain. Think of it
+as painting sound: use tools like brushes, lines, rectangles, erasers, and more to
+manipulate frequencies on a colorful spectrogram canvas. It's perfect for sound
+designers, music producers, audio repair tasks, and anyone experimenting with
+creative effects, all without needing to download software.</p>
+<p>Available at spectrodraw.com, the core app is completely free, with an optional
+Pro upgrade unlocking advanced features (currently available via early access).</p>
+<img src="assets/1.jpg">
+<h3>Key Features and Uses</h3>
+<p>SpectroDraw makes complex spectral editing intuitive by turning audio into a visual playground. Here's what you can do:</p>
+<li><strong>Precise Audio Repair and Cleanup:</strong> Easily remove unwanted noise, clicks, pops, or background hum. The built-in noise remover tool lets you scrub out artifacts directly on the spectrogram, which is far more targeted than traditional waveform editing. The free version uses a simple threshold-based remover, while Pro offers more advanced options.</li>
+<img src="assets/2.jpg">
+<li><strong>Vocal and Source Separation:</strong> Isolate or erase overlapping vocals, harmonies, or instruments. On a spectrogram, different sounds occupy distinct frequency bands and patterns, making it straightforward to erase one voice without affecting others (something AI stem splitters often struggle with).</li>
+<img src="assets/3.jpg">
+<li><strong>Creative Sound Design and Effects:</strong> Draw freehand with brushes, experiment with phase textures, and tweak FFT parameters to create glitchy, alien, or trippy sounds. Pro unlocks extras like the cloner tool, harmonics brush, and advanced texturing for even wilder effects. Mess around casually for fun "alien-ish" textures or carefully craft harmonics for professional results.</li>
+<img src="assets/4.jpg">
+<li><strong>MIDI Export and Transcription:</strong> Convert your edited spectrogram (or uploaded audio) to MIDI. Choose an AI-powered model (BasicPitch) for accurate polyphonic transcription of melodic content, or a non-AI heuristic mode for quirky MIDIs from percussion, SFX, or noise.</li>
+<img src="assets/5.jpg">
+<li><strong>Unique Color Representation:</strong> Unlike standard spectrograms that use only brightness for amplitude, SpectroDraw encodes phase (the waveform's timing offset) as hue/color. This allows lossless round-trip conversion (audio ↔ image ↔ audio) and adds an extra creative dimension: draw in different colors to influence the sound.</li>
 <img src="assets/6.jpg"><br>
-<p><strong>Multi-layer spectrograms</strong></p>
-<p>Work with up to 16 independent layers, each with its own stereo spectrogram and mix controls.</p>
-<img src="assets/6.jpg"><br>
-<h3><strong>Additional Improvements</strong></h3>
-<li><strong>Drag-and-drop uploads</strong> directly onto the spectrogram to either replace or insert samples.<img src="assets/6.jpg"><br></li>
-<li><strong>Cloner tool</strong> for copying sounds at different locations and frequencies<img src="assets/7.jpg"><br></li>
-<li><strong>Autotune tool:</strong> Draw over the spectrogram to align frequencies to the nearest note.<img src="assets/8.jpg"><br></li>
-<li><strong>Stamp tool</strong> to draw common shapes onto the spectrogram. A practical version of the image overlay tool.<br><img src="assets/10.jpg"></li>
-<li><strong>Selection tool</strong> to move and adjust regions<img src="assets/11.jpg"><br></li>
-<li><strong>Improved noise removal</strong> using noise profiles<img src="assets/12.jpg"><br></li>
-<li><strong>Global filters</strong> that apply across the entire spectrogram instantly<img src="assets/13.jpg"><br></li>
-<h3><strong>Important note before using</strong></h3>
-<p>This preview is provided for evaluation purposes only. <strong>Any attempt to copy, record, or distribute the SpectroDraw Pro sneak peek is strictly prohibited.</strong> Access sessions are monitored, and violations may result in removal of access and potential legal action. If misuse becomes widespread, the preview may be removed from the internet.</p>
-<hr>
-<p>Over the past three months, I’ve dedicated hundreds of hours to building SpectroDraw Pro into a powerful, flexible, and genuinely useful tool. <strong>This is just the beginning of what SpectroDraw Pro can do.</strong><br><br><br>
-<a class="btn btn-primary" href="../../buy-pro/sneakpeek.html"><span>Go to SpectroDraw Pro Preview!</span></a>
+<a href="../../faq/fft/index.html" style="color:#0c6b8a;text-shadow:0 0 10px rgb(0,0,0,0.2);">Read more about phase</a>
+<h3>Why It Stands Out</h3>
+<p>Compared to traditional waveform editors or even advanced tools like SpectraLayers, SpectroDraw emphasizes playfulness and accessibility. It's great for learning audio concepts (e.g., seeing harmonics and overtones clearly) while being powerful enough for real production work. As one user (a producer) notes: "It's incredibly handy for quick noise removal in recordings and manual vocal separation when sampling".
+Upcoming additions include a VST/AU plugin for DAW integration and an iOS app for on-the-go editing.
+Dive in and start painting your sounds today!</p><br><br>
+<a class="btn btn-primary" href="../../app"><span>Launch App</span></a>
+
   </main>
    
   <footer>

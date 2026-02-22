@@ -192,7 +192,6 @@ canvas {
   display: grid;
   grid-template-rows: 54px 1fr;
   grid-template-columns: 40px 330px 1fr; /* NEW: left-bar column */
-  height: 100vh;
   gap: 0px;
   box-sizing: border-box;
   padding: 0;
@@ -245,10 +244,11 @@ canvas {
 }
 
 /* responsive collapse */
-@media (max-width: 900px) {
+@media (max-width: 900px) and (orientation: portrait) {
   .app {
     grid-template-columns: 1fr;
     grid-template-rows: 64px auto 1fr;
+    height:100vh;
   }
   .top-bar { grid-column: 1; }
   .left-panel {
@@ -1006,7 +1006,6 @@ svg.tutorial-spotlight.hide {
     display: grid;
     grid-template-columns: 40px 1fr;
     grid-template-rows: 170px auto 1fr;
-    height: 100vh;
     overflow: hidden;
   }
 

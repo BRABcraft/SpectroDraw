@@ -8,7 +8,7 @@
   <meta property="og:description" content="A reference for SpectroDraw Pro's javascript expressions, linking many brush parameters and enabling automation and extreme levels of control." />
   <link rel="canonical" href="https://spectrodraw.com/newsletters/what-is-spectrodraw" />
   <title>SpectroDraw Expressions Documentation</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
   <script>
@@ -177,19 +177,22 @@ img{
   border-radius:12px;
   margin:18px 0;
 }
+    .account-menu {background:#eee !important;}
 th, td { border: 1px solid black; text-align:left;}
 table{border-collapse: collapse;border-spacing:0;}
+    @media(max-width:600px) {.tagline{display:none;}}
   </style>
 </head>
 <body>
   <nav class="nav">
     <div class="nav-left">
-      <a href="/" class="brand">SpectroDraw</a>
+      <a href="../../" class="brand">SpectroDraw</a>
       <div class="tagline">Interactive Spectrogram Editor</div>
     </div>
     <div class="nav-right">
       <a href="../../app" class="nav-link">Launch App</a>
       <a href="../../faq" class="nav-link">FAQ</a>
+      <a href="../../news" class="nav-link">News</a>
       <a href="../../pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
@@ -205,8 +208,8 @@ table{border-collapse: collapse;border-spacing:0;}
           <span class="acct-arrow" aria-hidden="true">▾</span>
         </button>
         <div id="account-menu" class="account-menu" role="menu" aria-hidden="true" style="display:none;">
-          <a href="/products" id="my-products" role="menuitem" class="menu-item">My products</a>
-          <a href="/review" id="review" role="menuitem" class="menu-item">Leave a review</a>
+          <a href="../../products" id="my-products" role="menuitem" class="menu-item">My products</a>
+          <a href="../../review" id="review" role="menuitem" class="menu-item">Leave a review</a>
           <a id="account-logout" role="menuitem" class="menu-item">Log out</a>
         </div>
       </div>
@@ -240,7 +243,7 @@ table{border-collapse: collapse;border-spacing:0;}
           <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
           <button id="google-login" type="button" class="google">
             <span class="g-icon" aria-hidden="true">
-              <img src="/assets/Google__G__logo.svg" alt="">
+              <img src="../../assets/Google__G__logo.svg" alt="">
             </span>
             <span id="google-btn-text">Log in with Google</span>
           </button>
@@ -338,8 +341,8 @@ table{border-collapse: collapse;border-spacing:0;}
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
     <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener" style="color:#008">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
-    <a href="/privacy" style="color:#008; margin-right:20px;">Privacy</a>
-    <a href="/terms" style="color:#008;">Terms</a>
+    <a href="../../privacy" style="color:#008; margin-right:20px;">Privacy</a>
+    <a href="../../terms" style="color:#008;">Terms</a>
   </footer>
 
   <script>

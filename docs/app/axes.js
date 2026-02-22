@@ -666,8 +666,8 @@ function safariGestureHandler(e){
   // apply pinch sensitivity curve and optionally invert
   let scale = Math.pow(raw, PINCH_SENSITIVITY);
   if (INVERT_PINCH_FOR_TRACKPAD) scale = 1 / scale;
-  const cx = e.clientX || (window.innerWidth/2);
-  const cy = e.clientY || (window.innerHeight/2);
+  const cx = e.clientX || (windowInnerWidth/2);
+  const cy = e.clientY || (windowInnerHeight/2);
 
   const el = e.target;
   if (el === timeline || (el.closest && el.closest('#timeline'))) {

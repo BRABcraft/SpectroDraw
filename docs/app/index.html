@@ -1056,6 +1056,12 @@
 <div id="status" style="position:absolute;bottom:0px;"></div>
 
 <script>
+  let windowInnerWidth = window.innerWidth, windowInnerHeight = window.innerHeight;
+  if (navigator.userAgentData.mobile && window.innerWidth>window.innerHeight) {
+    document.body.style.zoom=window.innerWidth/1500;
+    windowInnerWidth = 1500;
+    windowInnerHeight = window.innerHeight/document.body.style.zoom;
+  }
   function syncNumberAndRange(numberInput, rangeInput) {
     numberInput.addEventListener('input', () => {
       let val = parseInt(numberInput.value);
@@ -1395,7 +1401,7 @@ panelButtons.forEach(btn => {
       updateCountdown();
       const timer = setInterval(updateCountdown, 1000);
     }
-    document.getElementById("proOverlay").style.display = (currentPanel == "2" || currentPanel == "3" || currentPanel == "6" || currentPanel == "7")?(window.innerWidth<=700?"block":"flex"):"none";
+    document.getElementById("proOverlay").style.display = (currentPanel == "2" || currentPanel == "3" || currentPanel == "6" || currentPanel == "7")?(windowInnerWidth<=700?"block":"flex"):"none";
     if (currentPanel === "5") drawEQ();
   });
 });
@@ -1461,7 +1467,7 @@ shapeButtons.forEach(btn => {
 uploadBtn.addEventListener("click", () => {
   file.click();
 });
-function showOrHideMasterVolume(){document.getElementById("masterVolumeDiv").style.display=(window.innerWidth<1400)?"none":"";};
+function showOrHideMasterVolume(){document.getElementById("masterVolumeDiv").style.display=(windowInnerWidth<1400)?"none":"";};
 showOrHideMasterVolume();
 window.addEventListener("resize",showOrHideMasterVolume);
 trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"var(--accent-gradient)"; restartRender(false);});
@@ -1743,10 +1749,10 @@ function restartRender(autoPlay, clear=true){
     const freqBins = Math.floor(fftSize / 2);
     canvas.width = framesTotal;
     canvas.height = freqBins;
-    let marginHeight = (window.innerWidth<=700)?400:110;
+    let marginHeight = (windowInnerWidth<=700)?400:110;
     if (trueScaleVal) {
-      const maxHeight = (window.innerHeight - marginHeight);
-      const containerWidth = canvas.parentElement.clientWidth;
+      const maxHeight = (windowInnerHeight - marginHeight);
+      const containerWidth = canvas.parentElement.clientWidth/document.body.style.zoom;
       const scaleX = containerWidth / framesTotal;
       const scaleY = maxHeight / freqBins;
       const scale = Math.min(scaleX, scaleY, 1);
@@ -1755,14 +1761,13 @@ function restartRender(autoPlay, clear=true){
       canvas.style.height = (canvas.height * scale) + "px";
     } else {
       canvas.style.width = "calc(100% - 40px)";
-      let h = window.innerHeight - marginHeight;
+      let h = windowInnerHeight - marginHeight;
       canvas.style.height = h+"px";
     }
 
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
     yAxis.height = 1024;
-    yAxis.style.height = canvas.style.height;
     yAxis.width = 40;
     yAxis.style.height = canvas.style.height;
 
@@ -1772,7 +1777,7 @@ function restartRender(autoPlay, clear=true){
     syncOverlaySize();
 
     const timeline = document.getElementById('timeline');
-    timeline.width = window.innerWidth*1.2;
+    timeline.width = windowInnerWidth*1.2;
     timeline.style.width = canvas.style.width;
     timeline.height = 40;
 
@@ -2176,7 +2181,7 @@ function frameToCx(frame) {
 }
 let sx2 = 0, sy2 = 0;
 
-function canvasMouseDown(e,touch) {console.log(pendingHistory);
+function canvasMouseDown(e,touch) {
     if (!touch) zooming=false;
     if (!mags || !phases) return;
     if (!touch && e.button !== 0) return;

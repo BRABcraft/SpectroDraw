@@ -4,10 +4,10 @@ function restartRender(autoPlay,overrideHasCanvases=false){
   fftSize = fftSizeKnob.getValue();
   hop = Math.floor(hopSizeKnob.getValue());
   win = hann(fftSize);
-
-  framesTotal = Math.max(1, Math.floor((emptyAudioLength*sampleRate - fftSize) / hop) + 1);
-  // iLow = 0;
-  // iHigh = framesTotal;
+  const nft = Math.max(1, Math.floor((emptyAudioLength*sampleRate - fftSize) / hop) + 1);
+  iLow *= (nft/framesTotal);
+  iHigh *= (nft/framesTotal);
+  framesTotal = nft; console.log(framesTotal);
   const freqBins = Math.floor(fftSize / 2);
   
   const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (getLayerHeight()) / freqBins, 1) : layerHeight;
@@ -151,8 +151,6 @@ function restartRender(autoPlay,overrideHasCanvases=false){
 
     // create imageBuffer at backing store resolution (unchanged)
     imageBuffer[ch] = new ImageData(canvas.width, canvas.height);
-    specWidth = canvas.width;
-    specHeight = canvas.height;
 
     // specCanvas is the hidden pixel-perfect source: make sure its backing store matches spec size
     specCanvas.width = specWidth;

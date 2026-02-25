@@ -11,6 +11,7 @@ function updateBrushPreview() {
     if (hex.length === 1) {
       hex = '0' + hex;
     }
+    if (isNaN(hex)) hex="00";
     return hex;
   }
   function adjustSaturation([r,g,b], factor){

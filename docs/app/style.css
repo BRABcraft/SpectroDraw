@@ -189,6 +189,7 @@ canvas {
 
 /* ----------------- LAYOUT ----------------- */
 .app {
+  height:100vh;
   display: grid;
   grid-template-rows: 54px 1fr;
   grid-template-columns: 40px 330px 1fr; /* NEW: left-bar column */
@@ -248,7 +249,6 @@ canvas {
   .app {
     grid-template-columns: 1fr;
     grid-template-rows: 64px auto 1fr;
-    height:100vh;
   }
   .top-bar { grid-column: 1; }
   .left-panel {

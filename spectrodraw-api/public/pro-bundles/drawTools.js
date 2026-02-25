@@ -665,6 +665,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
     if (idx < 0 || idx >= layers[ch].mags.length) return;
     if (visited && visited[ch][idx] === 1) return;
     if (visited) visited[ch][idx] = 1;
+    console.log(xFrame);
     const oldMag = layers[ch].mags[idx] || 0;
     const oldPhase = phasesArr[idx] || 0;
     const panToUse = (typeof opts.panOverride !== 'undefined') ? opts.panOverride : pan;

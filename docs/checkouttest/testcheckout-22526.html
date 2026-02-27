@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Secure Checkout</title>
+
+<!-- Updated Content-Security-Policy:
+     - allow paypal domains, google-pay, apple-pay-gateway and apple.com (needed by some Apple flows)
+     - keep script-src tight (allow PayPal SDK only)
+-->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' https://www.paypal.com https://api.paypal.com https://payments.google.com https://apple-pay-gateway.apple.com https://apple.com; script-src 'self' 'unsafe-inline' https://www.paypal.com; style-src 'self' 'unsafe-inline';">
+
+<style>
+  :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;--accent:#0b74de}
+  body{margin:0;padding:28px;background:#f6f9fc;color:#0b1720}
+  .card{background:#fff;border-radius:12px;padding:20px;max-width:820px;margin:0 auto;box-shadow:0 6px 20px rgba(20,30,50,.06)}
+  h1{margin-top:0}
+  .methods{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .method{padding:8px 12px;border-radius:8px;border:1px solid #e6eef9;background:#f8fbff;cursor:pointer}
+  .method.active{border-color:var(--accent);box-shadow:0 4px 14px rgba(11,116,222,.08);background:#fff}
+  .panel{margin-top:16px}
+  .hidden{display:none}
+  label{display:block;margin:8px 0;font-size:14px}
+  input[type="text"],input[type="email"],input[type="tel"],input[type="number"]{
+    width:100%;padding:10px;border:1px solid #e3eefc;border-radius:8px;font-size:14px
+  }
+  button{background:var(--accent);color:#fff;padding:10px 14px;border:none;border-radius:8px;cursor:pointer}
+  button[disabled]{opacity:.5;cursor:not-allowed}
+  .note{font-size:13px;color:#425466;margin-top:10px}
+  .loading{opacity:.7}
+  .error { color: #a33; margin-top:8px; }
+  .success { color: #0a0; margin-top:8px; }
+</style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="checkoutTitle">
+    <h1 id="checkoutTitle">Secure Checkout</h1>
+    <p class="note">Choose a payment method and follow the UI. This demo uses tokenization + server endpoints — no secret keys in the browser.</p>
+
+    <div>
+      <strong>Amount:</strong>
+      <div style="margin:8px 0 16px">USD <input id="amount" type="number" min="1" step="0.01" value="19.99" style="width:140px;display:inline-block" /></div>
+    </div>
+
+    <div class="methods" role="tablist" aria-label="Payment methods">
+      <button class="method active" data-method="paypal" role="tab">PayPal</button>
+      <button class="method" data-method="applepay" role="tab">Apple Pay</button>
+      <button class="method" data-method="googlepay" role="tab">Google Pay</button>
+      <button class="method" data-method="card" role="tab">Card (tokenize)</button>
+      <button class="method" data-method="other" role="tab">Other</button>
+    </div>
+
+    <section id="panels" class="panel">
+      <!-- PayPal -->
+      <div id="panel-paypal" class="panel-item">
+        <p>Pay securely with PayPal. We'll create an order on the server and then confirm it client-side.</p>
+        <div id="paypal-button-container"></div>
+        <div id="paypal-msg" class="note"></div>
+        <div class="note">Server endpoint required: <code>GET /api/paypal/sdk-config</code>, <code>POST /api/paypal/create-order</code> and <code>POST /api/paypal/capture-order</code>.</div>
+      </div>
+
+      <!-- Apple Pay (Payment Request API) -->
+      <div id="panel-applepay" class="panel-item hidden">
+        <p>Apple Pay uses the Payment Request API or Apple Pay JS. Your domain must be validated by Apple via your server.</p>
+        <button id="applepay-button">Pay with Apple Pay</button>
+        <div id="apple-msg" class="note"></div>
+        <div class="note">Server endpoint required: <code>POST /api/apple/merchant-session</code> (merchant validation) and <code>POST /api/apple/capture</code>.</div>
+      </div>
+
+      <!-- Google Pay -->
+      <div id="panel-googlepay" class="panel-item hidden">
+        <p>Google Pay integration — uses tokenization and a server-side processor.</p>
+        <button id="googlepay-button">Pay with Google Pay</button>
+        <div id="google-msg" class="note"></div>
+        <div class="note">Server endpoint required: <code>POST /api/google/pay</code>.</div>
+      </div>
+
+      <!-- Card form (tokenize via your payment processor) -->
+      <div id="panel-card" class="panel-item hidden">
+        <form id="card-form" autocomplete="off" novalidate>
+          <label>
+            Cardholder name
+            <input name="cardName" type="text" required />
+          </label>
+          <label>
+            Card number
+            <input name="cardNumber" inputmode="numeric" pattern="[0-9\s]{12,19}" required />
+          </label>
+          <div style="display:flex;gap:8px">
+            <label style="flex:1">
+              Expiration (MM/YY)
+              <input name="cardExp" placeholder="MM/YY" required />
+            </label>
+            <label style="flex:1">
+              CVC
+              <input name="cardCvc" inputmode="numeric" pattern="\d{3,4}" required />
+            </label>
+          </div>
+          <div style="margin-top:12px">
+            <button id="card-pay" type="button">Pay</button>
+            <div id="card-status" class="note" aria-live="polite"></div>
+          </div>
+        </form>
+        <div class="note">Server endpoint required: <code>POST /api/card/tokenize</code> to get a payment token, then <code>POST /api/card/capture</code> to capture the charge.</div>
+      </div>
+
+      <!-- Other -->
+      <div id="panel-other" class="panel-item hidden">
+        <p>Provide instructions or link to other processors (bank transfer, crypto, invoices, etc.).</p>
+        <label>
+          Email for invoice:
+          <input id="invoice-email" type="email" />
+        </label>
+        <button id="send-invoice">Send Invoice</button>
+        <div id="invoice-msg" class="note"></div>
+      </div>
+    </section>
+
+    <hr style="margin:18px 0" />
+    <div class="note">This page expects your Cloudflare Worker endpoints at <code>/api/*</code> (auth via session cookie or <code>X-Spectrodraw-User</code> header).</div>
+  </main>
+
+<script>
+/* ---------------------------
+   Utility & security helpers
+   --------------------------- */
+
+function getSpectrodrawUserFromEnv() {
+  try {
+    if (window.__SPECTRODRAW_USER) return window.__SPECTRODRAW_USER;
+    const meta = document.querySelector('meta[name="spectrodraw-user"]')?.content;
+    if (meta) {
+      try { return JSON.parse(meta); } catch (e) { return meta; }
+    }
+    const ls = localStorage.getItem('spectrodraw_user');
+    if (ls) {
+      try { return JSON.parse(ls); } catch (e) { return ls; }
+    }
+  } catch (e) {}
+  return null;
+}
+
+async function safeFetch(url, opts = {}) {
+  const headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+  if (csrf) headers['x-csrf-token'] = csrf;
+  const sdUser = getSpectrodrawUserFromEnv();
+  if (sdUser) {
+    headers['X-Spectrodraw-User'] = (typeof sdUser === 'object') ? JSON.stringify(sdUser) : String(sdUser);
+  }
+  const fetchOpts = Object.assign({}, opts, {
+    headers,
+    credentials: 'include'
+  });
+
+  const res = await fetch(url, fetchOpts);
+  const ct = res.headers.get('content-type') || '';
+
+  if (res.status === 401) {
+    const txt = ct.includes('application/json') ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
+    throw new Error(`Unauthorized (401) from ${url}: ${JSON.stringify(txt)}`);
+  }
+  if (res.status === 501 || res.status === 502) {
+    const txt = ct.includes('application/json') ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
+    throw new Error(`Server (gateway) error ${res.status}: ${JSON.stringify(txt)}`);
+  }
+  if (!res.ok) {
+    const txt = ct.includes('application/json') ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
+    throw new Error(`Network error ${res.status}: ${JSON.stringify(txt) || res.statusText}`);
+  }
+  if (ct.includes('application/json')) return res.json();
+  return res.text();
+}
+
+/* ---------------------------
+   UI switching
+   --------------------------- */
+const methods = document.querySelectorAll('.method');
+const panels = {
+  paypal: document.getElementById('panel-paypal'),
+  applepay: document.getElementById('panel-applepay'),
+  googlepay: document.getElementById('panel-googlepay'),
+  card: document.getElementById('panel-card'),
+  other: document.getElementById('panel-other')
+};
+let activeMethod = 'paypal';
+
+methods.forEach(btn=>{
+  btn.addEventListener('click', ()=> {
+    methods.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const m = btn.dataset.method;
+    switchPanel(m);
+  });
+});
+
+function switchPanel(name) {
+  activeMethod = name;
+  Object.keys(panels).forEach(k=>{
+    panels[k].classList.toggle('hidden', k !== name);
+  });
+}
+
+/* ---------------------------
+   PayPal (client buttons loaded dynamically)
+   --------------------------- */
+async function initPayPal() {
+  try {
+    const resp = await safeFetch('https://api.spectrodraw.com/api/paypal/sdk-config', { method: 'GET' });
+    if (!resp || !resp.clientId) {
+      document.getElementById('paypal-msg').textContent = 'PayPal not configured on server or SDK config missing.';
+      console.warn('PayPal SDK config missing or 404 returned');
+      return;
+    }
+    const { clientId, currency } = resp;
+    if (!window.paypal) {
+      const s = document.createElement('script');
+      s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}`;
+      s.async = true;
+      document.head.appendChild(s);
+      await new Promise((resolve, reject) => {
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Failed to load PayPal SDK'));
+      });
+    }
+    renderPayPalButton();
+  } catch (err) {
+    console.warn('PayPal init failed:', err.message);
+    document.getElementById('paypal-msg').textContent = 'PayPal init error: ' + err.message;
+  }
+}
+
+async function renderPayPalButton() {
+  const container = document.getElementById('paypal-button-container');
+  container.innerHTML = '';
+  if (!window.paypal || !window.paypal.Buttons) {
+    container.textContent = 'PayPal SDK unavailable';
+    return;
+  }
+
+  window.paypal.Buttons({
+    createOrder: async () => {
+      const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
+      const data = await safeFetch('https://api.spectrodraw.com/api/paypal/create-order', {
+        method: 'POST',
+        body: JSON.stringify({ amount })
+      });
+      if (!data || !data.orderID) throw new Error('Failed to create PayPal order');
+      return data.orderID;
+    },
+    onApprove: async (data) => {
+      try {
+        const capture = await safeFetch('https://api.spectrodraw.com/api/paypal/capture-order', {
+          method: 'POST',
+          body: JSON.stringify({ orderID: data.orderID })
+        });
+        showSuccess('Payment complete (PayPal).', capture);
+      } catch (err) {
+        showError('PayPal capture failed: ' + err.message);
+      }
+    },
+    onError: (err) => {
+      console.error(err);
+      showError('PayPal error: ' + (err && err.message ? err.message : String(err)));
+    }
+  }).render('#paypal-button-container');
+}
+
+/* ---------------------------
+   Apple Pay detection + flow (safe)
+   --------------------------- */
+
+/*
+  Safer detection:
+  - If ApplePaySession is available, use ApplePaySession.canMakePayments() which is a local/native check
+    and does not trigger a network request to apple.com (avoids CSP connect-src issues).
+  - Avoid calling PaymentRequest.canMakePayment since that may trigger network traffic for some methods.
+*/
+async function applePaySupported() {
+  try {
+    if (window.ApplePaySession && typeof ApplePaySession.canMakePayments === 'function') {
+      // returns boolean; native API
+      return await ApplePaySession.canMakePayments();
+    }
+  } catch (e) {
+    console.warn('ApplePaySession.canMakePayments error', e);
+  }
+  // Conservative fallback: do not attempt PaymentRequest.canMakePayment (avoids CSP network)
+  return false;
+}
+
+document.getElementById('applepay-button').addEventListener('click', async () => {
+  try {
+    const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
+
+    // Request a merchant session from your server (worker will proxy or instruct)
+    const session = await safeFetch('https://api.spectrodraw.com/api/apple/merchant-session', {
+      method: 'POST',
+      body: JSON.stringify({ url: window.location.origin, amount })
+    });
+
+    if (!session || session.message) {
+      throw new Error(session && session.message ? session.message : 'Merchant session not available');
+    }
+
+    // Build PaymentRequest with returned session info (best-effort)
+    const methodData = [{
+      supportedMethods: 'https://apple.com/apple-pay',
+      data: {
+        version: session.version || 3,
+        merchantIdentifier: session.merchantIdentifier || session.merchantIdentifier,
+        merchantCapabilities: ['supports3DS'],
+        supportedNetworks: session.supportedNetworks || ['visa','masterCard','amex'],
+        countryCode: session.countryCode || 'US'
+      }
+    }];
+    const details = {
+      displayItems: [{ label: 'Order total', amount: { currency: 'USD', value: amount } }],
+      total: { label: 'Demo Store', amount: { currency: 'USD', value: amount } }
+    };
+    const request = new PaymentRequest(methodData, details);
+    const resp = await request.show();
+
+    // forward token to server for capture
+    const result = await safeFetch('https://api.spectrodraw.com/api/apple/capture', {
+      method: 'POST',
+      body: JSON.stringify({ token: resp.details, amount })
+    });
+
+    await resp.complete('success');
+    showSuccess('Apple Pay success', result);
+  } catch (err) {
+    console.error('Apple Pay error', err);
+    showError('Apple Pay failed: ' + err.message);
+  }
+});
+
+/* ---------------------------
+   Google Pay (placeholder)
+   --------------------------- */
+document.getElementById('googlepay-button').addEventListener('click', async () => {
+  try {
+    const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
+    const resp = await safeFetch('https://api.spectrodraw.com/api/google/pay', {
+      method: 'POST',
+      body: JSON.stringify({ amount })
+    });
+    if (resp && resp.message) showSuccess('Google Pay: ' + resp.message, resp);
+    else showSuccess('Google Pay response', resp);
+  } catch (err) {
+    console.error(err);
+    showError('Google Pay error: ' + err.message);
+  }
+});
+
+/* ---------------------------
+   Card tokenization flow
+   --------------------------- */
+document.getElementById('card-pay').addEventListener('click', async () => {
+  const form = document.getElementById('card-form');
+  const status = document.getElementById('card-status');
+  status.textContent = '';
+  const formData = new FormData(form);
+  const cardName = formData.get('cardName')?.trim();
+  const cardNumber = formData.get('cardNumber')?.replace(/\s+/g,'');
+  const cardExp = formData.get('cardExp')?.trim();
+  const cardCvc = formData.get('cardCvc')?.trim();
+  if (!cardName || !cardNumber || !cardExp || !cardCvc) {
+    status.textContent = 'Please fill all fields';
+    return;
+  }
+  try {
+    document.getElementById('card-pay').disabled = true;
+    status.textContent = 'Tokenizing…';
+    const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
+    const tokenResp = await safeFetch('https://api.spectrodraw.com/api/card/tokenize', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount, card: { cardName, cardNumber, cardExp, cardCvc }
+      })
+    });
+    if (!tokenResp || !tokenResp.token) throw new Error('Tokenization failed: ' + JSON.stringify(tokenResp));
+    status.textContent = 'Processing charge…';
+    const capture = await safeFetch('https://api.spectrodraw.com/api/card/capture', {
+      method: 'POST',
+      body: JSON.stringify({ token: tokenResp.token, amount })
+    });
+    status.textContent = '';
+    showSuccess('Card payment succeeded', capture);
+  } catch (err) {
+    console.error(err);
+    status.textContent = '';
+    showError('Payment failed: ' + err.message);
+  } finally {
+    document.getElementById('card-pay').disabled = false;
+  }
+});
+
+/* ---------------------------
+   Other: invoice flow
+   --------------------------- */
+document.getElementById('send-invoice').addEventListener('click', async () => {
+  const email = document.getElementById('invoice-email').value;
+  const msgEl = document.getElementById('invoice-msg');
+  msgEl.textContent = '';
+  if (!email) return alert('Enter email');
+  try {
+    const resp = await safeFetch('https://api.spectrodraw.com/api/invoice/send', {
+      method: 'POST',
+      body: JSON.stringify({ email, amount: Number(document.getElementById('amount').value || 0) })
+    });
+    msgEl.textContent = 'Invoice queued/sent.';
+    showSuccess('Invoice result', resp);
+  } catch (err) {
+    msgEl.textContent = '';
+    showError('Invoice failed: ' + err.message);
+  }
+});
+
+/* ---------------------------
+   Helpers: show messages
+   --------------------------- */
+function showError(msg) {
+  console.warn(msg);
+  const e = document.createElement('div');
+  e.className = 'error';
+  e.textContent = msg;
+  document.querySelector('.card').appendChild(e);
+  setTimeout(()=>e.remove(), 8000);
+}
+function showSuccess(msg, payload) {
+  const e = document.createElement('div');
+  e.className = 'success';
+  e.textContent = msg + (payload ? ' ' + (typeof payload === 'object' ? JSON.stringify(payload) : String(payload)) : '');
+  document.querySelector('.card').appendChild(e);
+  setTimeout(()=>e.remove(), 8000);
+}
+
+/* ---------------------------
+   Init on load
+   --------------------------- */
+(async function init() {
+  initPayPal().catch((err)=>{ console.warn('initPayPal', err); });
+
+  try {
+    const ok = await applePaySupported();
+    if (!ok) {
+      const btn = document.getElementById('panel-applepay').querySelector('#applepay-button');
+      if (btn) btn.disabled = true;
+      document.getElementById('apple-msg').textContent = 'Apple Pay not supported in this browser.';
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

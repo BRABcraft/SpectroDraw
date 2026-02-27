@@ -589,6 +589,7 @@ const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
   onInput: (knob)=>{
     emptyAudioLength = knob.value;
     initEmptyPCM(false);
+    visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
   }
 });
 const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
@@ -615,6 +616,7 @@ const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
     buildBinDisplayLookup();
     if (hopSizeKnob.range[1]<fftSize){hopSizeKnob.range[1]=fftSize; hopSizeKnob._buildLabels(); hopSizeKnob.render();}
     if (lockHop) {hopSizeKnob.setValue(fftSizeKnob.getValue());}
+    visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
   }
 });
 const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {

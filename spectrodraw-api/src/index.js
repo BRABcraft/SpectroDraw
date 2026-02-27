@@ -64,6 +64,50 @@ export default {
       if (request.method === "GET" && pathname === "/api/load-sneak-peak") {
         return addCors(await handleSneakPeak(request, env), request);
       }
+      // --- Payment checkpoints: SDK config + create/capture + tokenization ---
+      // PayPal: GET /api/paypal/sdk-config
+      if (pathname === "/api/paypal/sdk-config" && request.method === "GET") {
+        return addCors(await handlePaypalSdkConfig(request, env), request);
+      }
+      // PayPal: POST /api/paypal/create-order { amount }
+      if (pathname === "/api/paypal/create-order" && request.method === "POST") {
+        return addCors(await handlePaypalCreateOrder(request, env), request);
+      }
+      // PayPal: POST /api/paypal/capture-order { orderID }
+      if (pathname === "/api/paypal/capture-order" && request.method === "POST") {
+        return addCors(await handlePaypalCaptureOrder(request, env), request);
+      }
+
+      // Apple Pay: POST /api/apple/merchant-session { url, amount }
+      if (pathname === "/api/apple/merchant-session" && request.method === "POST") {
+        return addCors(await handleAppleMerchantSession(request, env), request);
+      }
+      // Apple Pay: POST /api/apple/capture { token, amount }
+      if (pathname === "/api/apple/capture" && request.method === "POST") {
+        return addCors(await handleAppleCapture(request, env), request);
+      }
+
+      // Google Pay: POST /api/google/pay { amount, token? }
+      if (pathname === "/api/google/pay" && request.method === "POST") {
+        return addCors(await handleGooglePay(request, env), request);
+      }
+
+      // Card tokenize / capture (Stripe-compatible): POST /api/card/tokenize, /api/card/capture
+      if (pathname === "/api/card/tokenize" && request.method === "POST") {
+        return addCors(await handleCardTokenize(request, env), request);
+      }
+      if (pathname === "/api/card/capture" && request.method === "POST") {
+        return addCors(await handleCardCapture(request, env), request);
+      }
+
+      // Invoice send (other): POST /api/invoice/send
+      if (pathname === "/api/invoice/send" && request.method === "POST") {
+        return addCors(await handleInvoiceSend(request, env), request);
+      }
+
+      if (request.method === "GET" && pathname === "/api/load-sneak-peak") {
+        return addCors(await handleSneakPeak(request, env), request);
+      }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
         const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
         const kv = env && env[kvBindingName];
@@ -814,5 +858,371 @@ async function handleSneakPeak(request, env) {
   } catch (err) {
     console.error("SneakPeak error:", err);
     return new Response("Internal server error", { status: 500 });
+  }
+  async function getPaypalAccessToken(env) {
+    // Requires env.PAYPAL_CLIENT_ID and env.PAYPAL_SECRET
+    const clientId = env.PAYPAL_CLIENT_ID;
+    const secret = env.PAYPAL_SECRET;
+    const envName = (env.PAYPAL_ENV || 'sandbox').toLowerCase();
+    const base = envName === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+
+    if (!clientId || !secret) return null;
+
+    const basic = 'Basic ' + btoa(`${clientId}:${secret}`);
+    try {
+      const res = await fetch(`${base}/v1/oauth2/token`, {
+        method: 'POST',
+        headers: {
+          'Authorization': basic,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'grant_type=client_credentials'
+      });
+      if (!res.ok) {
+        console.error('PayPal token failed', await res.text().catch(()=>null));
+        return null;
+      }
+      const js = await res.json();
+      return { token: js.access_token, base };
+    } catch (err) {
+      console.error('PayPal token error', err);
+      return null;
+    }
+  }
+
+  async function handlePaypalSdkConfig(request, env) {
+    // Returns clientId & currency for PayPal JS SDK loader.
+    // Note: Do not store secrets in the client — this only returns client id (public).
+    try {
+      const clientId = env.PAYPAL_CLIENT_ID || null;
+      const currency = env.PAYPAL_CURRENCY || 'USD';
+      if (!clientId) {
+        return json({ message: 'PayPal NOT configured on server. Set PAYPAL_CLIENT_ID in environment.' }, 501);
+      }
+      return json({ clientId, currency }, 200);
+    } catch (err) {
+      console.error('handlePaypalSdkConfig error', err);
+      return json({ message: err.message || 'Failed' }, 500);
+    }
+  }
+
+  async function handlePaypalCreateOrder(request, env) {
+    try {
+      const body = await request.json();
+      const amount = body && body.amount ? String(body.amount) : null;
+      if (!amount) return json({ message: 'Missing amount' }, 400);
+
+      const at = await getPaypalAccessToken(env);
+      if (!at) {
+        return json({ message: 'PayPal not configured (missing PAYPAL_CLIENT_ID / PAYPAL_SECRET)' }, 501);
+      }
+
+      const createRes = await fetch(`${at.base}/v2/checkout/orders`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${at.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          intent: 'CAPTURE',
+          purchase_units: [{ amount: { currency_code: env.PAYPAL_CURRENCY || 'USD', value: Number(amount).toFixed(2) } }]
+        })
+      });
+
+      if (!createRes.ok) {
+        const txt = await createRes.text().catch(()=>null);
+        console.error('PayPal create order failed', createRes.status, txt);
+        return json({ message: 'Failed to create PayPal order', details: txt }, 502);
+      }
+      const js = await createRes.json();
+      return json({ orderID: js.id, raw: js }, 200);
+    } catch (err) {
+      console.error('handlePaypalCreateOrder error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
+  }
+
+  async function handlePaypalCaptureOrder(request, env) {
+    try {
+      const { orderID } = await request.json();
+      if (!orderID) return json({ message: 'Missing orderID' }, 400);
+      const at = await getPaypalAccessToken(env);
+      if (!at) {
+        return json({ message: 'PayPal not configured (missing PAYPAL_CLIENT_ID / PAYPAL_SECRET)' }, 501);
+      }
+      const capRes = await fetch(`${at.base}/v2/checkout/orders/${encodeURIComponent(orderID)}/capture`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${at.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!capRes.ok) {
+        const txt = await capRes.text().catch(()=>null);
+        console.error('PayPal capture failed', capRes.status, txt);
+        return json({ message: 'Failed to capture order', details: txt }, 502);
+      }
+      const js = await capRes.json();
+      // TODO: record transaction in DB/KV
+      return json({ captured: true, raw: js }, 200);
+    } catch (err) {
+      console.error('handlePaypalCaptureOrder error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
+  }
+
+  /* -------------------------
+    Apple Pay handlers
+    -------------------------
+    NOTE: Apple merchant validation (startSession) requires a TLS client certificate
+    (your Apple Merchant Identity certificate) when calling the validation URL.
+    Cloudflare Workers' fetch DOES NOT support presenting a client TLS certificate,
+    so you cannot perform the merchant validation step directly from a Worker.
+    Recommended patterns:
+      - perform merchant validation from a small server (Node, Go) that can present the client cert,
+        then have Worker call that server; OR
+      - use a payment gateway (Stripe, Adyen, Braintree) which handles merchant validation for you.
+  */
+  async function handleAppleMerchantSession(request, env) {
+    try {
+      const body = await request.json();
+      const validationUrl = body && body.url ? String(body.url) : null;
+      const amount = body && body.amount ? String(body.amount) : null;
+      if (!validationUrl) return json({ message: 'Missing validation URL' }, 400);
+
+      // If you have a proxy server that can do the client-certificate validation, call it here.
+      if (env.APPLE_MERCHANT_VALIDATOR_URL) {
+        // Example: your external validator accepts { validationUrl, merchantId, domainName }
+        try {
+          const proxyRes = await fetch(env.APPLE_MERCHANT_VALIDATOR_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              validationUrl,
+              merchantIdentifier: env.APPLE_MERCHANT_ID || null,
+              domainName: (new URL(request.url)).hostname,
+              displayName: env.APP_NAME || 'SpectroDraw'
+            })
+          });
+          if (!proxyRes.ok) {
+            const txt = await proxyRes.text().catch(()=>null);
+            console.error('Apple validator proxy failed', proxyRes.status, txt);
+            return json({ message: 'Apple merchant validation failed via proxy', details: txt }, 502);
+          }
+          const session = await proxyRes.json();
+          return json(session, 200);
+        } catch (err) {
+          console.error('Apple merchant proxy error', err);
+          return json({ message: 'Apple merchant validation proxy error' }, 500);
+        }
+      }
+
+      // Otherwise, return an instructive error because Workers can't present client certs to Apple.
+      return json({
+        message: 'Apple merchant validation cannot be performed from Workers. Provide APPLE_MERCHANT_VALIDATOR_URL (a server that presents your Apple Merchant Identity cert) or use a gateway that handles Apple Pay.'
+      }, 501);
+    } catch (err) {
+      console.error('handleAppleMerchantSession error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
+  }
+
+  async function handleAppleCapture(request, env) {
+    try {
+      const body = await request.json();
+      const token = body && body.token ? body.token : null;
+      const amount = body && body.amount ? Number(body.amount) : null;
+      if (!token || !amount) return json({ message: 'Missing token or amount' }, 400);
+
+      // If you're using a gateway like Stripe, delegate to it:
+      if (env.STRIPE_SECRET) {
+        // For example, create a PaymentIntent via Stripe using payment_method_data -> but typically the token
+        // is a gateway-specific token. Here we assume token is the gateway token and forward to Stripe's PaymentIntents as needed.
+        // This is a simplified placeholder. Usually token format needs gastric decoding depending on gateway.
+        return json({ message: 'Apple capture via Stripe not implemented in demo. Integrate with your gateway.' }, 501);
+      }
+
+      return json({ message: 'Apple Pay capture endpoint not configured. Use a payment gateway or proxy.' }, 501);
+    } catch (err) {
+      console.error('handleAppleCapture error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
+  }
+
+  /* -------------------------
+    Google Pay handler
+    ------------------------- */
+  async function handleGooglePay(request, env) {
+    try {
+      const body = await request.json();
+      const amount = body && body.amount ? Number(body.amount) : null;
+      const token = body && body.token ? body.token : null;
+      if (!amount) return json({ message: 'Missing amount' }, 400);
+
+      // If you have a gateway that supports Google Pay token processing (e.g., Stripe), forward it:
+      if (env.STRIPE_SECRET) {
+        // This example simply returns a "accepted" message. In a real integration, you would:
+        // 1) extract the payment token from body.token (from client)
+        // 2) create a PaymentMethod/PaymentIntent in Stripe with the token
+        return json({ message: 'Google Pay accepted (demo). Use your gateway to process token.' }, 200);
+      }
+
+      // No gateway configured — return a demo response
+      return json({ message: 'Google Pay not configured on server. Provide STRIPE_SECRET or your gateway credentials.' }, 501);
+    } catch (err) {
+      console.error('handleGooglePay error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
+  }
+
+  /* -------------------------
+    Card tokenization & capture (Stripe-compatible example)
+    ------------------------- */
+  async function handleCardTokenize(request, env) {
+    try {
+      const body = await request.json();
+      const amount = body && body.amount ? Number(body.amount) : null;
+      const card = body && body.card ? body.card : null;
+      if (!amount || !card) return json({ message: 'Missing amount or card data' }, 400);
+
+      // If Stripe secret available, create a token via Stripe Tokens API
+      if (env.STRIPE_SECRET) {
+        const stripeSecret = env.STRIPE_SECRET;
+        // cardExp expected as MM/YY or MM/YYYY
+        let [expMonth, expYear] = ['',''];
+        if (card.cardExp) {
+          const m = String(card.cardExp).trim().split(/[\/\-]/);
+          if (m.length >= 2) {
+            expMonth = m[0];
+            expYear = m[1].length === 2 ? `20${m[1]}` : m[1];
+          }
+        }
+        const params = new URLSearchParams();
+        params.append('card[number]', String(card.cardNumber).replace(/\s+/g,''));
+        params.append('card[exp_month]', String(expMonth));
+        params.append('card[exp_year]', String(expYear));
+        params.append('card[cvc]', String(card.cardCvc || ''));
+
+        const res = await fetch('https://api.stripe.com/v1/tokens', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${stripeSecret}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: params.toString()
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(()=>null);
+          console.error('Stripe tokenization failed', res.status, txt);
+          return json({ message: 'Tokenization failed', details: txt }, 502);
+        }
+        const js = await res.json();
+        // Return token id to client (server should store minimal reference for reconciliation if needed)
+        return json({ token: js.id, raw: js }, 200);
+      }
+
+      // No gateway configured — refuse raw PAN flow
+      return json({ message: 'Card tokenization is not enabled on server. Configure STRIPE_SECRET or use provider SDKs.' }, 501);
+    } catch (err) {
+      console.error('handleCardTokenize error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
+  }
+
+  async function handleCardCapture(request, env) {
+    try {
+      const body = await request.json();
+      const token = body && body.token ? body.token : null;
+      const amount = body && body.amount ? Number(body.amount) : null;
+      if (!token || !amount) return json({ message: 'Missing token or amount' }, 400);
+
+      if (env.STRIPE_SECRET) {
+        // Create a charge using Stripe Charges API (simple example).
+        // NOTE: Stripe recommends PaymentIntents+PaymentsElement for modern flows;
+        // this Charges API example is for simple server-side demos only.
+        const stripeSecret = env.STRIPE_SECRET;
+        const params = new URLSearchParams();
+        const cents = Math.round(Number(amount) * 100);
+        params.append('amount', String(cents));
+        params.append('currency', env.DEFAULT_CURRENCY?.toLowerCase() || 'usd');
+        params.append('source', token);
+        params.append('description', 'SpectroDraw charge');
+
+        const res = await fetch('https://api.stripe.com/v1/charges', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${stripeSecret}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: params.toString()
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(()=>null);
+          console.error('Stripe charge failed', res.status, txt);
+          return json({ message: 'Charge failed', details: txt }, 502);
+        }
+        const js = await res.json();
+        // TODO: record transaction in KV/DB
+        return json({ charged: true, raw: js }, 200);
+      }
+
+      return json({ message: 'Card capture not configured. Provide STRIPE_SECRET or use a proper gateway.' }, 501);
+    } catch (err) {
+      console.error('handleCardCapture error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
+  }
+
+  /* -------------------------
+    Invoice / "other" flows
+    ------------------------- */
+  async function handleInvoiceSend(request, env) {
+    try {
+      const body = await request.json();
+      const email = body && body.email ? String(body.email).trim() : null;
+      const amount = body && body.amount ? Number(body.amount) : null;
+      if (!email || !/^\S+@\S+\.\S+$/.test(email)) return json({ message: 'Invalid email' }, 400);
+
+      // If you have a transactional email provider (SendGrid, Mailgun), call it here.
+      if (env.SENDGRID_API_KEY) {
+        try {
+          const content = {
+            personalizations: [{ to: [{ email }], subject: 'Your SpectroDraw Invoice' }],
+            from: { email: env.FROM_EMAIL || 'noreply@spectrodraw.com', name: env.APP_NAME || 'SpectroDraw' },
+            content: [{ type: 'text/plain', value: `Invoice for USD ${amount || '0.00'}.` }]
+          };
+          const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${env.SENDGRID_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(content)
+          });
+          if (res.status >= 200 && res.status < 300) {
+            return json({ sent: true }, 200);
+          } else {
+            const txt = await res.text().catch(()=>null);
+            console.error('SendGrid failed', res.status, txt);
+            return json({ message: 'Failed to send invoice', details: txt }, 502);
+          }
+        } catch (err) {
+          console.error('SendGrid error', err);
+          return json({ message: 'Email provider error' }, 500);
+        }
+      }
+
+      // Fallback: store invoice request in USERS KV (or SESSIONS) for manual processing
+      if (env.USERS) {
+        const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+        await env.USERS.put(`invoice:${id}`, JSON.stringify({ email, amount, createdAt: new Date().toISOString() }));
+        return json({ queued: true, id }, 200);
+      }
+
+      return json({ message: 'Invoice sending not configured. Set SENDGRID_API_KEY or configure a queue.' }, 501);
+    } catch (err) {
+      console.error('handleInvoiceSend error', err);
+      return json({ message: err.message || 'Internal error' }, 500);
+    }
   }
 }

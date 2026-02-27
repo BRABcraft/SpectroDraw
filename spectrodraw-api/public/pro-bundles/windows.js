@@ -1998,8 +1998,6 @@ function setDocked(panel, dockObj){
           <hr>
           <div style="align-items:center;display:flex;flex-direction:column;">
             <button id="trueScale" title="Use true aspect ratio" class="leftBtn">Use true scale</button>
-            <button id="downloadSpectrogram" title="Download spectrogram (ctrl + shift + s)" class="leftBtn">Download Spectrogram</button>
-            <button id="downloadVideo" title="Download video" class="leftBtn">Download video</button>
             <button id="yAxisMode" title="Toggle Y axis label mode (y)" class="leftBtn">Display Notes</button><br>
           </div>
           <div class="slider-row" title="Blur X">

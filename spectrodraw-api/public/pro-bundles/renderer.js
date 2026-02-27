@@ -7,7 +7,7 @@ function restartRender(autoPlay,overrideHasCanvases=false){
   const nft = Math.max(1, Math.floor((emptyAudioLength*sampleRate - fftSize) / hop) + 1);
   iLow *= (nft/framesTotal);
   iHigh *= (nft/framesTotal);
-  framesTotal = nft; console.log(framesTotal);
+  framesTotal = nft;
   const freqBins = Math.floor(fftSize / 2);
   
   const offsetY = trueScaleVal ? specHeight*Math.min(document.getElementById("canvas-0").parentElement.clientWidth / framesTotal, (getLayerHeight()) / freqBins, 1) : layerHeight;
@@ -158,9 +158,11 @@ function restartRender(autoPlay,overrideHasCanvases=false){
     specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
     specCtx.putImageData(imageBuffer[ch], 0, 0);
 
-    if (!layers[ch].mags) layers[ch].mags = new Float32Array(specWidth * specHeight).fill(0);
-    if (!layers[ch].phases) layers[ch].phases = new Float32Array(specWidth * specHeight).fill(0);
-    if (!layers[ch].pans) layers[ch].pans = new Float32Array(specWidth * specHeight).fill(0);
+    function shouldRegenerate(a){return !a || a.length!==specWidth*specHeight}
+    if (shouldRegenerate(layers[ch].mags)) layers[ch].mags = new Float32Array(specWidth * specHeight).fill(0);
+    if (shouldRegenerate(layers[ch].phases)) layers[ch].phases = new Float32Array(specWidth * specHeight).fill(0);
+    if (shouldRegenerate(layers[ch].pans)) layers[ch].pans = new Float32Array(specWidth * specHeight).fill(0);
+    
 
     // IMPORTANT: after (re)setting canvas.width/height the context is reset, so re-obtain it
     const ctx = canvas.getContext("2d");

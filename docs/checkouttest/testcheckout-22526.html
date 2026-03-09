@@ -3,410 +3,218 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Secure Checkout</title>
+<title>Checkout</title>
 
-<!-- Updated Content-Security-Policy:
-     - allow paypal domains, google-pay, apple-pay-gateway and apple.com (needed by some Apple flows)
-     - keep script-src tight (allow PayPal SDK only)
--->
-<meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src 'self' https://www.paypal.com https://api.paypal.com https://payments.google.com https://apple-pay-gateway.apple.com https://apple.com; script-src 'self' 'unsafe-inline' https://www.paypal.com; style-src 'self' 'unsafe-inline';">
+<!-- Load PayPal SDK (hosted-fields + buttons + card funding) -->
+<script src="https://www.paypal.com/sdk/js?client-id=Aav5jVmFqcCz1XoQNDPt-x64R-Ldkcx8IDVKBubbVbZVae9hH1BT1hiwqSiPol5qihKvvPYG6_9JfN-9&components=buttons,hosted-fields&enable-funding=card"></script>
 
 <style>
-  :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;--accent:#0b74de}
-  body{margin:0;padding:28px;background:#222;color:#0b1720}
-  .card{background:#fff;border-radius:12px;padding:20px;max-width:820px;margin:0 auto;box-shadow:0 6px 20px rgba(20,30,50,.06)}
-  h1{margin-top:0}
-  .methods{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-  .method{padding:8px 12px;border-radius:8px;border:1px solid #555;background:#222;cursor:pointer}
-  .method.active{border-color:var(--accent);box-shadow:0 4px 14px rgba(11,116,222,.08);background:#4af}
-  .panel{margin-top:16px}
-  .hidden{display:none}
-  label{display:block;margin:8px 0;font-size:14px}
-  input[type="text"],input[type="email"],input[type="tel"],input[type="number"]{
-    width:100%;padding:10px;border:1px solid #e3eefc;border-radius:8px;font-size:14px
+  :root{ --max-width:1100px; --accent:#111827; --muted:#6b7280; --panel:#fff; --shadow: 0 6px 20px rgba(16,24,40,0.06); }
+  body{ font-family: Inter,system-ui,Arial; background:#f6f7f8; margin:24px; display:flex; justify-content:center; }
+  .wrap{ max-width:var(--max-width); width:100%; display:grid; grid-template-columns: 1fr 380px; gap:28px; }
+  .panel{ background:var(--panel); padding:24px; border-radius:8px; box-shadow:var(--shadow); }
+  h2,h3{ margin:0 0 12px 0; font-weight:600; color:var(--accent); }
+  .muted{ color:var(--muted); font-size:14px; }
+  .field{ margin:10px 0; }
+  input[type="text"], input[type="email"], select{
+    width:100%; padding:12px; border:1px solid #e5e7eb; border-radius:6px; font-size:14px;
   }
-  button{background:var(--accent);color:#fff;padding:10px 14px;border:none;border-radius:8px;cursor:pointer}
-  button[disabled]{opacity:.5;cursor:not-allowed}
-  .note{font-size:13px;color:#425466;margin-top:10px}
-  .loading{opacity:.7}
-  .error { color: #a33; margin-top:8px; }
-  .success { color: #0a0; margin-top:8px; }
+  .separator{ text-align:center; color:var(--muted); margin:18px 0; position:relative; }
+  .separator::before,.separator::after{ content:""; height:1px; background:#e6e6e6; position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); }
+  .separator span{ position:relative; display:inline-block; background:var(--panel); padding:0 12px; }
+  /* PayPal container */
+  #paypal-button-container{ margin-top:6px; }
+  /* Hosted Fields placeholders */
+  .card-field{ height:44px; border:1px solid #e5e7eb; border-radius:6px; padding:8px; display:flex; align-items:center; font-size:15px; background:white; }
+  .card-label{ font-size:13px; color:var(--muted); margin-bottom:6px; }
+  .pay-btn{ display:inline-block; padding:12px 18px; background:#111827; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+  .order-summary h3{ margin-bottom:8px; }
+  .line{ display:flex; justify-content:space-between; margin:12px 0; color:var(--muted); }
+  .total{ font-size:20px; font-weight:700; color:var(--accent); }
+  .error{ color:#b91c1c; font-size:13px; margin-top:8px; }
+  .paypal-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .paypal-btn-slot { width:calc(50% - 12px); }
 </style>
 </head>
 <body>
-  <main class="card" role="main" aria-labelledby="checkoutTitle">
-    <h1 id="checkoutTitle">Secure Checkout</h1>
-    <div>
-      <strong>Amount:</strong>
-      <div style="margin:8px 0 16px">USD <input id="amount" type="number" min="1" step="0.01" value="19.99" style="width:140px;display:inline-block" /></div>
+  <div class="wrap">
+    <!-- LEFT: Checkout form -->
+    <div class="panel" id="checkout-panel">
+      <h2>Checkout</h2>
+      <h3>Express checkout</h3>
+      <div id="paypal-row" class="paypal-row" aria-hidden="false">
+        <div id="paypal-button" class="paypal-btn-slot"></div>
+        <div id="paylater-button" class="paypal-btn-slot"></div>
+      </div>
+      <div class="separator" aria-hidden="true"></div>
+      <h3>Or continue below to pay with card</h3>
+      
+      <hr style="margin:18px 0; border:none; border-top:1px solid #f0f0f0;" />
+
+      <div>
+        <div class="field">
+          <label class="card-label">Card number</label>
+          <div id="card-number" class="card-field" aria-label="Card number"></div>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+          <div style="flex:1" class="field">
+            <label class="card-label">Expiry</label>
+            <div id="expiration-date" class="card-field"></div>
+          </div>
+          <div style="width:120px" class="field">
+            <label class="card-label">CVC</label>
+            <div id="cvv" class="card-field"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <h3>Contact</h3>
+
+      <div class="field">
+        <input id="email" type="email" placeholder="you@example.com" required>
+      </div>
+      <div style="margin-top:12px;">
+        <button id="pay-card" class="pay-btn">Pay $40.00</button>
+        <div id="card-error" class="error" role="alert" aria-live="polite"></div>
+      </div>
     </div>
 
-    <div class="methods" role="tablist" aria-label="Payment methods">
-      <button class="method active" data-method="paypal" role="tab">PayPal</button>
-      <button class="method" data-method="applepay" role="tab">Apple Pay</button>
-      <button class="method" data-method="googlepay" role="tab">Google Pay</button>
-      <button class="method" data-method="card" role="tab">Card (tokenize)</button>
-      <button class="method" data-method="other" role="tab">Other</button>
-    </div>
-
-    <section id="panels" class="panel">
-      <!-- PayPal -->
-      <div id="panel-paypal" class="panel-item">
-        <div id="paypal-button-container"></div>
-        <div id="paypal-msg" class="note"></div>
+    <!-- RIGHT: Order summary -->
+    <aside class="panel order-summary">
+      <h3>Order summary</h3>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div>
+          <div style="font-weight:600">SpectroDraw Pro</div>
+        </div>
       </div>
 
-      <!-- Apple Pay (Payment Request API) -->
-      <div id="panel-applepay" class="panel-item hidden">
-        <p>Apple Pay uses the Payment Request API or Apple Pay JS. Your domain must be validated by Apple via your server.</p>
-        <button id="applepay-button">Pay with Apple Pay</button>
-        <div id="apple-msg" class="note"></div>
+      <div class="line" style="margin-top:18px;">
+        <div class="muted">Subtotal</div>
+        <div class="muted">$40.00</div>
       </div>
-
-      <!-- Google Pay -->
-      <div id="panel-googlepay" class="panel-item hidden">
-        <p>Google Pay integration — uses tokenization and a server-side processor.</p>
-        <button id="googlepay-button">Pay with Google Pay</button>
-        <div id="google-msg" class="note"></div>
+      <div class="line" style="border-top:1px dashed #eee; padding-top:12px;">
+        <div class="total">Total</div>
+        <div class="total">40.00</div>
       </div>
-
-      <!-- Card form (tokenize via your payment processor) -->
-      <div id="panel-card" class="panel-item hidden">
-        <form id="card-form" autocomplete="off" novalidate>
-          <label>
-            Cardholder name
-            <input name="cardName" type="text" required />
-          </label>
-          <label>
-            Card number
-            <input name="cardNumber" inputmode="numeric" pattern="[0-9\s]{12,19}" required />
-          </label>
-          <div style="display:flex;gap:8px">
-            <label style="flex:1">
-              Expiration (MM/YY)
-              <input name="cardExp" placeholder="MM/YY" required />
-            </label>
-            <label style="flex:1">
-              CVC
-              <input name="cardCvc" inputmode="numeric" pattern="\d{3,4}" required />
-            </label>
-          </div>
-          <div style="margin-top:12px">
-            <button id="card-pay" type="button">Pay</button>
-            <div id="card-status" class="note" aria-live="polite"></div>
-          </div>
-        </form>
-      </div>
-
-      <!-- Other -->
-      <div id="panel-other" class="panel-item hidden">
-        <p>Provide instructions or link to other processors (bank transfer, crypto, invoices, etc.).</p>
-        <label>
-          Email for invoice:
-          <input id="invoice-email" type="email" />
-        </label>
-        <button id="send-invoice">Send Invoice</button>
-        <div id="invoice-msg" class="note"></div>
-      </div>
-    </section>
-
-  </main>
+      <p class="muted" style="margin-top:8px; font-size:13px;">Secure payments powered by PayPal. You can also pay with major credit cards.</p>
+    </aside>
+  </div>
 
 <script>
+/*
+  Client-side: uses two endpoints:
+    POST /create-order   -> returns { id: "<paypal-order-id>" }
+    POST /capture-order  -> accepts { orderID } and returns capture result
 
-function getSpectrodrawUserFromEnv() {
-  try {
-    if (window.__SPECTRODRAW_USER) return window.__SPECTRODRAW_USER;
-    const meta = document.querySelector('meta[name="spectrodraw-user"]')?.content;
-    if (meta) {
-      try { return JSON.parse(meta); } catch (e) { return meta; }
-    }
-    const ls = localStorage.getItem('spectrodraw_user');
-    if (ls) {
-      try { return JSON.parse(ls); } catch (e) { return ls; }
-    }
-  } catch (e) {}
-  return null;
-}
+  Hosted Fields docs reference: https://developer.paypal.com/docs/checkout/hosted-fields/
+*/
 
-async function safeFetch(url, opts = {}) {
-  const headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
-  const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
-  if (csrf) headers['x-csrf-token'] = csrf;
-  const sdUser = getSpectrodrawUserFromEnv();
-  if (sdUser) {
-    headers['X-Spectrodraw-User'] = (typeof sdUser === 'object') ? JSON.stringify(sdUser) : String(sdUser);
-  }
-  const fetchOpts = Object.assign({}, opts, {
-    headers,
-    credentials: 'include'
+const payButton = document.getElementById('pay-card');
+const cardError = document.getElementById('card-error');
+
+// 1) Render PayPal Smart Buttons -> server creates the order (so amounts are validated on server)
+const createOrderFunc = () => fetch('https://api.spectrodraw.com/create-order', {
+  method: 'POST',
+  headers: {'content-type':'application/json'},
+  body: JSON.stringify({ intent:'CAPTURE', source: 'paypal' })
+}).then(res => res.json()).then(data => data.id);
+
+const onApproveFunc = (data) => {
+  return fetch('https://api.spectrodraw.com/capture-order', {
+    method: 'POST',
+    headers: {'content-type':'application/json'},
+    body: JSON.stringify({ orderID: data.orderID })
+  }).then(r => r.json()).then(result => {
+    if (result.status === 'COMPLETED') {
+      window.location = '/success'; // or show a message
+    } else {
+      console.error(result);
+      alert('Payment not completed');
+    }
   });
-
-  const res = await fetch(url, fetchOpts);
-  const ct = res.headers.get('content-type') || '';
-
-  if (res.status === 401) {
-    const txt = ct.includes('application/json') ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
-    throw new Error(`Unauthorized (401) from ${url}: ${JSON.stringify(txt)}`);
-  }
-  if (res.status === 501 || res.status === 502) {
-    const txt = ct.includes('application/json') ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
-    throw new Error(`Server (gateway) error ${res.status}: ${JSON.stringify(txt)}`);
-  }
-  if (!res.ok) {
-    const txt = ct.includes('application/json') ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
-    throw new Error(`Network error ${res.status}: ${JSON.stringify(txt) || res.statusText}`);
-  }
-  if (ct.includes('application/json')) return res.json();
-  return res.text();
-}
-
-const methods = document.querySelectorAll('.method');
-const panels = {
-  paypal: document.getElementById('panel-paypal'),
-  applepay: document.getElementById('panel-applepay'),
-  googlepay: document.getElementById('panel-googlepay'),
-  card: document.getElementById('panel-card'),
-  other: document.getElementById('panel-other')
 };
-let activeMethod = 'paypal';
 
-methods.forEach(btn=>{
-  btn.addEventListener('click', ()=> {
-    methods.forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const m = btn.dataset.method;
-    switchPanel(m);
-  });
-});
+// Render the standard PayPal button
+paypal.Buttons({
+  fundingSource: paypal.FUNDING.PAYPAL,
+  style: { layout: 'horizontal', color: 'gold', height: 44 },
+  createOrder: createOrderFunc,
+  onApprove: onApproveFunc,
+  onError: err => console.error('PayPal button error', err)
+}).render('#paypal-button');
 
-function switchPanel(name) {
-  activeMethod = name;
-  Object.keys(panels).forEach(k=>{
-    panels[k].classList.toggle('hidden', k !== name);
-  });
-}
+// Render the Pay Later button (separate slot)
+paypal.Buttons({
+  fundingSource: paypal.FUNDING.PAYLATER,
+  style: { layout: 'horizontal', color: 'gold', height: 44 }, // style examples
+  createOrder: createOrderFunc,
+  onApprove: onApproveFunc,
+  onError: err => console.error('Pay Later button error', err)
+}).render('#paylater-button');
 
-async function initPayPal() {
-  try {
-    const resp = await safeFetch('https://api.spectrodraw.com/api/paypal/sdk-config', { method: 'GET' });
-    if (!resp || !resp.clientId) {
-      document.getElementById('paypal-msg').textContent = 'PayPal not configured on server or SDK config missing.';
-      console.warn('PayPal SDK config missing or 404 returned');
-      return;
-    }
-    const { clientId, currency } = resp;
-    if (!window.paypal) {
-      const s = document.createElement('script');
-      s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}`;
-      s.async = true;
-      document.head.appendChild(s);
-      await new Promise((resolve, reject) => {
-        s.onload = resolve;
-        s.onerror = () => reject(new Error('Failed to load PayPal SDK'));
-      });
-    }
-    renderPayPalButton();
-  } catch (err) {
-    console.warn('PayPal init failed:', err.message);
-    document.getElementById('paypal-msg').textContent = 'PayPal init error: ' + err.message;
-  }
-}
 
-async function renderPayPalButton() {
-  const container = document.getElementById('paypal-button-container');
-  container.innerHTML = '';
-  if (!window.paypal || !window.paypal.Buttons) {
-    container.textContent = 'PayPal SDK unavailable';
-    return;
-  }
+// 2) Hosted Fields: Card payments handled by PayPal hosted iframes (no card data on your server)
+if (paypal.HostedFields && paypal.HostedFields.isEligible()) {
 
-  window.paypal.Buttons({
-    createOrder: async () => {
-      const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
-      const data = await safeFetch('https://api.spectrodraw.com/api/paypal/create-order', {
+  paypal.HostedFields.render({
+    styles: {
+      'input': { 'font-size':'16px', 'color':'#111827' },
+      '.invalid': { color: '#b91c1c' }
+    },
+    createOrder: function() {
+      // create order on server (so client can't change amount)
+      return fetch('https://api.spectrodraw.com/create-order', {
         method: 'POST',
-        body: JSON.stringify({ amount })
-      });
-      if (!data || !data.orderID) throw new Error('Failed to create PayPal order');
-      return data.orderID;
+        headers: {'content-type':'application/json'},
+        body: JSON.stringify({ intent:'CAPTURE', source: 'card' })
+      }).then(r => r.json()).then(data => data.id);
     },
-    onApprove: async (data) => {
-      try {
-        const capture = await safeFetch('https://api.spectrodraw.com/api/paypal/capture-order', {
-          method: 'POST',
-          body: JSON.stringify({ orderID: data.orderID })
+    fields: {
+      number: { selector: '#card-number', placeholder: '4111 1111 1111 1111' },
+      cvv:    { selector: '#cvv', placeholder: '123' },
+      expirationDate: { selector: '#expiration-date', placeholder: 'MM/YY' }
+    }
+  }).then(function(cardFields) {
+
+    payButton.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      cardError.textContent = '';
+
+      // submit triggers any 3DS or bank authentications; resolves with { orderId }
+      cardFields.submit({ contingencies: ['3D_SECURE'] })
+        .then(function (payload) {
+          // payload.orderId is the PayPal order ID — capture it on server to complete payment
+          return fetch('https://api.spectrodraw.com/capture-order', {
+            method: 'POST',
+            headers: {'content-type':'application/json'},
+            body: JSON.stringify({ orderID: payload.orderId })
+          }).then(res => res.json()).then(result => {
+            if (result.status === 'COMPLETED') {
+              alert('Card payment completed — Thank you!');
+            } else {
+              cardError.textContent = 'Payment failed — see console for details.';
+              console.log(result);
+            }
+          });
+        })
+        .catch(function (err) {
+          console.error('Card submit error', err);
+          cardError.textContent = err && err.message ? err.message : 'Payment error';
         });
-        showSuccess('Payment complete (PayPal).', capture);
-      } catch (err) {
-        showError('PayPal capture failed: ' + err.message);
-      }
-    },
-    onError: (err) => {
-      console.error(err);
-      showError('PayPal error: ' + (err && err.message ? err.message : String(err)));
-    }
-  }).render('#paypal-button-container');
+    });
+
+  }).catch(function(err){
+    console.error('HostedFields.render error', err);
+    // fall back: you could hide card form and only show PayPal button
+    document.getElementById('card-form')?.classList?.add('hidden');
+  });
+
+} else {
+  // Not eligible (mobile/browser), hide hosted fields or show a message
+  document.getElementById('card-form')?.classList?.add('hidden');
 }
-async function applePaySupported() {
-  try {
-    if (window.ApplePaySession && typeof ApplePaySession.canMakePayments === 'function') {
-      // returns boolean; native API
-      return await ApplePaySession.canMakePayments();
-    }
-  } catch (e) {
-    console.warn('ApplePaySession.canMakePayments error', e);
-  }
-  // Conservative fallback: do not attempt PaymentRequest.canMakePayment (avoids CSP network)
-  return false;
-}
-
-document.getElementById('applepay-button').addEventListener('click', async () => {
-  try {
-    const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
-
-    // Request a merchant session from your server (worker will proxy or instruct)
-    const session = await safeFetch('https://api.spectrodraw.com/api/apple/merchant-session', {
-      method: 'POST',
-      body: JSON.stringify({ url: window.location.origin, amount })
-    });
-
-    if (!session || session.message) {
-      throw new Error(session && session.message ? session.message : 'Merchant session not available');
-    }
-
-    // Build PaymentRequest with returned session info (best-effort)
-    const methodData = [{
-      supportedMethods: 'https://apple.com/apple-pay',
-      data: {
-        version: session.version || 3,
-        merchantIdentifier: session.merchantIdentifier || session.merchantIdentifier,
-        merchantCapabilities: ['supports3DS'],
-        supportedNetworks: session.supportedNetworks || ['visa','masterCard','amex'],
-        countryCode: session.countryCode || 'US'
-      }
-    }];
-    const details = {
-      displayItems: [{ label: 'Order total', amount: { currency: 'USD', value: amount } }],
-      total: { label: 'Demo Store', amount: { currency: 'USD', value: amount } }
-    };
-    const request = new PaymentRequest(methodData, details);
-    const resp = await request.show();
-
-    // forward token to server for capture
-    const result = await safeFetch('https://api.spectrodraw.com/api/apple/capture', {
-      method: 'POST',
-      body: JSON.stringify({ token: resp.details, amount })
-    });
-
-    await resp.complete('success');
-    showSuccess('Apple Pay success', result);
-  } catch (err) {
-    console.error('Apple Pay error', err);
-    showError('Apple Pay failed: ' + err.message);
-  }
-});
-document.getElementById('googlepay-button').addEventListener('click', async () => {
-  try {
-    const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
-    const resp = await safeFetch('https://api.spectrodraw.com/api/google/pay', {
-      method: 'POST',
-      body: JSON.stringify({ amount })
-    });
-    if (resp && resp.message) showSuccess('Google Pay: ' + resp.message, resp);
-    else showSuccess('Google Pay response', resp);
-  } catch (err) {
-    console.error(err);
-    showError('Google Pay error: ' + err.message);
-  }
-});
-document.getElementById('card-pay').addEventListener('click', async () => {
-  const form = document.getElementById('card-form');
-  const status = document.getElementById('card-status');
-  status.textContent = '';
-  const formData = new FormData(form);
-  const cardName = formData.get('cardName')?.trim();
-  const cardNumber = formData.get('cardNumber')?.replace(/\s+/g,'');
-  const cardExp = formData.get('cardExp')?.trim();
-  const cardCvc = formData.get('cardCvc')?.trim();
-  if (!cardName || !cardNumber || !cardExp || !cardCvc) {
-    status.textContent = 'Please fill all fields';
-    return;
-  }
-  try {
-    document.getElementById('card-pay').disabled = true;
-    status.textContent = 'Tokenizing…';
-    const amount = Number(document.getElementById('amount').value || 0).toFixed(2);
-    const tokenResp = await safeFetch('https://api.spectrodraw.com/api/card/tokenize', {
-      method: 'POST',
-      body: JSON.stringify({
-        amount, card: { cardName, cardNumber, cardExp, cardCvc }
-      })
-    });
-    if (!tokenResp || !tokenResp.token) throw new Error('Tokenization failed: ' + JSON.stringify(tokenResp));
-    status.textContent = 'Processing charge…';
-    const capture = await safeFetch('https://api.spectrodraw.com/api/card/capture', {
-      method: 'POST',
-      body: JSON.stringify({ token: tokenResp.token, amount })
-    });
-    status.textContent = '';
-    showSuccess('Card payment succeeded', capture);
-  } catch (err) {
-    console.error(err);
-    status.textContent = '';
-    showError('Payment failed: ' + err.message);
-  } finally {
-    document.getElementById('card-pay').disabled = false;
-  }
-});
-
-document.getElementById('send-invoice').addEventListener('click', async () => {
-  const email = document.getElementById('invoice-email').value;
-  const msgEl = document.getElementById('invoice-msg');
-  msgEl.textContent = '';
-  if (!email) return alert('Enter email');
-  try {
-    const resp = await safeFetch('https://api.spectrodraw.com/api/invoice/send', {
-      method: 'POST',
-      body: JSON.stringify({ email, amount: Number(document.getElementById('amount').value || 0) })
-    });
-    msgEl.textContent = 'Invoice queued/sent.';
-    showSuccess('Invoice result', resp);
-  } catch (err) {
-    msgEl.textContent = '';
-    showError('Invoice failed: ' + err.message);
-  }
-});
-
-function showError(msg) {
-  console.warn(msg);
-  const e = document.createElement('div');
-  e.className = 'error';
-  e.textContent = msg;
-  document.querySelector('.card').appendChild(e);
-  setTimeout(()=>e.remove(), 8000);
-}
-function showSuccess(msg, payload) {
-  const e = document.createElement('div');
-  e.className = 'success';
-  e.textContent = msg + (payload ? ' ' + (typeof payload === 'object' ? JSON.stringify(payload) : String(payload)) : '');
-  document.querySelector('.card').appendChild(e);
-  setTimeout(()=>e.remove(), 8000);
-}
-
-(async function init() {
-  initPayPal().catch((err)=>{ console.warn('initPayPal', err); });
-
-  try {
-    const ok = await applePaySupported();
-    if (!ok) {
-      const btn = document.getElementById('panel-applepay').querySelector('#applepay-button');
-      if (btn) btn.disabled = true;
-      document.getElementById('apple-msg').textContent = 'Apple Pay not supported in this browser.';
-    }
-  } catch (e) {}
-})();
 </script>
 </body>
 </html>

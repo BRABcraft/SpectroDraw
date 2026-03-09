@@ -711,7 +711,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
     const yBotF = binToBottomDisplay[ch][bin];
     const yStart = Math.max(0, Math.floor(Math.min(yTopF, yBotF)));
     const yEnd   = Math.min(specHeight - 1, Math.ceil(Math.max(yTopF, yBotF)));
-    const [r, g, b] = magPhasePanToRGB(clampedMag, layers[ch].phases[idx], pan);
+    const [r, g, b] = magPhasePanToRGB(clampedMag, layers[ch].phases[idx], layers[ch].pans[idx]);
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
       const pix = (yPixel * specWidth + xI) * 4;
       imgData[pix]     = r;

@@ -920,7 +920,7 @@ async function handleCreateOrder(request, env) {
     return json(order, 200);
   } catch (err) {
     console.error('handleCreateOrder error', err);
-    return json({ message: err.message || 'Failed to create order' }, 500);
+    return json({ message: err || 'Failed to create order' }, 500);
   }
 }
 

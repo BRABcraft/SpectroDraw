@@ -32,6 +32,10 @@
       "id": "ae863831f314458998bf36acd62dee09"
     },
     {
+      "binding": "FEEDBACK",
+      "id": "f4f4af3f0182440ab36e90b28608e925"
+    },
+    {
       "binding": "__spectrodraw-api-workers_sites_assets",
       "id": "ee7ba8fe235947228299d7be7c0486e0"
     },

@@ -615,10 +615,3 @@ window.addEventListener('message', async (ev) => {
     console.error('auth session error', err);
   }
 });
-
-
-    document.getElementById('signup-link').style.display = 'none';
-    document.getElementById('signin-link').style.display = 'none';
-    const accountWrap = document.getElementById('account-wrap');
-    accountWrap.style.display = 'block';
-    document.getElementById('account-email').textContent = user.email.replace(/@.*/, "");

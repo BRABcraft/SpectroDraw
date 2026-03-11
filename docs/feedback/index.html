@@ -3,21 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="Tell us what you think about SpectroDraw! Leave a review to help improve the interactive spectrogram editor.">
-  <meta property="og:title" content="Leave a Review - SpectroDraw">
+  <meta name="description" content="Tell us what you think about SpectroDraw! Leave feedback to help improve the interactive spectrogram editor.">
+  <meta property="og:title" content="Submit feedback - SpectroDraw">
   <meta property="og:description" content="Share your experience with SpectroDraw and help others discover the app.">
-  <link rel="canonical" href="https://spectrodraw.com/review">
-  <title>Review - SpectroDraw</title>
+  <link rel="canonical" href="https://spectrodraw.com/feedback">
+  <title>Feedback - SpectroDraw</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-FYGHLB1BCP');
-  </script>
   <style>
     :root{
       --bg:#07080b;
@@ -126,17 +118,38 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
-    .star {font-size:28px;padding:none;margin-top:-5px;border:1px solid transparent;background:transparent;cursor:pointer;color:white;}
-    button:not(.star, .nav-btn, .primary, .google, .link-btn){padding:.55rem .9rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;color:white;}
-    #submit-review:disabled{background:#555;color:#333;cursor:not-allowed;}
-    a{color:#cfe3ff;}
+    .vote-wrap { display:flex; align-items:center; gap:8px; }
+    .vote-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:34px;
+      height:34px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.04);
+      background: rgba(255,255,255,0.02);
+      color: var(--text);
+      cursor:pointer;
+      font-weight:700;
+      user-select:none;
+    }
+    .vote-btn:hover { transform:translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+    .score-badge {
+      min-width:40px;
+      text-align:center;
+      padding:6px 8px;
+      border-radius:8px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border:1px solid var(--glass-2);
+      font-weight:700;
+    }
     @media(max-width:600px) {.tagline{display:none;}}
   </style>
 </head>
 <body>
   <nav class="nav">
     <div class="nav-left">
-      <a href="/" class="brand">SpectroDraw</a>
+      <a href="../" class="brand">SpectroDraw</a>
       <div class="tagline">Interactive Spectrogram Editor</div>
     </div>
     <div class="nav-right">
@@ -194,7 +207,7 @@
           <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
           <button id="google-login" type="button" class="google">
             <span class="g-icon" aria-hidden="true">
-              <img src="/assets/Google__G__logo.svg" alt="">
+              <img src="../assets/Google__G__logo.svg" alt="">
             </span>
             <span id="google-btn-text">Log in with Google</span>
           </button>
@@ -208,194 +221,552 @@
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <h1 class="title">Submit feedback (WARNING: FEATURE IN DEVELOPMENT)</h1>
+      <h1 class="title">Submit feedback (feature in development)</h1>
+      <p class="muted">Share bugs, ideas, or suggestions. Your feedback helps shape SpectroDraw.</p>
     </div>
   </header>
 
   <main class="wrap">
     <section id="post-feedback" class="section" aria-label="Share feedback" style="margin-top:18px;">
-      <div style="display:flex;flex-direction:row;">
-        <div id="attach-btn" role="button" style="background:#222;border-radius:4px;border:1px solid #666;max-width:100px;cursor:pointer;margin-bottom:10px;padding:5px;">Attach files</div>
-        <input id="attach-input" type="file" accept="/" multiple style="display:none" />
-        <div id="fileList" style="display:flex;flex-direction:row;"></div>
-      </div>
-      <div style="min-width:280px;display:flex;flex-direction:column;gap:12px;">
-        <div>
-          <textarea id="feedback-text" name="feedback" rows="6" placeholder="Share feedback, bugs, or ideas for features..." style="width:100%;height:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--soft-border);color:var(--text);resize:vertical;font-family:'Inter', 'Segoe UI', sans-serif;"></textarea>
-        </div>
-        <div id="actions" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:4px;">
-          <div style="margin-top:-6px;">
-            <div id="feedback-error" role="alert" style="display:none;color:#ffb4b4;align-self:center"></div>
-            <button id="submit-feedback" type="button" style="width:100%;margin-top:6px;" disabled>Submit feedback</button>
+      <div style="display:flex;flex-direction:row;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <div style="min-width:0;flex:1;">
+          <textarea id="feedback-text" name="feedback" rows="6" placeholder="Share feedback, bugs, or ideas for features..." style="width:100%;height:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--soft-border);color:var(--text);resize:vertical;font-family:'Inter', 'Segoe UI', sans-serif;"></textarea>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div id="attach-btn" style="cursor:pointer;background:linear-gradient(90deg,var(--accent1),var(--accent2));padding:5px;border-radius:4px;" role="button">Attach files</div>
+              <input id="attach-input" type="file" accept="*/*" multiple style="display:none" />
+              <div id="fileList" style="display:flex;flex-direction:row;"></div>
+            </div>
+            <div style="margin-left:auto;">
+              <div id="feedback-error" role="alert" style="display:none;color:#ffb4b4;align-self:center"></div>
+              <button id="submit-feedback" type="button" style="padding:.55rem .9rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;color:white;" disabled>Submit feedback</button>
+            </div>
           </div>
         </div>
       </div>
     </section>
+
+    <section id="feedbacks-section" class="section" aria-label="Feedback list" style="margin-top:18px;">
+      <h1 id="feedback-list-title">Feedback and discussion</h2>
+      <div id="feedback-list" aria-live="polite" style="min-height:80px"></div>
+      <div id="no-feedback" class="muted" style="display:none;">No feedback yet — be the first to share your thoughts!</div>
+    </section>
   </main>
 
+  <footer>
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+  </footer>
+
   <script>
+    // ---- state & helpers ----
     const attachBtn = document.getElementById("attach-btn");
     const attachInput = document.getElementById("attach-input");
     const submitFeedbackBtn = document.getElementById("submit-feedback");
     const fileList = document.getElementById("fileList");
     const feedbackTextEl = document.getElementById('feedback-text');
     const feedbackError = document.getElementById('feedback-error');
-    const stateKeyBase = 'review_v1';
-    let currentUserId = null;
-    
-    attachBtn.addEventListener("click",()=>{attachInput.click();});
-    attachInput.addEventListener('change', (e)=>{ console.log(e);const files = e.target.files; if(files && files[0]) handleFiles(files); });
+    const feedbackListEl = document.getElementById('feedback-list');
+    const noFeedbackEl = document.getElementById('no-feedback');
 
-    function handleFiles(files){
-      for (let file of files){
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev)=>{
-          const f = document.createElement("div");
-          f.style=`padding:5px;display:flex;flex-direction:row;border-right:1px solid #555;`;
-          f.innerText="";
-          for (let i=0;i<20;i++) {if (i>=file.name.length) break; f.innerText+=file.name[i];}if (file.name.length>20) f.innerText+="...";
-          fileList.appendChild(f);
-          const g = document.createElement("div");
-          g.innerHTML = "&times;";
-          g.style=`margin-left:10px;cursor:pointer;`;
-          f.appendChild(g);
-          g.addEventListener("click",()=>{
-            fileList.removeChild(f);
-          });
-        }
-        reader.readAsDataURL(file);
-      };
-    }
-    function render(){
-      saveStateForCurrentUser();
+    const LOCAL_FEEDBACKS_KEY = 'spectrodraw_feedbacks_v1';
+    const LOCAL_USER_KEY = 'spectrodraw_user'; // used by your accounts.js
+    let attachedFiles = []; // {name,type,size,dataUrl}
+    let currentUser = null;
+    let progress = { loggedIn:false, feedbackSubmitted:false, feedbackText:'', rating:0 };
+    const LOCAL_VOTES_PREFIX = 'spectrodraw_votes_'; // local cache per-user
+    let currentUserVotes = {}; // feedbackId -> vote (1 | -1)
+
+    // Quick id generator
+    function makeId(prefix='f') {
+      return prefix + '_' + Math.random().toString(36).slice(2,9);
     }
 
-    submitFeedbackBtn.addEventListener('click', async ()=>{
-      feedbackError.style.display = 'none';
-      if(!progress.loggedIn){
-        feedbackError.style.display = 'block';
-        feedbackError.textContent = 'You must be signed in to submit feedback.';
-        return;
-      }
-
-      submitFeedbackBtn.disabled = true;
-      submitFeedbackBtn.textContent = 'Submitting...';
-
-      const fd = new FormData();
-      fd.append('text', feedbackTextEl.value || '');
-      const file = attachInput.files && attachInput.files[0];
-      if(file) fd.append('image', file);
-
+    // ---- auth / load user ----
+    function getCurrentUser() {
       try {
-        const stored = (() => {
-          try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
-        })();
-        const res = await fetch('https://api.spectrodraw.com/api/reviews', {
-          method: 'POST',
-          credentials: 'include',
-          body: fd,
-          headers: {
-            'X-Spectrodraw-User': stored
-          }
-        });
-        if(!res.ok){
-          const err = await res.json().catch(()=>({message:'Failed to submit review'}));
-          throw new Error(err.message || 'Failed to submit review');
-        }
-        progress.reviewSubmitted = true;
-        progress.reviewText = feedbackTextEl.value || '';
-        saveStateForCurrentUser();
-        render();
-        submitFeedbackBtn.textContent = 'Submitted ✓';
-        setTimeout(()=>{ submitFeedbackBtn.textContent = 'Submit review'; }, 1500);
-      } catch(err) {
-        feedbackError.style.display = 'block';
-        feedbackError.textContent = 'Error: ' + err.message;
-      } finally {
-        submitFeedbackBtn.disabled = false;
-      }
-    });
-    function updateSubmitButtonState() {
-      submitFeedbackBtn.disabled = !(progress.rating > 0 || feedbackTextEl.value.trim().length > 0);
-    }
-
-    feedbackTextEl.addEventListener('input', updateSubmitButtonState);
-    document.querySelectorAll('#stars-inline .star').forEach(s => {
-      s.addEventListener('click', updateSubmitButtonState);
-    });
-
-    function stateKeyFor(userId) {
-      return `${stateKeyBase}_${userId ? String(userId) : 'anon'}`;
-    }
-    function loadStateForCurrentUser(){
-      const key = stateKeyFor(currentUserId);
-      try{
-        const raw = localStorage.getItem(key);
-        if(raw){
-          const parsed = JSON.parse(raw);
-          progress = Object.assign({
-            loggedIn:false, reviewSubmitted:false, shareSent:false,
-            shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
-          }, parsed);
-        } else {
-          progress = Object.assign({
-            loggedIn:false, reviewSubmitted:false, shareSent:false,
-            shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
-          }, progress);
-        }
-      }catch(e){}
-      progress.loggedIn = !!currentUserId;
-    }
-
-    function saveStateForCurrentUser(){
-      const key = stateKeyFor(currentUserId);
-      try{
-        localStorage.setItem(key, JSON.stringify(progress));
-      }catch(e){}
-    }
-
-
-    function checkAuth(){
-      const newUserId = getCurrentUserId();
-      if(newUserId !== currentUserId){
-        if(currentUserId !== null){
-          try{ localStorage.setItem(stateKeyFor(currentUserId), JSON.stringify(progress)); }catch(e){}
-        }
-        currentUserId = newUserId;
-        loadStateForCurrentUser();
-      }
-      render();
-    }
-    function getCurrentUserId() {
-      try {
-        const raw = localStorage.getItem('spectrodraw_user');
+        const raw = localStorage.getItem(LOCAL_USER_KEY);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
-        return parsed?.id || parsed?.user_id || parsed?.email || parsed || null;
+        return parsed;
       } catch (e) {
         return null;
       }
     }
-    window.sdAuthChanged = function(){
-      checkAuth();
-    };
-    currentUserId = getCurrentUserId();
-    loadStateForCurrentUser();
-    checkAuth();
-    render();
-    
-    updateSubmitButtonState();
-  </script>
-    
-  <footer>
-    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
-    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
-    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
-    <a href="/terms" style="color:white;">Terms</a>
-  </footer>
 
-  <script>
+    function onAuthChanged() {
+      currentUser = getCurrentUser();
+      progress.loggedIn = !!currentUser;
+      // load existing user feedback into form (if any)
+      if (currentUser) {
+        loadUserFeedbackIntoForm(currentUser);
+      }
+      renderFeedbacks(); // might show author names now
+    }
+
+    // Poll for auth changes (in case accounts.js toggles the stored user)
+    setInterval(() => {
+      const newUser = getCurrentUser();
+      const prevId = currentUser ? currentUser.id || currentUser.email : null;
+      const newId = newUser ? newUser.id || newUser.email : null;
+      if (prevId !== newId) onAuthChanged();
+    }, 1200);
+
+    // ---- file attach handling ----
+    attachBtn.addEventListener("click", ()=> attachInput.click());
+    attachInput.addEventListener("change", (e)=>{
+      const files = Array.from(e.target.files || []);
+      if (files.length) handleFiles(files);
+      attachInput.value = ''; // reset so same file can be reattached later
+    });
+
+    function handleFiles(files){
+      // read files as dataURL and store minimal metadata
+      for (let file of files){
+        if(file.size > 1024 * 1024){ // 1MB limit
+          alert(`File "${file.name}" is too large. Maximum size is 1MB.`);
+          continue; // skip this file
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          attachedFiles.push({
+            id: makeId('file'),
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl: ev.target.result
+          });
+          renderAttachedFiles();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function renderAttachedFiles(){
+      fileList.innerHTML = '';
+      attachedFiles.forEach(f => {
+        const chip = document.createElement('div');
+        chip.className = 'file-chip';
+        chip.innerHTML = `<span title="${escapeHtml(f.name)}">${escapeHtml(shortenName(f.name, 28))}</span>`;
+        const rem = document.createElement('button');
+        rem.type = 'button';
+        rem.style="background:none;color:#fff;border:none;"
+        rem.innerText = '✕';
+        rem.title = 'Remove';
+        rem.addEventListener('click', ()=> {
+          attachedFiles = attachedFiles.filter(x => x.id !== f.id);
+          renderAttachedFiles();
+        });
+        chip.appendChild(rem);
+        fileList.appendChild(chip);
+      });
+    }
+
+    function shortenName(name, max){
+      if (!name) return '';
+      if (name.length <= max) return name;
+      return name.slice(0, max-3) + '...';
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // ---- submit feedback ----
+    submitFeedbackBtn.addEventListener('click', async ()=>{
+      feedbackError.style.display = 'none';
+      if (!progress.loggedIn) {
+        feedbackError.style.display = 'block';
+        feedbackError.textContent = 'You must be signed in to submit feedback.';
+        return;
+      }
+      const text = (feedbackTextEl.value || '').trim();
+      if (!text) {
+        feedbackError.style.display = 'block';
+        feedbackError.textContent = 'Please enter feedback text.';
+        return;
+      }
+
+      submitFeedbackBtn.disabled = true;
+      const prevText = submitFeedbackBtn.textContent;
+      submitFeedbackBtn.textContent = 'Submitting...';
+
+      // build feedback object
+      const fb = {
+        id: makeId('fb'),
+        userId: currentUser?.id || currentUser?.email || 'anonymous',
+        author: currentUser?.displayName || currentUser?.email || 'Anonymous',
+        text,
+        files: attachedFiles.map(f => ({ id: f.id, name: f.name, type: f.type, size: f.size, dataUrl: f.dataUrl })),
+        score: 0, // <-- added
+        createdAt: new Date().toISOString()
+      };
+
+      try {
+        // Try to POST to backend if available
+        let posted = false;
+        try {
+          const form = new FormData();
+          form.append('text', fb.text);
+          form.append('meta', JSON.stringify({ userId: fb.userId, author: fb.author }));
+          // attach files as blobs if any (backend can parse)
+          fb.files.forEach((f, idx) => {
+            // convert dataUrl back to blob
+            const blob = dataURLtoBlob(f.dataUrl);
+            form.append('file_' + idx, blob, f.name);
+          });
+          const res = await fetch('https://api.spectrodraw.com/api/feedbacks', {
+            method: 'POST',
+            credentials: 'include',
+            body: form,
+            headers: {
+              // you may want to include user header; no content-type here
+              'X-Client-User': JSON.stringify({ userId: fb.userId, author: fb.author })
+            }
+          });
+          if (res.ok) {
+            // optionally use server response as canonical
+            const server = await res.json().catch(()=>null);
+            if (server && server.id) {
+              // merge server id if present
+              fb.id = server.id;
+            }
+            posted = true;
+          } else {
+            // fallback to local
+            console.warn('Server rejected feedback, saving locally.');
+          }
+        } catch (e){
+          // network/backend not available -> save locally
+          //console.warn('Could not post to server, saving locally', e);
+        }
+
+        // Save locally (always) so UI updates instantly - backend can be authoritative later
+        saveFeedbackToLocal(fb);
+
+        // load the user's saved feedback into "submitted" state
+        progress.feedbackSubmitted = true;
+        progress.feedbackText = fb.text;
+        // reset form
+        feedbackTextEl.value = '';
+        attachedFiles = [];
+        renderAttachedFiles();
+        renderFeedbacks();
+        submitFeedbackBtn.textContent = 'Submitted ✓';
+        setTimeout(()=> submitFeedbackBtn.textContent = prevText, 1400);
+      } catch (err) {
+        feedbackError.style.display = 'block';
+        feedbackError.textContent = 'Error saving feedback: ' + (err.message || err);
+      } finally {
+        submitFeedbackBtn.disabled = false;
+      }
+    });
+
+    function updateSubmitButtonState() {
+      submitFeedbackBtn.disabled = feedbackTextEl.value.trim().length === 0 || !progress.loggedIn;
+      if (!progress.loggedIn) submitFeedbackBtn.disabled = true;
+    }
+    feedbackTextEl.addEventListener('input', updateSubmitButtonState);
+
+    // ---- local storage helpers ----
+    function loadLocalFeedbacks(){
+      try {
+        const raw = localStorage.getItem(LOCAL_FEEDBACKS_KEY);
+        if (!raw) return [];
+        return JSON.parse(raw) || [];
+      } catch(e) { return []; }
+    }
+    function saveLocalFeedbacks(list){
+      try { localStorage.setItem(LOCAL_FEEDBACKS_KEY, JSON.stringify(list)); } catch(e) {}
+    }
+
+    function saveFeedbackToLocal(fb){
+      const list = loadLocalFeedbacks();
+      // ensure score exists
+      if (typeof fb.score !== 'number') fb.score = 0;
+      // if this feedback exists, replace; else add to top
+      const idx = list.findIndex(x => x.id === fb.id);
+      if (idx >= 0) list[idx] = fb;
+      else list.unshift(fb);
+      saveLocalFeedbacks(list);
+    }
+
+    // ---- display feedbacks (forum style) ----
+    async function fetchFeedbacks() {
+      // Try server first
+      try {
+        const res = await fetch('/api/feedbacks', { method: 'GET', credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json().catch(()=>null);
+          if (data && Array.isArray(data.feedbacks)) {
+            // server returned feedbacks; also get per-user votes if present
+            const fbs = data.feedbacks;
+            currentUserVotes = (data.userVotes && typeof data.userVotes === 'object') ? data.userVotes : {};
+            // also merge with local vote cache if present (local overrides)
+            try {
+              const userId = currentUser?.id || currentUser?.email;
+              if (userId) {
+                const localRaw = localStorage.getItem(LOCAL_VOTES_PREFIX + String(userId));
+                if (localRaw) {
+                  const localVotes = JSON.parse(localRaw);
+                  currentUserVotes = Object.assign({}, currentUserVotes, localVotes || {});
+                }
+              }
+            } catch (e) {}
+            return fbs;
+          }
+        }
+      } catch(e){ /* ignore network errors */ }
+
+      // fallback to local storage
+      const local = loadLocalFeedbacks();
+      // restore per-user votes from local storage if possible
+      try {
+        const userId = currentUser?.id || currentUser?.email;
+        if (userId) {
+          const votesRaw = localStorage.getItem(LOCAL_VOTES_PREFIX + String(userId));
+          if (votesRaw) currentUserVotes = JSON.parse(votesRaw) || {};
+        }
+      } catch(e){}
+      return local;
+    }
+
+    async function renderFeedbacks(){
+      const feedbacks = await fetchFeedbacks();
+      feedbackListEl.innerHTML = '';
+      if (!feedbacks || feedbacks.length === 0) {
+        noFeedbackEl.style.display = 'block';
+        return;
+      } else {
+        noFeedbackEl.style.display = 'none';
+      }
+
+      // sort newest-first (if createdAt exists)
+      feedbacks.sort((a,b) => (new Date(b.createdAt || 0)) - (new Date(a.createdAt || 0)));
+
+      for (const fb of feedbacks) {
+        // normalize score
+        if (typeof fb.score !== 'number') fb.score = 0;
+
+        const card = document.createElement('article');
+        card.className = 'feedback-card';
+        const meta = document.createElement('div');
+        meta.className = 'feedback-meta';
+        const when = new Date(fb.createdAt || Date.now()).toLocaleString();
+        const author = escapeHtml(fb.author || (fb.userId ? String(fb.userId) : 'Anonymous'));
+        meta.innerHTML = `<strong>${author}</strong><span class="muted">•</span><span class="muted">${when}</span>`;
+        card.appendChild(meta);
+
+        const txt = document.createElement('div');
+        txt.className = 'feedback-text';
+        txt.textContent = fb.text || '';
+        card.appendChild(txt);
+
+        if (fb.files && fb.files.length) {
+          const attachRow = document.createElement('div');
+          attachRow.className = 'attachments-row';
+          for (const f of fb.files) {
+            const fileBox = document.createElement('div');
+            fileBox.className = 'file-chip';
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = f.name;
+            fileBox.appendChild(nameSpan);
+
+            // If we have a dataUrl, show a small preview / download link
+            if (f.dataUrl) {
+              const a = document.createElement('a');
+              a.href = f.dataUrl;
+              a.download = f.name;
+              a.style.marginLeft = '8px';
+              a.textContent = 'Download';
+              a.className = 'muted';
+              fileBox.appendChild(a);
+            }
+            attachRow.appendChild(fileBox);
+          }
+          card.appendChild(attachRow);
+        }
+
+        // VOTE UI
+        const voteRow = document.createElement('div');
+        voteRow.className = 'vote-wrap';
+
+        const upBtn = document.createElement('button');
+        upBtn.className = 'vote-btn';
+        upBtn.title = 'Upvote';
+        upBtn.innerText = '▲';
+
+        const scoreBadge = document.createElement('div');
+        scoreBadge.className = 'score-badge';
+        scoreBadge.textContent = String(fb.score || 0);
+
+        const downBtn = document.createElement('button');
+        downBtn.className = 'vote-btn';
+        downBtn.title = 'Downvote';
+        downBtn.innerText = '▼';
+
+        // determine current user's vote for this feedback
+        const myVote = Number(currentUserVotes[fb.id] || 0);
+
+        // visual active state
+        if (myVote === 1) {
+          upBtn.style.background = 'linear-gradient(90deg,var(--accent1),var(--accent2))';
+          upBtn.style.color = '#fff';
+        } else {
+          upBtn.style.background = '';
+          upBtn.style.color = '';
+        }
+        if (myVote === -1) {
+          downBtn.style.background = 'linear-gradient(90deg,#ff6b6b,#f43f5e)';
+          downBtn.style.color = '#fff';
+        } else {
+          downBtn.style.background = '';
+          downBtn.style.color = '';
+        }
+
+        // clicks call handleVoteLocal which toggles/unvotes as required
+        upBtn.addEventListener('click', () => { handleVoteLocal(fb.id, +1); });
+        downBtn.addEventListener('click', () => { handleVoteLocal(fb.id, -1); });
+
+        voteRow.appendChild(upBtn);
+        voteRow.appendChild(scoreBadge);
+        voteRow.appendChild(downBtn);
+        card.appendChild(voteRow);
+
+        feedbackListEl.appendChild(card);
+      }
+    }
+
+    // ---- load a user's existing feedback into form (if they previously submitted) ----
+    function loadUserFeedbackIntoForm(user){
+      try {
+        const list = loadLocalFeedbacks();
+        const uid = user?.id || user?.email || null;
+        if (!uid) return;
+        const found = list.find(x => x.userId === uid);
+        if (found) {
+          // load into form but keep the ability to edit / re-submit
+          feedbackTextEl.value = found.text || '';
+          attachedFiles = (found.files || []).map(f => ({...f}));
+          renderAttachedFiles();
+          updateSubmitButtonState();
+        }
+      } catch(e){}
+    }
+
+    // ---- utility: dataURL -> Blob ----
+    function dataURLtoBlob(dataurl) {
+      const arr = dataurl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], {type:mime});
+    }
+    async function handleVoteLocal(feedbackId, requestedDelta) {
+      // requestedDelta is +1 or -1 (button click)
+      if (!progress.loggedIn) {
+        feedbackError.style.display = 'block';
+        feedbackError.textContent = 'You must be signed in to vote.';
+        return;
+      }
+      const userId = currentUser?.id || currentUser?.email;
+      if (!userId) {
+        feedbackError.style.display = 'block';
+        feedbackError.textContent = 'Unable to identify user for voting.';
+        return;
+      }
+
+      // previous vote by this user on this feedback
+      const prevVote = Number(currentUserVotes[feedbackId] || 0);
+
+      // toggle: clicking the same vote unvotes (becomes 0)
+      const newVote = (prevVote === requestedDelta) ? 0 : requestedDelta;
+      const applyDelta = newVote - prevVote; // what to apply to feedback.score
+
+      // optimistic local update of feedback score and local vote cache
+      const list = loadLocalFeedbacks();
+      const idx = list.findIndex(x => x.id === feedbackId);
+      if (idx === -1) return;
+      list[idx].score = (Number(list[idx].score) || 0) + applyDelta;
+      saveLocalFeedbacks(list);
+
+      // update in-memory userVotes and local cache
+      if (newVote === 0) {
+        delete currentUserVotes[feedbackId];
+      } else {
+        currentUserVotes[feedbackId] = newVote;
+      }
+      try {
+        localStorage.setItem(LOCAL_VOTES_PREFIX + String(userId), JSON.stringify(currentUserVotes));
+      } catch (e) {}
+
+      // re-render UI immediately
+      renderFeedbacks();
+
+      // send canonical vote to server (server will enforce one-vote-per-account)
+      try {
+        const res = await fetch(`/api/feedbacks/${encodeURIComponent(feedbackId)}/vote`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delta: newVote })
+        });
+        if (res.ok) {
+          const json = await res.json().catch(()=>null);
+          if (json && typeof json.score === 'number') {
+            // reconcile with server authoritative score
+            const list2 = loadLocalFeedbacks();
+            const idx2 = list2.findIndex(x => x.id === feedbackId);
+            if (idx2 !== -1) {
+              list2[idx2].score = json.score;
+              saveLocalFeedbacks(list2);
+              renderFeedbacks();
+            }
+          }
+          // update server-side userVotes cache (returned optionally)
+          if (json && json.userVotes) {
+            currentUserVotes = json.userVotes;
+            try { localStorage.setItem(LOCAL_VOTES_PREFIX + String(userId), JSON.stringify(currentUserVotes)); } catch(e) {}
+          }
+        } else {
+          // server rejected vote; you might choose to show an error
+          console.warn('Vote request rejected by server');
+        }
+      } catch (e) {
+        console.warn('Vote sync failed', e);
+        // keep optimistic local state — server will be authoritative later
+      }
+    }
+
+    // ---- init ----
+    (function init(){
+      // initial auth state
+      currentUser = getCurrentUser();
+      progress.loggedIn = !!currentUser;
+      currentUserVotes = {};
+      try {
+        const userId = currentUser?.id || currentUser?.email;
+        if (userId) {
+          const raw = localStorage.getItem(LOCAL_VOTES_PREFIX + String(userId));
+          if (raw) currentUserVotes = JSON.parse(raw) || {};
+        }
+      } catch (e) {}
+      if (progress.loggedIn) loadUserFeedbackIntoForm(currentUser);
+      updateSubmitButtonState();
+      renderFeedbacks();
+      // expose sdAuthChanged if accounts.js triggers externally
+      window.sdAuthChanged = onAuthChanged;
+    })();
+
+    // make Enter+Ctrl submit when textarea focused
+    feedbackTextEl.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        submitFeedbackBtn.click();
+      }
+    });
+
+    // year in footer
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
 </body>

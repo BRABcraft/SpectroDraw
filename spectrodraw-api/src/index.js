@@ -3,7 +3,7 @@ export default {
   async fetch(request, env) {
     try {
       // List required bindings used by this worker:
-      const required = ['SESSIONS', 'IMAGES', 'USERS', 'REVIEWS']; // IMAGES should be your R2 binding (or an object with .put())
+      const required = ['SESSIONS', 'IMAGES', 'USERS', 'REVIEWS', 'FEEDBACK']; // IMAGES should be your R2 binding (or an object with .put())
       const missing = required.filter(k => !env || typeof env[k] === 'undefined');
 
       if (missing.length) {
@@ -34,6 +34,16 @@ export default {
       }
       if (pathname === "/api/reviews" && request.method === "GET") {
         return addCors(await handleReviewList(user, env), request);
+      }
+      if (pathname === "/api/feedbacks" && request.method === "POST") {
+        return addCors(await handleFeedbackPost(request, user, env), request);
+      }
+      if (pathname === "/api/feedbacks" && request.method === "GET") {
+        return addCors(await handleFeedbackList(user, env), request);
+      }
+      if (pathname.startsWith("/api/feedbacks/") && pathname.endsWith("/vote") && request.method === "POST") {
+        const id = pathname.split("/")[2];
+        return addCors(await handleFeedbackVote(request, user, env, id), request);
       }
       if (pathname === "/api/share/invite" && request.method === "POST") {
         return addCors(await handleShareInvite(request, user, env), request);
@@ -602,6 +612,157 @@ async function handleReviewList(user, env) {
     }
   }
   return json({ reviews: reviewsList }, 200);
+}
+
+// SERVER: handleFeedbackPost
+async function handleFeedbackPost(request, user, env) {
+  const form = await request.formData();
+  const text = (form.get("text") || "").toString().trim();
+  if (!text) return json({ message: "Feedback text required" }, 400);
+
+  function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+  }
+
+  const files = [];
+  for (const [key, value] of form.entries()) {
+    if (value && typeof value.arrayBuffer === 'function' && (value.name || value.type)) {
+      try {
+        const buf = await value.arrayBuffer();
+        const b64 = arrayBufferToBase64(buf);
+        const mime = value.type || 'application/octet-stream';
+        files.push({
+          fieldName: key,
+          name: value.name || 'file',
+          type: mime,
+          size: buf.byteLength,
+          dataUrl: `data:${mime};base64,${b64}`
+        });
+      } catch (e) {
+        console.warn('file conversion failed', e);
+      }
+    }
+  }
+
+  const feedback = {
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()),
+    user: user?.email || (user?.id ? String(user.id) : 'anonymous'),
+    author: user?.displayName || user?.email || 'Anonymous',
+    text,
+    files,
+    score: 0,
+    createdAt: new Date().toISOString()
+  };
+
+  await env.FEEDBACK.put(feedback.id, JSON.stringify(feedback));
+
+  // per-user index
+  const userKey = `user:${String(feedback.user).toLowerCase()}:feedbacks`;
+  const existingIdsRaw = await env.FEEDBACK.get(userKey);
+  let existingIds = [];
+  try { existingIds = existingIdsRaw ? JSON.parse(existingIdsRaw) : []; } catch(e){ existingIds = []; }
+  existingIds.push(feedback.id);
+  await env.FEEDBACK.put(userKey, JSON.stringify(existingIds));
+
+  // global index
+  const allKey = `feedbacks:all`;
+  const allRaw = await env.FEEDBACK.get(allKey);
+  let allIds = [];
+  try { allIds = allRaw ? JSON.parse(allRaw) : []; } catch(e){ allIds = []; }
+  allIds.push(feedback.id);
+  await env.FEEDBACK.put(allKey, JSON.stringify(allIds));
+
+  return json({ success:true, feedback }, 201);
+}
+async function handleFeedbackList(user, env) {
+  const allKey = `feedbacks:all`;
+  const allRaw = await env.FEEDBACK.get(allKey);
+  let feedbacks = [];
+  if (allRaw) {
+    try {
+      const ids = JSON.parse(allRaw);
+      for (const id of ids) {
+        const raw = await env.FEEDBACK.get(id);
+        if (raw) {
+          try { feedbacks.push(JSON.parse(raw)); } catch(e) { console.warn('parse fail', id, e); }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse feedbacks:all', e);
+    }
+  }
+
+  // newest-first
+  feedbacks.sort((a,b) => (new Date(b.createdAt || 0)) - (new Date(a.createdAt || 0)));
+
+  // load per-user votes if user present
+  let userVotes = {};
+  if (user && (user.email || user.id)) {
+    const userIdKey = String(user.email || user.id).toLowerCase();
+    const votesKey = `user:${userIdKey}:votes`;
+    const votesRaw = await env.FEEDBACK.get(votesKey);
+    try { userVotes = votesRaw ? JSON.parse(votesRaw) : {}; } catch(e) { userVotes = {}; }
+  }
+
+  return json({ feedbacks, userVotes }, 200);
+}
+async function handleFeedbackVote(request, user, env, id) {
+  if (!user || !(user.email || user.id)) {
+    return json({ message: 'Authentication required' }, 401);
+  }
+  let body;
+  try { body = await request.json(); } catch(e) { body = {}; }
+  const requested = Number(body.delta || 0);
+  if (![ -1, 0, 1 ].includes(requested)) {
+    return json({ message: 'Invalid delta' }, 400);
+  }
+
+  const fbRaw = await env.FEEDBACK.get(id);
+  if (!fbRaw) return json({ message: 'Not found' }, 404);
+  let fb;
+  try { fb = JSON.parse(fbRaw); } catch(e){ return json({ message:'Failed to parse feedback' }, 500); }
+
+  const userIdKey = String(user.email || user.id).toLowerCase();
+  const votesKey = `user:${userIdKey}:votes`;
+  const votesRaw = await env.FEEDBACK.get(votesKey);
+  let votes = {};
+  try { votes = votesRaw ? JSON.parse(votesRaw) : {}; } catch(e) { votes = {}; }
+
+  const prevVote = Number(votes[id] || 0);
+
+  // If requested equals prevVote, treat it as unvote (no change) — but we allow explicit 0 to unvote.
+  let newVote = requested;
+  if (requested === prevVote) {
+    // toggling same value -> unvote (0)
+    newVote = 0;
+  }
+
+  // Compute apply delta
+  const applyDelta = newVote - prevVote; // could be -2, -1, 0, 1, 2
+
+  // Update score
+  fb.score = (Number(fb.score) || 0) + applyDelta;
+
+  // Save feedback atomically
+  await env.FEEDBACK.put(id, JSON.stringify(fb));
+
+  // Update user votes map
+  if (newVote === 0) {
+    delete votes[id];
+  } else {
+    votes[id] = newVote;
+  }
+  await env.FEEDBACK.put(votesKey, JSON.stringify(votes));
+
+  // Optionally return updated userVotes and score
+  return json({ success: true, id, score: fb.score, userVotes: votes }, 200);
 }
 
 async function handleShareInvite(request, user, env) {

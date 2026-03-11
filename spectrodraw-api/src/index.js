@@ -59,11 +59,12 @@ export default {
       if (pathname === "/api/pro-token" && request.method === "POST") {
         return addCors(await handleProToken(request, env), request);
       }
-      if (pathname === '/create-order' && request.method === 'POST') {
-        return addCors(await handleCreateOrder(request, env), request);
+      if (pathname === '/api/orders' && request.method === 'POST') {
+        return addCors(await handleApiOrdersCreate(request, env), request);
       }
-      if (pathname === '/capture-order' && request.method === 'POST') {
-        return addCors(await handleCaptureOrder(request, env), request);
+      const orderCaptureMatch = pathname.match(/^\/api\/orders\/([^\/]+)\/capture$/);
+      if (orderCaptureMatch && request.method === 'POST') {
+        return addCors(await handleApiOrdersCapture(request, env, orderCaptureMatch[1]), request);
       }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
         const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
@@ -907,38 +908,45 @@ async function capturePayPalOrderOnPayPal(env, orderID) {
   }
   return data;
 }
-
-/* Handlers */
-async function handleCreateOrder(request, env) {
+// POST /api/orders
+async function handleApiOrdersCreate(request, env) {
   try {
-    const body = await request.json().catch(()=> ({}));
-    // compute server-approved amount (throws if not allowed)
+    const body = await request.json().catch(() => ({}));
+
+    // Accept client body with `cart: [{ id, quantity }]` or `items: [{ id, qty }]`.
+    // Normalize to items array expected by computeAmountFromBody
+    if (Array.isArray(body.cart) && !Array.isArray(body.items)) {
+      body.items = body.cart.map(it => ({ id: String(it.id || ''), qty: parseInt(it.quantity || it.qty || 1, 10) || 1 }));
+    }
+
+    // compute server-approved amount (throws if not allowed / missing prices)
     const { amount, currency } = computeAmountFromBody(body, env);
+
     // create order on PayPal
     const order = await createPayPalOrderOnPayPal(env, amount, currency);
-    // return the PayPal order object to the client; client uses order.id to render the PayPal button or hosted fields
+
+    // Return the full PayPal order object (client expects order.id)
     return json(order, 200);
   } catch (err) {
-    console.error('handleCreateOrder error', err);
-    return json({ message: err || 'Failed to create order' }, 500);
+    console.error('handleApiOrdersCreate error', err);
+    return json({ message: err.message || String(err) || 'Failed to create order' }, 500);
   }
 }
 
-async function handleCaptureOrder(request, env) {
+// POST /api/orders/:orderID/capture
+async function handleApiOrdersCapture(request, env, orderID) {
   try {
-    const body = await request.json().catch(()=> ({}));
-    const orderID = body && body.orderID ? String(body.orderID) : null;
     if (!orderID) return json({ message: 'orderID required' }, 400);
 
-    // capture
+    // capture on PayPal
     const capture = await capturePayPalOrderOnPayPal(env, orderID);
 
-    // TODO: here update your DB, fulfill order, send email, etc.
-    // Example: await env.SESSIONS.put(`order:${capture.id}`, JSON.stringify({ capture, createdAt: Date.now() }));
+    // TODO: update DB, fulfill order, send email, etc. (best place for those)
+    // Example (commented): await env.SESSIONS.put(`order:${capture.id}`, JSON.stringify({ capture, createdAt: Date.now() }));
 
     return json(capture, 200);
   } catch (err) {
-    console.error('handleCaptureOrder error', err);
-    return json({ message: err.message || 'Failed to capture order' }, 500);
+    console.error('handleApiOrdersCapture error', err);
+    return json({ message: err.message || String(err) || 'Failed to capture order' }, 500);
   }
 }

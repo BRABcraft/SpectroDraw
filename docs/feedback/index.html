@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="SpectroDraw for iPhone and iPad is coming soon. Join the waitlist to be the first to try the interactive spectrogram editor on iOS.">
-  <meta property="og:title" content="SpectroDraw for iOS - Coming Soon">
-  <meta property="og:description" content="Join the SpectroDraw iOS waitlist and be among the first to edit and draw on sound from your phone.">
-  <link rel="canonical" href="https://spectrodraw.com/ios">
-  <title>iOS App - SpectroDraw</title>
+  <meta name="description" content="Tell us what you think about SpectroDraw! Leave a review to help improve the interactive spectrogram editor.">
+  <meta property="og:title" content="Leave a Review - SpectroDraw">
+  <meta property="og:description" content="Share your experience with SpectroDraw and help others discover the app.">
+  <link rel="canonical" href="https://spectrodraw.com/review">
+  <title>Review - SpectroDraw</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
@@ -126,6 +126,10 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
+    .star {font-size:28px;padding:none;margin-top:-5px;border:1px solid transparent;background:transparent;cursor:pointer;color:white;}
+    button:not(.star, .nav-btn, .primary, .google, .link-btn){padding:.55rem .9rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;color:white;}
+    #submit-review:disabled{background:#555;color:#333;cursor:not-allowed;}
+    a{color:#cfe3ff;}
     @media(max-width:600px) {.tagline{display:none;}}
   </style>
 </head>
@@ -204,12 +208,185 @@
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <h1 class="title">IOS Waitlist</h1>
+      <h1 class="title">Submit feedback (WARNING: FEATURE IN DEVELOPMENT)</h1>
     </div>
   </header>
 
   <main class="wrap">
+    <section id="post-feedback" class="section" aria-label="Share feedback" style="margin-top:18px;">
+      <div style="display:flex;flex-direction:row;">
+        <div id="attach-btn" role="button" style="background:#222;border-radius:4px;border:1px solid #666;max-width:100px;cursor:pointer;margin-bottom:10px;padding:5px;">Attach files</div>
+        <input id="attach-input" type="file" accept="/" multiple style="display:none" />
+        <div id="fileList" style="display:flex;flex-direction:row;"></div>
+      </div>
+      <div style="min-width:280px;display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <textarea id="feedback-text" name="feedback" rows="6" placeholder="Share feedback, bugs, or ideas for features..." style="width:100%;height:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--soft-border);color:var(--text);resize:vertical;font-family:'Inter', 'Segoe UI', sans-serif;"></textarea>
+        </div>
+        <div id="actions" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+          <div style="margin-top:-6px;">
+            <div id="feedback-error" role="alert" style="display:none;color:#ffb4b4;align-self:center"></div>
+            <button id="submit-feedback" type="button" style="width:100%;margin-top:6px;" disabled>Submit feedback</button>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <script>
+    const attachBtn = document.getElementById("attach-btn");
+    const attachInput = document.getElementById("attach-input");
+    const submitFeedbackBtn = document.getElementById("submit-feedback");
+    const fileList = document.getElementById("fileList");
+    const feedbackTextEl = document.getElementById('feedback-text');
+    const feedbackError = document.getElementById('feedback-error');
+    const stateKeyBase = 'review_v1';
+    let currentUserId = null;
+    
+    attachBtn.addEventListener("click",()=>{attachInput.click();});
+    attachInput.addEventListener('change', (e)=>{ console.log(e);const files = e.target.files; if(files && files[0]) handleFiles(files); });
+
+    function handleFiles(files){
+      for (let file of files){
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          const f = document.createElement("div");
+          f.style=`padding:5px;display:flex;flex-direction:row;border-right:1px solid #555;`;
+          f.innerText="";
+          for (let i=0;i<20;i++) {if (i>=file.name.length) break; f.innerText+=file.name[i];}if (file.name.length>20) f.innerText+="...";
+          fileList.appendChild(f);
+          const g = document.createElement("div");
+          g.innerHTML = "&times;";
+          g.style=`margin-left:10px;cursor:pointer;`;
+          f.appendChild(g);
+          g.addEventListener("click",()=>{
+            fileList.removeChild(f);
+          });
+        }
+        reader.readAsDataURL(file);
+      };
+    }
+    function render(){
+      saveStateForCurrentUser();
+    }
+
+    submitFeedbackBtn.addEventListener('click', async ()=>{
+      feedbackError.style.display = 'none';
+      if(!progress.loggedIn){
+        feedbackError.style.display = 'block';
+        feedbackError.textContent = 'You must be signed in to submit feedback.';
+        return;
+      }
+
+      submitFeedbackBtn.disabled = true;
+      submitFeedbackBtn.textContent = 'Submitting...';
+
+      const fd = new FormData();
+      fd.append('text', feedbackTextEl.value || '');
+      const file = attachInput.files && attachInput.files[0];
+      if(file) fd.append('image', file);
+
+      try {
+        const stored = (() => {
+          try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
+        })();
+        const res = await fetch('https://api.spectrodraw.com/api/reviews', {
+          method: 'POST',
+          credentials: 'include',
+          body: fd,
+          headers: {
+            'X-Spectrodraw-User': stored
+          }
+        });
+        if(!res.ok){
+          const err = await res.json().catch(()=>({message:'Failed to submit review'}));
+          throw new Error(err.message || 'Failed to submit review');
+        }
+        progress.reviewSubmitted = true;
+        progress.reviewText = feedbackTextEl.value || '';
+        saveStateForCurrentUser();
+        render();
+        submitFeedbackBtn.textContent = 'Submitted ✓';
+        setTimeout(()=>{ submitFeedbackBtn.textContent = 'Submit review'; }, 1500);
+      } catch(err) {
+        feedbackError.style.display = 'block';
+        feedbackError.textContent = 'Error: ' + err.message;
+      } finally {
+        submitFeedbackBtn.disabled = false;
+      }
+    });
+    function updateSubmitButtonState() {
+      submitFeedbackBtn.disabled = !(progress.rating > 0 || feedbackTextEl.value.trim().length > 0);
+    }
+
+    feedbackTextEl.addEventListener('input', updateSubmitButtonState);
+    document.querySelectorAll('#stars-inline .star').forEach(s => {
+      s.addEventListener('click', updateSubmitButtonState);
+    });
+
+    function stateKeyFor(userId) {
+      return `${stateKeyBase}_${userId ? String(userId) : 'anon'}`;
+    }
+    function loadStateForCurrentUser(){
+      const key = stateKeyFor(currentUserId);
+      try{
+        const raw = localStorage.getItem(key);
+        if(raw){
+          const parsed = JSON.parse(raw);
+          progress = Object.assign({
+            loggedIn:false, reviewSubmitted:false, shareSent:false,
+            shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
+          }, parsed);
+        } else {
+          progress = Object.assign({
+            loggedIn:false, reviewSubmitted:false, shareSent:false,
+            shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
+          }, progress);
+        }
+      }catch(e){}
+      progress.loggedIn = !!currentUserId;
+    }
+
+    function saveStateForCurrentUser(){
+      const key = stateKeyFor(currentUserId);
+      try{
+        localStorage.setItem(key, JSON.stringify(progress));
+      }catch(e){}
+    }
+
+
+    function checkAuth(){
+      const newUserId = getCurrentUserId();
+      if(newUserId !== currentUserId){
+        if(currentUserId !== null){
+          try{ localStorage.setItem(stateKeyFor(currentUserId), JSON.stringify(progress)); }catch(e){}
+        }
+        currentUserId = newUserId;
+        loadStateForCurrentUser();
+      }
+      render();
+    }
+    function getCurrentUserId() {
+      try {
+        const raw = localStorage.getItem('spectrodraw_user');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed?.id || parsed?.user_id || parsed?.email || parsed || null;
+      } catch (e) {
+        return null;
+      }
+    }
+    window.sdAuthChanged = function(){
+      checkAuth();
+    };
+    currentUserId = getCurrentUserId();
+    loadStateForCurrentUser();
+    checkAuth();
+    render();
+    
+    updateSubmitButtonState();
+  </script>
     
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>

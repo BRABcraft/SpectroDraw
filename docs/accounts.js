@@ -155,7 +155,7 @@
 
   function showError(msg) { loginError.textContent = msg; loginError.style.display = ''; }
 
-  function setLoggedInState(user) {
+  function setLoggedInState(user) {console.log(158);
     signupLink.style.display = 'none';
     signinLink.style.display = 'none';
     accountWrap.style.display = 'block';
@@ -590,3 +590,10 @@ window.addEventListener('message', async (ev) => {
     console.error('auth session error', err);
   }
 });
+
+
+    document.getElementById('signup-link').style.display = 'none';
+    document.getElementById('signin-link').style.display = 'none';
+    const accountWrap = document.getElementById('account-wrap');
+    accountWrap.style.display = 'block';
+    document.getElementById('account-email').textContent = user.email.replace(/@.*/, "");

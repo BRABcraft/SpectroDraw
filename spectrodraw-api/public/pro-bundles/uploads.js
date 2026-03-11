@@ -3,30 +3,17 @@
 
 function createBufferForItem(item) {
   const outChannels = 2;
-  const len = item && item.pcm ? item.pcm.length : 0;
+  const len = item.pcm[0].length;
   const sr = item && item.sampleRate ? item.sampleRate : sampleRate;
   const buf = audioCtx.createBuffer(outChannels, Math.max(1, len), sr);
   const left = buf.getChannelData(0);
   const right = buf.getChannelData(1);
 
-  if (!item || !item.pcm || len === 0) return buf;
-
-  const device = (item.audioDevice || "both").toLowerCase();
+  if (!item || !item.pcm[0] || len === 0) return buf;
   const vol = (typeof item.volume === "number") ? Math.max(0, Math.min(1, item.volume)) : 1;
+  for (let i = 0; i < len; i++) left[i] = item.pcm[0][i] * vol;
+  for (let i = 0; i < len; i++) right[i] = item.pcm[1][i] * vol;
 
-  if (device === "left") {
-    for (let i = 0; i < len; i++) left[i] = item.pcm[i] * vol;
-  } else if (device === "right") {
-    for (let i = 0; i < len; i++) right[i] = item.pcm[i] * vol;
-  } else if (device === "none") {
-    // silence
-  } else {
-    for (let i = 0; i < len; i++) {
-      const s = item.pcm[i] * vol;
-      left[i] = s;
-      right[i] = s;
-    }
-  }
   return buf;
 }
 
@@ -45,7 +32,7 @@ function stopItem(arr, idx, preserveSamplePos = true) {
   if (it._isPlaying) {
     const elapsedSec = audioCtx.currentTime - (it._startedAt || 0);
     const newPos = Math.floor((it._startOffset || 0) + elapsedSec * (it.sampleRate || sampleRate));
-    if (preserveSamplePos) it.samplePos = Math.max(0, Math.min(it.pcm ? it.pcm.length : 0, newPos));
+    if (preserveSamplePos) it.samplePos = Math.max(0, Math.min(it.pcm ? it.pcm[0].length : 0, newPos));
   }
   it._isPlaying = false;
   it._startedAt = null;
@@ -58,8 +45,7 @@ function stopItem(arr, idx, preserveSamplePos = true) {
  */
 async function startItem(arr, idx) {
   const it = arr[idx];
-  if (!it || !it.pcm || it.pcm.length === 0) return;
-
+  if (!it || !it.pcm || it.pcm[0].length === 0) return;
   ensureAudioCtx();
   if (audioCtx.state === "suspended") {
     try { await audioCtx.resume(); } catch (e) { console.warn("audioCtx.resume failed", e); }
@@ -85,7 +71,7 @@ async function startItem(arr, idx) {
 
   // start offset (in samples -> seconds)
   const startOffsetSamples = (typeof it.samplePos === "number") ? it.samplePos : 0;
-  const offsetSec = Math.max(0, Math.min(startOffsetSamples, it.pcm.length - 1)) / (it.sampleRate || sampleRate);
+  const offsetSec = Math.max(0, Math.min(startOffsetSamples, it.pcm[0].length - 1)) / (it.sampleRate || sampleRate);
 
   // metadata
   it._sourceNode = src;
@@ -96,7 +82,7 @@ async function startItem(arr, idx) {
   if (it._playbackBtn) it._playbackBtn.innerHTML = pauseHtml;
 
   src.onended = () => {
-    if (it && it.pcm) it.samplePos = it.pcm.length;
+    if (it && it.pcm && it.pcm[0]) it.samplePos = it.pcm[0].length;
     it._isPlaying = false;
     it._sourceNode = null;
     it._startedAt = null;

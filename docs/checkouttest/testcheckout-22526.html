@@ -219,9 +219,15 @@
 
 async function createOrderCallback() {
   try {
-    const response = await fetch("/api/orders", {
+    const stored = (() => {
+      try { return localStorage.getItem('spectrodraw_user'); }
+      catch (e) { return null; }
+    })();
+    const headers = { 'Content-Type': 'application/json' };
+    if (stored) headers['X-Spectrodraw-User'] = stored;
+    const response = await fetch("https://api.spectrodraw.com/api/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ cart: [{ id: "YOUR_PRODUCT_ID", quantity: 1 }] }),
     });
     const orderData = await response.json();
@@ -236,9 +242,11 @@ async function createOrderCallback() {
 
 async function onApproveCallback(data) {
   try {
-    const response = await fetch(`/api/orders/${data.orderID}/capture`, {
+    const headers = { 'Content-Type': 'application/json' };
+    if (stored) headers['X-Spectrodraw-User'] = stored;
+    const response = await fetch(`https://api.spectrodraw.com/api/orders/${data.orderID}/capture`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers
     });
     const orderData = await response.json();
     const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];

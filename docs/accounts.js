@@ -176,10 +176,15 @@
 
   function onLoginSuccess(user) {
     try {
-      localStorage.setItem('spectrodraw_user', JSON.stringify(user));
-    } catch (e) {}
-    setLoggedInState(user);
-    window.location.reload();
+      const safeUser = sanitizeUserForStorage(user);
+      try {
+        localStorage.setItem('spectrodraw_user', JSON.stringify(safeUser));
+      } catch (e) {}
+      setLoggedInState(safeUser);
+      window.location.reload();
+    } catch (e) {
+      console.error('onLoginSuccess error', e);
+    }
   }
   accountBtn.addEventListener('click', (e) => {
     e.preventDefault();
@@ -288,6 +293,18 @@
   const originalNavHTML = navRight.innerHTML;
   let transformed = false;
   let _outsideClickHandler = null;
+
+  function sanitizeUserForStorage(user) {
+    if (!user) return user;
+    const copy = Object.assign({}, user);
+
+    if (copy.name) {
+      copy.name = copy.name.replace(/[^\x20-\x7E]/g, '');
+      if (!copy.name.trim()) copy.name = copy.email;
+    }
+
+    return copy;
+  }
 
   function escapeHtml(str) {
     return String(str || '')
@@ -568,15 +585,23 @@ window.addEventListener('message', async (ev) => {
   if (!ev.data || ev.data.type !== 'oauth-success') return;
   const user = ev.data.user;
   try {
-    try { localStorage.setItem('spectrodraw_user', JSON.stringify(user)); } catch (e) {}
+    try {
+      const safeUser = sanitizeUserForStorage(user);
+      localStorage.setItem('spectrodraw_user', JSON.stringify(safeUser));
+    } catch (e) {}
+
     let stored = null;
     try { stored = localStorage.getItem('spectrodraw_user'); } catch (e) { stored = null; }
+
+    // stored should now be sanitized JSON if present. If not, fall back to sanitized user JSON
+    const headerUser = stored || JSON.stringify(sanitizeUserForStorage(user));
+
     const res = await fetch('https://api.spectrodraw.com/auth/session', {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-Spectrodraw-User': stored || JSON.stringify(user)
+        'X-Spectrodraw-User': headerUser
       },
       body: JSON.stringify({ email: user.email, username: user.name || user.email })
     });

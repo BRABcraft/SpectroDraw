@@ -492,7 +492,7 @@
     async function fetchFeedbacks() {
       // Try server first
       try {
-        const res = await fetch('/api/feedbacks', { method: 'GET', credentials: 'include' });
+        const res = await fetch('https://api.spectrodraw.com/api/feedbacks', { method: 'GET', credentials: 'include' });
         if (res.ok) {
           const data = await res.json().catch(()=>null);
           if (data && Array.isArray(data.feedbacks)) {
@@ -706,7 +706,7 @@
 
       // send canonical vote to server (server will enforce one-vote-per-account)
       try {
-        const res = await fetch(`/api/feedbacks/${encodeURIComponent(feedbackId)}/vote`, {
+        const res = await fetch(`https://api.spectrodraw.com/api/feedbacks/${encodeURIComponent(feedbackId)}/vote`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

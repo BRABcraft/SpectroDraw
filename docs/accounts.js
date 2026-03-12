@@ -211,7 +211,8 @@
     const href = window.location.href;
     const shouldRedirectHome =
       href.startsWith('https://spectrodraw.com/products/') ||
-      href.startsWith('https://spectrodraw.com/review/');
+      href.startsWith('https://spectrodraw.com/review/') ||
+      href.startsWith('https://spectrodraw.com/feedback/');
 
     if (shouldRedirectHome) {
       window.location.href = 'https://spectrodraw.com';
@@ -331,8 +332,8 @@
     const signupEl = document.getElementById('signup-link');
     const signinEl = document.getElementById('signin-link');
 
-    const excludedIds = new Set(['my-products', 'review', 'account-logout']);
-    const excludedHrefs = new Set(['/products', '/review']);
+    const excludedIds = new Set(['my-products', 'review', 'account-logout', 'feedback']);
+    const excludedHrefs = new Set(['/products', '/review', '/feedback']);
     const excludedTexts = new Set(['log out', 'logout']);
 
     const otherLinks = links.filter(a => {

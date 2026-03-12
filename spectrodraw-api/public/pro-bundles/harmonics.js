@@ -35,14 +35,15 @@ function renderHarmonicsCanvas(){
 
   // draw each bar (value 0 => bottom, 1 => top)
   ctx.fillStyle = "white";
-  for (let i=0;i<bars;i++){
-    const val = Math.max(0, Math.min(1,harmonics[i]||0));
-    const nextX = (i<bars-1)?xs[i+1]:(i>0?2*xs[i]-xs[i-1]:x+1);
-    let bw = Math.max(1,Math.round(nextX-x));
-    const bx=Math.floor(x-bw/2);
-    const by = Math.round((1-val)*(h-1));
-    const barH = h-by;
-    ctx.fillRect(bx,by,bw,barH);
+  for (let i = 0; i < bars; i++) {
+    const val = Math.max(0, Math.min(1, harmonics[i] || 0));
+    const x = xs[i];
+    const nextX = (i < bars - 1) ? xs[i + 1] : (i > 0 ? xs[i] + (xs[i] - xs[i - 1]) : x + 1);
+    let bw = Math.max(1, Math.round(nextX - x));
+    const bx = Math.floor(x - bw / 2);
+    const by = Math.round((1 - val) * (h - 1));
+    const barH = h - by;
+    ctx.fillRect(bx, by, bw, barH);
   }
 }
 

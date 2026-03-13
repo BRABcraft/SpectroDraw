@@ -380,13 +380,11 @@
           const stored = (() => {
             try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
           })();
+          fd.append('user',stored);
           const res = await fetch('https://api.spectrodraw.com/api/reviews', {
             method: 'POST',
             credentials: 'include',
             body: fd,
-            headers: {
-              'X-Spectrodraw-User': stored
-            }
           });
           if(!res.ok){
             const err = await res.json().catch(()=>({message:'Failed to submit review'}));

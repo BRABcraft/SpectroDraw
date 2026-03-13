@@ -197,6 +197,18 @@ function addCors(response, request) {
   headers.set("Access-Control-Allow-Origin", origin || "*");
   headers.set("Access-Control-Allow-Credentials", "true");
   headers.set("Vary", "Origin");
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' blob: https://*.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com 'unsafe-inline' https://apis.google.com",
+    "script-src-elem 'self' blob: https://*.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com 'unsafe-inline' https://apis.google.com",
+    "frame-src https://*.paypal.com https://*.braintreegateway.com",
+    "connect-src 'self' https://*.paypal.com https://*.braintreegateway.com",
+    "img-src 'self' https://*.paypal.com https://*.paypalobjects.com data:",
+    "style-src 'self' 'unsafe-inline'",
+    "object-src 'none'"
+  ].join("; ");
+
+  headers.set("Content-Security-Policy", csp);
   return new Response(response.body, { status: response.status, headers });
 }
 

@@ -239,10 +239,13 @@
               method: 'POST',
               credentials: 'include',
               headers: {
-                'Content-Type': 'application/json',
-                'X-Spectrodraw-User': stored
+                'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ email: user.email, username: user.name || user.email })
+              body: JSON.stringify({
+                user: JSON.parse(stored),
+                email: user.email,
+                username: user.name || user.email
+              })
             });
           } catch (err) {
             console.warn('restoreUserFromStorage: session creation failed', err);

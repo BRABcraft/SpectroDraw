@@ -808,13 +808,12 @@ SpectroDraw bridges the gap between technical audio editing and creative express
       const stored = (() => {
         try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
       })();
+      fd.append('user', stored);
+
       const res = await fetch('https://api.spectrodraw.com/api/reviews', {
         method: 'POST',
         credentials: 'include',
-        body: fd,
-        headers: {
-          'X-Spectrodraw-User': stored
-        }
+        body: fd
       });
       if(!res.ok){
         const err = await res.json().catch(()=>({message:'Failed to submit review'}));
@@ -828,7 +827,7 @@ SpectroDraw bridges the gap between technical audio editing and creative express
       setTimeout(()=>{ submitReviewBtn.textContent = 'Submit review'; }, 1500);
     } catch(err) {
       reviewError.style.display = 'block';
-      reviewError.textContent = 'Error: ' + err.message;
+      reviewError.textContent = 'Error: ' + err.message;console.log(err);
     } finally {
       submitReviewBtn.disabled = false;
     }
@@ -1911,13 +1910,14 @@ function detectPopupPost(popup, provider, opts = {}) {
       const res = await fetch('https://api.spectrodraw.com/api/claim', {
         method: 'POST',
         credentials: 'include',
-        headers: {'Content-Type':'application/json', 'X-Spectrodraw-User': stored},
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
           proof: {
             reviewSubmitted: progress.reviewSubmitted,
             shareSent: progress.shareSent,
             inviteEmails: progress.inviteEmails.slice(-3)
-          }
+          },
+          user: stored
         })
       });
       if(!res.ok){
@@ -1980,6 +1980,7 @@ function detectPopupPost(popup, provider, opts = {}) {
         reviewSection.style.display = '';
         shareSection.style.display = 'none';
         reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        claimSection.style.display = 'none';
         return;
       }
       shareSection.style.display = 'block'; console.log('2020');
@@ -1990,7 +1991,6 @@ function detectPopupPost(popup, provider, opts = {}) {
       return;
     }
     if(n === 3){
-      if(!progress.reviewSubmitted) return;
       claimSection.style.display = 'block';
       reviewSection.style.display = 'none';
       shareSection.style.display = 'none';
@@ -2046,7 +2046,7 @@ function detectPopupPost(popup, provider, opts = {}) {
           try { setClaimedUI(); } catch (e) { console.warn('setClaimedUI failed', e); }
         }
         try { gotoStep(3); } catch (e) { console.log(e);/* ignore */ }
-        render();
+        //render();
       }
 
     } catch (err) {

@@ -22,7 +22,8 @@ export default {
 
       // Protect /api/* routes as before
       if (pathname.startsWith("/api/") && !user) {
-        return addCors(json({ message: "Unauthorized request.header:" + (request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email")) + "; env: " + env }, 401), request);
+        console.warn("Unauthorized request to " + pathname + " from origin: " + (request.headers.get("Origin") || "unknown"));
+        return addCors(json({ message: "Unauthorized" }, 401), request);
       }
       // upload endpoint (no /api prefix so you can call POST /upload directly)
       if (pathname === "/upload" && request.method === "POST") {
@@ -172,17 +173,17 @@ export default {
 
 function preflightResponse(request) {
   const origin = request.headers.get("Origin") || "*";
-  // If the browser lists requested headers in Access-Control-Request-Headers, echo them back.
+  // If the browser listed requested headers in Access-Control-Request-Headers, echo them back.
   const reqHeaders = request.headers.get("Access-Control-Request-Headers");
-  // Allow at minimum these headers plus any requested ones:
-  const allowedHeaders = reqHeaders || "Content-Type,Authorization,X-Spectrodraw-User";
+  // Default allowed headers (do not include custom user header by default)
+  const defaultAllowed = "Content-Type, Authorization";
+  const allowedHeaders = reqHeaders || defaultAllowed;
 
   return new Response(null, {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      // either echo requested headers or provide the list including your custom header
       "Access-Control-Allow-Headers": allowedHeaders,
       "Access-Control-Allow-Credentials": "true",
       "Vary": "Origin"
@@ -221,37 +222,41 @@ const invites = [];
 */
 async function parseAuth(request, env) {
   try {
-    // 1) header (dev-friendly; client can send localStorage value here)
-    const header = request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email");
-    if (header) {
-      try {
-        return JSON.parse(header);
-      } catch (e) {
-        return { email: header };
-      }
-    }
-
-    // 2) spectrodraw_user cookie (URL-encoded JSON or plain string)
     const cookieHeader = request.headers.get("Cookie") || "";
-    const m = cookieHeader.match(/(?:^|; )spectrodraw_user=([^;]+)/);
-    if (m && m[1]) {
-      const decoded = decodeURIComponent(m[1]);
-      try {
-        return JSON.parse(decoded);
-      } catch (e) {
-        return { email: decoded };
-      }
-    }
 
-    // 3) session cookie -> lookup in env.SESSIONS (if configured)
+    // 1) session cookie -> lookup in env.SESSIONS (primary)
     const sm = cookieHeader.match(/(?:^|; )session=([^;]+)/);
     if (sm && sm[1] && env && typeof env.SESSIONS !== "undefined") {
       const token = sm[1];
-      const stored = await env.SESSIONS.get(token);
-      if (stored) {
-        try { return JSON.parse(stored); } catch (e) { return { email: stored }; }
-      } else {
-        console.warn("parseAuth: session token not found in SESSIONS");
+      try {
+        const stored = await env.SESSIONS.get(token);
+        if (stored) {
+          try { return JSON.parse(stored); } catch (e) { return { email: String(stored) }; }
+        } else {
+          // session missing/expired — treat as unauthenticated
+          console.warn("parseAuth: session token not found in SESSIONS for token:", token);
+        }
+      } catch (err) {
+        console.error("parseAuth: error reading env.SESSIONS:", err);
+      }
+    }
+
+    // 2) spectrodraw_user cookie (compat fallback; value should be encodeURIComponent(JSON))
+    const m = cookieHeader.match(/(?:^|; )spectrodraw_user=([^;]+)/);
+    if (m && m[1]) {
+      try {
+        const decoded = decodeURIComponent(m[1]);
+        try { return JSON.parse(decoded); } catch (e) { return { email: decoded }; }
+      } catch (err) {
+        console.warn("parseAuth: failed to decode spectrodraw_user cookie", err);
+      }
+    }
+
+    // 3) legacy header ONLY when explicitly allowed via env (dev convenience - disabled by default)
+    if (env && String(env.ALLOW_LEGACY_HEADER || "").toLowerCase() === "true") {
+      const header = request.headers.get("X-Spectrodraw-User") || request.headers.get("X-User-Email");
+      if (header) {
+        try { return JSON.parse(header); } catch (e) { return { email: header }; }
       }
     }
 
@@ -779,9 +784,9 @@ async function handleShareInvite(request, user, env) {
 async function handleSessionCreate(request, env) {
   // expects JSON: { email, username }
   try {
-    const body = await request.json();
-    const email = (body && body.email) ? body.email : null;
-    const username = (body && body.username) ? body.username : null;
+    const body = await request.json().catch(() => ({}));
+    const email = (body && body.email) ? String(body.email).trim() : null;
+    const username = (body && body.username) ? String(body.username).trim() : null;
     if (!email) return json({ message: "Missing email" }, 400);
 
     if (!env || typeof env.SESSIONS === "undefined") {
@@ -790,15 +795,27 @@ async function handleSessionCreate(request, env) {
       return json({ message: msg }, 500);
     }
 
-    // create a session token
-    const token = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+    // session TTL in seconds (env.SESSION_TTL) or default 30 days
+    const ttlSeconds = parseInt(env.SESSION_TTL || String(30 * 24 * 60 * 60), 10);
+
+    // create a secure token
+    const token = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (String(Date.now()) + "-" + Math.random().toString(36).slice(2,10));
 
     const session = { email, username, provider: "oauth", created: Date.now() };
-    await env.SESSIONS.put(token, JSON.stringify(session));
 
-    // Set cookie for the whole domain so subdomains (api.spectrodraw.com, app.spectrodraw.com) can read it
-    // IMPORTANT: For cookies to be sent cross-subdomain, use Domain=.spectrodraw.com (adjust if your domain differs)
-    const cookie = `session=${token}; Path=/; Domain=.spectrodraw.com; HttpOnly; Secure; SameSite=Lax`;
+    // Store session with TTL in SESSIONS KV
+    try {
+      await env.SESSIONS.put(token, JSON.stringify(session), { expirationTtl: ttlSeconds });
+    } catch (err) {
+      console.error("handleSessionCreate: failed to write session to SESSIONS KV", err);
+      return json({ message: "Failed to create session" }, 500);
+    }
+
+    // Set cookie attributes for cross-subdomain use
+    // Use SameSite=None and Secure for cross-site / cross-subdomain contexts. Include Max-Age for clarity.
+    const maxAge = ttlSeconds;
+    const domain = env.COOKIE_DOMAIN || ".spectrodraw.com";
+    const cookie = `session=${token}; Path=/; Domain=${domain}; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=None`;
 
     const headers = new Headers({
       "Set-Cookie": cookie,

@@ -138,6 +138,9 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
 
     const blob = new Blob([view], { type: 'audio/wav' });
     const url = URL.createObjectURL(blob);
+    shareModal.style.display="flex";
+    shareFileUrl = URL.createObjectURL(blob);
+    updateShareModal("audio");
     const a = document.createElement('a');
     a.href = url;
     a.download = 'output.wav';
@@ -162,6 +165,9 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
+    shareModal.style.display="flex";
+    shareFileUrl = URL.createObjectURL(blob);
+    updateShareModal("audio");
     a.download = 'output.wav';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -175,6 +181,9 @@ document.getElementById('downloadSpectrogram').addEventListener('click', functio
     downloadLink.href = canvasUrl;
     downloadLink.download = 'spectrodraw.png';
     downloadLink.click();
+    shareModal.style.display="flex";
+    shareFileUrl = downloadLink;
+    updateShareModal("image");
     downloadLink.remove();
     iLow = oil; iHigh = oih; fLow = ofl; fHigh = ofh;
 });
@@ -315,6 +324,9 @@ document.getElementById('downloadVideo').addEventListener('click', async functio
     a.download = 'spectrodraw.webm';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    shareModal.style.display="flex";
+    shareFileUrl = URL.createObjectURL(blob);
+    updateShareModal("video");
 
     // Final cleanup
     overlay.remove();
@@ -329,4 +341,48 @@ document.getElementById('downloadVideo').addEventListener('click', async functio
     console.error('downloadVideo failed:', err);
     alert('Failed to generate video: ' + (err && err.message ? err.message : String(err)));
   }
+});
+function updateShareModal(type){
+  document.getElementById("sharepreview").innerHTML="";
+  let i;
+  if (type=="image") {
+    i = document.createElement("img");
+    i.style="width:100%;height:200px;"
+    i.src=shareFileUrl;
+  } else if (type=="audio") {
+    i = document.createElement("video");
+    i.setAttribute("controls", true);
+    i.setAttribute("autoplay", true);
+    i.innerHTML=`
+    <source src="${shareFileUrl}" type="audio/wav">
+    `
+    i.src=shareFileUrl;
+  } else if (type=="video") {
+    i = document.createElement("video");
+    i.setAttribute("controls", true);
+    i.setAttribute("autoplay", true);
+    i.style="width:100%;height:200px;"
+    i.innerHTML=`
+    <source src="${shareFileUrl}" type="video/webm">
+    `
+    i.src=shareFileUrl;
+  }
+  document.getElementById("sharepreview").appendChild(i);
+}
+document.getElementById("closeShareModal").addEventListener("click",()=>{shareModal.style.display="none";});
+document.querySelectorAll(".social-btn").forEach(sb=>{
+  sb.addEventListener("click",()=>{
+    const a = document.createElement("a");
+    a.setAttribute("target","_blank");
+    a.setAttribute("rel","noreferrer");
+    if (sb.getAttribute("data-provider")==="reddit") {
+      a.href="https://reddit.com/r/spectrodraw/";
+    } else if (sb.getAttribute("data-provider")==="X") {
+      a.href="https://x.com/intent/tweet";
+    } else if (sb.getAttribute("data-provider")==="pinterest") {
+      a.href="https://www.pinterest.com/pin/create/bookmarklet/";
+    }
+    document.body.appendChild(a);
+    a.click();
+  });
 });

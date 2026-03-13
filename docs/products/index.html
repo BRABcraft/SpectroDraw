@@ -233,7 +233,7 @@
     })();
 
     const headers = { 'Accept': 'application/json' };
-    if (stored) headers['X-Spectrodraw-User'] = stored;
+    //if (stored) headers['X-Spectrodraw-User'] = stored;
 
     try {
       const res = await fetch('https://api.spectrodraw.com/api/products', {
@@ -242,7 +242,7 @@
         headers
       });
       const j = await res.json().catch(() => null);
-      console.log(j);
+      //console.log(j);
 
       if (!j || !Array.isArray(j.products)) {
         main.innerHTML = `<p>You have no products.</p>`;

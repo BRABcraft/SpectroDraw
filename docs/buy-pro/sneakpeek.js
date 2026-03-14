@@ -25,7 +25,7 @@ async function loadPro() {
   `;
   inlineSneak.appendChild(loaderContainer);
 
-  const KV_URL = 'https://api.spectrodraw.com/api/load-sneak-peak';
+  const KV_URL = 'https://api.spectrodraw.com/load-sneak-peak';
 
   // helper to cleanup
   let cleaned = false;

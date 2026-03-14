@@ -83,7 +83,7 @@ export default {
       if (orderCaptureMatch && request.method === 'POST') {
         return addCors(await handleApiOrdersCapture(request, env, orderCaptureMatch[1]), request);
       }
-      if (request.method === "GET" && pathname === "/api/load-sneak-peak") {
+      if (request.method === "GET" && pathname === "/load-sneak-peak") {
         return addCors(await handleSneakPeak(request, env), request);
       }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {

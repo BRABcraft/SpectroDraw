@@ -1068,13 +1068,28 @@
 <div id="status" style="position:absolute;bottom:0px;"></div>
 
 <script>
-  let windowInnerWidth = window.innerWidth, windowInnerHeight = window.innerHeight;
-  if (navigator.userAgentData.mobile && window.innerWidth>window.innerHeight) {
-    document.body.style.zoom=window.innerWidth/1500;
-    console.log(document.body.querySelector(".app"));
-    document.body.querySelector(".app").style.height = (100/document.body.style.zoom)+"vh";
+  let windowInnerWidth = window.innerWidth;
+  let windowInnerHeight = window.innerHeight;
+
+  // Mobile detection that works in Safari
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/.test(navigator.userAgent);
+
+  if (isMobile && window.innerWidth > window.innerHeight) {
+
+    const zoom = window.innerWidth / 1500;
+
+    const app = document.body.querySelector(".app");
+
+    document.body.style.transform = `scale(${zoom})`;
+    document.body.style.transformOrigin = "top left";
+    document.body.style.width = (100 / zoom) + "vw";
+
+    if (app) {
+      app.style.height = (100 / zoom) + "vh";
+    }
+
     windowInnerWidth = 1500;
-    windowInnerHeight = window.innerHeight/document.body.style.zoom;
+    windowInnerHeight = window.innerHeight / zoom;
   }
   function syncNumberAndRange(numberInput, rangeInput) {
     numberInput.addEventListener('input', () => {

@@ -1070,7 +1070,7 @@
 <script>
   let windowInnerWidth = window.innerWidth;
   let windowInnerHeight = window.innerHeight;
-
+  
   // Mobile detection that works in Safari
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/.test(navigator.userAgent);
 
@@ -1409,7 +1409,7 @@ panelButtons.forEach(btn => {
     }
     if (hasPro) {
       document.getElementById("proOverlay").innerHTML = `
-      <h2>Pro Feature</h2>
+      <h2 ${isMobile?`style="margin:0"`:""}>Pro Feature</h2>
       <p>Thanks for claiming Pro! This feature will unlock for you in</p>
       <p id="proOverlaycountdown" style="color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);"></p>
       <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="https://spectrodraw.com/faq/pro-features/" style="color:black;text-decoration: none;">View Pro Features</a></button>

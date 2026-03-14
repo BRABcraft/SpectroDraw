@@ -23,6 +23,8 @@
       --card-glow: 0 6px 30px rgba(147,51,234,0.12);
       --glass-2: rgba(255,255,255,0.02);
       --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+      --success: #16a34a;
+      --danger: #ef4444;
     }
 
     *{box-sizing:border-box}
@@ -118,13 +120,41 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
-    .vote-wrap { display:flex; align-items:center; gap:8px; }
+
+    /* feedback card layout */
+    .feedback-card {
+      position: relative;
+      display:flex;
+      gap:16px;
+      padding:14px;
+      border-radius:12px;
+      margin-bottom:12px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.006), rgba(255,255,255,0.003));
+      border:1px solid var(--soft-border);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+      align-items:flex-start;
+    }
+
+    /* left column: votes + resolved badge */
+    .vote-wrap {
+      display:flex;
+      gap:10px;
+      align-items:center;
+      min-width:64px;
+    }
+    .vote-col {
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      align-items:center;
+      width:44px;
+    }
     .vote-btn {
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      width:34px;
-      height:34px;
+      width:36px;
+      height:36px;
       border-radius:8px;
       border:1px solid rgba(255,255,255,0.04);
       background: rgba(255,255,255,0.02);
@@ -143,7 +173,67 @@
       border:1px solid var(--glass-2);
       font-weight:700;
     }
-    @media(max-width:600px) {.tagline{display:none;}}
+
+    .resolved-badge {
+      font-weight:700;
+      padding:6px 8px;
+      border-radius:5px;
+      color:white;
+      font-size:.9rem;
+      white-space:nowrap;
+      min-width:86px;
+      text-align:left;
+    }
+    .resolved-true {
+      background: linear-gradient(180deg, rgba(22,163,74,0.56), rgba(22,163,74,0.32));
+      border:1px solid rgba(22,163,74,0.18);
+      color: var(--text);
+    }
+    .resolved-false {
+      background: linear-gradient(180deg, rgba(239,68,68,0.56), rgba(239,68,68,0.32));
+      border:1px solid rgba(239,68,68,0.18);
+      color: var(--text);
+    }
+
+    /* main content area */
+    .feedback-main {
+      flex:1;
+      min-width:0;
+    }
+    .feedback-meta {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .avatar {
+      width:36px;
+      height:36px;
+      border-radius:50%;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      color:white;
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      flex-shrink:0;
+      font-size:.95rem;
+    }
+    .author-name { font-weight:700; color:var(--text); }
+    .muted { color:var(--muted); margin-left:6px; font-weight:500; }
+    .feedback-text {
+      color:var(--text);
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      margin-bottom:8px;
+    }
+
+    .attachments-row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    .file-chip { padding:6px 10px; border-radius:8px; background: rgba(255,255,255,0.02); border:1px solid var(--soft-border); font-size:.9rem; }
+    @media(max-width:600px) {
+      .vote-wrap { min-width:48px; }
+      .resolved-badge { display:none; } /* hide for very small screens if needed */
+    }
   </style>
 </head>
 <body>
@@ -216,12 +306,13 @@
       </form>
     </div>
   </div>
+
   <link rel="stylesheet" type="text/css" href="../accounts.css">
   <script src="../accounts.js"></script>
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <h1 class="title">Submit feedback (feature in development)</h1>
+      <h1 class="title">Submit feedback</h1>
       <p class="muted">Share bugs, ideas, or suggestions. Your feedback helps shape SpectroDraw.</p>
     </div>
   </header>
@@ -247,7 +338,7 @@
     </section>
 
     <section id="feedbacks-section" class="section" aria-label="Feedback list" style="margin-top:18px;">
-      <h1 id="feedback-list-title">Feedback and discussion</h2>
+      <h1 id="feedback-list-title">Feedback and discussion</h1>
       <div id="feedback-list" aria-live="polite" style="min-height:80px"></div>
       <div id="no-feedback" class="muted" style="display:none;">No feedback yet — be the first to share your thoughts!</div>
     </section>
@@ -276,7 +367,6 @@
     const LOCAL_VOTES_PREFIX = 'spectrodraw_votes_'; // local cache per-user
     let currentUserVotes = {}; // feedbackId -> vote (1 | -1)
 
-    // Quick id generator
     function makeId(prefix='f') {
       return prefix + '_' + Math.random().toString(36).slice(2,9);
     }
@@ -296,14 +386,12 @@
     function onAuthChanged() {
       currentUser = getCurrentUser();
       progress.loggedIn = !!currentUser;
-      // load existing user feedback into form (if any)
       if (currentUser) {
         loadUserFeedbackIntoForm(currentUser);
       }
-      renderFeedbacks(); // might show author names now
+      renderFeedbacks();
     }
 
-    // Poll for auth changes (in case accounts.js toggles the stored user)
     setInterval(() => {
       const newUser = getCurrentUser();
       const prevId = currentUser ? currentUser.id || currentUser.email : null;
@@ -313,18 +401,13 @@
 
     // ---- file attach handling ----
     attachBtn.addEventListener("click", ()=> attachInput.click());
-    attachInput.addEventListener("change", (e)=>{
-      const files = Array.from(e.target.files || []);
-      if (files.length) handleFiles(files);
-      attachInput.value = ''; // reset so same file can be reattached later
-    });
+    attachInput.addEventListener("change", (e)=>{ const files = Array.from(e.target.files || []); if (files.length) handleFiles(files); attachInput.value = ''; });
 
     function handleFiles(files){
-      // read files as dataURL and store minimal metadata
       for (let file of files){
-        if(file.size > 1024 * 1024){ // 1MB limit
+        if(file.size > 1024 * 1024){
           alert(`File "${file.name}" is too large. Maximum size is 1MB.`);
-          continue; // skip this file
+          continue;
         }
         const reader = new FileReader();
         reader.onload = (ev) => {
@@ -349,7 +432,7 @@
         chip.innerHTML = `<span title="${escapeHtml(f.name)}">${escapeHtml(shortenName(f.name, 28))}</span>`;
         const rem = document.createElement('button');
         rem.type = 'button';
-        rem.style="background:none;color:#fff;border:none;"
+        rem.style="background:none;color:#fff;border:none;";
         rem.innerText = '✕';
         rem.title = 'Remove';
         rem.addEventListener('click', ()=> {
@@ -366,7 +449,6 @@
       if (name.length <= max) return name;
       return name.slice(0, max-3) + '...';
     }
-
     function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
     // ---- submit feedback ----
@@ -392,10 +474,14 @@
       const fb = {
         id: makeId('fb'),
         userId: currentUser?.id || currentUser?.email || 'anonymous',
-        author: currentUser?.displayName || currentUser?.email || 'Anonymous',
+        // prefer user.name, fall back to displayName/email
+        author: currentUser?.name || currentUser?.displayName || currentUser?.email || 'Anonymous',
+        // store a small avatar hint (not required) - if accounts.js provides avatarUrl you can include it
+        avatar: currentUser?.avatar || null,
         text,
         files: attachedFiles.map(f => ({ id: f.id, name: f.name, type: f.type, size: f.size, dataUrl: f.dataUrl })),
-        score: 0, // <-- added
+        score: 0,
+        resolved: false, // <-- boolean attribute added as requested (no UI to change it)
         createdAt: new Date().toISOString()
       };
 
@@ -406,9 +492,7 @@
           const form = new FormData();
           form.append('text', fb.text);
           form.append('meta', JSON.stringify({ userId: fb.userId, author: fb.author }));
-          // attach files as blobs if any (backend can parse)
           fb.files.forEach((f, idx) => {
-            // convert dataUrl back to blob
             const blob = dataURLtoBlob(f.dataUrl);
             form.append('file_' + idx, blob, f.name);
           });
@@ -417,34 +501,27 @@
             credentials: 'include',
             body: form,
             headers: {
-              // you may want to include user header; no content-type here
               'X-Client-User': JSON.stringify({ userId: fb.userId, author: fb.author })
             }
           });
           if (res.ok) {
-            // optionally use server response as canonical
             const server = await res.json().catch(()=>null);
-            if (server && server.id) {
-              // merge server id if present
-              fb.id = server.id;
-            }
+            if (server && server.id) fb.id = server.id;
+            // if server returns resolved property, merge it (server authoritative)
+            if (server && typeof server.resolved === 'boolean') fb.resolved = server.resolved;
             posted = true;
           } else {
-            // fallback to local
             console.warn('Server rejected feedback, saving locally.');
           }
         } catch (e){
           // network/backend not available -> save locally
-          //console.warn('Could not post to server, saving locally', e);
         }
 
         // Save locally (always) so UI updates instantly - backend can be authoritative later
         saveFeedbackToLocal(fb);
 
-        // load the user's saved feedback into "submitted" state
         progress.feedbackSubmitted = true;
         progress.feedbackText = fb.text;
-        // reset form
         feedbackTextEl.value = '';
         attachedFiles = [];
         renderAttachedFiles();
@@ -479,9 +556,8 @@
 
     function saveFeedbackToLocal(fb){
       const list = loadLocalFeedbacks();
-      // ensure score exists
       if (typeof fb.score !== 'number') fb.score = 0;
-      // if this feedback exists, replace; else add to top
+      if (typeof fb.resolved !== 'boolean') fb.resolved = false;
       const idx = list.findIndex(x => x.id === fb.id);
       if (idx >= 0) list[idx] = fb;
       else list.unshift(fb);
@@ -496,10 +572,8 @@
         if (res.ok) {
           const data = await res.json().catch(()=>null);
           if (data && Array.isArray(data.feedbacks)) {
-            // server returned feedbacks; also get per-user votes if present
             const fbs = data.feedbacks;
             currentUserVotes = (data.userVotes && typeof data.userVotes === 'object') ? data.userVotes : {};
-            // also merge with local vote cache if present (local overrides)
             try {
               const userId = currentUser?.id || currentUser?.email;
               if (userId) {
@@ -513,11 +587,9 @@
             return fbs;
           }
         }
-      } catch(e){ /* ignore network errors */ }
+      } catch(e){}
 
-      // fallback to local storage
       const local = loadLocalFeedbacks();
-      // restore per-user votes from local storage if possible
       try {
         const userId = currentUser?.id || currentUser?.email;
         if (userId) {
@@ -526,6 +598,20 @@
         }
       } catch(e){}
       return local;
+    }
+
+    function makeAvatarElement(name, avatarUrl) {
+      // create a default circle with initials if no avatarUrl
+      const el = document.createElement('div');
+      el.className = 'avatar';
+      if (avatarUrl) {
+        el.style.background = `url(${avatarUrl}) center/cover no-repeat`;
+        el.textContent = '';
+      } else {
+        const initials = (String(name || 'A').trim().split(/\s+/)[0] || 'A')[0].toUpperCase();
+        el.textContent = initials;
+      }
+      return el;
     }
 
     async function renderFeedbacks(){
@@ -538,55 +624,21 @@
         noFeedbackEl.style.display = 'none';
       }
 
-      // sort newest-first (if createdAt exists)
       feedbacks.sort((a,b) => (new Date(b.createdAt || 0)) - (new Date(a.createdAt || 0)));
 
       for (const fb of feedbacks) {
-        // normalize score
         if (typeof fb.score !== 'number') fb.score = 0;
+        if (typeof fb.resolved !== 'boolean') fb.resolved = false;
 
         const card = document.createElement('article');
         card.className = 'feedback-card';
-        const meta = document.createElement('div');
-        meta.className = 'feedback-meta';
-        const when = new Date(fb.createdAt || Date.now()).toLocaleString();
-        const author = escapeHtml(fb.author || (fb.userId ? String(fb.userId) : 'Anonymous'));
-        meta.innerHTML = `<strong>${author}</strong><span class="muted">•</span><span class="muted">${when}</span>`;
-        card.appendChild(meta);
 
-        const txt = document.createElement('div');
-        txt.className = 'feedback-text';
-        txt.textContent = fb.text || '';
-        card.appendChild(txt);
+        // Left column: votes + resolved
+        const left = document.createElement('div');
+        left.className = 'vote-wrap';
 
-        if (fb.files && fb.files.length) {
-          const attachRow = document.createElement('div');
-          attachRow.className = 'attachments-row';
-          for (const f of fb.files) {
-            const fileBox = document.createElement('div');
-            fileBox.className = 'file-chip';
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = f.name;
-            fileBox.appendChild(nameSpan);
-
-            // If we have a dataUrl, show a small preview / download link
-            if (f.dataUrl) {
-              const a = document.createElement('a');
-              a.href = f.dataUrl;
-              a.download = f.name;
-              a.style.marginLeft = '8px';
-              a.textContent = 'Download';
-              a.className = 'muted';
-              fileBox.appendChild(a);
-            }
-            attachRow.appendChild(fileBox);
-          }
-          card.appendChild(attachRow);
-        }
-
-        // VOTE UI
-        const voteRow = document.createElement('div');
-        voteRow.className = 'vote-wrap';
+        const voteCol = document.createElement('div');
+        voteCol.className = 'vote-col';
 
         const upBtn = document.createElement('button');
         upBtn.className = 'vote-btn';
@@ -605,7 +657,6 @@
         // determine current user's vote for this feedback
         const myVote = Number(currentUserVotes[fb.id] || 0);
 
-        // visual active state
         if (myVote === 1) {
           upBtn.style.background = 'linear-gradient(90deg,var(--accent1),var(--accent2))';
           upBtn.style.color = '#fff';
@@ -621,15 +672,94 @@
           downBtn.style.color = '';
         }
 
-        // clicks call handleVoteLocal which toggles/unvotes as required
         upBtn.addEventListener('click', () => { handleVoteLocal(fb.id, +1); });
         downBtn.addEventListener('click', () => { handleVoteLocal(fb.id, -1); });
 
-        voteRow.appendChild(upBtn);
-        voteRow.appendChild(scoreBadge);
-        voteRow.appendChild(downBtn);
-        card.appendChild(voteRow);
+        voteCol.appendChild(upBtn);
+        voteCol.appendChild(scoreBadge);
+        voteCol.appendChild(downBtn);
 
+        left.appendChild(voteCol);
+
+        // resolved badge (non-interactive)
+
+        card.appendChild(left);
+
+        // Right/main column
+        const main = document.createElement('div');
+        main.className = 'feedback-main';
+
+        const meta = document.createElement('div');
+        meta.className = 'feedback-meta';
+
+        const name = fb.author || (fb.userId ? String(fb.userId) : 'Anonymous');
+        const when = new Date(fb.createdAt || Date.now()).toLocaleString();
+
+        const avatarEl = makeAvatarElement(name, fb.avatar || null);
+        meta.appendChild(avatarEl);
+
+        const nameSpan = document.createElement('div');
+        nameSpan.style.display = 'flex';
+        nameSpan.style.alignItems = 'center';
+        nameSpan.style.gap = '8px';
+
+        const authorEl = document.createElement('span');
+        authorEl.className = 'author-name';
+        authorEl.textContent = name;
+        nameSpan.appendChild(authorEl);
+
+        const dot = document.createElement('span');
+        dot.className = 'muted';
+        dot.textContent = '•';
+        nameSpan.appendChild(dot);
+
+        const whenEl = document.createElement('span');
+        whenEl.className = 'muted';
+        whenEl.textContent = when;
+        nameSpan.appendChild(whenEl);
+
+        meta.appendChild(nameSpan);
+
+        main.appendChild(meta);
+
+        const txt = document.createElement('div');
+        txt.className = 'feedback-text';
+        txt.textContent = fb.text || '';
+        main.appendChild(txt);
+
+        if (fb.files && fb.files.length) {
+          const attachRow = document.createElement('div');
+          attachRow.className = 'attachments-row';
+          for (const f of fb.files) {
+            const fileBox = document.createElement('div');
+            fileBox.className = 'file-chip';
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = f.name;
+            fileBox.appendChild(nameSpan);
+
+            if (f.dataUrl) {
+              const a = document.createElement('a');
+              a.href = f.dataUrl;
+              a.download = f.name;
+              a.style.marginLeft = '8px';
+              a.textContent = 'Download';
+              a.className = 'muted';
+              fileBox.appendChild(a);
+            }
+            attachRow.appendChild(fileBox);
+          }
+          main.appendChild(attachRow);
+        }
+
+        card.appendChild(main);
+        const resolvedDiv = document.createElement('div');
+        resolvedDiv.className = 'resolved-badge ' + (fb.resolved ? 'resolved-true' : 'resolved-false');
+        resolvedDiv.textContent = fb.resolved ? 'Resolved ✔' : 'Not resolved❌';
+        resolvedDiv.style.position = "absolute";
+        resolvedDiv.style.right = "12px";
+        resolvedDiv.style.top = "12px";
+        resolvedDiv.style.width = "128px";
+        card.appendChild(resolvedDiv);
         feedbackListEl.appendChild(card);
       }
     }
@@ -642,7 +772,6 @@
         if (!uid) return;
         const found = list.find(x => x.userId === uid);
         if (found) {
-          // load into form but keep the ability to edit / re-submit
           feedbackTextEl.value = found.text || '';
           attachedFiles = (found.files || []).map(f => ({...f}));
           renderAttachedFiles();
@@ -663,8 +792,8 @@
       }
       return new Blob([u8arr], {type:mime});
     }
+
     async function handleVoteLocal(feedbackId, requestedDelta) {
-      // requestedDelta is +1 or -1 (button click)
       if (!progress.loggedIn) {
         feedbackError.style.display = 'block';
         feedbackError.textContent = 'You must be signed in to vote.';
@@ -677,34 +806,22 @@
         return;
       }
 
-      // previous vote by this user on this feedback
       const prevVote = Number(currentUserVotes[feedbackId] || 0);
-
-      // toggle: clicking the same vote unvotes (becomes 0)
       const newVote = (prevVote === requestedDelta) ? 0 : requestedDelta;
-      const applyDelta = newVote - prevVote; // what to apply to feedback.score
+      const applyDelta = newVote - prevVote;
 
-      // optimistic local update of feedback score and local vote cache
       const list = loadLocalFeedbacks();
       const idx = list.findIndex(x => x.id === feedbackId);
       if (idx === -1) return;
       list[idx].score = (Number(list[idx].score) || 0) + applyDelta;
       saveLocalFeedbacks(list);
 
-      // update in-memory userVotes and local cache
-      if (newVote === 0) {
-        delete currentUserVotes[feedbackId];
-      } else {
-        currentUserVotes[feedbackId] = newVote;
-      }
-      try {
-        localStorage.setItem(LOCAL_VOTES_PREFIX + String(userId), JSON.stringify(currentUserVotes));
-      } catch (e) {}
+      if (newVote === 0) delete currentUserVotes[feedbackId];
+      else currentUserVotes[feedbackId] = newVote;
+      try { localStorage.setItem(LOCAL_VOTES_PREFIX + String(userId), JSON.stringify(currentUserVotes)); } catch (e) {}
 
-      // re-render UI immediately
       renderFeedbacks();
 
-      // send canonical vote to server (server will enforce one-vote-per-account)
       try {
         const res = await fetch(`https://api.spectrodraw.com/api/feedbacks/${encodeURIComponent(feedbackId)}/vote`, {
           method: 'POST',
@@ -715,7 +832,6 @@
         if (res.ok) {
           const json = await res.json().catch(()=>null);
           if (json && typeof json.score === 'number') {
-            // reconcile with server authoritative score
             const list2 = loadLocalFeedbacks();
             const idx2 = list2.findIndex(x => x.id === feedbackId);
             if (idx2 !== -1) {
@@ -724,24 +840,20 @@
               renderFeedbacks();
             }
           }
-          // update server-side userVotes cache (returned optionally)
           if (json && json.userVotes) {
             currentUserVotes = json.userVotes;
             try { localStorage.setItem(LOCAL_VOTES_PREFIX + String(userId), JSON.stringify(currentUserVotes)); } catch(e) {}
           }
         } else {
-          // server rejected vote; you might choose to show an error
           console.warn('Vote request rejected by server');
         }
       } catch (e) {
         console.warn('Vote sync failed', e);
-        // keep optimistic local state — server will be authoritative later
       }
     }
 
     // ---- init ----
     (function init(){
-      // initial auth state
       currentUser = getCurrentUser();
       progress.loggedIn = !!currentUser;
       currentUserVotes = {};
@@ -755,18 +867,15 @@
       if (progress.loggedIn) loadUserFeedbackIntoForm(currentUser);
       updateSubmitButtonState();
       renderFeedbacks();
-      // expose sdAuthChanged if accounts.js triggers externally
       window.sdAuthChanged = onAuthChanged;
     })();
 
-    // make Enter+Ctrl submit when textarea focused
     feedbackTextEl.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         submitFeedbackBtn.click();
       }
     });
 
-    // year in footer
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
 </body>

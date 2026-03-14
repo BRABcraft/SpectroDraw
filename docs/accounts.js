@@ -56,6 +56,7 @@
     menuOpen ? closeAccountMenu() : openAccountMenu();
   }
   function openAccountMenu() {
+    if (!accountMenu) return;
     accountMenu.style.display = '';
     accountMenu.setAttribute('aria-hidden', 'false');
     accountBtn.setAttribute('aria-expanded', 'true');
@@ -63,6 +64,7 @@
     document.addEventListener('click', outsideClickHandler);
   }
   function closeAccountMenu() {
+    if (!accountMenu) return;
     accountMenu.style.display = 'none';
     accountMenu.setAttribute('aria-hidden', 'true');
     accountBtn.setAttribute('aria-expanded', 'false');
@@ -155,13 +157,15 @@
 
   function showError(msg) { loginError.textContent = msg; loginError.style.display = ''; }
 
-  function setLoggedInState(user) {console.log(158);
+  function setLoggedInState(user) {
     signupLink.style.display = 'none';
     signinLink.style.display = 'none';
-    accountWrap.style.display = 'block';
+    if (accountWrap) accountWrap.style.display = 'block';console.log(158);
     let username = user.email && user.email.includes('@') ? user.email.substring(0,user.email.indexOf("@")) : (user.name || 'user');
-    accountEmailSpan.textContent = username;
-    accountEmailSpan.title = username || user.name || '';
+    if (accountEmailSpan) {
+      accountEmailSpan.textContent = username;
+      accountEmailSpan.title = username || user.name || '';
+    }
     try {if (typeof updateNav === 'function') updateNav();} catch (err) {}
   }
 
@@ -169,7 +173,7 @@
   function setLoggedOutState() {
     signupLink.style.display = '';
     signinLink.style.display = '';
-    accountWrap.style.display = 'none';
+    if (accountWrap)accountWrap.style.display = 'none';
     closeAccountMenu();
     try{if (typeof updateNav === 'function') updateNav();} catch (err) {}
   }
@@ -186,11 +190,11 @@
       console.error('onLoginSuccess error', e);
     }
   }
-  accountBtn.addEventListener('click', (e) => {
+  if (accountBtn) accountBtn.addEventListener('click', (e) => {
     e.preventDefault();
     toggleAccountMenu();
   });
-  accountLogoutBtn.addEventListener('click', async (e) => {
+  if (accountLogoutBtn) accountLogoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     await doLogout();
   });
@@ -220,7 +224,7 @@
       window.location.reload();
     }
   }
-  myProductsLink.addEventListener('click', () => { closeAccountMenu(); });
+  if (myProductsLink) myProductsLink.addEventListener('click', () => { closeAccountMenu(); });
 
   (async function restoreUserFromStorage() {
     try {
@@ -352,6 +356,7 @@
       <li role="menuitem"
           tabindex="-1"
           data-href="${escapeHtml(link.getAttribute('href') || '#')}"
+          data-target="${escapeHtml(link.getAttribute('target') || '')}"
           style="padding:8px 12px;cursor:pointer;white-space:nowrap;">
         ${escapeHtml(link.textContent.trim())}
       </li>
@@ -577,7 +582,7 @@
   }
 
   function updateNav() {
-    window.innerWidth < 700 ? buildMobileNav() : teardownMobileNav();
+    if (accountWrap) window.innerWidth < 700 ? buildMobileNav() : teardownMobileNav();
   }
 
   window.addEventListener('resize', updateNav);
@@ -613,7 +618,7 @@ window.addEventListener('message', async (ev) => {
     document.getElementById('signup-link').style.display = 'none';
     document.getElementById('signin-link').style.display = 'none';
     const accountWrap = document.getElementById('account-wrap');
-    accountWrap.style.display = 'block';
+    if (accountWrap) accountWrap.style.display = 'block';
     document.getElementById('account-email').textContent = user.email.replace(/@.*/, "");
   } catch (err) {
     console.error('auth session error', err);

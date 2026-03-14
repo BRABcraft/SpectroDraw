@@ -22,8 +22,14 @@ export default {
 
       // Protect /api/* routes as before
       if (pathname.startsWith("/api/") && !user) {
-        console.warn("Unauthorized request to " + pathname + " from origin: " + (request.headers.get("Origin") || "unknown"));
-        return addCors(json({ message: "Unauthorized" }, 401), request);
+        // Allow unauthenticated POST /api/orders (create) and POST /api/orders/:id/capture during dev
+        const isCreateOrder = (pathname === '/api/orders' && request.method === 'POST');
+        const isCaptureOrder = !!pathname.match(/^\/api\/orders\/[^\/]+\/capture$/) && request.method === 'POST';
+
+        if (!(isCreateOrder || isCaptureOrder)) {
+          console.warn("Unauthorized request to " + pathname + " from origin: " + (request.headers.get("Origin") || "unknown"));
+          return addCors(json({ message: "Unauthorized" }, 401), request);
+        }
       }
       // upload endpoint (no /api prefix so you can call POST /upload directly)
       if (pathname === "/upload" && request.method === "POST") {
@@ -76,6 +82,9 @@ export default {
       const orderCaptureMatch = pathname.match(/^\/api\/orders\/([^\/]+)\/capture$/);
       if (orderCaptureMatch && request.method === 'POST') {
         return addCors(await handleApiOrdersCapture(request, env, orderCaptureMatch[1]), request);
+      }
+      if (request.method === "GET" && pathname === "/api/load-sneak-peak") {
+        return addCors(await handleSneakPeak(request, env), request);
       }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
         const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
@@ -199,16 +208,17 @@ function addCors(response, request) {
   headers.set("Vary", "Origin");
   const csp = [
     "default-src 'self'",
-    "script-src 'self' blob: https://*.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com 'unsafe-inline' https://apis.google.com",
-    "script-src-elem 'self' blob: https://*.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com 'unsafe-inline' https://apis.google.com",
-    "frame-src https://*.paypal.com https://*.braintreegateway.com",
-    "connect-src 'self' https://*.paypal.com https://*.braintreegateway.com",
+    "script-src 'self' 'unsafe-inline' blob: https://www.paypal.com https://www.sandbox.paypal.com https://*.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com https://apis.google.com",
+    "script-src-elem 'self' 'unsafe-inline' blob: https://www.paypal.com https://www.sandbox.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com https://apis.google.com",
+    "frame-src https://www.paypal.com https://www.sandbox.paypal.com https://*.braintreegateway.com",
+    "worker-src 'self' blob:",
+    "connect-src 'self' https://api-m.sandbox.paypal.com https://api-m.paypal.com https://*.paypal.com https://*.paypalobjects.com",
     "img-src 'self' https://*.paypal.com https://*.paypalobjects.com data:",
     "style-src 'self' 'unsafe-inline'",
     "object-src 'none'"
   ].join("; ");
 
-  headers.set("Content-Security-Policy", csp);
+  //headers.set("Content-Security-Policy", csp);
   return new Response(response.body, { status: response.status, headers });
 }
 
@@ -223,15 +233,6 @@ function json(obj, status = 200) {
 const reviews = [];
 const invites = [];
 
-/* ---------- simplified parseAuth ---------- */
-/*
-  Note: Workers cannot access browser localStorage. If the client stores user info
-  in localStorage, send it to the worker (e.g. as a header or cookie).
-  This function supports:
-    1) X-Spectrodraw-User header (JSON or plain email)
-    2) spectrodraw_user cookie (URL-encoded JSON or plain email)
-    3) session cookie checked against env.SESSIONS (if available)
-*/
 async function parseAuth(request, env) {
   try {
     const cookieHeader = request.headers.get("Cookie") || "";
@@ -975,6 +976,39 @@ async function handleProductList(request, user, env) {
     return json({ message: err.message || 'Failed to list products' }, 500);
   }
 }
+async function handleSneakPeak(request, env) {
+  try {
+    const kvBindingName = "SNEAK_PEAK";
+    const kv = env && env[kvBindingName];
+
+    if (!kv || typeof kv.get !== "function") {
+      console.error("SneakPeak: KV binding missing:", kvBindingName);
+      return new Response("Server misconfigured", { status: 500 });
+    }
+
+    // Your key name in KV
+    const key = "sneak-peak";
+
+    const js = await kv.get(key, { type: "arrayBuffer" });
+
+    if (!js) {
+      console.warn("SneakPeak: key not found in KV:", key);
+      return new Response("Sneak peak not available", { status: 404 });
+    }
+
+    return new Response(js, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "private, no-store, max-age=0"
+      }
+    });
+
+  } catch (err) {
+    console.error("SneakPeak error:", err);
+    return new Response("Internal server error", { status: 500 });
+  }
+}
 /* ---------- PayPal helpers & handlers ---------- */
 
 async function getPayPalApiBase(env) {
@@ -1021,7 +1055,7 @@ function computeAmountFromBody(body, env) {
   if (env && typeof env.PRICE_DEFAULT !== 'undefined') {
     const amt = String(env.PRICE_DEFAULT);
     if (!/^\d+(\.\d{1,2})?$/.test(amt)) throw new Error('Invalid PRICE_DEFAULT env format');
-    return { amount: amt, currency: (body.currency || 'EUR') };
+    return { amount: amt, currency: (body.currency || 'USD') };
   }
 
   // 2) If items array present — example logic (you must replace this with real product lookups)
@@ -1039,7 +1073,7 @@ function computeAmountFromBody(body, env) {
       }
       total += unitPrice * qty;
     }
-    return { amount: total.toFixed(2), currency: (body.currency || 'EUR') };
+    return { amount: total.toFixed(2), currency: (body.currency || 'USD') };
   }
 
   // 3) Allow client-sent amount only for dev/testing if explicitly allowed.
@@ -1047,13 +1081,13 @@ function computeAmountFromBody(body, env) {
   if (allow && body.amount) {
     const amt = String(body.amount);
     if (!/^\d+(\.\d{1,2})?$/.test(amt)) throw new Error('Invalid amount format');
-    return { amount: amt, currency: (body.currency || 'EUR') };
+    return { amount: amt, currency: (body.currency || 'USD') };
   }
 
   throw new Error('Unable to compute amount server-side. Set PRICE_DEFAULT or supply items and PRICE_<ID> env vars.');
 }
 
-async function createPayPalOrderOnPayPal(env, amount, currency='EUR') {
+async function createPayPalOrderOnPayPal(env, amount, currency='USD') {
   const token = await getPayPalAccessToken(env);
   const PAYPAL_API = await getPayPalApiBase(env);
 

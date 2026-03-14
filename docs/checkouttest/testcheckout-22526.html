@@ -9,33 +9,37 @@
     script-src 'self' blob: https://*.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com 'unsafe-inline' https://apis.google.com;
     script-src-elem 'self' blob: https://*.paypal.com https://*.paypalobjects.com https://*.braintreegateway.com 'unsafe-inline' https://apis.google.com;
     frame-src https://*.paypal.com https://*.braintreegateway.com;
-    connect-src 'self' https://*.paypal.com https://*.braintreegateway.com;
+    connect-src 'self' https://*.paypal.com https://*.braintreegateway.com https://api.spectrodraw.com https://api-m.sandbox.paypal.com https://api-m.paypal.com;
     img-src 'self' https://*.paypal.com https://*.paypalobjects.com data:;
     style-src 'self' 'unsafe-inline';
     object-src 'none';
   ">
-<title>Checkout — SpectroDraw</title>
+<title>Checkout &bull; SpectroDraw</title>
+<link rel="icon" type="image/x-icon" href="../favicon.ico">
 
 <!-- PayPal SDK (hosted fields + buttons + card funding) -->
-<script src="https://www.paypal.com/sdk/js?components=buttons,card-fields&client-id=Aav5jVmFqcCz1XoQNDPt-x64R-Ldkcx8IDVKBubbVbZVae9hH1BT1hiwqSiPol5qihKvvPYG6_9JfN-9"></script>
-
+<script src="https://www.paypal.com/sdk/js?components=buttons,card-fields&currency=USD&client-id=Aav5jVmFqcCz1XoQNDPt-x64R-Ldkcx8IDVKBubbVbZVae9hH1BT1hiwqSiPol5qihKvvPYG6_9JfN-9"></script>
 <style>
   :root{
-    --max-width:1100px;
     --accent:#111827;
     --muted:#6b7280;
     --panel:#fff;
     --shadow: 0 6px 20px rgba(16,24,40,0.06);
     --muted-border:#909697;
   }
-  body{
+  body {
     font-family: Inter, system-ui, Arial, sans-serif;
     background:#f6f7f8;
-    margin:24px;
+    margin: 0; /* <-- remove page margin so nav can be full-bleed */
     display:flex;
-    justify-content:center;
+    flex-direction: column;
+    gap: 24px;
   }
-
+  main{
+    max-width:1100px;
+    width: 100%;
+    margin: 24px auto;
+  }
   /* Layout */
   .wrap{
     max-width:var(--max-width);
@@ -43,6 +47,7 @@
     display:grid;
     grid-template-columns: 1fr 380px;
     gap:28px;
+    margin-top:60px;
   }
   .panel{
     background:var(--panel);
@@ -76,7 +81,7 @@
   .error{ color:#b91c1c; font-size:13px; margin-top:8px; }
 
   .paypal-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px; border:2px solid #eee;border-radius:6px;padding:10px 5px 5px 10px;}
-  .paypal-btn-slot { width:calc(50% - 12px);}
+  .paypal-btn-slot { width:calc(100% - 6px);}
 
   .address { padding:8px; }
 
@@ -88,146 +93,300 @@
   .shrink { flex: 0 0 120px; }
 
   ::placeholder{color:#9ca3af;}
+
+  #success-page { display:none; position:fixed; inset:0; background:linear-gradient(180deg,#f8fafc,#ffffff); z-index:9999; align-items:center; justify-content:center; }
+  #success-page .panel { max-width:800px; text-align:center; border-radius:12px; padding:48px; }
+  #success-page h1 { font-size:34px; margin:18px 0; color:var(--accent); }
+  #success-page p { font-size:18px; color:var(--muted); margin-bottom:18px; }
   /* responsive */
   @media (max-width:980px){
     .wrap { grid-template-columns:1fr; }
     .row { flex-direction:column; }
     .shrink { flex: 1 1 auto; width:100%;}
   }
-
-
+  nav{backdrop-filter:none !important;background:#333 !important;}
+  .acct-email{color:#ddd!important;}
+  .nav-right a{color:#eee!important;}
+  .brand{color:#fff!important;text-decoration:none;}
+  nav {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 10000 !important;
+  }
 </style>
 </head>
+
 <body>
-  <div class="wrap">
-    <!-- LEFT: Checkout form -->
-    <div class="panel" id="checkout-panel">
-      <img src="../assets/SpectroDraw Logo Black.png" style="height:50px;" alt="SpectroDraw Logo">
-      <h3>Express checkout</h3>
-
-      <!-- PayPal button row -->
-      <div id="paypal-row" class="paypal-row" aria-hidden="false">
-        <div id="paypal-button-container" class="paypal-btn-slot"></div>
-        <div id="paylater-button" class="paypal-btn-slot"></div>
-      </div>
-
-      <!-- separator with text -->
-      <div style="display:flex;align-items:center;gap:12px;margin-top:12px;margin-bottom:8px;">
-        <div class="separator"></div>
-        <div class="muted" style="white-space:nowrap;">Or continue below to pay with card</div>
-        <div class="separator"></div>
-      </div>
-
-      <hr style="margin:8px 0 18px 0; border:none; border-top:1px solid #f0f0f0;" />
-
-      <!-- Card fields (CardFields will render into these containers) -->
-      <div id="card-form">
-        <div class="field">
-          <div id="card-name-field-container" aria-label="Cardholder name"></div>
-        </div>
-
-        <div class="field">
-          <div id="card-number-field-container"></div>
-        </div>
-
-        <div class="row" style="margin-top:6px;">
-          <div class="field-wrap">
-            <div id="card-expiry-field-container"></div>
-          </div>
-          <div class="field-wrap shrink">
-            <div id="card-cvv-field-container"></div>
-          </div>
-        </div>
-
-        <!-- Address block -->
-        <div class="address" aria-label="Billing address">
-          <!-- 1) Street + Apt/suite on one row -->
-          <div class="row">
-            <div class="field-wrap">
-              <input type="text" id="card-billing-street" autocomplete="address-line1" placeholder="Street address" />
-            </div>
-            <div class="field-wrap" style="flex:0 0 180px;">
-              <input type="text" id="card-billing-apt" autocomplete="address-line2" placeholder="Apt / Suite (optional)" />
-            </div>
-          </div>
-
-          <!-- 2) State + City on one row (adminArea1=state, adminArea2=city) -->
-          <div class="row">
-            <div class="field-wrap">
-              <input type="text" id="card-billing-admin-area-1" autocomplete="address-level1" placeholder="State / province / region" />
-            </div>
-            <div class="field-wrap">
-              <input type="text" id="card-billing-admin-area-2" autocomplete="address-level2" placeholder="City / locality" />
-            </div>
-          </div>
-
-          <!-- 3 & 4) Country (select) + ZIP in one row -->
-          <div class="row">
-            <div class="field-wrap" style="flex: 0 0 180px;">
-              <select id="card-billing-country-code" autocomplete="country">
-                <option value="">Country</option>
-                <!-- common codes -->
-                <option value="US">United States (US)</option>
-                <option value="CA">Canada (CA)</option>
-                <option value="GB">United Kingdom (GB)</option>
-                <option value="AU">Australia (AU)</option>
-                <option value="DE">Germany (DE)</option>
-                <option value="FR">France (FR)</option>
-                <option value="NL">Netherlands (NL)</option>
-                <option value="IT">Italy (IT)</option>
-                <option value="ES">Spain (ES)</option>
-                <option value="JP">Japan (JP)</option>
-                <!-- add more as needed -->
-              </select>
-            </div>
-            <div class="field-wrap">
-              <input type="text" id="card-billing-postal-code" autocomplete="postal-code" placeholder="ZIP / postal code" />
-            </div>
-          </div>
-        </div>
-
-        <!-- contact / billing email -->
-        <h3>Contact</h3>
-        <div class="field" style="margin-bottom:12px;">
-          <input id="card-billing-email" type="email" placeholder="you@example.com" required>
-        </div>
-      </div>
-
-      <p id="result-message" style="color:#a11; margin:12px 0 0 0; font-size:13px"></p>
+  <nav class="nav">
+    <div class="nav-left">
+      <a href="/" class="brand">SpectroDraw</a>
     </div>
+    <div class="nav-right">
+      <a href="#" id="signup-link" class="nav-link">Sign up</a>
+      <a href="#" id="signin-link" class="nav-link">Sign in</a>
+      <a target="_blank" rel="noopener" href="https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=clipriot3@gmail.com" id="support-link" class="nav-link">Support</a>
+    </div>
+  </nav>
+  <div id="login-panel" class="modal-overlay" aria-hidden="true">
+    <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <button class="modal-close" aria-label="Close">&times;</button>
 
-    <!-- RIGHT: Order summary -->
-    <aside class="panel order-summary">
-      <h3>Order summary</h3>
-      <div style="display:flex; gap:12px; align-items:center;">
-        <div>
-          <div style="font-weight:600">SpectroDraw Pro</div>
+      <h2 id="login-title">Sign in</h2>
+
+      <form id="login-form" autocomplete="on">
+        <div class="field">
+          <label class="label-text" for="email">Email</label>
+          <input id="email" name="email" type="email" required placeholder="you@example.com" />
+        </div>
+        <div class="field signup-only" style="display:none;">
+          <label class="label-text" for="username">Username</label>
+          <input id="username" name="username" type="text" placeholder="pick-a-username" />
+        </div>
+        <div class="field">
+          <label class="label-text" for="password">Password</label>
+          <input id="password" name="password" type="password" required placeholder="Password" />
+        </div>
+        <div class="field signup-only" style="display:none;">
+          <label class="label-text" for="confirm-password">Confirm Password</label>
+          <input id="confirm-password" name="confirm-password" type="password" placeholder="Confirm password" />
+        </div>
+        <button id="primary-btn" type="submit" class="primary">Sign in</button>
+        <div class="aux">
+          <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
+          <button id="google-login" type="button" class="google">
+            <span class="g-icon" aria-hidden="true">
+              <img src="../assets/Google__G__logo.svg" alt="">
+            </span>
+            <span id="google-btn-text">Log in with Google</span>
+          </button>
+        </div>
+        <div id="login-error" role="alert" class="error" style="display:none;"></div>
+      </form>
+    </div>
+  </div>
+  <link rel="stylesheet" type="text/css" href="../accounts.css">
+  <script src="../accounts.js"></script>
+  <main>
+    <div id="checkout-page" class="wrap">
+      <!-- LEFT: Checkout form -->
+      <div class="panel" id="checkout-panel">
+        <img src="../assets/SpectroDraw Logo Black.png" style="height:50px;" alt="SpectroDraw Logo">
+        <h3>Express checkout</h3>
+
+        <!-- PayPal button row -->
+        <div id="paypal-row" class="paypal-row" aria-hidden="false">
+          <div id="paypal-button-container" class="paypal-btn-slot"></div>
+        </div>
+
+        <!-- separator with text -->
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;margin-bottom:8px;">
+          <div class="separator"></div>
+          <div class="muted" style="white-space:nowrap;">Or continue below to pay with card</div>
+          <div class="separator"></div>
+        </div>
+
+        <hr style="margin:8px 0 18px 0; border:none; border-top:1px solid #f0f0f0;" />
+
+        <!-- Card fields (CardFields will render into these containers) -->
+        <div id="card-form">
+          <div class="field">
+            <div id="card-name-field-container" aria-label="Cardholder name"></div>
+          </div>
+
+          <div class="field">
+            <div id="card-number-field-container"></div>
+          </div>
+
+          <div class="row" style="margin-top:6px;">
+            <div class="field-wrap">
+              <div id="card-expiry-field-container"></div>
+            </div>
+            <div class="field-wrap shrink">
+              <div id="card-cvv-field-container"></div>
+            </div>
+          </div>
+
+          <!-- Address block -->
+          <div class="address" aria-label="Billing address">
+            <!-- 1) Street + Apt/suite on one row -->
+            <div class="row">
+              <div class="field-wrap">
+                <input type="text" id="card-billing-street" autocomplete="address-line1" placeholder="Street address" />
+              </div>
+              <div class="field-wrap" style="flex:0 0 180px;">
+                <input type="text" id="card-billing-apt" autocomplete="address-line2" placeholder="Apt / Suite (optional)" />
+              </div>
+            </div>
+
+            <!-- 2) State + City on one row (adminArea1=state, adminArea2=city) -->
+            <div class="row">
+              <div class="field-wrap">
+                <input type="text" id="card-billing-admin-area-1" autocomplete="address-level1" placeholder="State / province / region" />
+              </div>
+              <div class="field-wrap">
+                <input type="text" id="card-billing-admin-area-2" autocomplete="address-level2" placeholder="City / locality" />
+              </div>
+            </div>
+
+            <!-- 3 & 4) Country (select) + ZIP in one row -->
+            <div class="row">
+              <div class="field-wrap" style="flex: 0 0 180px;">
+                <select id="card-billing-country-code" autocomplete="country">
+                  <option value="">Country</option>
+                  <!-- common codes -->
+                  <option value="US">United States (US)</option>
+                  <option value="CA">Canada (CA)</option>
+                  <option value="GB">United Kingdom (GB)</option>
+                  <option value="AU">Australia (AU)</option>
+                  <option value="DE">Germany (DE)</option>
+                  <option value="FR">France (FR)</option>
+                  <option value="NL">Netherlands (NL)</option>
+                  <option value="IT">Italy (IT)</option>
+                  <option value="ES">Spain (ES)</option>
+                  <option value="JP">Japan (JP)</option>
+                  <!-- add more as needed -->
+                </select>
+              </div>
+              <div class="field-wrap">
+                <input type="text" id="card-billing-postal-code" autocomplete="postal-code" placeholder="ZIP / postal code" />
+              </div>
+            </div>
+          </div>
+
+          <!-- contact / billing email -->
+          <h3>Contact</h3>
+          <div class="field" style="margin-bottom:12px;">
+            <input id="card-billing-email" type="email" placeholder="you@example.com" required>
+          </div>
+        </div>
+
+        <p id="result-message" style="color:#a11; margin:12px 0 0 0; font-size:13px"></p>
+      </div>
+
+      <!-- RIGHT: Order summary -->
+      <aside class="panel order-summary">
+        <h3>Order summary</h3>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <div>
+            <div style="font-weight:600">SpectroDraw Pro</div>
+          </div>
+        </div>
+
+        <div class="line" style="margin-top:18px;">
+          <div class="muted">Subtotal</div>
+          <div class="muted">$40.00</div>
+        </div>
+
+        <div class="line" style="border-top:1px dashed #eee; padding-top:12px;">
+          <div class="total">Total</div>
+          <div class="total">40.00</div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <!-- Keep the right-column pay button (this can trigger PayPal flow or card submit) -->
+          <button id="card-field-submit-button" class="pay-btn">Pay $40.00</button>
+          <div id="card-local-error" class="error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <p class="muted" style="margin-top:12px; font-size:13px;">Secure payments powered by PayPal. You can also pay with major credit cards.</p>
+      </aside>
+    </div>
+    
+    <div id="success-page" style="display:none;">
+      <div class="panel" role="status" aria-live="polite">
+        <!-- big check svg -->
+        <svg class="check-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="60" cy="60" r="58" fill="#ECFDF5" stroke="#10B981" stroke-width="4"></circle>
+          <path d="M34 62 L50 78 L86 42" fill="none" stroke="#047857" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+
+        <h1>Thank you</h1>
+        <p>Your order has successfully been processed.</p>
+        <button id="my-products" class="pay-btn" style="max-width:240px;margin:0 auto;">View my products</button>
+      </div>
+    </div>
+  </main>
+<script>
+/* --- Utility: get current user email (as provided) --- */
+function getCurrentUserEmail() {
+  try {
+    const raw = localStorage.getItem('spectrodraw_user');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.email || parsed?.user || parsed?.id || null;
+  } catch (e) { return null; }
+}
+
+/* --- Small UI helper --- */
+function showFinishPage() {
+  // ensure finish page exists (if you already have one, remove this block)
+  if (!document.getElementById('finish-page')) {
+    const el = document.createElement('div');
+    el.id = 'finish-page';
+    el.style.display = 'none';
+    el.innerHTML = `
+      <div class="panel" role="status" aria-live="polite" style="max-width:800px;margin:40px auto;text-align:center;border-radius:12px;padding:48px;">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="height:72px;margin-bottom:12px;">
+          <circle cx="60" cy="60" r="58" fill="#F1F5F9" stroke="#64748b" stroke-width="4"></circle>
+          <path d="M34 62 L50 78 L86 42" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h1 style="font-size:28px;margin:8px 0;color:var(--accent);">You're all set</h1>
+        <p style="color:var(--muted);font-size:16px;margin-bottom:18px;">Our records show you've already purchased SpectroDraw Pro for this account.</p>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button id="finish-my-products" class="pay-btn" style="max-width:220px;">View my products</button>
+          <button id="finish-continue" class="pay-btn" style="max-width:220px;background:#fff;color:var(--accent);border:1px solid #ddd;">Back to app</button>
         </div>
       </div>
+    `;
+    document.body.appendChild(el);
 
-      <div class="line" style="margin-top:18px;">
-        <div class="muted">Subtotal</div>
-        <div class="muted">$40.00</div>
-      </div>
+    document.getElementById('finish-my-products')?.addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = "../products";
+      document.body.appendChild(a);
+      a.click();
+    });
+    document.getElementById('finish-continue')?.addEventListener('click', () => {
+      window.location.href = "../app";
+    });
+  }
+  document.getElementById('checkout-page') && (document.getElementById('checkout-page').style.display = 'none');
+  document.getElementById('success-page') && (document.getElementById('success-page').style.display = 'none');
+  document.getElementById('finish-page').style.display = 'flex';
+}
 
-      <div class="line" style="border-top:1px dashed #eee; padding-top:12px;">
-        <div class="total">Total</div>
-        <div class="total">40.00</div>
-      </div>
+/* --- Check whether current user already bought the product --- */
+async function checkUserPurchase() {return false;
+  try {
+    const email = getCurrentUserEmail();
+    if (!email) return false;
 
-      <div style="margin-top:12px;">
-        <!-- Keep the right-column pay button (this can trigger PayPal flow or card submit) -->
-        <button id="card-field-submit-button" class="pay-btn">Pay $40.00</button>
-        <div id="card-local-error" class="error" role="alert" aria-live="polite"></div>
-      </div>
+    const headers = { 'Content-Type': 'application/json' };
+    const res = await fetch('https://api.spectrodraw.com/api/products', {
+      method: 'GET',
+      credentials: 'include',
+      headers
+    });
+    if (!res.ok) {
+      console.warn('products fetch non-ok', res.status);
+      return false;
+    }
+    const j = await res.json().catch(()=>null);
+    if (!j || !Array.isArray(j.products)) return false;
 
-      <p class="muted" style="margin-top:12px; font-size:13px;">Secure payments powered by PayPal. You can also pay with major credit cards.</p>
-    </aside>
-  </div>
+    const filtered = j.products.filter(p =>
+      p && p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase()
+    );
+    return filtered.length !== 0;
+  } catch (err) {
+    console.error('checkUserPurchase error', err);
+    return false;
+  }
+}
 
-<script>
-/* --- Payment logic (keeps your CardFields + Buttons integration) --- */
-
+/* --- Existing payment life-cycle helpers (kept) --- */
 async function createOrderCallback() {
   try {
     const stored = (() => {
@@ -235,12 +394,21 @@ async function createOrderCallback() {
       catch (e) { return null; }
     })();
     const headers = { 'Content-Type': 'application/json' };
-    if (stored) headers['X-Spectrodraw-User'] = stored;
     const response = await fetch("https://api.spectrodraw.com/api/orders", {
       method: "POST",
       headers,
-      body: JSON.stringify({ cart: [{ id: "YOUR_PRODUCT_ID", quantity: 1 }] }),
+      body: JSON.stringify({
+        cart: [{ id: "SPECTRODRAW_PRO", quantity: 1 }],
+        currency: "USD",
+        user: stored
+      })
     });
+    if (!response.ok) {
+      const text = await response.text().catch(()=>null);
+      console.error('createOrderCallback: non-ok response', response.status, text);
+      throw new Error(`createOrderCallback failed: ${response.status} ${text || response.statusText}`);
+    }
+
     const orderData = await response.json();
     if (orderData.id) return orderData.id;
     const err = orderData?.details?.[0];
@@ -248,125 +416,239 @@ async function createOrderCallback() {
   } catch (e) {
     console.error(e);
     resultMessage(`Could not initiate PayPal Checkout... ${e}`);
+    throw e; // rethrow so PayPal knows creation failed
   }
 }
 
 async function onApproveCallback(data) {
   try {
+    const stored = (() => {
+      try { return localStorage.getItem('spectrodraw_user'); }
+      catch (e) { return null; }
+    })();
     const headers = { 'Content-Type': 'application/json' };
-    if (stored) headers['X-Spectrodraw-User'] = stored;
+    console.log('onApprove capture start');
     const response = await fetch(`https://api.spectrodraw.com/api/orders/${data.orderID}/capture`, {
       method: "POST",
-      headers
+      headers,
+      body: JSON.stringify({ user: stored, currency: "USD" })
     });
     const orderData = await response.json();
     const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
     if (!transaction) throw new Error("No transaction info");
     resultMessage(`Transaction ${transaction.status}: ${transaction.id}`);
     console.log("Capture result", orderData);
+    if (orderData.status === "COMPLETED") {
+      document.getElementById("success-page").style.display = "flex";
+      document.getElementById("checkout-page").style.display = "none";
+    }
   } catch (err) {
     console.error(err);
     resultMessage(`Sorry, your transaction could not be processed... ${err}`);
   }
 }
 
-/* Render PayPal Buttons into the left-row slots */
-paypal.Buttons({
-  createOrder: createOrderCallback,
-  onApprove: onApproveCallback,
-  style: { layout: 'horizontal', color: 'gold', shape: 'rect', tagline: false }
-}).render('#paypal-button-container');
+/* --- Result message helper (keeps existing behavior) --- */
+function resultMessage(message) {
+  const el = document.getElementById("result-message");
+  if (el) el.innerHTML = message;
+}
 
-/* Render Pay Later into the second slot */
-paypal.Buttons({
-  fundingSource: paypal.FUNDING.PAYLATER,
-  createOrder: createOrderCallback,
-  onApprove: onApproveCallback,
-  style: { layout: 'horizontal', color: 'gold', shape: 'rect', tagline: false }
-}).render('#paylater-button');
+/* --- Initialize PayPal Buttons + CardFields (only when user hasn't purchased) --- */
+async function initPaymentUI() {
+  try {
+    // PayPal Buttons
+    paypal.Buttons({
+      createOrder: createOrderCallback,
+      onApprove: onApproveCallback,
+      style: { layout: 'horizontal', color: 'gold', shape: 'rect', tagline: false }
+    }).render('#paypal-button-container');
 
-/* CardFields (renders into the containers above) */
-const cardField = window.paypal.CardFields({
-  style: {
-    'input': {
-      'font-size': '15px',      // smaller text
-      'padding': '8px',           // iframe input padding (often zero; wrapper handles padding)
-    },
-    '::placeholder': {
-      'color': '#9ca3af',
-      'font-size': '15px'
-    },
-    '.invalid': {
-      'color': '#b91c1c'
-    }
-  },
-  createOrder: createOrderCallback,
-  onApprove: onApproveCallback,
-});
-
-if (cardField.isEligible()) {
-  const nameField = cardField.NameField();
-  nameField.render("#card-name-field-container");
-
-  const numberField = cardField.NumberField();
-  numberField.render("#card-number-field-container");
-
-  const cvvField = cardField.CVVField();
-  cvvField.render("#card-cvv-field-container");
-
-  const expiryField = cardField.ExpiryField();
-  expiryField.render("#card-expiry-field-container");
-
-  // Local left-panel card submit button
-  document.getElementById("card-field-submit-button").addEventListener("click", (ev) => {
-    ev.preventDefault();
-    document.getElementById("card-local-error").textContent = '';
-    cardField.submit({
-      billingAddress: {
-        addressLine1: document.getElementById("card-billing-street")?.value || '',
-        addressLine2: document.getElementById("card-billing-apt")?.value || '',
-        adminArea1: document.getElementById("card-billing-admin-area-1")?.value || '',
-        adminArea2: document.getElementById("card-billing-admin-area-2")?.value || '',
-        countryCode: document.getElementById("card-billing-country-code")?.value || '',
-        postalCode: document.getElementById("card-billing-postal-code")?.value || '',
+    // Card fields integration
+    const cardField = window.paypal.CardFields({
+      style: {
+        'input': {
+          'font-size': '15px',
+          'padding': '8px',
+        },
+        '::placeholder': {
+          'color': '#9ca3af',
+          'font-size': '15px'
+        },
+        '.invalid': {
+          'color': '#b91c1c'
+        }
       },
-      // email is separate from billingAddress — send to your backend if you need it
-    }).catch((error) => {
-      console.error('Card submit failed', error);
-      document.getElementById("card-local-error").textContent = error && error.message ? error.message : String(error);
+      createOrder: createOrderCallback,
+      onApprove: onApproveCallback,
     });
-  });
 
-  // optional: old pay-card handler guarded (no error if element missing)
-  const payCardBtn = document.getElementById("pay-card");
-  if (payCardBtn) {
-    payCardBtn.addEventListener("click", async (ev) => {
-      ev.preventDefault();
-      try {
-        document.getElementById("card-error").textContent = '';
-        await cardField.submit({
+    if (cardField.isEligible()) {
+      const nameField = cardField.NameField();
+      nameField.render("#card-name-field-container");
+
+      const numberField = cardField.NumberField();
+      numberField.render("#card-number-field-container");
+
+      const cvvField = cardField.CVVField();
+      cvvField.render("#card-cvv-field-container");
+
+      const expiryField = cardField.ExpiryField();
+      expiryField.render("#card-expiry-field-container");
+
+      document.getElementById("card-field-submit-button").addEventListener("click", (ev) => {
+        ev.preventDefault();
+        document.getElementById("card-local-error").textContent = '';
+        cardField.submit({
           billingAddress: {
             addressLine1: document.getElementById("card-billing-street")?.value || '',
-          }
+            addressLine2: document.getElementById("card-billing-apt")?.value || '',
+            adminArea1: document.getElementById("card-billing-admin-area-1")?.value || '',
+            adminArea2: document.getElementById("card-billing-admin-area-2")?.value || '',
+            countryCode: document.getElementById("card-billing-country-code")?.value || '',
+            postalCode: document.getElementById("card-billing-postal-code")?.value || '',
+          },
+        }).catch((error) => {
+          console.error('Card submit failed', error);
+          let errorMsg = formatPayPalError(error);
+          document.getElementById("card-local-error").textContent = "Error: " + errorMsg;
         });
-      } catch (err) {
-        console.warn('Card submit failed, falling back to PayPal button', err);
-        const paypalBtn = document.querySelector("#paypal-button-container button");
-        if (paypalBtn) paypalBtn.click();
-        else document.getElementById("card-error").textContent = 'Payment not ready. Try PayPal.';
+      });
+    } else {
+      document.getElementById("card-form")?.classList?.add("hidden");
+    }
+  } catch (e) {
+    console.error('initPaymentUI error', e);
+  }
+}
+
+/* --- Keep PayPal error formatter (unchanged) --- */
+function formatPayPalError(err) {
+  const CODE_MAP = {
+    INVALID_NUMBER: "Invalid number.",
+    INVALID_CVV: "Invalid CVV.",
+    INVALID_EXPIRY: "Invalid expiry.",
+    INVALID_FIELD: "Invalid field.",
+    INVALID_REQUEST: null,
+    INSTRUMENT_DECLINED: "Payment method was declined.",
+    AUTHORIZATION_ERROR: "Authorization failed.",
+    MISSING_REQUIRED_PARAMETER: "A required field / parameter is missing.",
+    INVALID_RESOURCE_ID: "Resource not found or invalid.",
+    RESOURCE_NOT_FOUND: "Requested resource was not found.",
+    INTERNAL_SERVER_ERROR: "Internal server error (PayPal).",
+  };
+  function tryParseJsonFromString(s) {
+    if (typeof s !== 'string') return null;
+    const first = s.indexOf('{');
+    const last  = s.lastIndexOf('}');
+    if (first === -1 || last === -1 || last <= first) return null;
+    const candidate = s.slice(first, last + 1);
+    try { return JSON.parse(candidate); }
+    catch (e) {
+      try { return JSON.parse(s.slice(first)); } catch (e2) { return null; }
+    }
+  }
+  let obj = null;
+  if (err && typeof err === 'object') {
+    if (typeof err.message === 'string') {
+      obj = tryParseJsonFromString(err.message) || err;
+    } else {
+      obj = err;
+    }
+  } else if (typeof err === 'string') {
+    obj = tryParseJsonFromString(err);
+    if (!obj) {
+      const trimmed = err.trim();
+      if (CODE_MAP[trimmed]) return CODE_MAP[trimmed];
+      return err;
+    }
+  } else {
+    return String(err);
+  }
+  if (obj && typeof obj === 'object') {
+    const parts = [];
+    const seen = new Set();
+    if (obj.name) {
+      const mapped = CODE_MAP[obj.name];
+      if (mapped) {
+        parts.push(mapped);
+        seen.add(mapped);
+      } else if (obj.name === 'INVALID_REQUEST') {
+      } else {
+        const human = obj.name.toLowerCase().replace(/_/g,' ');
+        const humanCap = human.charAt(0).toUpperCase() + human.slice(1) + '.';
+        parts.push(humanCap);
+        seen.add(humanCap);
       }
-    });
+    }
+    if (obj.message && !seen.has(obj.message)) {
+      parts.push(String(obj.message));
+      seen.add(String(obj.message));
+    }
+    if (Array.isArray(obj.details) && obj.details.length) {
+      const detailPieces = [];
+      for (const d of obj.details) {
+        if (!d) continue;
+        if (d.issue && CODE_MAP[d.issue]) {
+          if (!seen.has(CODE_MAP[d.issue])) {
+            detailPieces.push(CODE_MAP[d.issue]);
+            seen.add(CODE_MAP[d.issue]);
+          }
+        } else if (d.description) {
+          const desc = String(d.description).trim();
+          if (desc && !seen.has(desc)) {
+            detailPieces.push(desc);
+            seen.add(desc);
+          }
+        }
+      }
+      if (detailPieces.length) parts.push(detailPieces.join(' '));
+    }
+    const debugId = obj.debug_id || obj.debugId || obj.debug || obj.debugID;
+    if (debugId) parts.push(`(Debug id: ${debugId})`);
+    if (!parts.length) {
+      if (obj.message) return String(obj.message);
+      if (obj.name) return String(obj.name);
+      return JSON.stringify(obj);
+    }
+    return parts.join(' ');
+  }
+  if (err && typeof err === 'object' && err.message) return String(err.message);
+  return String(err);
+}
+
+/* --- Boot sequence: check purchase first, then initialize payment UI if needed --- */
+(async function boot() {
+  try {
+    const alreadyBought = await checkUserPurchase();
+    if (alreadyBought) {
+      showFinishPage();
+      return; // do not initialize PayPal or Card UI
+    }
+  } catch (err) {
+    console.error('boot checkUserPurchase failed', err);
+    // fall through and try to init UI even if the check failed
   }
 
-} else {
-  // Not eligible: hide card form area
-  document.getElementById("card-form")?.classList?.add("hidden");
-}
-
-/* helper for showing messages */
-function resultMessage(message) {
-  document.getElementById("result-message").innerHTML = message;
-}
+  // If we get here, user hasn't purchased (or check failed) -> init payment UI
+  // Delay init slightly to ensure PayPal SDK is loaded (it usually is since you load SDK in <head>)
+  if (window.paypal && typeof window.paypal.Buttons === 'function') {
+    initPaymentUI();
+  } else {
+    // if PayPal didn't load yet, try again shortly
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      if (window.paypal && typeof window.paypal.Buttons === 'function') {
+        clearInterval(t);
+        initPaymentUI();
+      } else if (tries > 50) {
+        clearInterval(t);
+        console.error('PayPal SDK not available after retries');
+      }
+    }, 100);
+  }
+})();
 </script>
 </body>
 </html>

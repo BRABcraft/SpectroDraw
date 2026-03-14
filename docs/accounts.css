@@ -115,7 +115,9 @@ nav{
   h2 { margin:0 0 8px 0; font-size:18px; }
   .field { display:flex; flex-direction:column; margin-bottom:12px; }
   .label-text { font-size:13px; margin-bottom:6px; color:var(--muted); }
-  input[type="email"], input[type="text"], input[type="password"] {
+  input[type="email"]:not(.field-wrap input, #card-billing-email),
+  input[type="text"]:not(.field-wrap input, #card-billing-email),
+  input[type="password"]:not(.field-wrap input, #card-billing-email) {
     padding:10px; border-radius:8px; border:1px solid #fff; background: #181818; color: #fff; font-size:14px; outline:none;
   }
   .primary { width:100%; padding:10px 12px; border-radius:8px; border:none; font-weight:600; margin-top:6px; cursor:pointer; background:#fff; color:#000;}

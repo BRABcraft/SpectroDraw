@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="SpectroDraw is a free, browser-based interactive spectrogram editor that lets you visually draw, edit, and sculpt audio directly in the frequency domain." />
+  <meta property="og:title" content="What is SpectroDraw? The Interactive Spectrogram Editor" />
+  <meta property="og:description" content="SpectroDraw is a free, browser-based interactive spectrogram editor that lets you visually draw, edit, and sculpt audio directly in the frequency domain." />
+  <link rel="canonical" href="https://spectrodraw.com/newsletters/what-is-spectrodraw" />
+  <title>What is SpectroDraw?</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-FYGHLB1BCP');
+  </script>
+  <style>
+    :root{
+      --bg:#fff;
+      --panel:#ccc;
+      --muted:#222;
+      --text:#000;
+      --accent1:#4f46e5;
+      --accent2:#9333ea;
+      --accent3:#ec4899;
+      --soft-border: rgba(255,255,255,0.04);
+      --card-glow: 0 6px 30px rgba(147,51,234,0.12);
+      --glass-2: rgba(255,255,255,0.02);
+      --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      height:100%;
+      margin:0;
+      background:
+        linear-gradient(
+          0deg,
+          var(--bg) 0%,
+          #eee 50%,
+          var(--bg) 100%
+        );
+      color:var(--text);
+      font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+      line-height:1.6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      font-size:20px;
+    }
+
+    nav{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:1rem 2rem;
+      position:sticky;
+      top:0;
+      z-index:40;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));
+      border-bottom: 1px solid var(--soft-border);
+    }
+    .nav-left{display:flex;align-items:center;gap:1rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:#9333ea;text-decoration:none;font-size:1.05rem}
+    .nav-right{display:flex;gap:1rem;align-items:center}
+    .nav-right a{
+      font-weight:600;
+      text-decoration:none;
+      color:#000 !important;
+      opacity:0.95;
+      padding:.45rem .6rem;
+      border-radius:8px
+    }
+    .account-menu {background:#eee !important;}
+    .nav-right a:hover{
+      color:black;
+      background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
+      box-shadow:0 8px 30px rgba(79,70,229,0.12);
+    }
+
+    header.hero{
+      position:relative;
+      padding:56px 20px;
+      display:flex;
+      justify-content:left;
+      align-items:left;
+      overflow:hidden;
+    }
+    .hero-inner{
+      max-width:980px;
+      width:100%;
+      text-align:left;
+      padding:28px;
+      border-radius:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border:1px solid var(--glass-2);
+    }
+    .title{
+      font-size:2.1rem;
+      font-weight:800;
+      margin:6px 0 8px 0;
+      background:var(--cta-grad);
+      -webkit-background-clip:text;background-clip:text;
+      -webkit-text-fill-color:transparent;
+      text-shadow:0 8px 30px rgba(147,51,234,0.08);
+    }
+
+    main{
+      padding:36px 20px;
+      max-width:1100px;
+      margin:0 auto 36px;
+    }
+    .wrap{max-width:980px;margin:18px auto;padding:24px;}
+    p{margin:12px 0;color:#000}
+    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
+    .section:first-of-type{border-top:0;padding-top:8px}
+
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    footer{
+      padding:2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+      margin-top:2rem;
+      border-top:1px solid var(--soft-border);
+      font-size:.95rem
+    }
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+    .btn-primary {
+  position: relative;
+  background: var(--cta-grad);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1.2rem 2.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  overflow: hidden;
+  transition: transform .4s ease, box-shadow .6s ease, background .4s ease;
+  box-shadow:
+    0 0 50px rgba(79,70,229,0.5),
+    0 0 70px rgba(147,51,234,0.45),
+    inset 0 0 50px rgba(147,51,234,0.3);
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: none;
+  border-radius: inherit;
+  z-index: 0;
+  backdrop-filter: blur(4px);
+  transition: background .5s ease, box-shadow .5s ease;
+}
+.btn-primary span {
+  position: relative;
+  z-index: 1;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 15px rgba(79,70,229,0.6),
+    0 0 25px rgba(147,51,234,0.7),
+    inset 0 0 60px rgba(147,51,234,0.8); 
+}
+.btn-primary:hover::before {
+  background: rgba(7, 8, 11, 0.3); 
+}
+img{
+  max-width:80%;
+  border-radius:12px;
+  margin:18px 0;
+}
+.nav-link {
+  font-size: 16px;
+  line-height: 1.0;
+}
+@media (max-width:600px) {
+  .wrap{padding:10px;margin-left:10px !important;}
+  .title{font-size:1.5rem;}
+  p,li{font-size:15px;}
+  .tagline{display:none;}
+}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-left">
+      <a href="/" class="brand">SpectroDraw</a>
+      <div class="tagline">Interactive Spectrogram Editor</div>
+    </div>
+    <div class="nav-right">
+      <a href="../../app" class="nav-link">Launch App</a>
+      <a href="../../faq" class="nav-link">FAQ</a>
+      <a href="../../news" class="nav-link">News</a>
+      <a href="../../pricing" class="nav-link">Pricing</a>
+      <a href="#" id="signup-link" class="nav-link">Sign up</a>
+      <a href="#" id="signin-link" class="nav-link">Sign in</a>
+      <div id="account-wrap" style="display:none; position:relative;">
+        <button id="account-btn" class="nav-btn" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu">
+          <span class="acct-avatar" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" fill="currentColor" />
+              <path d="M4 22c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="currentColor" />
+            </svg>
+          </span>
+          <span id="account-email" class="acct-email">you@example.com</span>
+          <span class="acct-arrow" aria-hidden="true">▾</span>
+        </button>
+        <div id="account-menu" class="account-menu" role="menu" aria-hidden="true" style="display:none;">
+          <a href="../../products" id="my-products" role="menuitem" class="menu-item">My products</a>
+          <a href="../../review" id="review" role="menuitem" class="menu-item">Leave a review</a>
+          <a href="../../feedback" id="feedback" role="menuitem" class="menu-item">Submit feedback</a>
+          <a id="account-logout" role="menuitem" class="menu-item">Log out</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div id="login-panel" class="modal-overlay" aria-hidden="true">
+    <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <button class="modal-close" aria-label="Close">&times;</button>
+
+      <h2 id="login-title">Sign in</h2>
+
+      <form id="login-form" autocomplete="on">
+        <div class="field">
+          <label class="label-text" for="email">Email</label>
+          <input id="email" name="email" type="email" required placeholder="you@example.com" />
+        </div>
+        <div class="field signup-only" style="display:none;">
+          <label class="label-text" for="username">Username</label>
+          <input id="username" name="username" type="text" placeholder="pick-a-username" />
+        </div>
+        <div class="field">
+          <label class="label-text" for="password">Password</label>
+          <input id="password" name="password" type="password" required placeholder="Password" />
+        </div>
+        <div class="field signup-only" style="display:none;">
+          <label class="label-text" for="confirm-password">Confirm Password</label>
+          <input id="confirm-password" name="confirm-password" type="password" placeholder="Confirm password" />
+        </div>
+        <button id="primary-btn" type="submit" class="primary">Sign in</button>
+        <div class="aux">
+          <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
+          <button id="google-login" type="button" class="google">
+            <span class="g-icon" aria-hidden="true">
+              <img src="/assets/Google__G__logo.svg" alt="">
+            </span>
+            <span id="google-btn-text">Log in with Google</span>
+          </button>
+        </div>
+        <div id="login-error" role="alert" class="error" style="display:none;"></div>
+      </form>
+    </div>
+  </div>
+  <link rel="stylesheet" type="text/css" href="../../accounts.css">
+  <script src="../../accounts.js"></script>
+
+
+  <main class="wrap" style="margin-left:150px;">
+
+<h1 class="title">Free Early Access Deal Ends in Four Days</h1>
+<h4>Published: Mar 16, 2026</h4>
+<img src="assets/1.jpg" style="margin-bottom:0;">
+<br>
+<small style="color:#888;">This was the very first version of SpectroDraw, created six months ago.</small>
+<p>SpectroDraw has come a long way. What started as a small side project has grown into a full online 
+  application used by musicians, sound designers, and curious creators exploring new ways to make sound.</p>
+<p>First of all, congratulations to everyone who has already claimed free early access. More than <strong>150 people</strong> 
+  have signed up so far, showing a strong interest in the project. Early users have played a huge role in 
+  helping SpectroDraw grow by sharing the app on social media, creating demonstrations, and leaving thoughtful reviews.</p>
+<img src="assets/2.jpg" style="margin-bottom:0;">
+<br>
+<small style="color:#888;line-height:0.7em;">Thanks to the many users who have reluctantly shared SpectroDraw on their social media to claim the free early access deal.</small>
+<p>The project has also started getting attention from well-known creators in the music community. SpectroDraw has been
+  recognized by <strong>Pushpatterns, Folia Sound, Synthet, Maxeyy, and Bobby Owsinski</strong>, which shows that many people see real
+  potential in this new way of creating sound through spectrograms.</p>
+<p>However, the <strong>free early access offer will end on March 20th</strong>. After that date, users who want early access to SpectroDraw
+  Pro will need to purchase it for $40.</p>
+<p>Following the end of the early access deal, development will focus on building the <strong>SpectroDraw VST plugin</strong>. Once the plugin
+  is complete, both the VST and SpectroDraw Pro will be released to the public at the same time. At that point, users who
+  purchased Pro will finally gain full access.</p>
+<p>Thank you to everyone who has supported SpectroDraw so far. The feedback, posts, and excitement from the community have
+  helped turn a small experiment into something much bigger. If you have been thinking about claiming early access, this is
+  the final week to do it for free.</p>
+<br><br><br>
+<a class="btn btn-primary" href="../../buy-pro/"><span>Claim free early access!</span>&nbsp;<span id="countdown"></span></a>
+
+  </main>
+   
+  <footer>
+    © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
+    <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener" style="color:#008">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
+    <a href="/privacy" style="color:#008; margin-right:20px;">Privacy</a>
+    <a href="/terms" style="color:#008;">Terms</a>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script>
+    const targetDate = new Date("March 20, 2026 00:00:00").getTime();
+    const content = document.getElementById("countdown");
+    function updateCountdown() {
+      const now = Date.now();
+      let diff = targetDate - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      diff %= 1000 * 60 * 60 * 24;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      diff %= 1000 * 60 * 60;
+      const minutes = Math.floor(diff / (1000 * 60));
+      diff %= 1000 * 60;
+      const seconds = Math.floor(diff / 1000);
+      content.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+  </script>
+</body>
+</html>

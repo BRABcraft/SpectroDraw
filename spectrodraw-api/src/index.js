@@ -40,7 +40,7 @@ export default {
         return addCors(await handleReviewPost(request, user, env), request);
       }
       if (pathname === "/api/reviews" && request.method === "GET") {
-        return addCors(await handleReviewList(user, env), request);
+        return addCors(await handleReviewList(request, user, env), request);
       }
       if (pathname === "/api/feedbacks" && request.method === "POST") {
         return addCors(await handleFeedbackPost(request, user, env), request);
@@ -612,24 +612,42 @@ async function handleReviewPost(request, user, env) {
   return json({ success: true, review }, 201);
 }
 
-async function handleReviewList(user, env) {
-  const userKey = `user:${user.email.toLowerCase()}:reviews`;
-  const idsRaw = await env.REVIEWS.get(userKey);
-  let reviewsList = [];
-  if (idsRaw) {
-    try {
-      const ids = JSON.parse(idsRaw);
-      for (const id of ids) {
-        const reviewRaw = await env.REVIEWS.get(id);
-        if (reviewRaw) {
-          reviewsList.push(JSON.parse(reviewRaw));
-        }
+async function handleReviewList(request, user, env) {
+  try {
+    const url = new URL(request.url);
+    // allow client to request page size; default 10, max 100
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10)));
+    const cursor = url.searchParams.get('cursor') || undefined;
+
+    // list that page of keys
+    const list = await env.REVIEWS.list({ cursor, limit });
+    const keys = (list && Array.isArray(list.keys)) ? list.keys : [];
+
+    // filter out index keys (e.g. user:... keys)
+    const reviewKeys = keys.filter(k => !k.name.startsWith('user:')).map(k => k.name);
+
+    // fetch values for this page in parallel (small page size)
+    const values = await Promise.all(reviewKeys.map(k => env.REVIEWS.get(k)));
+
+    const reviewsList = [];
+    for (let i = 0; i < values.length; i++) {
+      const raw = values[i];
+      const key = reviewKeys[i];
+      if (!raw) continue;
+      try {
+        reviewsList.push(JSON.parse(raw));
+      } catch (e) {
+        console.error('Invalid review JSON for key', key, e);
       }
-    } catch(e) {
-      console.error("Failed to parse reviews for user:", e);
     }
+
+    // return the page and the cursor for the next page (or null)
+    const nextCursor = list.cursor || null;
+    return json({ reviews: reviewsList, nextCursor }, 200);
+  } catch (err) {
+    console.error("Failed to list reviews:", err);
+    return json({ error: "Failed to load reviews" }, 500);
   }
-  return json({ reviews: reviewsList }, 200);
 }
 
 // SERVER: handleFeedbackPost

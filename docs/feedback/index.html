@@ -340,7 +340,7 @@
     <section id="feedbacks-section" class="section" aria-label="Feedback list" style="margin-top:18px;">
       <h1 id="feedback-list-title">Feedback and discussion</h1>
       <div id="feedback-list" aria-live="polite" style="min-height:80px"></div>
-      <div id="no-feedback" class="muted" style="display:none;">No feedback yet — be the first to share your thoughts!</div>
+      <div id="no-feedback" class="muted" style="display:none;">Please sign in to view other's feedback!</div>
     </section>
   </main>
 
@@ -455,8 +455,7 @@
     submitFeedbackBtn.addEventListener('click', async ()=>{
       feedbackError.style.display = 'none';
       if (!progress.loggedIn) {
-        feedbackError.style.display = 'block';
-        feedbackError.textContent = 'You must be signed in to submit feedback.';
+        document.getElementById("signin-link").click();
         return;
       }
       const text = (feedbackTextEl.value || '').trim();
@@ -795,8 +794,7 @@
 
     async function handleVoteLocal(feedbackId, requestedDelta) {
       if (!progress.loggedIn) {
-        feedbackError.style.display = 'block';
-        feedbackError.textContent = 'You must be signed in to vote.';
+        document.getElementById("signin-link").click();
         return;
       }
       const userId = currentUser?.id || currentUser?.email;

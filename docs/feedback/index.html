@@ -810,18 +810,37 @@
       const newVote = (prevVote === requestedDelta) ? 0 : requestedDelta;
       const applyDelta = newVote - prevVote;
 
-      const list = loadLocalFeedbacks();
-      const idx = list.findIndex(x => x.id === feedbackId);
-      if (idx === -1) return;
-      list[idx].score = (Number(list[idx].score) || 0) + applyDelta;
-      saveLocalFeedbacks(list);
+      // load local cache; if not found, refresh from server once
+      let list = loadLocalFeedbacks();
+      let idx = list.findIndex(x => x.id === feedbackId);
+      if (idx === -1) {
+        try {
+          // refresh the local cache from server (fetchFeedbacks will saveLocalFeedbacks for us)
+          const serverList = await fetchFeedbacks();
+          list = Array.isArray(serverList) ? serverList : loadLocalFeedbacks();
+          idx = list.findIndex(x => x.id === feedbackId);
+        } catch (e) {
+          console.warn('Failed to refresh feedbacks from server when voting', e);
+        }
+      }
+
+      if (idx === -1) {
+        console.warn('Feedback not found for voting:', feedbackId);
+        // graceful no-op: nothing to update locally; still attempt to post vote to server below
+      } else {
+        // optimistic update locally so UI responds immediately
+        list[idx].score = (Number(list[idx].score) || 0) + applyDelta;
+        saveLocalFeedbacks(list);
+      }
 
       if (newVote === 0) delete currentUserVotes[feedbackId];
       else currentUserVotes[feedbackId] = newVote;
       try { localStorage.setItem(LOCAL_VOTES_PREFIX + String(userId), JSON.stringify(currentUserVotes)); } catch (e) {}
 
+      // re-render UI immediately
       renderFeedbacks();
 
+      // sync vote to server (server is authoritative)
       try {
         const res = await fetch(`https://api.spectrodraw.com/api/feedbacks/${encodeURIComponent(feedbackId)}/vote`, {
           method: 'POST',
@@ -851,6 +870,7 @@
         console.warn('Vote sync failed', e);
       }
     }
+
 
     // ---- init ----
     (function init(){

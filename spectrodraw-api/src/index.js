@@ -49,7 +49,7 @@ export default {
         return addCors(await handleFeedbackList(user, env), request);
       }
       if (pathname.startsWith("/api/feedbacks/") && pathname.endsWith("/vote") && request.method === "POST") {
-        const id = pathname.split("/")[2];
+        const id = pathname.split("/")[3];
         return addCors(await handleFeedbackVote(request, user, env, id), request);
       }
       if (pathname === "/api/share/invite" && request.method === "POST") {

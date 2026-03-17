@@ -463,7 +463,7 @@ async function initPaymentUI() {
       onApprove: onApproveCallback,
       style: { layout: 'horizontal', color: 'gold', shape: 'rect', tagline: false }
     }).render('#paypal-button-container');
-
+    
     // Card fields integration
     const cardField = window.paypal.CardFields({
       style: {

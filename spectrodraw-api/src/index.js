@@ -1037,7 +1037,7 @@ async function getPayPalApiBase(env) {
 async function getPayPalAccessToken(env) {
   // Use btoa to base64 encode client:secret
   const client = env.PAYPAL_CLIENT_ID || '';
-  const secret = env.PAYPAL_SECRET || '';
+  const secret = env.PAYPAL_LIVE_SECRET || '';
   if (!client || !secret) throw new Error('PayPal client id or secret not configured in env');
 
   const PAYPAL_API = await getPayPalApiBase(env);

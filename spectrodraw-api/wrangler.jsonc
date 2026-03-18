@@ -51,7 +51,7 @@
     "API_HOST": "https://api.spectrodraw.com",
     "PRO_BUNDLE_KEY": "pro-bundles/latest.min.js",
     "PRO_UI_KEY": "pro-bundles/pro-ui.html",
-    "PAYPAL_CLIENT_ID": "Aav5jVmFqcCz1XoQNDPt-x64R-Ldkcx8IDVKBubbVbZVae9hH1BT1hiwqSiPol5qihKvvPYG6_9JfN-9",
+    "PAYPAL_CLIENT_ID": "AVws1CI3HIHSFosdInayMN7ZqRgnuV4npmY1K-WEAVoqwAGytasPPpoC5G9JJw-splvCd9fKh7qQ8pYJ",
     "PRICE_DEFAULT": "40",
     "ALLOW_UNVERIFIED_AMOUNTS": "false"
   },

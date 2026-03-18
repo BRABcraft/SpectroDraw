@@ -64,6 +64,9 @@ export default {
 			if (pathname === "/api/claim" && request.method === "POST") {
         return addCors(await handleClaimPost(request, user, env), request);
       }
+			if (pathname === "/api/make-purchase" && request.method === "POST") {
+        return addCors(await handleMakePurchase(request, user, env), request);
+      }
       if (pathname === "/api/products" && request.method === "GET") {
         return addCors(await handleProductList(request, user, env), request);
       }
@@ -919,6 +922,40 @@ async function cleanupOldPins(env) {
 
     continuation = list.truncated ? list.cursor : undefined;
   } while (continuation);
+}
+async function handleMakePurchase(user,env) {
+  //more security required
+  try {
+    if (!user || !user.email) return json({ message: "Missing authenticated user email" }, 400);
+    if (!env || typeof env.USERS === "undefined") {
+      return json({ message: "Server misconfigured: USERS KV not available" }, 500);
+    }
+
+    const email = String(user.email).trim().toLowerCase();
+    const now = new Date().toISOString();
+    const claimKey = `product:${email}`;
+
+    await env.USERS.put(claimKey, JSON.stringify({ email, product:"SpectroDraw Pro", price:"$40.00", claimedAt: now }));
+
+    // maintain an index of claimed emails (JSON array stored at 'products:index')
+    const indexKey = 'products:index';
+    let idxRaw = await env.USERS.get(indexKey);
+    let index = [];
+    if (idxRaw) {
+      try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
+      if (!Array.isArray(index)) index = [];
+    }
+    if (!index.includes(email)) {
+      index.push(email);
+      // store updated index (best-effort; KV is eventually consistent)
+      await env.USERS.put(indexKey, JSON.stringify(index));
+    }
+
+    return json({ claimed: true, email, claimedAt: now }, 201);
+  } catch (err) {
+    console.error('handleMakePurchase error:', err);
+    return json({ message: err.message || 'Failed to record claim' }, 500);
+  }
 }
 async function handleClaimPost(request, user, env) {
   try {

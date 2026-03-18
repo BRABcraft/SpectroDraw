@@ -360,7 +360,7 @@ function showFinishPage() {
 }
 
 /* --- Check whether current user already bought the product --- */
-async function checkUserPurchase() {return false;
+async function checkUserPurchase() {
   try {
     const email = getCurrentUserEmail();
     if (!email) return false;
@@ -377,7 +377,6 @@ async function checkUserPurchase() {return false;
     }
     const j = await res.json().catch(()=>null);
     if (!j || !Array.isArray(j.products)) return false;
-
     const filtered = j.products.filter(p =>
       p && p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase()
     );
@@ -508,10 +507,24 @@ async function onApproveCallback(data) {
       }
 
       try {
-        const successEl = document.getElementById('success-page');
-        const checkoutEl = document.getElementById('checkout-page');
-        if (successEl) successEl.style.display = 'none';
-        if (checkoutEl) checkoutEl.style.display = 'flex';
+        const res = await fetch('https://api.spectrodraw.com/api/make-purchase', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            /*More security required*/
+            user: stored
+          })
+        });
+        if(!res.ok){
+          const j = await res.json().catch(()=>({message:'Unable to claim'}));
+          alert("Failed to add product. Please contact support at clipriot3@gmail.com. Exact error: "+j.message || 'Unable to claim');
+        } else {
+          const successEl = document.getElementById('success-page');
+          const checkoutEl = document.getElementById('checkout-page');
+          if (successEl) successEl.style.display = 'none';
+          if (checkoutEl) checkoutEl.style.display = 'flex';
+        }
       } catch (e) { /* ignore DOM errors */ }
 
       // Restore button UI to original/default and re-enable
@@ -605,21 +618,135 @@ async function initPaymentUI() {
 
       document.getElementById("card-field-submit-button").addEventListener("click", (ev) => {
         ev.preventDefault();
-        document.getElementById("card-local-error").textContent = '';
+
+        // clear previous error
+        const errEl = document.getElementById("card-local-error");
+        if (errEl) errEl.textContent = '';
+
+        // 1) require signed-in user
+        const email = (typeof getCurrentUserEmail === 'function') ? getCurrentUserEmail() : null;
+        if (!email) {
+          if (errEl) errEl.textContent = "Please create an account to complete this purchase.";
+          // open the signup UI (simulate a click so any handlers run)
+          const signup = document.getElementById("signup-link");
+          if (signup) {
+            try { signup.click(); } catch (e) { console.warn("Could not click signup link", e); }
+          }
+          return;
+        }
+
+        // small helper: map full US state names -> 2-letter codes (common set)
+        const US_STATES = {
+          "alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR","california":"CA","colorado":"CO","connecticut":"CT",
+          "delaware":"DE","district of columbia":"DC","florida":"FL","georgia":"GA","hawaii":"HI","idaho":"ID","illinois":"IL",
+          "indiana":"IN","iowa":"IA","kansas":"KS","kentucky":"KY","louisiana":"LA","maine":"ME","maryland":"MD",
+          "massachusetts":"MA","michigan":"MI","minnesota":"MN","mississippi":"MS","missouri":"MO","montana":"MT",
+          "nebraska":"NE","nevada":"NV","new hampshire":"NH","new jersey":"NJ","new mexico":"NM","new york":"NY",
+          "north carolina":"NC","north dakota":"ND","ohio":"OH","oklahoma":"OK","oregon":"OR","pennsylvania":"PA",
+          "rhode island":"RI","south carolina":"SC","south dakota":"SD","tennessee":"TN","texas":"TX","utah":"UT",
+          "vermont":"VT","virginia":"VA","washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY",
+          // territories (optional)
+          "puerto rico":"PR","guam":"GU","american samoa":"AS","u.s. virgin islands":"VI"
+        };
+
+        function toStateCode(input) {
+          if (!input) return '';
+          const trimmed = String(input).trim();
+          if (!trimmed) return '';
+          // if already 2-letter code
+          if (/^[A-Za-z]{2}$/.test(trimmed)) return trimmed.toUpperCase();
+          const lower = trimmed.toLowerCase();
+          if (US_STATES[lower]) return US_STATES[lower];
+          // last resort: try to take common abbreviation from the end (e.g. "Virginia" => "VA" fails here, so fallback empty)
+          return '';
+        }
+
+        // 2) gather raw values (as user typed)
+        const rawAddressLine1 = (document.getElementById("card-billing-street")?.value || '').trim();
+        const rawAddressLine2 = (document.getElementById("card-billing-apt")?.value || '').trim();
+        const rawAdminArea1 = (document.getElementById("card-billing-admin-area-1")?.value || '').trim();
+        const rawAdminArea2 = (document.getElementById("card-billing-admin-area-2")?.value || '').trim();
+        const rawCountry = (document.getElementById("card-billing-country-code")?.value || '').trim();
+        const rawPostal = (document.getElementById("card-billing-postal-code")?.value || '').trim();
+
+        // 3) Normalize addressLine1:
+        // If user pasted "street, city, state" we strip after the first comma to leave only street.
+        let addressLine1 = rawAddressLine1;
+        if (addressLine1.includes(',')) {
+          const firstPart = addressLine1.split(',')[0].trim();
+          if (firstPart) addressLine1 = firstPart;
+        }
+
+        // 4) Prefer explicit adminArea2/adminArea1 if provided; otherwise try parsing from addressLine1 tail.
+        let adminArea2 = rawAdminArea2; // city
+        let adminArea1 = rawAdminArea1; // state (we will convert to 2-letter)
+
+        // If adminArea1 looks like a full state name, convert it.
+        const normalizedState = toStateCode(adminArea1 || '');
+        if (normalizedState) adminArea1 = normalizedState;
+        else {
+          // Try to extract a trailing state name/abbr if user included it in addressLine1 (e.g. "123 Main St, City, VA")
+          const parts = rawAddressLine1.split(',').map(p=>p.trim()).filter(Boolean);
+          if (parts.length >= 2) {
+            const possibleState = parts[parts.length-1];
+            const code = toStateCode(possibleState);
+            if (code) {
+              adminArea1 = code;
+              // if city not supplied separately, pull it from parts (second-to-last)
+              if (!adminArea2 && parts.length >= 2) {
+                adminArea2 = parts[parts.length-2];
+              }
+            }
+          }
+        }
+
+        // 5) final country/postal normalization
+        const countryCode = (rawCountry || 'US').toUpperCase();
+        const postalCode = rawPostal;
+
+        // 6) Basic validation: ensure required AVS fields exist for better success
+        if (!addressLine1 || !adminArea2 || !adminArea1 || !countryCode || !postalCode) {
+          // Show a friendly message telling the user what to fill
+          let missing = [];
+          if (!addressLine1) missing.push('Street address');
+          if (!adminArea2) missing.push('City');
+          if (!adminArea1) missing.push('State');
+          if (!postalCode) missing.push('ZIP code');
+          if (!countryCode) missing.push('Country');
+
+          if (errEl) errEl.textContent = `Please fill: ${missing.join(', ')}.`;
+          return;
+        }
+
         const billingAddress = {
-          addressLine1: document.getElementById("card-billing-street")?.value || '',
-          addressLine2: document.getElementById("card-billing-apt")?.value || '',
-          adminArea1: document.getElementById("card-billing-admin-area-1")?.value || '',
-          adminArea2: document.getElementById("card-billing-admin-area-2")?.value || '',
-          countryCode: document.getElementById("card-billing-country-code")?.value || '',
-          postalCode: document.getElementById("card-billing-postal-code")?.value || '',
-        };console.log(billingAddress);
-        cardField.submit({
-          billingAddress
-        }).catch((error) => {
+          addressLine1,
+          addressLine2: rawAddressLine2 || undefined,
+          adminArea1: adminArea1.toUpperCase(),
+          adminArea2,
+          countryCode,
+          postalCode
+        };
+
+        console.log('Submitting normalized billingAddress:', billingAddress);
+
+        // 7) disable the submit button to avoid double click
+        const submitBtn = document.getElementById("card-field-submit-button");
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.setAttribute('aria-busy', 'true');
+        }
+
+        // 8) call PayPal CardFields submit; re-enable UI on error
+        cardField.submit({ billingAddress }).catch((error) => {
           console.error('Card submit failed', error);
           let errorMsg = formatPayPalError(error);
-          document.getElementById("card-local-error").textContent = "Error: " + errorMsg;
+          if (errEl) errEl.textContent = "Error: " + errorMsg;
+
+          // Re-enable button so user can try again
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.removeAttribute('aria-busy');
+          }
         });
       });
     } else {

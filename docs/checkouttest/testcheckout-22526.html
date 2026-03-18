@@ -423,6 +423,25 @@ async function createOrderCallback() {
 }
 
 async function onApproveCallback(data) {
+  // Helper: build processing HTML (spinner + text)
+  const processingHTML = `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <!-- inline SVG spinner (no external CSS needed) -->
+      <svg width="18" height="18" viewBox="0 0 50 50" aria-hidden="true" style="flex:0 0 auto;">
+        <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.4 31.4" transform="rotate(-90 25 25)">
+          <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+      <div style="font-size:14px;line-height:1;white-space:nowrap;">processing payment</div>
+    </div>
+  `;
+
+  const DEFAULT_BUTTON_HTML = 'Get $40.00';
+
+  // get submit button and remember original HTML so we can restore it
+  const submitBtn = document.getElementById('card-field-submit-button');
+  const originalBtnHTML = submitBtn ? (submitBtn.innerHTML || DEFAULT_BUTTON_HTML) : DEFAULT_BUTTON_HTML;
+
   try {
     const stored = (() => {
       try { return localStorage.getItem('spectrodraw_user'); }
@@ -431,6 +450,13 @@ async function onApproveCallback(data) {
 
     const headers = { 'Content-Type': 'application/json' };
     console.log('onApprove capture start');
+
+    // --- UI: show processing spinner/text and disable button ---
+    if (submitBtn) {
+      submitBtn.innerHTML = processingHTML;
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+    }
 
     const response = await fetch(`https://api.spectrodraw.com/api/orders/${data.orderID}/capture`, {
       method: "POST",
@@ -442,37 +468,31 @@ async function onApproveCallback(data) {
     const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
     if (!transaction) throw new Error("No transaction info");
 
-    resultMessage(`Transaction ${transaction.status}: ${transaction.id}`);
+    document.getElementById("card-local-error").textContent = (`Transaction ${transaction.status}: ${transaction.id}`);
     console.log("Capture result", orderData);
 
-    // Helper: map processor response codes to one-sentence user messages.
-    // Add or tweak mappings as you discover codes from your processor/acquirer.
     function mapProcessorCode(code) {
       if (!code) return null;
-      // example mappings
       if (code === '9500') return "Card was rejected due to suspected fraud. Please use a different card.";
       else if (code === '2000') return "Insufficient funds on the card. Please use a different card or contact your bank.";
       else if (code === '1001') return "Card declined by the issuer. Try a different card or contact the card issuer.";
       else if (code === '3000') return "Processor error occurred. Please try a different payment method.";
-      // fallback generic message for unknown codes
       return `Payment declined (processor code ${code}). Please try a different card or contact your bank.`;
     }
 
     const procCode = transaction.processor_response?.response_code;
     const mappedMsg = mapProcessorCode(procCode);
 
-    // Remove any old "view full error" button
     const OLD_BTN_ID = 'view-full-error-btn';
     const oldBtn = document.getElementById(OLD_BTN_ID);
     if (oldBtn && oldBtn.parentNode) oldBtn.parentNode.removeChild(oldBtn);
 
-    // If the capture was explicitly declined OR the processor returned an error code,
-    // show a short error message (via resultMessage) and give an option to view the full JSON.
+    // If declined or processor returned an error code => show short message + "view full error",
+    // restore button back to default and re-enable it.
     if (transaction.status === 'DECLINED' || mappedMsg) {
       const shortMsg = mappedMsg || `Payment ${transaction.status}. Please try another payment method.`;
-      resultMessage(shortMsg);
+      document.getElementById("card-local-error").textContent = shortMsg;
 
-      // Create "View full error" button (appends to checkout page or body if missing)
       try {
         const btn = document.createElement('button');
         btn.id = OLD_BTN_ID;
@@ -480,18 +500,13 @@ async function onApproveCallback(data) {
         btn.textContent = 'View full error';
         btn.style = 'margin-top:8px;padding:8px 10px;border-radius:6px;cursor:pointer';
         btn.addEventListener('click', () => {
-          // show the full JSON using resultMessage as requested
-          resultMessage(JSON.stringify(transaction, null, 2));
+          document.getElementById("card-local-error").textContent = (JSON.stringify(transaction, null, 2));
         });
-
-        const attachTo = document.getElementById('checkout-page') || document.body;
-        attachTo.appendChild(btn);
+        (document.querySelector(".order-summary") || document.body).appendChild(btn);
       } catch (e) {
-        // nonfatal: if DOM append fails, still have shown the short error
         console.warn('Could not append View full error button', e);
       }
 
-      // Ensure we do NOT show the success page
       try {
         const successEl = document.getElementById('success-page');
         const checkoutEl = document.getElementById('checkout-page');
@@ -499,11 +514,17 @@ async function onApproveCallback(data) {
         if (checkoutEl) checkoutEl.style.display = 'flex';
       } catch (e) { /* ignore DOM errors */ }
 
-      // stop further success handling
+      // Restore button UI to original/default and re-enable
+      if (submitBtn) {
+        submitBtn.innerHTML = originalBtnHTML || DEFAULT_BUTTON_HTML;
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+      }
+
       return;
     }
 
-    // No processor error mapping and capture not explicitly declined → show success if completed
+    // Completed -> show success page
     if (orderData.status === "COMPLETED" || transaction.status === "COMPLETED") {
       const successEl = document.getElementById('success-page');
       const checkoutEl = document.getElementById('checkout-page');
@@ -512,11 +533,25 @@ async function onApproveCallback(data) {
       return;
     }
 
-    // Other statuses — show an informative error
-    resultMessage(`Payment status: ${transaction.status}. Please try again or choose a different payment method.`);
+    // Other statuses — show informative error and restore button
+    document.getElementById("card-local-error").textContent = (`Payment status: ${transaction.status}. Please try again or choose a different payment method.`);
+    if (submitBtn) {
+      submitBtn.innerHTML = originalBtnHTML || DEFAULT_BUTTON_HTML;
+      submitBtn.disabled = false;
+      submitBtn.removeAttribute('aria-busy');
+    }
   } catch (err) {
     console.error(err);
-    resultMessage(`Sorry, your transaction could not be processed... ${err}`);
+    document.getElementById("card-local-error").textContent = (`Sorry, your transaction could not be processed... ${err}`);
+
+    // On any unexpected error, restore button UI and re-enable it
+    const submitBtnFallback = document.getElementById('card-field-submit-button');
+    if (submitBtnFallback) {
+      // attempt to restore previously saved original text if available
+      submitBtnFallback.innerHTML = (typeof originalBtnHTML !== 'undefined' && originalBtnHTML) ? originalBtnHTML : DEFAULT_BUTTON_HTML;
+      submitBtnFallback.disabled = false;
+      submitBtnFallback.removeAttribute('aria-busy');
+    }
   }
 }
 

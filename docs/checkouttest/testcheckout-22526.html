@@ -467,10 +467,10 @@ async function onApproveCallback(data) {
     if (oldBtn && oldBtn.parentNode) oldBtn.parentNode.removeChild(oldBtn);
 
     // If the capture was explicitly declined OR the processor returned an error code,
-    // show a short error message (via resultError) and give an option to view the full JSON.
+    // show a short error message (via resultMessage) and give an option to view the full JSON.
     if (transaction.status === 'DECLINED' || mappedMsg) {
       const shortMsg = mappedMsg || `Payment ${transaction.status}. Please try another payment method.`;
-      resultError(shortMsg);
+      resultMessage(shortMsg);
 
       // Create "View full error" button (appends to checkout page or body if missing)
       try {
@@ -480,8 +480,8 @@ async function onApproveCallback(data) {
         btn.textContent = 'View full error';
         btn.style = 'margin-top:8px;padding:8px 10px;border-radius:6px;cursor:pointer';
         btn.addEventListener('click', () => {
-          // show the full JSON using resultError as requested
-          resultError(JSON.stringify(transaction, null, 2));
+          // show the full JSON using resultMessage as requested
+          resultMessage(JSON.stringify(transaction, null, 2));
         });
 
         const attachTo = document.getElementById('checkout-page') || document.body;
@@ -513,7 +513,7 @@ async function onApproveCallback(data) {
     }
 
     // Other statuses — show an informative error
-    resultError(`Payment status: ${transaction.status}. Please try again or choose a different payment method.`);
+    resultMessage(`Payment status: ${transaction.status}. Please try again or choose a different payment method.`);
   } catch (err) {
     console.error(err);
     resultMessage(`Sorry, your transaction could not be processed... ${err}`);

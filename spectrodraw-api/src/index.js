@@ -1031,7 +1031,7 @@ async function handleSneakPeak(request, env) {
 
 async function getPayPalApiBase(env) {
   const envMode = (env && env.PAYPAL_ENV) ? String(env.PAYPAL_ENV).toLowerCase() : 'sandbox';
-  return envMode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+  return 'https://api-m.paypal.com';//envMode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 }
 
 async function getPayPalAccessToken(env) {
@@ -1054,8 +1054,7 @@ async function getPayPalAccessToken(env) {
 
   const jsonData = await res.json();
   if (!res.ok) {
-    console.error('PayPal token error', res.status, jsonData);
-    throw new Error('Failed to get PayPal access token' + JSON.parse(jsonData));
+    throw new Error('Failed to get PayPal access token' + JSON.stringify(jsonData));
   }
   return jsonData.access_token;
 }

@@ -23,6 +23,7 @@
   const signupOnlyElems = document.querySelectorAll('.signup-only');
   const primaryBtn = document.getElementById('primary-btn');
   const loginError = document.getElementById('login-error');
+  const tt = document.getElementById("purchasingfor");
 
   let isSignup = false;
   let menuOpen = false;
@@ -161,6 +162,7 @@
     signupLink.style.display = 'none';
     signinLink.style.display = 'none';
     if (accountWrap) accountWrap.style.display = 'block';console.log(158);
+    if (tt) tt.innerText = "Purchasing for: "+user.email;
     let username = user.email && user.email.includes('@') ? user.email.substring(0,user.email.indexOf("@")) : (user.name || 'user');
     if (accountEmailSpan) {
       accountEmailSpan.textContent = username;
@@ -619,7 +621,8 @@ window.addEventListener('message', async (ev) => {
     document.getElementById('signin-link').style.display = 'none';
     const accountWrap = document.getElementById('account-wrap');
     if (accountWrap) accountWrap.style.display = 'block';
-    document.getElementById('account-email').textContent = user.email.replace(/@.*/, "");
+    accountEmailSpan.textContent = user.email.replace(/@.*/, "");
+    if (tt) tt.innerText = "Purchasing for: "+user.email;
   } catch (err) {
     console.error('auth session error', err);
   }

@@ -465,7 +465,7 @@ async function onApproveCallback(data) {
     });
 
     const orderData = await response.json();
-    const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
+    const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];console.log(orderData);
     if (!transaction) throw new Error("No transaction info");
 
     document.getElementById("card-local-error").textContent = (`Transaction ${transaction.status}: ${transaction.id}`);
@@ -606,15 +606,16 @@ async function initPaymentUI() {
       document.getElementById("card-field-submit-button").addEventListener("click", (ev) => {
         ev.preventDefault();
         document.getElementById("card-local-error").textContent = '';
+        const billingAddress = {
+          addressLine1: document.getElementById("card-billing-street")?.value || '',
+          addressLine2: document.getElementById("card-billing-apt")?.value || '',
+          adminArea1: document.getElementById("card-billing-admin-area-1")?.value || '',
+          adminArea2: document.getElementById("card-billing-admin-area-2")?.value || '',
+          countryCode: document.getElementById("card-billing-country-code")?.value || '',
+          postalCode: document.getElementById("card-billing-postal-code")?.value || '',
+        };console.log(billingAddress);
         cardField.submit({
-          billingAddress: {
-            addressLine1: document.getElementById("card-billing-street")?.value || '',
-            addressLine2: document.getElementById("card-billing-apt")?.value || '',
-            adminArea1: document.getElementById("card-billing-admin-area-1")?.value || '',
-            adminArea2: document.getElementById("card-billing-admin-area-2")?.value || '',
-            countryCode: document.getElementById("card-billing-country-code")?.value || '',
-            postalCode: document.getElementById("card-billing-postal-code")?.value || '',
-          },
+          billingAddress
         }).catch((error) => {
           console.error('Card submit failed', error);
           let errorMsg = formatPayPalError(error);

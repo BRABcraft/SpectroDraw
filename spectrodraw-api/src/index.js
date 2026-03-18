@@ -1145,7 +1145,7 @@ async function capturePayPalOrderOnPayPal(env, orderID) {
   const data = await res.json();
   if (!res.ok) {
     console.error('capture order error', res.status, data);
-    throw new Error('Failed to capture PayPal order');
+    throw new Error(`Failed to capture PayPal order: ${JSON.stringify(data)}`);
   }
   return data;
 }

@@ -923,13 +923,13 @@ async function cleanupOldPins(env) {
     continuation = list.truncated ? list.cursor : undefined;
   } while (continuation);
 }
-async function handleMakePurchase(user,env) {
+async function handleMakePurchase(request, user,env) {
   //more security required
   try {
-    if (!user || !user.email) return json({ message: "Missing authenticated user email" }, 400);
-    if (!env || typeof env.USERS === "undefined") {
-      return json({ message: "Server misconfigured: USERS KV not available" }, 500);
-    }
+    if (!user || !user.email) return json({ message: JSON.stringify(user) }, 400);
+    // if (!env || typeof env.USERS === "undefined") {
+    //   return json({ message: "Server misconfigured: USERS KV not available" }, 500);
+    // }
 
     const email = String(user.email).trim().toLowerCase();
     const now = new Date().toISOString();
@@ -1066,18 +1066,13 @@ async function handleSneakPeak(request, env) {
 }
 /* ---------- PayPal helpers & handlers ---------- */
 
-async function getPayPalApiBase(env) {
-  const envMode = (env && env.PAYPAL_ENV) ? String(env.PAYPAL_ENV).toLowerCase() : 'sandbox';
-  return 'https://api-m.paypal.com';//envMode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
-}
-
 async function getPayPalAccessToken(env) {
   // Use btoa to base64 encode client:secret
   const client = env.PAYPAL_CLIENT_ID || '';
   const secret = env.PAYPAL_LIVE_SECRET || '';
   if (!client || !secret) throw new Error('PayPal client id or secret not configured in env');
 
-  const PAYPAL_API = await getPayPalApiBase(env);
+  const PAYPAL_API = 'https://api-m.paypal.com';
   const creds = btoa(`${client}:${secret}`);
 
   const res = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
@@ -1143,7 +1138,7 @@ function computeAmountFromBody(body, env) {
 
 async function createPayPalOrderOnPayPal(env, amount, currency='USD') {
   const token = await getPayPalAccessToken(env);
-  const PAYPAL_API = await getPayPalApiBase(env);
+  const PAYPAL_API = 'https://api-m.paypal.com';
 
   const body = {
     intent: 'CAPTURE',
@@ -1170,7 +1165,7 @@ async function createPayPalOrderOnPayPal(env, amount, currency='USD') {
 
 async function capturePayPalOrderOnPayPal(env, orderID) {
   const token = await getPayPalAccessToken(env);
-  const PAYPAL_API = await getPayPalApiBase(env);
+  const PAYPAL_API = 'https://api-m.paypal.com';
 
   const res = await fetch(`${PAYPAL_API}/v2/checkout/orders/${orderID}/capture`, {
     method: 'POST',

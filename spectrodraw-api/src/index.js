@@ -927,17 +927,12 @@ async function handleMakePurchase(request, user,env) {
   //more security required
   try {
     if (!user || !user.email) return json({ message: JSON.stringify(user) }, 400);
-    // if (!env || typeof env.USERS === "undefined") {
-    //   return json({ message: "Server misconfigured: USERS KV not available" }, 500);
-    // }
-
     const email = String(user.email).trim().toLowerCase();
     const now = new Date().toISOString();
     const claimKey = `product:${email}`;
 
     await env.USERS.put(claimKey, JSON.stringify({ email, product:"SpectroDraw Pro", price:"$40.00", claimedAt: now }));
 
-    // maintain an index of claimed emails (JSON array stored at 'products:index')
     const indexKey = 'products:index';
     let idxRaw = await env.USERS.get(indexKey);
     let index = [];
@@ -947,7 +942,6 @@ async function handleMakePurchase(request, user,env) {
     }
     if (!index.includes(email)) {
       index.push(email);
-      // store updated index (best-effort; KV is eventually consistent)
       await env.USERS.put(indexKey, JSON.stringify(index));
     }
 
@@ -968,10 +962,8 @@ async function handleClaimPost(request, user, env) {
     const now = new Date().toISOString();
     const claimKey = `product:${email}`;
 
-    // store per-email claim metadata (overwrite is fine — idempotent)
     await env.USERS.put(claimKey, JSON.stringify({ email, product:"SpectroDraw Pro", price:"Free (early access deal)", claimedAt: now }));
 
-    // maintain an index of claimed emails (JSON array stored at 'products:index')
     const indexKey = 'products:index';
     let idxRaw = await env.USERS.get(indexKey);
     let index = [];
@@ -981,7 +973,6 @@ async function handleClaimPost(request, user, env) {
     }
     if (!index.includes(email)) {
       index.push(email);
-      // store updated index (best-effort; KV is eventually consistent)
       await env.USERS.put(indexKey, JSON.stringify(index));
     }
 
@@ -992,7 +983,6 @@ async function handleClaimPost(request, user, env) {
   }
 }
 
-// GET /api/claim  -> return list of products (email + claimedAt)
 async function handleProductList(request, user, env) {
   try {
     if (!env || typeof env.USERS === "undefined") {
@@ -1007,7 +997,6 @@ async function handleProductList(request, user, env) {
       if (!Array.isArray(index)) index = [];
     }
 
-    // fetch each claim metadata (if present)
     const products = [];
     for (const email of index) {
       try {
@@ -1018,7 +1007,6 @@ async function handleProductList(request, user, env) {
             continue;
           } catch (e) { /* fallthrough to fallback */ }
         }
-        // fallback entry if specific key missing or parse failed
         products.push({ email, claimedAt: null });
       } catch (e) {
         products.push({ email, claimedAt: null });

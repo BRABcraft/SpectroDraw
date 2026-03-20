@@ -6,6 +6,7 @@ let hasLoadedPro = false;
 
 openSneakBtn.addEventListener("click", () => {
   sneakOpened = !sneakOpened;
+  document.getElementById("OR").innerHTML = sneakOpened ? "<br>" : "OR";
   openSneakBtn.style.display = sneakOpened ? "none" : "flex";
   inlineSneakDiv.style.display = sneakOpened ? "block" : "none";
 

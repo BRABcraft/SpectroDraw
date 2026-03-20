@@ -25,7 +25,7 @@
       --accent3:#ec4899;
       --soft-border: rgba(255,255,255,0.04);
       --card-glow: 0 6px 30px rgba(147,51,234,0.12);
-      --card-glow2: 0 6px 30px rgba(255, 255, 255, 0.5);
+      --card-glow2: 0 0 30px rgba(255, 255, 255, 0.5);
       --glass-2: rgba(255,255,255,0.02);
       --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
     }
@@ -90,7 +90,7 @@
       border:1px solid var(--glass-2);
     }
     .title{
-      font-size:2.1rem;
+      font-size:2.5rem;
       font-weight:800;
       margin:6px 0 8px 0;
       background:var(--cta-grad);
@@ -216,6 +216,38 @@
 }
 button{cursor:pointer;}
     @media(max-width:600px) {.tagline{display:none;}}
+#continuetocheckout.disabled {
+  background: #444 !important;
+  color: #888 !important;
+  border-color: #555 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+}
+header.hero{
+      position:relative;
+      padding:10px 20px;
+      display:flex;
+      overflow:hidden;
+      margin-bottom:30px;
+    }
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:url('../assets/spectrodrawpro-hero.webp');
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      filter: contrast(105%) saturate(110%) brightness(0.72);
+      transform: scale(1.02);
+      z-index:0;
+    }
+    .hero-inner{
+      text-align:center;
+      padding:28px;
+      position:relative;
+      z-index:1;
+    }
   </style>
 </head>
 <body>
@@ -293,1896 +325,31 @@ button{cursor:pointer;}
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <h1 class="title">Claim Free Early Access</h1>
+      <h1 class="title"><span style="text-shadow:0 0 30px #4f46e5;">Buy SpectroDraw Pro</span></h1>
     </div>
   </header>
-
-  <div style="align-items: center; justify-content: center; display:flex;"><h1 id="countdown" style="font-size:50px;padding:0;margin:0;height:100px;color:#9333ea;text-shadow: 0 0 20px rgba(250, 102, 234, 0.5);"></h1></div>
-  <section class="section body-copy wrap">
-    <h1 id="body-placeholder">Congratulations, you made it here early! 🎉</h1>
-<p>SpectroDraw Pro is still in development and hasn’t been officially released yet, <strong>but as an early visitor, you can get lifetime access for free (no credit card required).</strong><br>
-This early-access offer is limited and will end on the 20th of March.<br></p>
-  </section>
-  
-<div id="sneakPeekButton" style="cursor:pointer;margin: 18px auto;max-width:980px;height:150px;display:flex;align-items:center;justify-content:center;font-size:2rem;background:linear-gradient(45deg,#0f1b45,#3d2490);border-radius:12px;border: 4px dashed #fff;box-shadow:var(--card-glow2);font-weight:1000;margin-bottom:3rem;">Take a sneak peek at Pro</div>
-<div id="inlineSneakDiv" style="display:none;width:80%;margin:18px auto;">
-  <button id="openInNewTab">Open in new tab</button>
-  <div id="inlineSneak" style="height:600px;box-sizing:border-box;"></div>
-</div>
-<section class="section body-copy wrap">
-<h2>Steps to activating SpectroDraw Pro</h2><p>
-1. Make sure that you are signed into a SpectroDraw account.<br>
-2. In the section below, leave a review and create a social media post about SpectroDraw. *<br></p>
-<small>*This small step helps more people discover SpectroDraw and supports ongoing development.<br></small>
-<p>Once your account is activated, you’ll be automatically notified when Pro launches, and you’ll get full access to all new features at no cost, forever.
-We’ll never ask you to pay for Pro after your early acess activation.</p>
-</section>
-<main class="wrap">
-  <!-- Progress / "checkout" style flow -->
-  <section class="section" aria-labelledby="progress-title" style="margin-top:18px;" id="checkout">
-    <div id="requireSignin" style="font-size:2rem;color:red;">You must be signed in to claim Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signup-cta" href="#">Sign up</a></div>
-    <h3 id="progress-title" style="margin:0 0 20px 0;">Claim SpectroDraw Pro for Free</h3>
-    <div id="progress-wrap" style="display:flex;flex-direction:column;gap:18px;align-items:stretch;">
-      <!-- Visual progress bar (same as before) -->
-      <div id="progress-bar" style="position:relative;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow2);">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-          <div class="node" data-step="1" style="flex:1;text-align:center;">
-            <div class="node-circle" id="node-1">1</div>
-            <div style="margin-top:8px;font-weight:700">Write a review</div>
-            <div style="color:var(--muted);font-size:.9rem">Share a message</div>
-          </div>
-          <div style="flex-basis:20%;height:6px;align-self:center;">
-            <div id="connector-1" style="width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,0.03);overflow:hidden;">
-              <div id="connector-1-fill" style="width:0%;height:100%;border-radius:999px;background:var(--accent1);transition:width .4s ease;"></div>
-            </div>
-          </div>
-          <div class="node" data-step="2" style="flex:1;text-align:center;">
-            <div class="node-circle" id="node-2">2</div>
-            <div style="margin-top:8px;font-weight:700">Share with a friend</div>
-            <div style="color:var(--muted);font-size:.9rem">Post on social media</div>
-          </div>
-          <div style="flex-basis:20%;height:6px;align-self:center;">
-            <div id="connector-2" style="width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,0.03);overflow:hidden;">
-              <div id="connector-2-fill" style="width:0%;height:100%;border-radius:999px;background:var(--accent2);transition:width .4s ease;"></div>
-            </div>
-          </div>
-          <div class="node" data-step="3" style="flex:1;text-align:center;">
-            <div class="node-circle" id="node-3">3</div>
-            <div style="margin-top:8px;font-weight:700">Claim Pro</div>
-            <div style="color:var(--muted);font-size:.9rem">Activate your account</div>
-          </div>
-        </div>
-        <!--REVIEW-->
-        <section id="inline-review" class="section" aria-label="Write a review" style="margin-top:18px;">
-          <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
-            <!-- Left: image drag/upload square -->
-            <div id="image-area" style="flex:0 0 220px;max-width:220px;">
-              <label for="review-image-input" style="display:block;font-weight:700;margin-bottom:8px;text-align:center;">Upload images (Optional)</label>
-              <div id="image-drop" tabindex="0" role="button"
-                style="width:220px;height:280px;border-radius:12px;border:2px dashed var(--soft-border);background:rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;">
-                <div id="image-preview" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.95rem;padding:12px;box-sizing:border-box; text-align:center;">
-                  Drag & drop an image here or click to select
-                </div>
-                <!-- hidden file input -->
-                <input id="review-image" type="file" accept="image/*" multiple style="display:none" />
-              </div>
-            </div>
-
-            <!-- Right: stars top, text + actions below -->
-            <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px;">
-              <div>
-                <label style="display:block;font-weight:700;margin-bottom:8px;">Your rating</label>
-                <div id="star-wrap-inline" style="display:flex;align-items:center;gap:8px;">
-                  <div id="stars-inline" role="radiogroup" aria-label="Star rating" style="display:inline-flex;gap:6px;">
-                    <button type="button" class="star" data-value="1" aria-checked="false" role="radio" title="1 star">☆</button>
-                    <button type="button" class="star" data-value="2" aria-checked="false" role="radio" title="2 stars">☆</button>
-                    <button type="button" class="star" data-value="3" aria-checked="false" role="radio" title="3 stars">☆</button>
-                    <button type="button" class="star" data-value="4" aria-checked="false" role="radio" title="4 stars">☆</button>
-                    <button type="button" class="star" data-value="5" aria-checked="false" role="radio" title="5 stars">☆</button>
-                  </div>
-                  <div id="selected-rating-inline" style="color:var(--muted);font-size:.95rem;">No rating yet</div>
-                </div>
-              </div>
-
-              <div>
-                <label for="review-text-inline" style="display:block;font-weight:700;margin-bottom:8px;">Your review</label>
-                <textarea id="review-text" name="review" rows="6" placeholder="Share a few details to help others (and us) improve..." style="width:100%;height:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--soft-border);color:var(--text);resize:vertical;font-family:'Inter', 'Segoe UI', sans-serif;"></textarea>
-              </div>
-
-              <!-- Actions area (moved here, aligned to right of image input) -->
-              <div id="actions" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:4px;">
-                <div style="flex:1;margin-top:-6px;">
-                  <div id="review-error" role="alert" style="display:none;color:#ffb4b4;align-self:center"></div>
-                  <button id="submit-review" type="button" style="width:100%;margin-top:6px;">Submit review</button>
-                </div>
-                <button id="claim-btn" type="button" disabled>Next Step</button>
-                <div id="progress-legend" style="min-width:220px;font-size:.95rem;color:var(--muted);display:flex;gap:8px;align-items:center;">
-                  <div id="progress-percent" style="font-weight:700">0%</div>
-                  <div style="color:var(--muted)">complete</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <!--SHARE-->
-        <section id="inline-share" class="section" aria-label="Share with a friend" style="display:none; margin-top:18px;">
-          <div style="display:flex;flex-direction:column;gap:12px;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-radius:12px;border:1px solid var(--soft-border);box-shadow:var(--card-glow);">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <h3 style="margin:0;">Share SpectroDraw</h3>
-            </div>
-
-            <p style="margin:0;color:var(--muted)"> Last step! Please choose a social media app to share spectrodraw. Your contribution will help spectrodraw spread to more users while it's still in development. If you have trouble, please contact me at <a href="https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=clipriot3@gmail.com">clipriot3@gmail.com</a></p>
-            <style>
-              .social-btn {
-                width: 60px;
-                height: 60px;
-                border-radius:15px !important;
-              }
-              .social-btn img {
-                width: 100%;
-                height: 100%;
-                object-fit: contain; /* keeps aspect ratio */
-              }
-            </style>
-            <div id="social-row" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;">
-              <button class="social-btn" data-provider="facebook"  title="Facebook"  style="background:#3b5998;"><img src="../assets/social-icons/facebook.svg"></button>
-              <button class="social-btn" data-provider="X"         title="X"         style="background:#000000;"><img src="../assets/social-icons/x.svg"></button>
-              <button class="social-btn" data-provider="pinterest" title="Pinterest" style="background:#E60023;"><img src="../assets/social-icons/pinterest.svg"></button>
-              <button class="social-btn" data-provider="linkedin"  title="LinkedIn"  style="background:#0072B1;"><img src="../assets/social-icons/linkedin.svg"></button>
-              <button class="social-btn" data-provider="reddit"    title="Reddit"    style="background:#FF4500;"><img src="../assets/social-icons/reddit.svg"></button>
-              <button class="social-btn" data-provider="gmail"     title="Gmail"     style="background:#FFFFFF;"><img src="../assets/social-icons/gmail.svg"></button>
-            </div>
-
-            <div id="social-status" style="margin-top:8px;color:var(--muted);font-size:.95rem"></div>
-
-            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <button id="manual-verify" type="button" >I shared! Verify</button>
-            </div>
-          </div>
-        </section>
-        <!-- CLAIM (new separate section, insert directly under #inline-share) -->
-        <section id="inline-claim" class="section" aria-label="Claim SpectroDraw Pro" style="display:none; margin-top:18px;">
-          <div style="padding:18px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border:1px solid var(--soft-border);box-shadow:var(--card-glow);">
-            <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-              <div id="claim-instruction" style="text-align:center;color:var(--muted);max-width:760px;">
-                <!-- JS will populate this string with the current user email -->
-              </div>
-
-              <div style="width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px;">
-                <input id="claim-input" type="text" aria-label="Type CLAIM to activate" placeholder="Type CLAIM to activate" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:var(--text);text-align:center;font-weight:700;letter-spacing:1px" />
-                <div style="width:100%;display:flex;justify-content:center;">
-                  <button id="claim-confirm" disabled
-                    class="claim-pro-btn">
-                    Claim Pro
-                  </button>
-                </div>
-                <div id="claim-help" style="color:var(--muted);font-size:.9rem;text-align:center;">Type <strong>CLAIM</strong> (all caps) to enable the button.</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Local styles for sparkle animation -->
-
-          <style>
-            @keyframes sd-sparkle {
-              0% { box-shadow: 0 0 30px rgba(79,70,229,1), 0 0 40px rgba(147,51,234,0.45); inset: 0 0 30px rgba(147,51,234,0.3); transform: translateY(0); }
-              50% { box-shadow: 0 6px 20px 0 rgba(124,58,237,0.18), 0 0 35px 6px rgba(99,102,241,0.08); transform: translateY(-1px); }
-              100% { box-shadow: 0 0 30px rgba(79,70,229,1), 0 0 40px rgba(147,51,234,0.45); inset: 0 0 30px rgba(147,51,234,0.3); transform: translateY(0); }
-            }
-            /* enabled state */
-            .claim-pro-btn.enabled {
-              color: #fff !important;
-              background: linear-gradient(90deg, var(--accent1), var(--accent2));
-              cursor: pointer !important;
-              border: 0;
-              animation: sd-sparkle 2.2s infinite ease-in-out;
-              transform: translateZ(0);
-            }
-          </style>
-        </section>
-
-
-      </div>
+  <p style="max-width:880px;width:90%;margin:18px auto;font-size:20px;">
+    SpectroDraw Pro is finished, and you can get access <strong>before the public release.</strong><br>
+    The full launch (alongside the VST plugin) is coming <span title="1-2 months" style="color:#9eeefe;cursor:pointer;">soon</span>, but you can <strong>secure your Pro account now</strong> and be among the first to experience this revolutionary software.
+  </p>
+  <p id="infoText" style="display:none;text-align:center;"></p>
+  <div id="requireSignin" style="font-size:2rem;color:red;margin:18px auto;max-width:880px;width:90%;">You must be signed in to buy Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signup-cta" href="#">Sign up</a></div>
+  <div id="finish-page" style="display:none;position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse at center, #0b0c14 0%, #090a10 45%, #07080b 100%);align-items:center;justify-content:center;padding:20px;">
+    <div style="max-width:560px;width:100%;text-align:center;padding:32px;border-radius:18px;background:rgba(15,23,32,0.92);border:1px solid rgba(255,255,255,0.06);box-shadow:0 20px 80px rgba(0,0,0,0.45);">
+      <h1 style="margin:0 0 12px 0;font-size:2.2rem;background:linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">You already own SpectroDraw Pro</h1>
+      <p id="finish-email-text" style="margin:0 0 22px 0;color:#d0d9e9;font-size:1.05rem;"></p>
+      <button class="btn-primary" onclick="location.href='../products'"><span>View my products</span></button>
+      <!--<button class="btn-primary" onclick="location.href='../app'" style="margin-left:10px;"><span>Go to app</span></button>-->
     </div>
-  </section>
-</main>
-<script>
-(function(){
-  const stateKeyBase = 'sd_earlyAccess_progress_v1';
-  let currentUserId = null;
-  function getCurrentUserId() {
-    try {
-      const raw = localStorage.getItem('spectrodraw_user');
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      return parsed?.id || parsed?.user_id || parsed?.email || parsed || null;
-    } catch (e) {
-      return null;
-    }
-  }
-  function stateKeyFor(userId) {
-    return `${stateKeyBase}_${userId ? String(userId) : 'anon'}`;
-  }
-  function getCurrentUserEmail() {
-    try {
-      const raw = localStorage.getItem('spectrodraw_user');
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      return parsed?.email || parsed?.user || parsed?.id || null;
-    } catch (e) { return null; }
-  }
+  </div>
+  <div id="sneakPeekButton" style="cursor:pointer;margin: 18px auto;height:75px;max-width:500px;width:80%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:linear-gradient(45deg,#0f1b45,#3d2490);border-radius:12px;border: 2px dashed #fff;font-weight:1000;">Take a sneak peek</div>
+  <div id="inlineSneakDiv" style="display:none;width:80%;margin:18px auto;">
+    <button id="openInNewTab">Open in new tab</button>
+    <div id="inlineSneak" style="height:600px;box-sizing:border-box;"></div>
+  </div>
+  <h2 style="text-align:center;margin-top:40px;margin-bottom:40px;" id="OR">OR</h2>
+  <div id="continuetocheckout" style="cursor:pointer;margin: 18px auto;height:75px;max-width:500px;width:80%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:linear-gradient(90deg,#4e46e548,#9333ea48,#ec489988);box-shadow:var(--card-glow2);border-radius:12px;border: 2px solid #fff;font-weight:1000;">Continue to checkout</div>
 
-  let progress = {
-    loggedIn: false,
-    reviewSubmitted: false,
-    shareSent: false,
-    shareTentative: false,
-    claimed: false,
-    rating: 0,
-    reviewText: '',
-    inviteEmails: [],
-    currentStep: 1
-  };
-
-  const reviewSection = document.getElementById('inline-review');
-  const submitReviewBtn = document.getElementById('submit-review');
-  const starsInline = document.querySelectorAll('#stars-inline .star');
-  const selectedRatingInline = document.getElementById('selected-rating-inline');
-  const reviewTextEl = document.getElementById('review-text');
-  const reviewImageInput = document.getElementById('review-image');
-  const imageDrop = document.getElementById('image-drop');
-  const imagePreview = document.getElementById('image-preview');
-  const reviewError = document.getElementById('review-error');
-
-  const progressPercentEl = document.getElementById('progress-percent');
-  const claimBtn = document.getElementById('claim-btn');
-  const node1 = document.getElementById('node-1');
-  const node2 = document.getElementById('node-2');
-  const node3 = document.getElementById('node-3');
-  const connector1Fill = document.getElementById('connector-1-fill');
-  const connector2Fill = document.getElementById('connector-2-fill');
-
-  const shareSection = document.getElementById('inline-share');
-  const socialRow = document.getElementById('social-row');
-  const socialStatus = document.getElementById('social-status');
-  const shareLinkInput = 'https://spectrodraw.com';
-  const manualVerifyBtn = document.getElementById('manual-verify');
-    // CLAIM UI elements (new)
-  const claimSection = document.getElementById('inline-claim');
-  const claimInstruction = document.getElementById('claim-instruction');
-  const claimInput = document.getElementById('claim-input');
-  const claimConfirmBtn = document.getElementById('claim-confirm');
-  const claimHelp = document.getElementById('claim-help');
-
-  let mediaLink = '';
-
-  const longPosts = [["Has anyone tried drawing directly on a spectrogram?",`
-I stumbled across this app called Spectrodraw and thought it was a pretty interesting idea. Instead of just showing a spectrogram for analysis, it actually lets you draw on it, painting directly onto the frequency spectrum.
-What makes it different from most spectrograms is that it uses both hue and brightness to represent sound. In order to be able to convert the sound to an image and back to sound losslessly, SpectroDraw represents each frequency with a phase and magnitude. The "phase", or the signal's midline, controls the hue, while the "magnitude", or the wave's amplitude, controls the brightness. This allows you to draw with different colors on the spectrogram and provides a lot more control over the sound.
-There’s also an optional AI feature that can turn your audio into MIDI, which seems handy for experimenting or remixing.
-I feel like it could make noise removal and voice separation easier and more intuitive. For example, I was sampling vocals, and an area had overlapping vocals, so I simply erased the vocals I didn't want on the spectrogram.
-Does this app seem interesting? Do you think a paintable spectrogram could be useful to you?`],
-["This is what all the frequencies at max volume sound like together",`
-Recently, I stumbled across an interesting app that let me draw directly on the spectrogram. Naturally, I filled the entire spectrogram up with pure, max volume to achieve the loudest possible sound. The result is this extremely cursed sounding audio:
-I used https://spectrodraw.com to create the audio. Please go check it out, it's kind of fun!
-`],["What If You Could Paint Sound?",`
-SpectroDraw is a free interactive audio tool that transforms sound design from a technical process into an intuitive, visual, and creative experience. By allowing users to "paint" and "sculpt" audio frequencies on a spectrogram, the web-based application is making advanced spectral editing accessible to everyone, from students to professional producers.
-
-==== Reimagining the Spectrogram ====
-At its core, SpectroDraw reimagines how users interact with a spectrogram: a visual representation of audio.
-On a standard spectrogram, time is displayed on the x-axis and frequency is on the y-axis.
-The amplitude (or loudness) of each frequency at a given moment is shown by the color's intensity.
-While traditional spectrograms are used for analyzing sound, SpectroDraw turns this visualization into a creative canvas.
-
-==== How SpectroDraw works ====
-SpectroDraw gives you a direct, visual way to manipulate frequencies, like Photoshop for audio. You can:
-
----- 🎨 Draw and paint frequencies: 🎨 ----
-Use brush tools to amplify, blur, erase, and modify specific frequencies at a specific time. This is ideal for creating your own, unique sound effects without having to record anything.
-
---- 🖼️ Overlay images: 🖼️ ---
-Hear your images as sound and see your sound as images. Use the "Overlay image" brush to stamp images anywhere onto the spectrogram.
-
----- 📊 Sculpt harmonics: 📊 ----
-Use amplify or erase to modify the harmonic overtones of an audio to change the timbre. Automatically remove all harmonic overtones with the push of a button, leaving behind just the base sine wave notes.
-
----- 🔎 Edit visually: 🔎 ----
-For sound designers, SpectroDraw simplifies complex tasks by revealing audio problems like noise or artifacts visually.
-
----- 🎹 Export MIDI: 🎹 ----
-Spectrodraw features one of the cleanest audio-to-MIDI converting algorithms. Convert your spectrogram to MIDI using an AI optimized for music or an algorithm optimized for sound effects.
-
-☑️ Accessible to anyone
-No login. No installs. No popups. Just open the app in your browser - it’s 100% free.
-
-==== For sound designers and music creators ====
-SpectroDraw bridges the gap between technical audio editing and creative expression, offering a playful, intuitive, and visually driven approach to sound. By democratizing spectral editing, it aims to change how artists experiment, remix, and shape their audio, one brushstroke at a time. Try it free at https://spectrodraw.com
-`]];
-  const shortPost = `I just claimed SpectroDraw Pro ($40) for free! Claim yours before the early access offer ends! \n SpectroDraw is the world's first interactive spectrogram editor for sound designers. \n\n https://spectrodraw.com`;
-  let postText = '';
-
-  function loadStateForCurrentUser(){
-    const key = stateKeyFor(currentUserId);
-    try{
-      const raw = localStorage.getItem(key);
-      if(raw){
-        const parsed = JSON.parse(raw);
-        progress = Object.assign({
-          loggedIn:false, reviewSubmitted:false, shareSent:false,
-          shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
-        }, parsed);
-      } else {
-        progress = Object.assign({
-          loggedIn:false, reviewSubmitted:false, shareSent:false,
-          shareTentative:false, claimed:false, rating:0, reviewText:'', inviteEmails:[]
-        }, progress);
-      }
-    }catch(e){}
-    progress.loggedIn = !!currentUserId;
-  }
-
-  function saveStateForCurrentUser(){
-    const key = stateKeyFor(currentUserId);
-    try{
-      localStorage.setItem(key, JSON.stringify(progress));
-    }catch(e){}
-  }
-
-  /* ---------- auth detection & switching users ---------- */
-  function checkAuth(){
-    const newUserId = getCurrentUserId();
-    // if user changed, persist old user's state then load new user's state
-    if(newUserId !== currentUserId){
-      // Save existing state for previous user
-      if(currentUserId !== null){
-        try{ localStorage.setItem(stateKeyFor(currentUserId), JSON.stringify(progress)); }catch(e){}
-      }
-      // set new current user
-      currentUserId = newUserId;
-      loadStateForCurrentUser();
-    }
-    render();
-  }
-
-  // call this externally if your accounts.js performs sign-in/out
-  window.sdAuthChanged = function(){
-    checkAuth();
-  };
-
-  /* ---------- UI render ---------- */
-  function render(){
-    // progress percent (two main steps: review + share) + small bonus for claimed
-    const base = ((progress.reviewSubmitted ? 1 : 0) + (progress.shareSent ? 1 : 0)) / 2;
-    const percent = Math.round(base * 100 * 0.9) + (progress.claimed ? 10 : 0);
-    progressPercentEl.textContent = percent + '%';
-
-    setNodeVisual(node1, progress.reviewSubmitted);
-    setNodeVisual(node2, progress.shareSent || progress.shareTentative);
-    setNodeVisual(node3, progress.claimed);
-
-    connector1Fill.style.width = progress.reviewSubmitted ? '100%' : '0%';
-    connector2Fill.style.width = (progress.reviewSubmitted && (progress.shareSent || progress.shareTentative)) ? '100%' : '0%';
-
-    updateClaimButtonState();
-
-    // signin requirement banner
-    const statusEl = document.getElementById('requireSignin');
-    if(!progress.loggedIn){
-      if(statusEl) statusEl.style.display = "block";
-      document.getElementById('signin-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signin-link').click(); });
-      document.getElementById('signup-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signup-link').click(); });
-    } else {
-      if(statusEl) statusEl.style.display = "none";
-    }
-
-    updateStarUI();
-    if(progress.reviewText && !reviewTextEl.value) reviewTextEl.value = progress.reviewText;
-
-    // If shareTentative is true but shareSent is false, inform the status
-    if(progress.shareTentative && !progress.shareSent){
-      socialStatus.style.color = '';
-      socialStatus.textContent = 'Share popup closed. Click "I shared! Verify" or click Next to continue.';
-    }
-    try {
-      const email = getCurrentUserEmail();
-      const showClaim = progress.loggedIn && (progress.shareSent || progress.shareTentative);// && !progress.claimed;
-
-      if (showClaim) {
-        if (claimSection) {
-          claimSection.style.display = 'block';
-          claimInstruction.innerHTML = `You are logged in as <strong>${email || 'your account'}</strong>. Type <strong>CLAIM</strong> in the box below to activate SpectroDraw Pro for your account.`;
-        }
-        shareSection.style.display = 'none';
-        reviewSection.style.display = 'none';
-        document.getElementById('inline-review').style.display = 'none';
-      } else {
-        claimSection.style.display = 'none';
-        shareSection.style.display = progress.reviewSubmitted?'block':'none';
-        reviewSection.style.display = progress.reviewSubmitted?'none':'block';
-      }
-    } catch (e) {}
-
-    saveStateForCurrentUser();
-  }
-
-  function setNodeVisual(el, done){
-    if(!el) return;
-    if(done){
-      el.style.background = 'linear-gradient(90deg,var(--accent1),var(--accent2))';
-      el.style.color = '#fff';
-    } else {
-      el.style.background = 'rgba(255,255,255,0.02)';
-      el.style.color = 'inherit';
-    }
-  }
-
-  function updateClaimButtonState(){
-    if(progress.claimed){
-      claimBtn.disabled = true;
-      claimBtn.style.cursor = 'default';
-      claimBtn.textContent = 'Claimed ✓';
-      return;
-    }
-    // must submit review first
-    if(!progress.reviewSubmitted){
-      claimBtn.disabled = true;
-      claimBtn.style.cursor = 'not-allowed';
-      claimBtn.textContent = 'Next Step';
-      return;
-    }
-    // If review submitted then allow Next. If share verified then show Claim text.
-    // Also allow Next if shareTentative true (popup closed) so user can continue manually.
-    if(!progress.shareSent){
-      // enable Next so user can go to / verify share
-      claimBtn.disabled = false;
-      claimBtn.style.cursor = 'pointer';
-      claimBtn.textContent = progress.shareTentative ? 'Next: Verify Share' : 'Next: Share';
-      return;
-    }
-    // share sent and review submitted -> allow claim
-    claimBtn.disabled = false;
-    claimBtn.style.cursor = 'pointer';
-    claimBtn.textContent = 'Claim SpectroDraw Pro';
-  }
-
-  /* ---------- STAR / IMAGE / REVIEW ---------- */
-  document.querySelectorAll('#stars-inline .star').forEach(s => {
-    s.addEventListener('click', () => {
-      const v = parseInt(s.dataset.value, 10);
-      progress.rating = v;
-      updateStarUI();
-      saveStateForCurrentUser();
-      render();
-    });
-  });
-
-  function updateStarUI(){
-    document.querySelectorAll('#stars-inline .star').forEach(s => {
-      if(parseInt(s.dataset.value,10) <= progress.rating) s.textContent = '★';
-      else s.textContent = '☆';
-    });
-    selectedRatingInline.textContent = progress.rating ? progress.rating + ' / 5' : 'No rating yet';
-  }
-
-  imageDrop.addEventListener('click', ()=> reviewImageInput.click());
-  imageDrop.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reviewImageInput.click(); } });
-  imageDrop.addEventListener('dragover', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'rgba(79,70,229,0.9)'; });
-  imageDrop.addEventListener('dragleave', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'var(--soft-border)'; });
-  imageDrop.addEventListener('drop', (e)=>{ e.preventDefault(); imageDrop.style.borderColor = 'var(--soft-border)'; const files = e.dataTransfer.files; if(files && files[0]) handleFiles(files); });
-  reviewImageInput.addEventListener('change', (e)=>{ const files = e.target.files; if(files && files[0]) handleFiles(files); });
-
-  function handleFiles(files){
-    const file = files[0];
-    if(!file || !file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (ev)=>{
-      imagePreview.style.backgroundImage = `url(${ev.target.result})`;
-      imagePreview.style.backgroundSize = 'cover';
-      imagePreview.style.backgroundPosition = 'center';
-      imagePreview.textContent = '';
-    };
-    reader.readAsDataURL(file);
-  }
-
-  submitReviewBtn.addEventListener('click', async ()=>{
-    reviewError.style.display = 'none';
-    if(!progress.rating){
-      reviewError.style.display = 'block';
-      reviewError.textContent = 'Please select a star rating before submitting.';
-      return;
-    }
-    if(!progress.loggedIn){
-      reviewError.style.display = 'block';
-      reviewError.textContent = 'You must be signed in to submit a review.';
-      return;
-    }
-
-    submitReviewBtn.disabled = true;
-    submitReviewBtn.textContent = 'Submitting...';
-
-    const fd = new FormData();
-    fd.append('rating', progress.rating);
-    fd.append('text', reviewTextEl.value || '');
-    const file = document.getElementById('review-image').files && document.getElementById('review-image').files[0];
-    if(file) fd.append('image', file);
-
-    try {
-      const stored = (() => {
-        try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
-      })();
-      fd.append('user', stored);
-
-      const res = await fetch('https://api.spectrodraw.com/api/reviews', {
-        method: 'POST',
-        credentials: 'include',
-        body: fd
-      });
-      if(!res.ok){
-        const err = await res.json().catch(()=>({message:'Failed to submit review'}));
-        throw new Error(err.message || 'Failed to submit review');
-      }
-      progress.reviewSubmitted = true;
-      progress.reviewText = reviewTextEl.value || '';
-      saveStateForCurrentUser();
-      render();
-      submitReviewBtn.textContent = 'Submitted ✓';
-      setTimeout(()=>{ submitReviewBtn.textContent = 'Submit review'; }, 1500);
-    } catch(err) {
-      reviewError.style.display = 'block';
-      reviewError.textContent = 'Error: ' + err.message;console.log(err);
-    } finally {
-      submitReviewBtn.disabled = false;
-    }
-  });
-    // Enable the Claim button when input equals "CLAIM" exactly
-  if (claimInput) {
-    claimInput.addEventListener('input', (e) => {
-      const v = (e.target.value || '').trim();
-      const ok = v === 'CLAIM';
-      if (ok) {
-        claimConfirmBtn.disabled = false;
-        claimConfirmBtn.classList.add('enabled');
-        claimConfirmBtn.style.cursor = 'pointer';
-        claimHelp.style.color = 'var(--muted)';
-      } else {
-        claimConfirmBtn.disabled = true;
-        claimConfirmBtn.classList.remove('enabled');
-        claimConfirmBtn.style.cursor = 'not-allowed';
-      }
-    });
-
-    // allow Enter to trigger the button
-    claimInput.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        if (!claimConfirmBtn.disabled) claimConfirmBtn.click();
-      }
-    });
-  }
-
-  // When Claim Confirm clicked, double-check input and call performClaim()
-  if (claimConfirmBtn) {
-    claimConfirmBtn.addEventListener('click', async (ev) => {
-      if (claimConfirmBtn.disabled) return;
-      const v = (claimInput.value || '').trim();
-      if (v !== 'CLAIM') {
-        claimHelp.style.color = '#ffb4b4';
-        claimHelp.textContent = 'Type CLAIM in all caps to enable the button.';
-        return;
-      }
-      // visual feedback
-      claimConfirmBtn.disabled = true;
-      claimConfirmBtn.textContent = 'Claiming...';
-      try {
-        // call existing performClaim() which handles auth checks and server call
-        await performClaim();
-      } catch (err) {
-        console.error('performClaim error', err);
-        claimConfirmBtn.disabled = false;
-        claimConfirmBtn.textContent = 'Claim Pro';
-      } finally {
-        // clear input after attempt (success path will re-render and hide section)
-        try { claimInput.value = ''; } catch(e){}
-      }
-    });
-  }
-
-  /* ---------- SHARE - intent flow with tentative-share behavior ---------- */
-
-  function shareIntentUrl(provider, link, text, media, title, redditType = "TEXT"){
-    const u = encodeURIComponent(link || window.location.href);
-    const t = encodeURIComponent(text || '');
-    const m = encodeURIComponent(media || '');
-    const titleEnc = encodeURIComponent(title || '');
-    switch(provider){
-      case 'X':
-        return `https://x.com/intent/tweet?text=${t}&url=${u}`;
-      case 'facebook':
-        return `https://www.facebook.com/sharer/sharer.php?u=${u}` + (t ? `&quote=${t}` : '');
-      case 'pinterest':
-        return `https://www.pinterest.com/pin/create/bookmarklet/?media=${m}&url=${u}&title=${titleEnc}&description=${t}`;
-      case 'linkedin':
-        return `https://www.linkedin.com/shareArticle?mini=true&url=${u}`;
-      case 'reddit':
-        const body = encodeURIComponent(
-          [text || '', media ? `\n\n${media}` : ''].join('')
-        );
-        return `https://www.reddit.com/submit?url=${u}&title=${titleEnc || t}&text=${body}&type=${redditType}`;
-      case 'gmail':
-        return `https://mail.google.com/mail/?view=cm&fs=1&su=${titleEnc || t}&body=${t}%20${u}`;
-      default:
-        return null;
-    }
-  }
-
-  function openPopup(url, title='Share', w=700, h=600){
-    const left = Math.max(0, (screen.width/2) - (w/2));
-    const top = Math.max(0, (screen.height/2) - (h/2));
-    const opts = `width=${w},height=${h},top=${top},left=${left},toolbar=0,menubar=0,scrollbars=yes`;
-    try {
-      const p = window.open(url, title, opts);
-      // track opening metadata so manual verify can check it later
-      try {
-        window.sdLastSharePopup = p || null;
-        window.sdLastSharePopupOpenedAt = Date.now();
-        window.sdLastSharePopupClosedAt = null;
-        window.sdLastSharePopupClosed = false;
-      } catch (e) { /* ignore */ }
-      return p;
-    } catch (e) {
-      try {
-        window.sdLastSharePopup = null;
-        window.sdLastSharePopupOpenedAt = null;
-        window.sdLastSharePopupClosedAt = null;
-        window.sdLastSharePopupClosed = false;
-      } catch(e){}
-      return null;
-    }
-  }
-
-
-
-  /* ---------- REPLACE the existing socialRow click handler with this block ---------- */
-  socialRow.addEventListener('click', async (ev) => {
-    const btn = ev.target.closest('.social-btn');
-    if (!btn) return;
-    const provider = btn.dataset.provider;
-    postText = (provider === 'x' || provider === 'pinterest') ? shortPost : longPosts[0][1];
-    socialStatus.style.color = '';
-    socialStatus.textContent = `Preparing ${provider}...`;
-
-    if (!progress.loggedIn) {
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Please sign in to SpectroDraw before sharing.';
-      return;
-    }
-
-    // Pinterest keeps the existing flow (image picker + open pinterest composer)
-    if (provider === 'pinterest') {
-      socialStatus.textContent = 'Choose an image to pin...';
-      try {
-        const images = gatherCandidateImages();
-        const chosen = await showImagePickerModal(images, {
-          title: 'Choose an image to Pin'
-        });
-        if (!chosen) {
-          socialStatus.textContent = 'Pinterest share canceled.';
-          return;
-        }
-        mediaLink = chosen.uploadUrl || chosen.src;
-        openPinterestShare(mediaLink);
-
-        function openPinterestShare(mediaUrl) {
-          socialStatus.textContent = 'Opening Pinterest composer...';
-          const url = shareIntentUrl('pinterest', shareLinkInput, postText, mediaUrl, document.title);
-          const popup = openPopup(url, 'Share to Pinterest', 800, 720);
-          if (!popup) {
-            socialStatus.style.color = '#ffb4b4';
-            socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.';
-            return;
-          }
-          const poll = setInterval(() => {
-            try {
-              if (popup.closed) {
-                clearInterval(poll);
-                progress.shareTentative = true;
-                saveStateForCurrentUser();
-                socialStatus.style.color = '#b7ffd6';
-                socialStatus.textContent = `Popup closed. If you completed a share on Pinterest, click "I shared, Verify" or click Next.`;
-                render();
-              }
-            } catch (e) {
-              clearInterval(poll);
-            }
-          }, 600);
-        }
-      } catch (err) {
-        console.error('Pinterest picker error', err);
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Unable to show image picker.';
-      }
-      return;
-    }
-
-    // LinkedIn & Reddit: show text-copy modal then image-download modal, then open composer
-    if (provider === 'linkedin' || provider === 'reddit' || provider === 'gmail' || provider === 'facebook') {
-    socialStatus.textContent = `Preparing ${provider} share helper...`;
-
-    // if not reddit, keep the existing LinkedIn flow (unchanged)
-    if (provider === 'linkedin') {
-      try {
-        const suggestedText = longPosts[2][1];
-        const proceedFromText = await showTextCopyModal({
-          title: longPosts[2][0],
-          text: suggestedText
-        });
-        if (!proceedFromText) { socialStatus.textContent = 'LinkedIn share canceled.'; return; }
-        const images = gatherCandidateImages();
-        const proceedToPost = await showImageDownloadModal(images, {
-          title: 'Choose an image for your post (required)',
-          note: 'Please use one of these images in your post (or use your own picture of SpectroDraw). Click an image to download it.'
-        });
-        if (!proceedToPost) { socialStatus.textContent = 'LinkedIn share canceled.'; return; }
-
-        socialStatus.textContent = `Opening LinkedIn composer...`;
-        const url = shareIntentUrl('linkedin', shareLinkInput, suggestedText, '', document.title);
-        const popup = openPopup(url, `Share to LinkedIn`, 900, 700);
-        if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.'; return; }
-        try {
-          const posted = await detectPopupPost(popup, 'linkedin'/*, { timeout: 30000 }*/);
-          if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on LinkedIn. Unlocking...`; markShared(); }
-          else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on LinkedIn, click "I shared! Verify" or click Next.`; render(); }
-        } catch (err) {
-          console.error('detectPopupPost error', err);
-          progress.shareTentative = true; saveStateForCurrentUser();
-          socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Popup closed. If you completed a share on LinkedIn, click "I shared! Verify" or click Next.`;
-          render();
-        }
-      } catch (err) {
-        console.error('LinkedIn helper error', err);
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Unable to prepare share helper.';
-      }
-      return;
-    }
-
-    // ----------------- REDDIT flow -----------------
-    if (provider === 'reddit' || provider === 'gmail' || provider === 'facebook') {
-      try {
-        // 1) Ask which kind of reddit post
-        const option = await showRedditOptionModal();
-        if (!option) { socialStatus.textContent = `${provider} share canceled.`; return; }
-
-        // 2) pick the text from longPosts
-        // longPosts is expected to be array of [title, body] entries
-        let entryIndex = 0; // discussion default
-        if (option === 'discussion') entryIndex = 0;
-        else if (option === 'fun') entryIndex = 1;
-        else if (option === 'descriptive') entryIndex = 2;
-        const postEntry = (longPosts && longPosts[entryIndex]) || ['', shortPost];
-        const title = postEntry[0] || '';
-        const body = postEntry[1] || '';
-        const combinedText = (title ? (title + '\n\n') : '') + body;
-
-        // 3) show text-copy modal for reddit content
-        let proceedFromText = true;
-        if (provider !== 'gmail') {
-          proceedFromText = await showTextCopyModal({
-            title: title,
-            text: body
-          });
-          if (!proceedFromText) {
-            socialStatus.textContent = `${provider} share canceled.`;
-            return;
-          }
-        }
-
-        // 4a) If fun -> force downloads of specific image + sound + explicit instruction to attach both
-        if (option === 'fun') {
-          const proceedToFun = await showFunAssetsModal();
-          if (!proceedToFun) { socialStatus.textContent = `${provider} share canceled.`; return; }
-
-          // prepare media - use absolute URL so share helper can see it
-          const mediaUrl = window.location.origin + '/assets/pinterestImages/fun0.mp4';
-          mediaLink = mediaUrl;
-          postText = body;
-
-          socialStatus.textContent = `Opening ${provider} composer... (remember to attach the video when posting)`;
-          const url = shareIntentUrl(provider, shareLinkInput, body, mediaUrl, title || body.slice(0,120), 'IMAGE');
-          const popup = openPopup(url, title, 900, 700);
-          if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.'; return; }
-
-          try {
-            const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
-            if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on v. Unlocking...`; markShared(); }
-            else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared! Verify" or click Next.`; render(); }
-          } catch (err) {
-            console.error('detectPopupPost error', err);
-            progress.shareTentative = true; saveStateForCurrentUser();
-            socialStatus.style.color = '#b7ffd6';
-            socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
-            render();
-          }
-          return;
-        }
-
-        // 4b) For discussion/descriptive: show normal image download modal then open composer
-        const images = gatherCandidateImages();
-        const proceedToPost = await showImageDownloadModal(images, {
-          title: 'Choose an image for your post (required)',
-          note: 'Please use one of these images in your post (or use your own picture of SpectroDraw). Click an image to download it.'
-        });
-        if (proceedToPost === null || proceedToPost === false) {
-          socialStatus.textContent = `${provider} share canceled.`;
-          return;
-        }
-
-        postText = body;
-        socialStatus.textContent = 'Opening Reddit composer...';
-        const url = shareIntentUrl(provider, shareLinkInput, combinedText, '', title || combinedText.slice(0,120));
-        const popup = openPopup(url, `Share to ${provider}`, 900, 700);
-        if (!popup) { socialStatus.style.color = '#ffb4b4'; socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.'; return; }
-
-        try {
-          const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
-          if (false) { socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Verified: post detected on ${provider}. Unlocking...`; markShared(); }
-          else { progress.shareTentative = true; saveStateForCurrentUser(); socialStatus.style.color = '#b7ffd6'; socialStatus.textContent = `Popup closed. If you completed a share on Reddit, click "I shared! Verify" or click Next.`; render(); }
-        } catch (err) {
-          console.error('detectPopupPost error', err);
-          progress.shareTentative = true; saveStateForCurrentUser();
-          socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
-          render();
-        }
-
-      } catch (err) {
-        console.error(`${provider} helper error`, err);
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = `Unable to prepare ${provider} share helper.`;
-      }
-      return;
-    }
-  }
-
-  // ----- Helper modal: choose reddit option (Discussion-based / Descriptive / Fun) -----
-  function showRedditOptionModal() {
-    const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
-    return new Promise((resolve) => {
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = `
-        <div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
-          <div style="width:min(520px,calc(100% - 48px));border-radius:12px;background:#0e0e0f;padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);color:#fff">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <strong style="font-size:1.05rem">Choose a ${provider} post type</strong>
-              <button id="sd-red-close" aria-label="Close" style="background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer">✕</button>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
-              <button id="sd-opt-disc" type="button" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;cursor:pointer">Discussion-based</button>
-              <button id="sd-opt-desc" type="button" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;cursor:pointer">Descriptive</button>
-              <button id="sd-opt-fun" type="button" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;cursor:pointer">Fun / Interesting</button>
-            </div>
-            <div style="color:var(--muted);font-size:.92rem">Pick which style you'd like. We'll show the text to copy next.</div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(wrapper);
-      const root = wrapper.firstElementChild;
-      const cleanup = () => { try { wrapper.remove(); } catch(e){} };
-
-      root.addEventListener('click', (e) => {
-        if (e.target.id === 'sd-red-close' || e.target === root) { cleanup(); resolve(null); return; }
-        if (e.target.id === 'sd-opt-disc') { cleanup(); resolve('discussion'); return; }
-        if (e.target.id === 'sd-opt-desc') { cleanup(); resolve('descriptive'); return; }
-        if (e.target.id === 'sd-opt-fun') { cleanup(); resolve('fun'); return; }
-      });
-
-      document.addEventListener('keydown', function onKey(ev) {
-        if (ev.key === 'Escape') { document.removeEventListener('keydown', onKey); cleanup(); resolve(null); }
-      }, { once: true });
-
-      setTimeout(()=> {
-        const b = root.querySelector('#sd-opt-disc');
-        if (b) b.focus();
-      }, 40);
-    });
-  }
-
-  // ----- Helper modal: fun assets (force download fun0.jpg + fun0.wav + show instructions) -----
-  function showFunAssetsModal() {
-    return new Promise((resolve) => {
-      const videoPath = '/assets/pinterestImages/fun0.mp4';
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = `
-        <div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
-          <div style="width:min(680px,calc(100% - 48px));max-height:85vh;overflow:auto;border-radius:12px;background:#0f0f10;padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);color:#fff">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <strong style="font-size:1.05rem">Fun post assets</strong>
-              <button id="sd-fun-close" aria-label="Close" style="background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer">✕</button>
-            </div>
-            <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
-              <video
-                src="${videoPath}"
-                style="width:180px;height:120px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,0.04);background:#000"
-                controls
-                preload="metadata"
-                playsinline
-                aria-label="Preview video combining fun image and sound">
-                Your browser does not support the video element.
-              </video>
-
-              <div style="flex:1">
-                <div style="font-weight:700;margin-bottom:6px">Required files</div>
-                <div style="color:var(--muted);margin-bottom:8px">Please download the video to the right, then ${(provider==='reddit')?'upload it in the video upload area when creating the Reddit post.':'attach it when creating the email.'}</div>
-                <div style="color:var(--muted);font-size:.92rem">After downloading, click <strong>Proceed to composer</strong>. ${(provider==='reddit')?'When Reddit composer opens, upload the video, then paste the text in the box below.':'When the gmail popup opens, attach the video.'}</div>
-              </div>
-            </div>
-
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
-              <button id="sd-fun-download-img" type="button">Download video</button>
-              <button id="sd-fun-proceed" type="button" style="padding:.45rem .8rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#fff;cursor:pointer">Proceed to composer</button>
-              <button id="sd-fun-cancel" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;cursor:pointer">Cancel</button>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(wrapper);
-      const root = wrapper.firstElementChild;
-      const cleanup = () => { try { wrapper.remove(); } catch(e){} };
-
-      // download helper
-      const tryDownload = async (path) => {
-        try {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = path;
-          a.download = path.split('/').pop();
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(()=>{ try { a.remove(); } catch(e){} }, 80);
-          socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = 'Download started.';
-        } catch (err) {
-          console.error('download error', err);
-          socialStatus.style.color = '#ffb4b4';
-          socialStatus.textContent = 'Download failed. Try right-click -> Save link as...';
-        }
-      };
-
-      root.addEventListener('click', (e) => {
-        if (e.target.id === 'sd-fun-close' || e.target.id === 'sd-fun-cancel' || e.target === root) { cleanup(); resolve(false); return; }
-        if (e.target.id === 'sd-fun-download-img') { tryDownload(videoPath); return; }
-        if (e.target.id === 'sd-fun-proceed') { cleanup(); resolve(true); return; }
-      });
-
-      document.addEventListener('keydown', function onKey(ev) {
-        if (ev.key === 'Escape') { document.removeEventListener('keydown', onKey); cleanup(); resolve(false); }
-      }, { once: true });
-
-    });
-  }
-
-  if (provider === 'X') {
-    socialStatus.textContent = `Preparing ${provider} image suggestions...`;
-    try {
-      const images = gatherCandidateImages();
-      const proceedToPost = await showImageDownloadModal(images, {
-        title: `Choose an image for your post (optional)`,
-        note: 'Please use one of these images in your post (or use your own picture of SpectroDraw). Click an image to download it.'
-      });
-
-      if (proceedToPost === null || proceedToPost === false) {
-        socialStatus.textContent = `${provider[0].toUpperCase() + provider.slice(1)} share canceled.`;
-        return;
-      }
-
-      socialStatus.textContent = `Opening ${provider} composer...`;
-      const suggestedText = shortPost;
-      const url = shareIntentUrl(provider, shareLinkInput, suggestedText, '', document.title);
-
-      if (!url) {
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = `${provider} sharing not supported here.`;
-        return;
-      }
-
-      const popup = openPopup(url, `Share to ${provider}`, 850, 650);
-      if (!popup) {
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Popup blocked. Allow popups for this site and try again.';
-        return;
-      }
-
-      try {
-        // await detection directly
-        const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
-        if (posted) {
-          socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Verified: post detected on ${provider}. Unlocking...`;
-          markShared();
-        } else {
-          progress.shareTentative = true;
-          saveStateForCurrentUser();
-          socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
-          render();
-        }
-      } catch (err) {
-        console.error('detectPopupPost error', err);
-        progress.shareTentative = true;
-        saveStateForCurrentUser();
-        socialStatus.style.color = '#b7ffd6';
-        socialStatus.textContent = `Popup closed. If you completed a share on ${provider}, click "I shared! Verify" or click Next.`;
-        render();
-      }
-
-    } catch (err) {
-      console.error('Facebook/X helper error', err);
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Unable to prepare share helper.';
-    }
-    return;
-  }
-});
-
-/* ---------- Helper: gather candidate images ---------- */
-function gatherCandidateImages(){
-  const imgs=['Sound effect creation', 'Eraser', 'Image overlay', '2-color spectrogram', 'Align pitch and time', 'Amplifier', 'Brush', 'Blur', 'Equalizer'];
-  return imgs.map(f=>({src:`/assets/pinterestImages/${f}.jpg`,label:f,isLocal:false}));
-}
-function isDataUrl(url){
-  return typeof url === 'string' && url.startsWith('data:');
-}
-function showTextCopyModal(opts = {}) {
-  const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
-  return new Promise((resolve) => {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `
-      <div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
-        <div style="width:min(760px,calc(100% - 48px));max-height:85vh;overflow:auto;border-radius:12px;background:#0e0e0f;padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);color:#fff">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <strong style="font-size:1.05rem">${esc(opts.title || 'Copy text')}</strong>
-            <button id="sd-text-close" aria-label="Close" style="background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer">✕</button>
-          </div>
-          <div style="margin-bottom:12px">
-            <textarea id="sd-textarea" readonly style="width:100%;height:160px;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:#0b0b0c;color:#eaeaea;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:0.95rem">${esc(opts.text || '')}</textarea>
-          </div>
-          <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button id="sd-copy-btn" type="button" style="padding:.45rem .8rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#fff;cursor:pointer">Copy to clipboard</button>
-            <button id="sd-proceed-btn" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff;cursor:pointer">Proceed</button>
-            <button id="sd-cancel-btn" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;cursor:pointer">Cancel</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(wrapper);
-
-    const root = wrapper.firstElementChild;
-    const cleanup = () => { try { wrapper.remove(); } catch(e){} };
-
-    root.addEventListener('click', (e) => {
-      if (e.target.id === 'sd-text-close' || e.target.id === 'sd-cancel-btn' || e.target === root) {
-        cleanup();
-        resolve(false);
-      }
-    });
-
-    document.getElementById('sd-copy-btn').addEventListener('click', async () => {
-      const txt = document.getElementById('sd-textarea').value;
-      try {
-        await navigator.clipboard.writeText(txt);
-        socialStatus.style.color = '#b7ffd6';
-        socialStatus.textContent = 'Copied text to clipboard.';
-      } catch (err) {
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Unable to copy automatically. Please highlight and copy manually.';
-        // still allow proceed
-      }
-    });
-
-    document.getElementById('sd-proceed-btn').addEventListener('click', () => {
-      resolve(true);
-    });
-
-    document.addEventListener('keydown', function onKey(e) {
-      if (e.key === 'Escape') {
-        document.removeEventListener('keydown', onKey);
-        cleanup();
-        resolve(false);
-      }
-    }, { once: true });
-
-    // focus textarea so user can manually select if needed
-    setTimeout(()=> {
-      const ta = document.getElementById('sd-textarea');
-      if (ta) ta.select();
-    }, 30);
-  });
-}
-
-/* ---------- Helper: showImageDownloadModal(images, opts) ---------- */
-/* images: array of { src, label } -> resolves true if user clicked proceed, false if canceled, or null if closed */
-function showImageDownloadModal(images = [], opts = {}) {
-  const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
-  return new Promise((resolve) => {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `
-      <div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
-        <div style="width:min(920px,calc(100% - 48px));max-height:85vh;overflow:auto;border-radius:12px;background:#0f0f10;padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);color:#fff">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <strong style="font-size:1.05rem">${esc(opts.title || 'Images')}</strong>
-            <button id="sd-img-close" aria-label="Close" style="background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer">✕</button>
-          </div>
-          ${opts.note ? `<div style="color:var(--muted);margin-bottom:12px">${esc(opts.note)}</div>` : ''}
-          <div id="sd-img-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
-            ${images.map((img, idx) => `
-              <div class="sd-img-card" data-idx="${idx}" tabindex="0" style="position:relative;cursor:pointer;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.04);background:#0b0b0c">
-                <div class="sd-img-thumb" style="width:100%;height:110px;background-size:cover;background-position:center;background-image:url('${esc(img.src || '')}');"></div>
-                <div style="padding:8px;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(img.label || ('Image ' + (idx+1)))}</div>
-                <!-- overlay (hidden by default, shown on hover via JS) -->
-                <div class="sd-img-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);opacity:0;transition:opacity .12s">
-                  <div style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-weight:600">Download</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-            <div style="color:var(--muted);font-size:.9rem">Click images to download them. Hover to reveal download overlay.</div>
-            <div style="display:flex;gap:8px">
-              <button id="sd-img-cancel" type="button" style="padding:.45rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;cursor:pointer">Cancel</button>
-              <button id="sd-img-proceed" type="button" style="padding:.45rem .8rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#fff;cursor:pointer">Proceed to post</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(wrapper);
-
-    const root = wrapper.firstElementChild;
-    const cleanup = () => { try { wrapper.remove(); } catch (e) {} };
-
-    // bind hover overlay via event delegation
-    root.addEventListener('mouseover', (e) => {
-      const card = e.target.closest && e.target.closest('.sd-img-card');
-      if (card && root.contains(card)) {
-        const overlay = card.querySelector('.sd-img-overlay');
-        if (overlay) overlay.style.opacity = '1';
-      }
-    });
-    root.addEventListener('mouseout', (e) => {
-      const card = e.target.closest && e.target.closest('.sd-img-card');
-      if (card && root.contains(card)) {
-        const overlay = card.querySelector('.sd-img-overlay');
-        if (overlay) overlay.style.opacity = '0';
-      }
-    });
-
-    // click to download
-    root.addEventListener('click', async (e) => {
-      const card = e.target.closest && e.target.closest('.sd-img-card');
-      if (card && root.contains(card)) {
-        const idx = parseInt(card.getAttribute('data-idx'), 10);
-        const img = images[idx] || {};
-        if (!img || !img.src) return;
-
-        try {
-          // Attempt a simple anchor download first (works if same-origin or CORS allows)
-          const filename = (img.label && img.label.replace(/[^\w.-]+/g, '_')) || img.src.split('/').pop() || `image-${Date.now()}.jpg`;
-
-          // If src is data: URL or same-origin, anchor download will work
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = img.src;
-          a.download = filename;
-          document.body.appendChild(a);
-
-          // If it's cross-origin and the server doesn't set CORS, browser may navigate instead of downloading.
-          // So attempt fetch+blob as fallback.
-          let usedFetch = false;
-          try {
-            a.click();
-            // remove afterwards
-            setTimeout(()=>{ try { a.remove(); } catch(e){} }, 50);
-          } catch (err) {
-            // fallback to fetch
-            usedFetch = true;
-          }
-
-          if (!usedFetch) {
-            // We attempted anchor click; but to be more robust, also attempt fetch if anchor didn't start a download.
-            // We'll try fetch if the link appears to be cross-origin (contains // and not same origin).
-            const sameOrigin = (() => {
-              try {
-                const u = new URL(img.src, window.location.href);
-                return u.origin === window.location.origin;
-              } catch(e){ return false; }
-            })();
-            if (!sameOrigin) {
-              // try fetch+blob
-              usedFetch = true;
-            }
-          }
-
-          if (usedFetch) {
-            const res = await fetch(img.src, { mode: 'cors' });
-            if (!res.ok) throw new Error('Failed to fetch image for download');
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a2 = document.createElement('a');
-            a2.style.display = 'none';
-            a2.href = blobUrl;
-            a2.download = filename;
-            document.body.appendChild(a2);
-            a2.click();
-            setTimeout(()=> {
-              try { a2.remove(); URL.revokeObjectURL(blobUrl); } catch(e){}
-            }, 3000);
-          }
-
-          socialStatus.style.color = '#b7ffd6';
-          socialStatus.textContent = 'Image download started.';
-        } catch (err) {
-          console.error('Download error', err);
-          socialStatus.style.color = '#ffb4b4';
-          socialStatus.textContent = 'Download failed. Try right-click -> Save image as...';
-        }
-
-        return;
-      }
-
-      // close / cancel / click backdrop
-      if (e.target.id === 'sd-img-close' || e.target.id === 'sd-img-cancel' || (e.target === root)) {
-        cleanup();
-        resolve(false);
-        return;
-      }
-
-      if (e.target.id === 'sd-img-proceed') {
-        cleanup();
-        resolve(true);
-        return;
-      }
-    });
-
-    document.addEventListener('keydown', function onKey(e) {
-      if (e.key === 'Escape') {
-        document.removeEventListener('keydown', onKey);
-        cleanup();
-        resolve(null);
-      }
-    }, { once: true });
-
-    // focus first image for keyboard users
-    setTimeout(()=> {
-      const first = root.querySelector('.sd-img-card');
-      if (first) first.focus();
-    }, 40);
-  });
-}
-function showImagePickerModal(images, opts = {}) {
-  const esc = (s='') => String(s).replace(/[&<>"'`]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[c]));
-  return new Promise((resolve) => {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `
-      <div id="sd-picker-overlay" role="dialog" aria-modal="true"
-           style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
-                  background:rgba(3,6,12,0.6);backdrop-filter:blur(4px);padding:24px;">
-        <div id="sd-picker-box" style="width:min(580px,calc(100% - 48px));max-height:85vh;overflow:auto;
-                 border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-                 padding:18px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);background:#111">
-          <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="display:flex;gap:12px;align-items:center">
-              <button id="sd-picker-upload" type="button" style="padding:.4rem .6rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#fff;cursor:pointer">Upload an image</button>
-              <div style="color:var(--muted)">or choose an image to pin...</div>
-            </div>
-            <button id="sd-picker-close" aria-label="Close" style="background:transparent;border:0;cursor:pointer;font-size:20px">✕</button>
-          </div>
-          ${opts.note ? `<div style="color:var(--muted);margin-bottom:12px">${esc(opts.note)}</div>` : ''}
-          <div id="sd-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
-            ${images.map((img, idx) => `
-              <button class="sd-picker-card" data-idx="${idx}" type="button"
-                      style="cursor:pointer;border:1px solid rgba(255,255,255,0.04);border-radius:10px;padding:8px;
-                             background:transparent;text-align:left;display:flex;flex-direction:column;gap:8px;align-items:stretch">
-                <div style="width:100%;height:100px;border-radius:8px;background-size:cover;background-position:center;
-                            background-image:url('${esc(img.src || '')}')"></div>
-                <div style="font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(img.src || '')}">
-                  ${esc(img.label || ('Image ' + (idx+1)))}
-                </div>
-              </button>
-            `).join('')}
-          </div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-            <p>Note: Please click "See it now" to verify your post.</p>
-            <button id="sd-picker-cancel" type="button" style="background:transparent;border:1px solid rgba(255,255,255,0.04);
-                    padding:.45rem .8rem;border-radius:8px;cursor:pointer">Cancel</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(wrapper);
-
-    const root = wrapper.firstElementChild;
-    if (!root) { wrapper.remove(); resolve(null); return; }
-
-    let fileChangeHandler = null;
-
-    const cleanup = () => {
-      try { root.removeEventListener('click', onClick); } catch(e){}
-      try { document.removeEventListener('keydown', onKey); } catch(e){}
-      try { wrapper.remove(); } catch(e){}
-      try { const inp = document.getElementById('review-image'); if (inp && fileChangeHandler) inp.removeEventListener('change', fileChangeHandler); } catch(e){}
-    };
-
-    const makeSiteBase = (siteOpt) => {
-      if (!siteOpt) return window.location.protocol + '//' + window.location.host;
-      if (/^https?:\/\//i.test(siteOpt)) return siteOpt.replace(/\/$/, '');
-      return 'https://' + siteOpt.replace(/\/$/, '');
-    };
-    const siteBase = makeSiteBase(opts.site);
-
-    const onClick = (e) => {
-      const card = e.target.closest && e.target.closest('.sd-picker-card');
-      if (card && root.contains(card)) {
-        const idx = parseInt(card.getAttribute('data-idx'), 10);
-        const img = images[idx] || {};
-
-        let sourceName = img.source || img.label || '';
-        if (!sourceName && img.src) {
-          sourceName = img.src.split('/').pop();
-        }
-        if (!sourceName) sourceName = 'Image ' + (idx + 1);
-
-        let resolved = Object.assign({}, img);
-        if (typeof img.src === 'string' && !/^https?:\/\//i.test(img.src)) {
-          resolved.uploadUrl = `${siteBase}/assets/pinterestImages/${encodeURIComponent(sourceName)}.jpg`;
-        } else {
-          resolved.uploadUrl = img.uploadUrl || img.src || '';
-        }
-
-        cleanup();
-        resolve(resolved);
-        return;
-      }
-
-      // close / cancel / click backdrop
-      if (e.target.id === 'sd-picker-close' || e.target.id === 'sd-picker-cancel' || (e.target === root)) {
-        cleanup();
-        resolve(null);
-        return;
-      }
-
-      // at top of function, after computing siteBase you can set default upload endpoint:
-      const uploadEndpoint = opts.uploadEndpoint || 'https://api.spectrodraw.com/upload';
-
-      // inside onClick, replace the sd-picker-upload branch with this:
-      if (e.target.id === 'sd-picker-upload') {
-        const inp = document.getElementById('review-image');
-        if (!inp) { alert('Upload input not found'); return; }
-
-        fileChangeHandler = async function () {
-          if (!(inp.files && inp.files[0])) return;
-          const f = inp.files[0];
-
-          try {
-            // Build form and POST to the worker at api.spectrodraw.com
-            const fd = new FormData();
-            fd.append('file', f, f.name);
-
-            // optional: add metadata if your worker expects it
-            // fd.append('originalName', f.name);
-
-            const res = await fetch(uploadEndpoint, {
-              method: 'POST',
-              body: fd,
-              // don't set content-type; browser will set multipart boundary
-            });
-
-            if (!res.ok) {
-              const text = await res.text().catch(()=>null);
-              throw new Error('Upload failed: ' + (text || res.status));
-            }
-
-            const j = await res.json();
-            if (!j || !j.url) throw new Error('Upload response missing "url"');
-
-            const publicUrl = j.url; // should be an HTTPS, public CDN url
-
-            // return resolved object with src and uploadUrl set to the public CDN url
-            cleanup();
-            resolve({
-              src: publicUrl,
-              label: f.name || 'Local upload',
-              isLocal: true,
-              uploadUrl: publicUrl
-            });
-            return;
-          } catch (err) {
-            console.error('Upload error', err);
-            alert('Upload failed: ' + (err.message || err));
-            // leave modal open so user can retry
-          }
-        };
-
-        inp.addEventListener('change', fileChangeHandler, { once: true });
-        inp.click();
-        return;
-      }
-
-    };
-
-    const onKey = (e) => {
-      if (e.key === 'Escape') { cleanup(); resolve(null); }
-      if (e.key === 'Enter') {
-        const active = document.activeElement;
-        if (active && active.classList && active.classList.contains('sd-picker-card')) {
-          const idx = parseInt(active.getAttribute('data-idx'), 10);
-          const img = images[idx] || {};
-          cleanup();
-          resolve(img);
-        }
-      }
-    };
-
-    root.addEventListener('click', onClick);
-    document.addEventListener('keydown', onKey);
-
-    setTimeout(()=> {
-      const first = root.querySelector('.sd-picker-card');
-      if (first) first.focus();
-    }, 50);
-  });
-}
-// Call: const posted = await detectPopupPost(popup, provider/*, { timeout: 30000 }*/);
-// If posted === true -> treat as verified share; if false -> treat as tentative/failed.
-
-function detectPopupPost(popup, provider, opts = {}) {
-  const { timeout = 30000, pollInterval = 500 } = opts;
-
-  // Determine the "input" URL to compare against (the original intent URL)
-  const inputUrl = shareIntentUrl(provider, shareLinkInput, postText, mediaLink, document.title);
-  console.log(inputUrl);
-
-  return new Promise((resolve) => {
-    if (!popup) {
-      console.debug('detectPopupPost: no popup provided -> fail');
-      resolve(false);
-      return;
-    }
-
-    let seenDifferent = false;
-    let finished = false;
-    let timer = null;
-
-    if (!inputUrl) {
-      console.warn('detectPopupPost: no input intentUrl and could not build one; will return false on close or timeout.');
-    }
-
-    // 👇 Wait 2 seconds before starting to poll
-    setTimeout(() => {
-      console.debug('detectPopupPost: starting polling after 2s delay');
-
-      timer = setInterval(() => {
-        try {
-          // 1) Detect if URL has changed (cross-origin safe)
-          if (inputUrl) {
-            try {
-              const href = popup.location && popup.location.href;
-              if (href && href !== inputUrl) {
-                console.debug('detectPopupPost: observed href change:', href, 'vs', inputUrl);
-                seenDifferent = true;
-                // mark popup as closed/finished for manual-verify
-                try {
-                  window.sdLastSharePopupClosedAt = Date.now();
-                  window.sdLastSharePopupClosed = true;
-                } catch(e){}
-                stop();
-                resolve(true);
-                return;
-              }
-            } catch (e) {
-              // Cross-origin access, keep polling
-            }
-          }
-
-          // 2) If popup closed
-          if (popup.closed) {
-            console.debug('detectPopupPost: popup.closed detected. seenDifferent=', seenDifferent);
-            // record closed timestamp/flag but keep the reference (so manual-verify can observe an opened+closed event)
-            try {
-              window.sdLastSharePopupClosedAt = Date.now();
-              window.sdLastSharePopupClosed = true;
-            } catch(e){}
-            stop();
-            resolve(Boolean(seenDifferent));
-            return;
-          }
-
-        } catch (err) {
-          console.error('detectPopupPost: unexpected error', err);
-          stop();
-          resolve(false);
-        }
-      }, pollInterval);
-
-    }, 2000); // <-- delay before polling starts
-  });
-}
-
-  manualVerifyBtn.addEventListener('click', () => {
-    socialStatus.style.color = '#b7ffd6';
-    socialStatus.textContent = 'Checking for a share popup...';
-
-    const popup = (typeof window !== 'undefined') ? window.sdLastSharePopup : null;
-    const openedAt = (typeof window !== 'undefined') ? window.sdLastSharePopupOpenedAt : null;
-    const closedAt = (typeof window !== 'undefined') ? window.sdLastSharePopupClosedAt : null;
-
-    // No evidence a popup was opened
-    if (!openedAt && !popup) {
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'No share popup detected. Please click a social button to open the share window first.';
-      return;
-    }
-
-    // If popup exists and is still open, instruct the user
-    try {
-      if (popup && !popup.closed) {
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Share popup is still open. Please complete the share and close the popup, then click "I shared! Verify".';
-        return;
-      }
-    } catch (err) {
-      // ignore; fallback to timestamps below
-    }
-
-    // If we have a closed timestamp OR the popup object reports closed, accept it as "opened then closed"
-    if (closedAt || (popup && popup.closed)) {
-      try {
-        // clear recorded state to avoid accidental re-verification
-        try {
-          window.sdLastSharePopup = null;
-          window.sdLastSharePopupOpenedAt = null;
-          window.sdLastSharePopupClosedAt = null;
-          window.sdLastSharePopupClosed = false;
-        } catch(e){}
-
-        socialStatus.style.color = '#b7ffd6';
-        socialStatus.textContent = 'Popup closed. Verifying share...';
-        markShared();
-        return;
-      } catch (err) {
-        console.error('manual verify error', err);
-        socialStatus.style.color = '#ffb4b4';
-        socialStatus.textContent = 'Unable to verify share automatically. Please confirm manually.';
-        return;
-      }
-    }
-
-    // otherwise, we couldn't confirm a closed popup yet
-    socialStatus.style.color = '#ffb4b4';
-    socialStatus.textContent = 'No closed share popup detected. Please open the share window and close it, then click "I shared! Verify".';
-  });
-
-
-  function markShared(){
-    // user-verified share
-    progress.shareSent = true;
-    progress.shareTentative = false;
-    saveStateForCurrentUser();
-    render();
-    // hide the share UI after short delay
-    setTimeout(()=>{ shareSection.style.display = 'none'; reviewSection.style.display = 'none'; }, 450);
-  }
-  function setClaimedUI() {
-    try {
-      if (claimSection) {
-        claimSection.innerHTML = `
-          <div style="padding:18px;text-align:center;">
-            <h3 style="margin:0 0 12px 0">Thanks for getting SpectroDraw Pro!</h3>
-            <div>
-              <button id="view-products" class="btn-primary"><span>View My Products</span></button>
-              <button id="launch-app" class="btn-primary"><span>Launch App</span></button>
-            </div>
-          </div>
-        `;
-        // make sure claim section is visible and other sections are hidden
-        claimSection.style.display = 'block';
-        if (shareSection) shareSection.style.display = 'none';
-        if (reviewSection) reviewSection.style.display = 'none';
-
-        // wire up the new buttons
-        const vp = document.getElementById('view-products');
-        if (vp) vp.addEventListener('click', () => { window.location.href = '/products'; });
-
-        const la = document.getElementById('launch-app');
-        if (la) la.addEventListener('click', () => { window.location.href = '/app'; });
-      }
-    } catch (e) {
-      console.warn('Could not update claim section UI', e);
-    }
-  }
-  async function performClaim(){
-    if(!progress.loggedIn) { alert('Please sign in before claiming.'); return; }
-    claimBtn.disabled = true;
-    claimBtn.textContent = 'Claiming...';
-    try{
-      const stored = (() => {
-        try { return localStorage.getItem('spectrodraw_user'); } catch (e) { return null; }
-      })();
-      const res = await fetch('https://api.spectrodraw.com/api/claim', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          proof: {
-            reviewSubmitted: progress.reviewSubmitted,
-            shareSent: progress.shareSent,
-            inviteEmails: progress.inviteEmails.slice(-3)
-          },
-          user: stored
-        })
-      });
-      if(!res.ok){
-        const j = await res.json().catch(()=>({message:'Unable to claim'}));
-        throw new Error(j.message || 'Unable to claim');
-      }
-      const j = await res.json();
-      if (j.claimed) {
-        progress.claimed = true;
-        saveStateForCurrentUser();
-        setClaimedUI();
-        try {
-          setNodeVisual(node3, true);
-          connector1Fill.style.width = '100%';
-          connector2Fill.style.width = '100%';
-          progressPercentEl.textContent = '100%';
-        } catch (e) {}
-        try {
-          claimBtn.textContent = 'Claimed ✓';
-          claimBtn.disabled = true;
-          claimBtn.style.cursor = 'default';
-        } catch (e) {}
-
-      } else {
-        throw new Error(j.message || 'Server denied claim');
-      }
-    }catch(err){
-      alert('Claim failed: ' + err.message + '. Make sure you are signed in and completed the required steps.');
-      claimBtn.disabled = false;
-      claimBtn.textContent = 'Claim SpectroDraw Pro';
-    }
-  }
-
-  claimBtn.addEventListener('click', async ()=>{
-    if(claimBtn.disabled) return;
-    if(progress.reviewSubmitted && !progress.shareSent){
-      shareSection.style.display = 'block';
-      reviewSection.style.display = 'none';
-      shareSection.scrollIntoView({ behavior:'smooth', block:'center' });
-      return;
-    }
-
-    if(progress.shareSent && progress.loggedIn && !progress.claimed){
-      await performClaim();
-    }
-  });
-
-  async function gotoStep(n){
-    console.log('gotostep', n);
-    if(n === 1){
-      reviewSection.style.display = '';
-      shareSection.style.display = 'none';
-      claimSection.style.display = 'none';
-      reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    if(n === 2) {
-      if(!progress.reviewSubmitted){
-        console.log('2014');
-        reviewSection.style.display = '';
-        shareSection.style.display = 'none';
-        reviewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        claimSection.style.display = 'none';
-        return;
-      }
-      shareSection.style.display = 'block'; console.log('2020');
-      reviewSection.style.display = 'none';
-      claimSection.style.display = 'none';
-
-      shareSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    if(n === 3){
-      claimSection.style.display = 'block';
-      reviewSection.style.display = 'none';
-      shareSection.style.display = 'none';
-    }
-  }
-
-  [node1, node2, node3].forEach((node, idx)=>{
-    if(!node) return;
-    const step = idx + 1;
-    node.style.cursor = 'pointer';
-    node.addEventListener('click', ()=> gotoStep(step));
-  });
-
-  currentUserId = getCurrentUserId();
-  loadStateForCurrentUser();
-  checkAuth();
-  render();
-  async function checkClaimedOnServer() {
-    try {
-      const email = getCurrentUserEmail();
-      if (!email) return;
-
-      const stored = (() => {
-        try { return localStorage.getItem('spectrodraw_user'); }
-        catch (e) { return null; }
-      })();
-
-      const headers = { 'Accept': 'application/json' };
-      if (stored) headers['X-Spectrodraw-User'] = stored;
-
-      const res = await fetch('https://api.spectrodraw.com/api/products', {
-        method: 'GET',
-        credentials: 'include',
-        headers
-      });
-
-      if (!res.ok) return;
-
-      const j = await res.json().catch(() => null);
-      if (!j || !Array.isArray(j.products)) return;
-
-      // ✅ check if current email is in the claims list
-      const found = j.products.some(entry =>
-        entry && typeof entry.email === 'string' &&
-        entry.email.toLowerCase() === email.toLowerCase() && entry.product === "SpectroDraw Pro"
-      );
-
-      if (found) {
-        progress.claimed = true;
-        saveStateForCurrentUser();
-
-        if (typeof setClaimedUI === 'function') {
-          try { setClaimedUI(); } catch (e) { console.warn('setClaimedUI failed', e); }
-        }
-        try { gotoStep(3); } catch (e) { console.log(e);/* ignore */ }
-        //render();
-      }
-
-    } catch (err) {
-      console.warn('checkClaimedOnServer error', err);
-    }
-  }
-  (async () => {
-    try {
-      await checkClaimedOnServer();
-    } catch (e) {
-      console.warn('Initial server claim check failed', e);
-    }
-  })();
-
-  // debug hooks
-  window.sdEarlyAccess = {
-    getState: ()=>progress,
-    setLoggedIn: (v)=>{ progress.loggedIn = !!v; saveStateForCurrentUser(); render(); },
-    forceReloadState: ()=>{ loadStateForCurrentUser(); render(); }
-  };
-
-  /* ---------- server-session helper + enhanced storage listener ---------- */
-
-  async function createServerSession(user) {
-    if (!user || !user.email) return;
-    try {
-      const res = await fetch('https://api.spectrodraw.com/auth/session', {
-        method: 'POST',
-        credentials: 'include',            // IMPORTANT: accept Set-Cookie
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, username: user.name || user.username || user.email })
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(()=>({message:'failed'}));
-        console.warn('createServerSession failed', j);
-        return false;
-      }
-      // server should have set cookie; update local state and re-check auth
-      console.log('createServerSession succeeded for', user.email);
-      checkAuth();
-      return true;
-    } catch (err) {
-      console.error('createServerSession error', err);
-      return false;
-    }
-  }
-
-  async function clearServerSession() {
-    try {
-      await fetch('https://api.spectrodraw.com/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      console.log('clearServerSession: logout requested');
-    } catch (e) {
-      console.warn('clearServerSession error', e);
-    } finally {
-      checkAuth();
-    }
-  }
-
-  // watch for spectrodraw_user changes (accounts.js or popup will write this)
-  // Replace your existing "message" handler with this:
-  // Replace your existing "message" handler with this:
-window.addEventListener('message', async (ev) => {
-  try {
-    if (!ev.data || ev.data.type !== 'oauth-success') return;
-    const payload = ev.data;
-    const user = payload.user || null;
-    const provider = payload.provider || payload.providerName || 'oauth';
-    const returnTo = payload.returnTo || payload.returnToUrl || null;
-
-    if (!user || !user.email) {
-      console.warn('oauth-success message missing user/email', payload);
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Sign-in returned no user info. Try again.';
-      return;
-    }
-
-    // 1) Persist a small client-side marker (so client UI can show logged-in immediately)
-    const localUser = { email: user.email, name: user.name || user.username || user.email, provider };
-    try {
-      localStorage.setItem('spectrodraw_user', JSON.stringify(localUser));
-    } catch (e) {
-      console.warn('localStorage set failed', e);
-    }
-
-    // 2) Ask your auth worker to create a server-side session (this sets the session cookie)
-    // NOTE: adjust the URL to match your auth host if different
-    const authUrl = 'https://auth.spectrodraw.com/auth/session';
-    socialStatus.textContent = 'Finalizing sign-in...';
-
-    const createSessionResp = await fetch(authUrl, {
-      method: 'POST',
-      credentials: 'include',           // crucial: let browser receive Set-Cookie
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: user.email, username: user.name || user.email })
-    });
-
-    if (!createSessionResp.ok) {
-      const txt = await createSessionResp.text().catch(()=>'<no-body>');
-      console.warn('auth session create failed', createSessionResp.status, txt);
-      socialStatus.style.color = '#ffb4b4';
-      socialStatus.textContent = 'Sign-in succeeded but creating site session failed. Try again.';
-      return;
-    }
-
-    // 3) Success: notify UI & global hooks that user is logged in
-    socialStatus.style.color = '#b7ffd6';
-    socialStatus.textContent = `Signed in as ${user.email}`;
-
-    // If you have a global hook to refresh auth state, call it
-    if (typeof window.sdAuthChanged === 'function') {
-      try { window.sdAuthChanged(); } catch(e){ /* ignore */ }
-    }
-    if (window.sdEarlyAccess && typeof window.sdEarlyAccess.setLoggedIn === 'function') {
-      try { window.sdEarlyAccess.setLoggedIn(true); } catch(e){ /* ignore */ }
-    }
-
-    // if page that opened the popup requested a returnTo, navigate there
-    if (returnTo) {
-      // returnTo may have been encoded by the oauth worker
-      try { window.location.href = returnTo; } catch (e) { /* ignore */ }
-    }
-
-  } catch (err) {
-    console.error('oauth message handler error', err);
-    socialStatus.style.color = '#ffb4b4';
-    socialStatus.textContent = 'Sign-in error. Try again.';
-  }
-});
-
-})();
-</script>
 
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
@@ -2192,27 +359,143 @@ window.addEventListener('message', async (ev) => {
   </footer>
 
   <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
-  </script>
-  
-  <script>
-    const targetDate = new Date("March 20, 2026 00:00:00").getTime();
-    const content = document.getElementById("countdown");
-    function updateCountdown() {
-      const now = Date.now();
-      let diff = targetDate - now;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      diff %= 1000 * 60 * 60 * 24;
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      diff %= 1000 * 60 * 60;
-      const minutes = Math.floor(diff / (1000 * 60));
-      diff %= 1000 * 60;
-      const seconds = Math.floor(diff / 1000);
-      content.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  document.getElementById('signin-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signin-link').click(); });
+  document.getElementById('signup-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signup-link').click(); });
+  function safeParseJSON(value) {
+    try { return JSON.parse(value); } catch { return null; }
+  }
+
+  function getCurrentUserEmail() {
+    const raw = localStorage.getItem('spectrodraw_user');
+    if (!raw) return null;
+    const parsed = safeParseJSON(raw);
+    return parsed?.email || null;
+  }
+
+  function setCookie(name, value, days) {
+    document.cookie =
+      name + "=" + encodeURIComponent(value) +
+      ";path=/;max-age=" + (days * 86400) +
+      ";SameSite=Lax";
+  }
+
+  function getCookie(name) {
+    const parts = document.cookie.split('; ');
+    const match = parts.find(r => r.startsWith(name + "="));
+    return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : null;
+  }
+
+  function finishCookie(email) {
+    return "finish_" + encodeURIComponent(String(email).trim().toLowerCase());
+  }
+
+  function showFinishPage() {
+    const finish = document.getElementById("finish-page");
+    if (finish) finish.style.display = "flex";
+
+    const email = getCurrentUserEmail();
+    const el = document.getElementById("finish-email-text");
+
+    if (el) {
+      if (email) {
+        el.textContent = `You're logged in as ${email}. This account already owns SpectroDraw Pro.`;
+      } else {
+        el.textContent = `This account already owns SpectroDraw Pro.`;
+      }
     }
-    updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
-  </script>
+  }
+
+  async function checkUserPurchase(email) {
+    if (!email) return false;
+
+    try {
+      const res = await fetch('https://api.spectrodraw.com/api/products', {
+        credentials: 'include'
+      });
+
+      if (!res.ok) return false;
+
+      const j = await res.json();
+      const products = Array.isArray(j.products) ? j.products : [];
+
+      return products.some(p =>
+        String(p?.email || '').trim().toLowerCase() === email.trim().toLowerCase()
+      );
+    } catch (err) {
+      console.warn("Purchase check failed:", err);
+      return false;
+    }
+  }
+
+  async function autoRedirectIfAlreadyPro() {
+    const email = getCurrentUserEmail();
+    if (!email) return;
+
+    const cookieName = finishCookie(email);
+
+    if (getCookie(cookieName) === "1") {
+      showFinishPage();
+      return;
+    }
+
+    const alreadyPurchased = await checkUserPurchase(email);
+    if (alreadyPurchased) {
+      setCookie(cookieName, "1", 365);
+      showFinishPage();
+    }
+  }
+
+  // Load the GUI first, then check purchase state so the page never appears blank.
+  window.addEventListener('DOMContentLoaded', () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(autoRedirectIfAlreadyPro);
+    });
+  });
+
+  const s = safeParseJSON(localStorage.getItem('spectrodraw_user'));
+  const checkoutBtn = document.getElementById("continuetocheckout");
+  if (!s) {
+    checkoutBtn.classList.add("disabled");
+  }
+  const it = document.getElementById("infoText");
+  const rs = document.getElementById("requireSignin");
+
+  it.style.display = s ? "block" : "none";
+  rs.style.display = s ? "none" : "block";
+
+  if (s?.email) {
+    it.innerText = `You are purchasing SpectroDraw Pro for ${s.email}. This is a one time payment of $40.`;
+  }
+
+  document.getElementById("continuetocheckout").addEventListener("click", async () => {
+    if (!s) {
+      e.preventDefault();
+      return;
+    }
+    const email = getCurrentUserEmail();
+
+    if (email) {
+      if (getCookie(finishCookie(email)) === "1") {
+        showFinishPage();
+        return;
+      }
+
+      const alreadyPurchased = await checkUserPurchase(email);
+      if (alreadyPurchased) {
+        setCookie(finishCookie(email), "1", 365);
+        showFinishPage();
+        return;
+      }
+    }
+
+    const a = document.createElement("a");
+    a.href = "./checkout";
+    document.body.appendChild(a);
+    a.click();
+  });
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
   <script src="sneakpeek.js"></script>
 </body>
 </html>

@@ -11,7 +11,6 @@
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-
     gtag('config', 'G-FYGHLB1BCP');
   </script>
   <style>
@@ -23,16 +22,16 @@
       --accent1:#4f46e5;
       --accent2:#9333ea;
       --accent3:#ec4899;
-      --soft-border: rgba(255,255,255,0.04);
+      --soft-border: rgba(255,255,255,0.06);
       --card-glow: 0 6px 30px rgba(147,51,234,0.12);
-      --card-glow2: 0 0 30px rgba(255, 255, 255, 0.5);
+      --card-glow2: 0 0 30px rgba(255,255,255,0.25);
       --glass-2: rgba(255,255,255,0.02);
       --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
     }
 
     *{box-sizing:border-box}
     html,body{
-      height:100%;
+      min-height:100%;
       margin:0;
       background: radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
       color:var(--text);
@@ -41,6 +40,9 @@
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
     }
+
+    a{color:#cfe3ff;}
+    strong{color:#fff}
 
     nav{
       display:flex;
@@ -56,7 +58,7 @@
     }
     .nav-left{display:flex;align-items:center;gap:1rem}
     .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;font-size:1.05rem}
-    .nav-right{display:flex;gap:1rem;align-items:center}
+    .nav-right{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
     .nav-right a{
       font-weight:600;
       text-decoration:none;
@@ -70,165 +72,15 @@
       background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
       box-shadow:0 8px 30px rgba(79,70,229,0.12);
     }
+    .tagline{color:var(--muted);font-size:.95rem}
 
     header.hero{
       position:relative;
-      padding:56px 20px;
+      padding:40px 20px 24px;
       display:flex;
       justify-content:center;
-      align-items:center;
       overflow:hidden;
-    }
-    .hero-inner{
-      max-width:980px;
-      width:100%;
-      text-align:center;
-      padding:28px;
-      border-radius:14px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
-      box-shadow:var(--card-glow);
-      border:1px solid var(--glass-2);
-    }
-    .title{
-      font-size:2.5rem;
-      font-weight:800;
-      margin:6px 0 8px 0;
-      background:var(--cta-grad);
-      -webkit-background-clip:text;
-      background-clip:text;
-      -webkit-text-fill-color:transparent;
-      text-shadow:0 8px 30px rgba(147,51,234,0.08);
-    }
-
-    main{
-      padding:36px 20px;
-      max-width:1100px;
-      margin:0 auto 36px;
-    }
-    .wrap{max-width:980px;margin:18px auto;padding:24px;}
-    p{margin:12px 0;color:#d0d9e9}
-    strong{color:#fff}
-    .section{padding:18px 0;border-top:1px solid var(--soft-border);}
-    .section:first-of-type{border-top:0;padding-top:8px}
-
-    .fade-in{animation:fadeIn .7s ease both}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-    footer{
-      padding:2rem 1rem;
-      text-align:center;
-      color:var(--muted);
-      margin-top:2rem;
-      border-top:1px solid var(--soft-border);
-      font-size:.95rem
-    }
-    footer a{color:#cfe3ff;text-decoration:none}
-    footer a:hover{text-decoration:underline}
-    .star {font-size:28px;padding:none;margin-top:-5px;border:1px solid transparent;background:transparent;cursor:pointer;color:white;}
-    button:not(.star, .nav-btn, .primary, .btn-primary, .google, .link-btn, .modal-close, #claim-confirm){padding:.55rem .9rem;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;color:white;}
-    button:disabled{background:#555!important;color:#333;cursor:not-allowed;}
-    a{color:#cfe3ff;}
-    #claim-confirm:disabled{padding:.75rem 1.2rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:linear-gradient(180deg,#444,#333);color:#aaa;font-weight:800;cursor:not-allowed;box-shadow:none;transition:all .18s ease;}
-    #claim-confirm:enabled{padding:.75rem 1.2rem;border-radius:12px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#ffffff;font-weight:800;cursor:not-allowed;transition:all .18s ease;}
-    .node-circle {width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:rgba(255,255,255,0.02);border:none;}
-    .btn-primary {
-      font-size: 15px;
-  position: relative;
-  background: var(--cta-grad);
-  color: #fff;
-  border-radius: 999px;
-  padding: 1.2rem 2.6rem;
-  font-weight: 800;
-  cursor: pointer;
-  text-decoration: none;
-  border: none;
-  overflow: hidden;
-  transition: transform .4s ease, box-shadow .6s ease, background .4s ease;
-  box-shadow:
-    0 0 50px rgba(79,70,229,0.5),
-    0 0 70px rgba(147,51,234,0.45),
-    inset 0 0 50px rgba(147,51,234,0.3);
-}
-.btn-primary::before {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  background: rgba(7, 8, 11, 0.8);
-  border-radius: inherit;
-  z-index: 0;
-  backdrop-filter: blur(4px);
-  transition: background .5s ease, box-shadow .5s ease;
-}
-.btn-primary span {
-  position: relative;
-  z-index: 1;
-}
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 0 15px rgba(79,70,229,0.6),
-    0 0 25px rgba(147,51,234,0.7),
-    inset 0 0 60px rgba(147,51,234,0.8); 
-}
-.btn-primary:hover::before {
-  background: rgba(7, 8, 11, 0.3); 
-}
-#sneakPeekButton {
-  transition: transform 0.2s ease;
-}
-#sneakPeekButton:hover {
-  transform: scale(1.02);
-}
-@media (max-width: 900px) {
-  #countdown{
-    font-size: 40px !important;
-    height: 50px !important;
-  }
-  #image-area{
-    display:none;
-  }
-}
-#signin-cta,#signup-cta{color:#800;}
-#inlineSneak .loader-container {
-  background:#333;
-  height:100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px; /* space between spinner and text */
-  margin: 20px auto;
-  font-family: sans-serif;
-  font-size: 16px;
-  color: #ffffff; /* accent color */
-}
-
-#inlineSneak .loader {
-  border: 4px solid rgba(0,0,0,0.1);
-  border-left-color: #4f46e5;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-button{cursor:pointer;}
-    @media(max-width:600px) {.tagline{display:none;}}
-#continuetocheckout.disabled {
-  background: #444 !important;
-  color: #888 !important;
-  border-color: #555 !important;
-  box-shadow: none !important;
-  cursor: not-allowed !important;
-}
-header.hero{
-      position:relative;
-      padding:10px 20px;
-      display:flex;
-      overflow:hidden;
-      margin-bottom:30px;
+      margin-bottom:10px;
     }
     .hero::before{
       content:"";
@@ -243,10 +95,391 @@ header.hero{
       z-index:0;
     }
     .hero-inner{
+      max-width:1020px;
+      width:100%;
       text-align:center;
-      padding:28px;
+      padding:32px 28px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      box-shadow:var(--card-glow);
+      border:1px solid var(--glass-2);
       position:relative;
       z-index:1;
+    }
+    .title{
+      font-size:clamp(2rem, 4vw, 3.1rem);
+      font-weight:800;
+      margin:4px 0 10px 0;
+      background:var(--cta-grad);
+      -webkit-background-clip:text;
+      background-clip:text;
+      -webkit-text-fill-color:transparent;
+      text-shadow:0 8px 30px rgba(147,51,234,0.08);
+    }
+    .hero-copy{
+      max-width:760px;
+      margin:0 auto;
+      font-size:clamp(1rem, 1.9vw, 1.15rem);
+      color:#d0d9e9;
+      text-shadow: 0 0 100px #000;
+    }
+
+    main{
+      padding:18px 20px 42px;
+      max-width:1100px;
+      margin:0 auto;
+    }
+
+    .decision-grid{
+      display:grid;
+      gap:18px;
+      align-items:start;
+      margin-top:22px;
+    }
+
+    .panel{
+      background:#111;
+      border:1px solid var(--soft-border);
+      border-radius:4px;
+      box-shadow:var(--card-glow);
+      overflow:hidden;
+    }
+
+    .panel-inner{
+      padding:22px;
+    }
+
+    .panel-title{
+      font-size:1.2rem;
+      font-weight:800;
+      margin:0 0 8px;
+      color:#fff;
+    }
+
+    .panel-subtitle{
+      margin:0 0 18px;
+      color:#cfd8e7;
+    }
+
+    .price-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:.45rem .8rem;
+      margin-bottom:14px;
+      background:rgba(255, 255, 255, 0.13);
+      color:#fff;
+      font-weight:700;
+    }
+
+    .list{
+      margin:14px 0 0;
+      padding:0;
+      list-style:none;
+      display:grid;
+      gap:10px;
+    }
+    .list li{
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(255,255,255,0.02);
+      border:1px solid rgba(255,255,255,0.05);
+      color:#eeeeee;
+    }
+
+    .cta-stack{
+      margin-top:18px;
+      display:grid;
+      gap:12px;
+    }
+
+    .btn-primary {
+      width:100%;
+      font-size: 16px;
+      position: relative;
+      background: var(--cta-grad);
+      color: #fff;
+      border-radius: 999px;
+      padding: 1.05rem 1.4rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+      overflow: hidden;
+      transition: transform .25s ease, box-shadow .35s ease, background .25s ease;
+      box-shadow:
+        0 0 50px rgba(79,70,229,0.35),
+        0 0 70px rgba(147,51,234,0.25),
+        inset 0 0 50px rgba(147,51,234,0.2);
+    }
+    .btn-primary::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      background: rgba(7, 8, 11, 0.82);
+      border-radius: inherit;
+      z-index: 0;
+      backdrop-filter: blur(4px);
+      transition: background .25s ease;
+    }
+    .btn-primary span {
+      position: relative;
+      z-index: 1;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 0 18px rgba(79,70,229,0.55),
+        0 0 32px rgba(147,51,234,0.55),
+        inset 0 0 70px rgba(147,51,234,0.35);
+    }
+    .btn-primary:hover::before {
+      background: rgba(7, 8, 11, 0.35);
+    }
+
+    .secondary-note{
+      font-size:.96rem;
+      color:var(--muted);
+      text-align:center;
+      margin-top:-2px;
+    }
+
+    .waitlist{
+      margin-top:16px;
+      padding:16px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,0.06);
+      background:rgba(255,255,255,0.03);
+    }
+    .waitlist h3{
+      margin:0 0 6px;
+      font-size:1rem;
+      color:#fff;
+    }
+    .waitlist p{
+      margin:0 0 12px;
+      color:#cfd8e7;
+      font-size:.95rem;
+    }
+    .waitlist-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .waitlist-row input[type="email"]{
+      flex:1 1 220px;
+      min-width:180px;
+      padding:.9rem 1rem;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.08);
+      background:#0b1020;
+      color:#fff;
+      outline:none;
+    }
+    .waitlist-row input[type="email"]::placeholder{
+      color:#7f8ba0;
+    }
+    .waitlist-row label{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:#d8e2f2;
+      font-size:.95rem;
+      user-select:none;
+      margin-right:auto;
+    }
+    .waitlist-row button{
+      padding:.9rem 1.05rem;
+      border:0;
+      border-radius:12px;
+      font-weight:800;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      color:#fff;
+      cursor:pointer;
+    }
+    .waitlist-row button:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+    #waitlist-status{
+      margin-top:10px;
+      font-size:.95rem;
+      color:#bde6c7;
+      min-height:1.3em;
+    }
+
+    .signin-banner{
+      margin-top:18px;
+      padding:16px 18px;
+      border-radius:16px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.06);
+      color:#ffd4d4;
+      font-size:1.05rem;
+    }
+    .signin-banner a{
+      color:#ffb8b8;
+      font-weight:700;
+    }
+
+    .side-card{
+      padding:22px;
+    }
+    .side-callout{
+      padding:18px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,0.06);
+      background:linear-gradient(180deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
+      box-shadow:var(--card-glow2);
+    }
+    .side-callout h3{
+      margin:0 0 8px;
+      font-size:1rem;
+    }
+    .side-callout p{
+      margin:0;
+      color:#dfe7ff;
+    }
+
+    .sneak-wrap{
+      margin-top:24px;
+    }
+    .section-label{
+      margin:0 0 12px;
+      color:#bfc9db;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      font-size:.8rem;
+      font-weight:800;
+    }
+    .sneak-card{
+      background:rgba(15,23,32,0.86);
+      border:1px solid var(--soft-border);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow:var(--card-glow);
+    }
+    .sneak-header{
+      padding:18px 22px 0;
+    }
+    .sneak-header h2{
+      margin:0 0 8px;
+      font-size:1.25rem;
+      color:#fff;
+    }
+    .sneak-header p{
+      margin:0;
+      color:#cfd8e7;
+    }
+    .sneak-actions{
+      padding:18px 22px 22px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .sneak-btn{
+      padding:.85rem 1.05rem;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:linear-gradient(45deg,#0f1b45,#3d2490);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+    .sneak-btn:hover{transform:translateY(-1px)}
+    .sneak-note{
+      color:var(--muted);
+      font-size:.95rem;
+      margin:0;
+    }
+    #inlineSneakDiv{
+      display:none;
+      padding:0 22px 22px;
+    }
+    #inlineSneak{
+      height:600px;
+      box-sizing:border-box;
+      border-radius:14px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.05);
+      background:#06070a;
+    }
+    #openInNewTab{
+      margin-bottom:12px;
+      padding:.7rem .9rem;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.08);
+      background:#141824;
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .section-gap{
+      margin-top:18px;
+      text-align:center;
+      color:#9eaac0;
+    }
+
+    footer{
+      padding:2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+      margin-top:2rem;
+      border-top:1px solid var(--soft-border);
+      font-size:.95rem
+    }
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    #signin-cta,#signup-cta{color:#ffb6b6;font-weight:700}
+    #continuetocheckout.disabled {
+      background: #444 !important;
+      color: #888 !important;
+      border-color: #555 !important;
+      box-shadow: none !important;
+      cursor: not-allowed !important;
+      opacity:.8;
+    }
+
+    .muted-link{
+      color:#cfe3ff;
+      text-decoration:underline;
+      text-underline-offset:3px;
+    }
+
+    #finish-page{
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      background:radial-gradient(ellipse at center, #0b0c14 0%, #090a10 45%, #07080b 100%);
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+
+    @media (max-width: 900px) {
+      .decision-grid{
+        grid-template-columns:1fr;
+      }
+      nav{
+        padding:1rem;
+      }
+    }
+    @media(max-width:600px) {
+      .tagline{display:none;}
+      .hero-inner{padding:24px 18px;}
+      .sneak-actions{flex-direction:column;align-items:stretch;}
+      .waitlist-row{flex-direction:column;align-items:stretch;}
+      .waitlist-row label{margin-right:0}
+      .waitlist-row button{width:100%;}
     }
   </style>
 </head>
@@ -283,6 +516,7 @@ header.hero{
       </div>
     </div>
   </nav>
+
   <div id="login-panel" class="modal-overlay" aria-hidden="true">
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <button class="modal-close" aria-label="Close">&times;</button>
@@ -320,36 +554,93 @@ header.hero{
       </form>
     </div>
   </div>
+
   <link rel="stylesheet" type="text/css" href="../accounts.css">
   <script src="../accounts.js"></script>
 
   <header class="hero">
     <div class="hero-inner fade-in">
-      <h1 class="title"><span style="text-shadow:0 0 30px #4f46e5;">Buy SpectroDraw Pro</span></h1>
+      <h1 class="title">Buy SpectroDraw Pro</h1>
+      <p class="hero-copy">
+        SpectroDraw Pro is finished, and you can get access <strong>before the public release.</strong>
+        The full launch alongside the VST plugin is coming <span title="1-2 months" style="color:#9eeefe;cursor:pointer;">soon</span>,
+        so this is your chance to secure Pro now and unlock the full version when it opens.
+      </p>
     </div>
   </header>
-  <p style="max-width:880px;width:90%;margin:18px auto;font-size:20px;">
-    SpectroDraw Pro is finished, and you can get access <strong>before the public release.</strong><br>
-    The full launch (alongside the VST plugin) is coming <span title="1-2 months" style="color:#9eeefe;cursor:pointer;">soon</span>, but you can <strong>secure your Pro account now</strong> and be among the first to experience this revolutionary software.
-  </p>
-  <p id="infoText" style="display:none;text-align:center;"></p>
-  <div id="requireSignin" style="font-size:2rem;color:red;margin:18px auto;max-width:880px;width:90%;">You must be signed in to buy Pro. <a id="signin-cta" href="#">Sign in</a> / <a id="signup-cta" href="#">Sign up</a></div>
-  <div id="finish-page" style="display:none;position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse at center, #0b0c14 0%, #090a10 45%, #07080b 100%);align-items:center;justify-content:center;padding:20px;">
+
+  <main>
+    <div class="decision-grid">
+      <section class="panel">
+        <div class="panel-inner">
+          <div class="price-badge">One-time payment · $40</div>
+          <h2 class="panel-title">Get Pro access now</h2>
+
+          <ul class="list">
+            <li><strong>Full Pro access</strong> on your account</li>
+            <li><strong>No additional fees</strong> to use SpectroDraw Pro</li>
+            <li><strong>Unlock all features</strong> once Pro is launched</li>
+          </ul>
+
+          <div id="infoText" style="display:none;text-align:center;margin-top:14px;color:#dfe7ff;"></div>
+
+          <div id="requireSignin" class="signin-banner" style="display:none;">
+            You must be signed in to buy Pro.
+            <a id="signin-cta" href="#">Sign in</a> / <a id="signup-cta" href="#">Sign up</a>
+          </div>
+
+          <div class="cta-stack">
+            <button id="continuetocheckout" class="btn-primary" type="button">
+              <span>Continue to checkout</span>
+            </button>
+            <div class="secondary-note">
+              Want to wait for the full launch instead? Join the release list below.
+            </div>
+          </div>
+
+          <div class="waitlist">
+            <h3>Not ready yet?</h3>
+            <p>Enter your email and we notify you when the full release opens.</p>
+
+            <div class="waitlist-row">
+              <input id="waitlist-email" type="email" placeholder="you@example.com" aria-label="Email for release notifications">
+              <button id="save-interest" type="button">Notify me</button>
+            </div>
+            <div id="waitlist-status" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="sneak-wrap">
+      <div class="sneak-card">
+        <div class="sneak-header">
+          <h2>Preview SpectroDraw Pro</h2>
+          <p>
+            Try out what SpectroDraw Pro has to offer.
+          </p>
+        </div>
+
+        <div class="sneak-actions">
+          <button id="sneakPeekButton" class="sneak-btn" type="button">Take a sneak peek</button>
+          <button id="openInNewTab" class="sneak-btn" type="button" style="display:none;">Open in new tab</button>
+          <p class="sneak-note">Preview only. Recording, reproducing, or distributing is illegal.</p>
+        </div>
+
+        <div id="inlineSneakDiv">
+          <div id="inlineSneak" style="height:600px;box-sizing:border-box;"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="finish-page" style="display:none;">
     <div style="max-width:560px;width:100%;text-align:center;padding:32px;border-radius:18px;background:rgba(15,23,32,0.92);border:1px solid rgba(255,255,255,0.06);box-shadow:0 20px 80px rgba(0,0,0,0.45);">
       <h1 style="margin:0 0 12px 0;font-size:2.2rem;background:linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">You already own SpectroDraw Pro</h1>
       <p id="finish-email-text" style="margin:0 0 22px 0;color:#d0d9e9;font-size:1.05rem;"></p>
       <button class="btn-primary" onclick="location.href='../products'"><span>View my products</span></button>
-      <!--<button class="btn-primary" onclick="location.href='../app'" style="margin-left:10px;"><span>Go to app</span></button>-->
     </div>
   </div>
-  <div id="sneakPeekButton" style="cursor:pointer;margin: 18px auto;height:75px;max-width:500px;width:80%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:linear-gradient(45deg,#0f1b45,#3d2490);border-radius:12px;border: 2px dashed #fff;font-weight:1000;">Take a sneak peek</div>
-  <div id="inlineSneakDiv" style="display:none;width:80%;margin:18px auto;">
-    <button id="openInNewTab">Open in new tab</button>
-    <div id="inlineSneak" style="height:600px;box-sizing:border-box;"></div>
-  </div>
-  <h2 style="text-align:center;margin-top:40px;margin-bottom:40px;" id="OR">OR</h2>
-  <div id="continuetocheckout" style="cursor:pointer;margin: 18px auto;height:75px;max-width:500px;width:80%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:linear-gradient(90deg,#4e46e548,#9333ea48,#ec489988);box-shadow:var(--card-glow2);border-radius:12px;border: 2px solid #fff;font-weight:1000;">Continue to checkout</div>
-
 
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
@@ -359,143 +650,277 @@ header.hero{
   </footer>
 
   <script>
-  document.getElementById('signin-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signin-link').click(); });
-  document.getElementById('signup-cta').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('signup-link').click(); });
-  function safeParseJSON(value) {
-    try { return JSON.parse(value); } catch { return null; }
-  }
+    document.getElementById('signin-cta').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('signin-link').click();
+    });
+    document.getElementById('signup-cta').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('signup-link').click();
+    });
 
-  function getCurrentUserEmail() {
-    const raw = localStorage.getItem('spectrodraw_user');
-    if (!raw) return null;
-    const parsed = safeParseJSON(raw);
-    return parsed?.email || null;
-  }
+    function safeParseJSON(value) {
+      try { return JSON.parse(value); } catch { return null; }
+    }
 
-  function setCookie(name, value, days) {
-    document.cookie =
-      name + "=" + encodeURIComponent(value) +
-      ";path=/;max-age=" + (days * 86400) +
-      ";SameSite=Lax";
-  }
+    function getCurrentUserEmail() {
+      const raw = localStorage.getItem('spectrodraw_user');
+      if (!raw) return null;
+      const parsed = safeParseJSON(raw);
+      return parsed?.email || null;
+    }
 
-  function getCookie(name) {
-    const parts = document.cookie.split('; ');
-    const match = parts.find(r => r.startsWith(name + "="));
-    return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : null;
-  }
+    function setCookie(name, value, days) {
+      document.cookie =
+        name + "=" + encodeURIComponent(value) +
+        ";path=/;max-age=" + (days * 86400) +
+        ";SameSite=Lax";
+    }
 
-  function finishCookie(email) {
-    return "finish_" + encodeURIComponent(String(email).trim().toLowerCase());
-  }
+    function getCookie(name) {
+      const parts = document.cookie.split('; ');
+      const match = parts.find(r => r.startsWith(name + "="));
+      return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : null;
+    }
 
-  function showFinishPage() {
-    const finish = document.getElementById("finish-page");
-    if (finish) finish.style.display = "flex";
+    function finishCookie(email) {
+      return "finish_" + encodeURIComponent(String(email).trim().toLowerCase());
+    }
 
-    const email = getCurrentUserEmail();
-    const el = document.getElementById("finish-email-text");
+    function showFinishPage() {
+      const finish = document.getElementById("finish-page");
+      if (finish) finish.style.display = "flex";
 
-    if (el) {
-      if (email) {
-        el.textContent = `You're logged in as ${email}. This account already owns SpectroDraw Pro.`;
-      } else {
-        el.textContent = `This account already owns SpectroDraw Pro.`;
+      const email = getCurrentUserEmail();
+      const el = document.getElementById("finish-email-text");
+
+      if (el) {
+        if (email) {
+          el.textContent = `You're logged in as ${email}. This account already owns SpectroDraw Pro.`;
+        } else {
+          el.textContent = `This account already owns SpectroDraw Pro.`;
+        }
       }
     }
-  }
 
-  async function checkUserPurchase(email) {
-    if (!email) return false;
+    async function checkUserPurchase(email) {
+      if (!email) return false;
 
-    try {
-      const res = await fetch('https://api.spectrodraw.com/api/products', {
-        credentials: 'include'
-      });
+      try {
+        const res = await fetch('https://api.spectrodraw.com/api/products', {
+          credentials: 'include'
+        });
 
-      if (!res.ok) return false;
+        if (!res.ok) return false;
 
-      const j = await res.json();
-      const products = Array.isArray(j.products) ? j.products : [];
+        const j = await res.json();
+        const products = Array.isArray(j.products) ? j.products : [];
 
-      return products.some(p =>
-        String(p?.email || '').trim().toLowerCase() === email.trim().toLowerCase()
-      );
-    } catch (err) {
-      console.warn("Purchase check failed:", err);
-      return false;
-    }
-  }
-
-  async function autoRedirectIfAlreadyPro() {
-    const email = getCurrentUserEmail();
-    if (!email) return;
-
-    const cookieName = finishCookie(email);
-
-    if (getCookie(cookieName) === "1") {
-      showFinishPage();
-      return;
+        return products.some(p =>
+          String(p?.email || '').trim().toLowerCase() === email.trim().toLowerCase()
+        );
+      } catch (err) {
+        console.warn("Purchase check failed:", err);
+        return false;
+      }
     }
 
-    const alreadyPurchased = await checkUserPurchase(email);
-    if (alreadyPurchased) {
-      setCookie(cookieName, "1", 365);
-      showFinishPage();
-    }
-  }
+    async function autoRedirectIfAlreadyPro() {
+      const email = getCurrentUserEmail();
+      if (!email) return;
 
-  // Load the GUI first, then check purchase state so the page never appears blank.
-  window.addEventListener('DOMContentLoaded', () => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(autoRedirectIfAlreadyPro);
-    });
-  });
+      const cookieName = finishCookie(email);
 
-  const s = safeParseJSON(localStorage.getItem('spectrodraw_user'));
-  const checkoutBtn = document.getElementById("continuetocheckout");
-  if (!s) {
-    checkoutBtn.classList.add("disabled");
-  }
-  const it = document.getElementById("infoText");
-  const rs = document.getElementById("requireSignin");
-
-  it.style.display = s ? "block" : "none";
-  rs.style.display = s ? "none" : "block";
-
-  if (s?.email) {
-    it.innerText = `You are purchasing SpectroDraw Pro for ${s.email}. This is a one time payment of $40.`;
-  }
-
-  document.getElementById("continuetocheckout").addEventListener("click", async () => {
-    if (!s) {
-      e.preventDefault();
-      return;
-    }
-    const email = getCurrentUserEmail();
-
-    if (email) {
-      if (getCookie(finishCookie(email)) === "1") {
+      if (getCookie(cookieName) === "1") {
         showFinishPage();
         return;
       }
 
       const alreadyPurchased = await checkUserPurchase(email);
       if (alreadyPurchased) {
-        setCookie(finishCookie(email), "1", 365);
+        setCookie(cookieName, "1", 365);
         showFinishPage();
-        return;
       }
     }
 
-    const a = document.createElement("a");
-    a.href = "./checkout";
-    document.body.appendChild(a);
-    a.click();
-  });
+    window.addEventListener('DOMContentLoaded', () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(autoRedirectIfAlreadyPro);
+      });
+    });
 
-  document.getElementById('year').textContent = new Date().getFullYear();
-</script>
+    const s = safeParseJSON(localStorage.getItem('spectrodraw_user'));
+    const checkoutBtn = document.getElementById("continuetocheckout");
+    const it = document.getElementById("infoText");
+    const rs = document.getElementById("requireSignin");
+    const waitEmail = document.getElementById("waitlist-email");
+    const saveInterest = document.getElementById("save-interest");
+    const waitlistStatus = document.getElementById("waitlist-status");
+
+    function interestCookie(email) {
+      return "interest_" + encodeURIComponent(String(email).trim().toLowerCase());
+    }
+
+    function getInterestEmail() {
+      const e = safeParseJSON(localStorage.getItem('spectrodraw_user'));
+      return (e || waitEmail?.value || "").trim().toLowerCase();
+    }
+
+    function setInterestUIState() {
+      const email = getInterestEmail();
+      const done = !!email && getCookie(interestCookie(email)) === "1";
+      console.log(email);
+      if (!saveInterest) return;
+
+      if (done) {
+        saveInterest.disabled = true;
+        saveInterest.textContent = "Saved";
+        if (waitlistStatus) {
+          waitlistStatus.textContent = "Already saved for this account.";
+          waitlistStatus.style.color = "#bde6c7";
+        }
+        return;
+      }
+
+      saveInterest.disabled = !email;
+      saveInterest.textContent = "Notify me";
+    }
+
+    if (!s) {
+      checkoutBtn.classList.add("disabled");
+      rs.style.display = "block";
+      it.style.display = "none";
+    } else {
+      rs.style.display = "none";
+      it.style.display = "block";
+    }
+
+    if (s?.email) {
+      it.innerText = `You are purchasing SpectroDraw Pro for ${s.email}. This is a one time payment of $40.`;
+      if (waitEmail && !waitEmail.value) waitEmail.value = s.email;
+    }
+    setInterestUIState();
+
+    checkoutBtn.addEventListener("click", async (e) => {
+      if (!s) {
+        e.preventDefault();
+        document.getElementById('signin-link').click();
+        return;
+      }
+
+      const email = getCurrentUserEmail();
+
+      if (email) {
+        if (getCookie(finishCookie(email)) === "1") {
+          showFinishPage();
+          return;
+        }
+
+        const alreadyPurchased = await checkUserPurchase(email);
+        if (alreadyPurchased) {
+          setCookie(finishCookie(email), "1", 365);
+          showFinishPage();
+          return;
+        }
+      }
+
+      const a = document.createElement("a");
+      a.href = "./checkout";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    async function storeInterest() {
+      const email = getInterestEmail();
+
+      if (!email) {
+        waitlistStatus.textContent = "Enter an email address to join the release list.";
+        waitlistStatus.style.color = "#ffd2a6";
+        return;
+      }
+
+      const cookieName = interestCookie(email);
+
+      if (getCookie(cookieName) === "1") {
+        setInterestUIState();
+        return;
+      }
+
+      saveInterest.disabled = true;
+      saveInterest.textContent = "Saving...";
+
+      try {console.log(email);
+        const res = await fetch("https://api.spectrodraw.com/api/store-interest", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data?.message || "Failed to save interest");
+        }
+
+        setCookie(cookieName, "1", 365);
+
+        waitlistStatus.textContent = "Saved. We will keep this account in mind for the full release.";
+        waitlistStatus.style.color = "#bde6c7";
+      } catch (err) {
+        console.error("store-interest failed:", err);
+        waitlistStatus.textContent = "Could not save your interest right now. Please try again.";
+        waitlistStatus.style.color = "#ffd2a6";
+      } finally {
+        setInterestUIState();
+      }
+    }
+
+    saveInterest.addEventListener("click", storeInterest);
+
+    if (waitEmail) {
+      waitEmail.addEventListener("input", setInterestUIState);
+      waitEmail.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          storeInterest();
+        }
+      });
+    }
+
+    saveInterest.addEventListener("click", storeInterest);
+
+    if (waitEmail) {
+      waitEmail.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          storeInterest();
+        }
+      });
+    }
+
+    const sneakBtn = document.getElementById("sneakPeekButton");
+    const inlineSneakDiv = document.getElementById("inlineSneakDiv");
+    const openInNewTab = document.getElementById("openInNewTab");
+
+    sneakBtn.addEventListener("click", () => {
+      const isOpen = inlineSneakDiv.style.display === "block";
+      inlineSneakDiv.style.display = isOpen ? "none" : "block";
+      openInNewTab.style.display = isOpen ? "none" : "inline-flex";
+      if (!isOpen && typeof window.loadSneakPeek === "function") {
+        window.loadSneakPeek(document.getElementById("inlineSneak"));
+      }
+    });
+
+    openInNewTab.addEventListener("click", () => {
+      window.open("../app?sneakpeek=1", "_blank", "noopener");
+    });
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
   <script src="sneakpeek.js"></script>
 </body>
 </html>

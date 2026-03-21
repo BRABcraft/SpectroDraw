@@ -48,6 +48,9 @@ export default {
       if (pathname === "/api/feedbacks" && request.method === "GET") {
         return addCors(await handleFeedbackList(user, env), request);
       }
+      if (pathname === "/api/store-interest" && request.method === "POST") {
+        return addCors(await handleStoreInterest(request, user, env), request);
+      }
       if (pathname.startsWith("/api/feedbacks/") && pathname.endsWith("/vote") && request.method === "POST") {
         const id = pathname.split("/")[3];
         return addCors(await handleFeedbackVote(request, user, env, id), request);
@@ -751,6 +754,44 @@ async function handleFeedbackList(user, env) {
   }
 
   return json({ feedbacks, userVotes }, 200);
+}
+async function handleStoreInterest(request, user, env) {
+  try {
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (_) {
+      body = {};
+    }
+
+    const email = String(body?.email || user?.email || "").trim().toLowerCase();
+    if (!email) return json({ message: "Missing email" }, 400);
+
+    const now = new Date().toISOString();
+
+    const indexKey = "interest:index";
+    let idxRaw = await env.USERS.get(indexKey);
+    let index = [];
+
+    if (idxRaw) {
+      try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
+      if (!Array.isArray(index)) index = [];
+    }
+
+    // prevent duplicates
+    if (index.includes(email)) {
+      return json({ saved: true, alreadySaved: true, email }, 200);
+    }
+
+    index.push(email);
+    await env.USERS.put(indexKey, JSON.stringify(index));
+
+    return json({ saved: true, email, savedAt: now }, 201);
+
+  } catch (err) {
+    console.error("handleStoreInterest error:", err);
+    return json({ message: err.message || "Failed to record interest" }, 500);
+  }
 }
 async function handleFeedbackVote(request, user, env, id) {
   if (!user || !(user.email || user.id)) {

@@ -1,12 +1,10 @@
 const openSneakBtn = document.getElementById("sneakPeekButton");
 const inlineSneak = document.getElementById("inlineSneak");
-const inlineSneakDiv = document.getElementById("inlineSneakDiv");
 let sneakOpened = false;
 let hasLoadedPro = false;
 
 openSneakBtn.addEventListener("click", () => {
   sneakOpened = !sneakOpened;
-  document.getElementById("OR").innerHTML = sneakOpened ? "<br>" : "OR";
   openSneakBtn.style.display = sneakOpened ? "none" : "flex";
   inlineSneakDiv.style.display = sneakOpened ? "block" : "none";
 

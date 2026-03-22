@@ -763,7 +763,9 @@
 
     function getInterestEmail() {
       const e = safeParseJSON(localStorage.getItem('spectrodraw_user'));
-      return (e || waitEmail?.value || "").trim().toLowerCase();
+      if (e) return e.email;
+      if (waitEmail.value) return waitEmail.value.trim().toLowerCase();
+      return "";
     }
 
     function setInterestUIState() {

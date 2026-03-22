@@ -31,7 +31,6 @@ function drawTimeline() {
 
     iWidth = iHigh - iLow;
     const totalSeconds = iWidth*hop / sampleRate;
-
     let interval = 0.01; 
     if (totalSeconds > 0.3) interval = 0.1;
     if (totalSeconds > 1) interval = 0.3;

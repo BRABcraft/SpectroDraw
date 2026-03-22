@@ -56,7 +56,7 @@ function restartRender(autoPlay,overrideHasCanvases=false){
       // logscale
       logscaleEl = document.createElement("canvas");
       logscaleEl.id = `logscale-${ch}`;logscaleEl.width=40;logscaleEl.height=40;
-      logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px";
+      logscaleEl.style.cssText ="position:absolute; top:0px; background: #111;z-index: 999; top:"+(ch*offsetY)+"px; cursor:n-resize!important;";
       wrapper.appendChild(logscaleEl);
 
       // specCanvas bar (hidden source canvas)

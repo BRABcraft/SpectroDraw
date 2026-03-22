@@ -66,9 +66,6 @@ function wrapPhase(phi) {
   if (phi <= -Math.PI) phi += 2 * Math.PI;
   return phi;
 }
-function binFreq(k, fftSizeLocal, sampleRateLocal) {
-  return (k * sampleRateLocal) / fftSizeLocal;
-}
 function computePhaseTexture(type, bin, frameIndex, basePhase) {
   const FFT = fftSize;
   const fs = sampleRate;

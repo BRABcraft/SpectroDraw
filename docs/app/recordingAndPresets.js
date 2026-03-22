@@ -197,7 +197,7 @@ recordBtn.addEventListener("click", async () => {
 let audioCtx = null;
 function ensureAudioCtx(){
   if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  sampleRate = audioCtx.sampleRate || sampleRate;
+  audioCtx.sampleRate = sampleRate || 24000;
 }
 
 
@@ -215,7 +215,7 @@ fileEl.addEventListener("change", async e=>{
     try {
       ab = await audioCtx.decodeAudioData(buf.slice(0));
       pcm = new Float32Array(ab.getChannelData(0));
-      sampleRate = ab.sampleRate || 48000;
+      sampleRate = sliders[24][0].value = sliders[24][1].value = ab.sampleRate;fHigh=sampleRate/2;
       minCol=Infinity;maxCol=0;
 
       status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;

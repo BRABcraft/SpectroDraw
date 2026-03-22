@@ -628,9 +628,9 @@ function computePanTexture(type,initialPan,panStrength,x,y,pan,useExpressions,us
       case 'Random':
         return (Math.random() + pan) % 1;
       case 'XCircles':
-        return (Math.sin(x/(sampleRate*0.63661/hop))/2+0.5 + pan) % 1;
+        return (Math.sin(x/(sampleRate*0.63661/hop))/2+0.5);
       case 'YCircles':
-        return (Math.sin(y/(sampleRate*0.63661/hop))/2+0.5 + pan) % 1;
+        return (Math.sin(y/(sampleRate*0.63661/hop))/2+0.5);
       case 'Band':
         return (Math.pow((1/(specHeight*10)+1),(0-Math.pow(y-band),2)) + pan) % 1;
     }
@@ -1021,7 +1021,8 @@ function paint(cx, cy) {
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : parseExpression(getExpressionById("phaseStrengthDiv"));
     const bo = (currentTool === "eraser") ? layers[ch].brushPressure : parseExpression(getExpressionById("opacityDiv"))*layers[ch].brushPressure;
-    vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
+    //vr = ((currentShape==="brush"&&currentTool!=="cloner")?(Math.max( Math.min(1/Math.pow(mouseVelocity,0.5), Math.min(vr+0.01,1)) ,Math.max(vr-0.01,0.6) )):1);
+    vr=1;
     const radiusY = Math.floor((brushHeight/2/canvas.getBoundingClientRect().height*canvas.height)*vr);
     const radiusXFrames = Math.floor((brushWidth/2/canvas.getBoundingClientRect().width*canvas.width)*vr);
     const z = (currentShape==="synth")

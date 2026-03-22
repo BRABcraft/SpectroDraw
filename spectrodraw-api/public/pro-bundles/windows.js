@@ -1592,29 +1592,14 @@ function setDocked(panel, dockObj){
       <div class="knob" id="fftSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
     <button id="lockHopBtn" class="lock-btn" aria-pressed="true"
-      title="Lock time resolution to prevent phase interference" style="background:none;border:none;margin:0;"
+      title="Lock time resolution to prevent phase interference" style="background:none;border:none;margin:0;padding:0;transform:translateX(4px);"
       onclick="toggleLockHop();">
     </button>
     <div class="knob-wrapper">
       <div class="knob" id="hopSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
-    <div style="align-content:center;margin-left:10px;">
-      <button title="Toggle move sprites mode" id="moveSpritesModeBtn" style="width:30px;height:30px;background:none;display:flex;align-items:center;justify-content:center;padding:0;border:none">
-        <svg width="30.00" height="30.00" viewBox="0.00 0.00 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M7.00 10.50L5.00 13.17C4.42 13.94 4.47 15.01 5.12 15.72L8.91 19.85C9.28 20.26 9.82 20.50 10.38 20.50C11.47 20.50 13.24 20.50 15.00 20.50C17.40 20.50 19.00 19.00 19.00 16.50C19.00 16.50 19.00 16.50 19.00 16.50C19.00 16.50 19.00 9.64 19.00 7.93"
-                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M16.00 8.50C16.00 8.50 16.00 8.37 16.00 7.93C16.00 5.64 19.00 5.64 19.00 7.93"
-                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M13.00 8.50C13.00 8.50 13.00 7.92 13.00 7.03M13.00 6.50C13.00 6.50 13.00 6.80 13.00 7.03M16.00 8.50C16.00 8.50 16.00 8.37 16.00 7.93C16.00 7.71 16.00 7.25 16.00 7.03C16.00 4.74 13.00 4.74 13.00 7.03"
-                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M13.00 8.50C13.00 8.50 13.00 7.92 13.00 7.03C13.00 4.74 16.00 4.74 16.00 7.03C16.00 7.25 16.00 7.71 16.00 7.93C16.00 8.37 16.00 8.50 16.00 8.50"
-                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M10.00 8.50C10.00 8.50 10.00 7.86 10.00 6.50C10.00 4.21 13.00 4.21 13.00 6.50C13.00 6.50 13.00 6.50 13.00 6.50C13.00 6.50 13.00 6.80 13.00 7.03C13.00 7.92 13.00 8.50 13.00 8.50"
-                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M7.00 13.50V6.50C7.00 5.67 7.67 5.00 8.50 5.00V5.00C9.33 5.00 10.00 5.56 10.00 6.38C10.00 6.42 10.00 6.46 10.00 6.50C10.00 7.86 10.00 8.50 10.00 8.50"
-                stroke="#fff" stroke-width="1.50" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+    <div class="knob-wrapper">
+      <div class="knob" id="sampleRate" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
   </div>`,
   });

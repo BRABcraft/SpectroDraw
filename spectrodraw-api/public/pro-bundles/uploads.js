@@ -207,7 +207,6 @@ function renderUploads() {
     if (!Number.isFinite(ch.samplePos)) ch.samplePos = 0;
     layersHtml += buildSampleRow("Layer " + i, ch.pcm[0] || new Float32Array(0), ch.samplePos, ch.sampleRate || sampleRate, "c" + i);
   }
-
   // 2) Set HTML once
   uploadsContainer.innerHTML = uploadsHtml;
   layersContainer.innerHTML = layersHtml;

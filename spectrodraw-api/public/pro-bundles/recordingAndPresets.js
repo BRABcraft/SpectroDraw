@@ -1,6 +1,6 @@
 async function initEmptyPCM(doReset) {
   if (layers === null) layers = new Array(layerCount);
-  const sampleRateLocal = 48000;
+  const sampleRateLocal = sampleRateKnob.getValue();
   let duration = parseFloat(emptyAudioLength);
   if (duration < 0.01) duration = 10;
 
@@ -103,7 +103,6 @@ async function logScaleMouseMove(e,touch) {
   if (!changingLogScale) return;
   const logscaleEl = document.getElementById("logscale-"+currentLayer);
   if (!logscaleEl) return;
-  logscaleEl.style.cursor = "n-resize";
   logScaleVal[currentLayer] -= (getMouseXY(e,touch)[1] - startY - (getMouseXY(e,touch)[0] - startX))/400;
   if (logScaleVal[currentLayer] < 1) logScaleVal[currentLayer] = 1;
   if (logScaleVal[currentLayer] > 2) logScaleVal[currentLayer] = 2;
@@ -418,7 +417,7 @@ recordBtn.addEventListener("click", async () => {
 let audioCtx = null;
 function ensureAudioCtx(){
   if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  sampleRate = audioCtx.sampleRate || sampleRate;
+  audioCtx.sampleRate= sampleRate;
 }
 
 let startTime=0;
@@ -609,6 +608,7 @@ async function updateLayers(){
   //renderFullSpectrogramToImage();
   if (currentTool==="cloner")updateBrushPreview();
   updatingLayer = false;
+  renderUploads();
 }
 
 function updateLayerHeightInputs(){

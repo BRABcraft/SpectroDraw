@@ -554,6 +554,11 @@
           <button id="lockHopBtn" class="lock-btn" aria-pressed="true" title="Lock time resolution to prevent phase interference" style="background:none; border:none; margin-left:55px;" onclick="toggleLockHop();"></button>
           <input id="hopSize" type="number" value="1024" step="1" min="1" style="margin-left: 8px;">
         </div>
+        <div id ="sampleRateDiv" class="slider-row" title="Sample rate">
+          <label class="h2">Sample rate</label>
+          <input id="sampleRate" type="range" min="3000" max="100000" step="1" value="48000">
+          <input id="sampleRateInput" type="number" value="48000" min="3000" max="100000">
+        </div>
       </div>
       <label class="h1">Preset Audio<audio src=""></audio><br>
       </label>
@@ -1130,6 +1135,7 @@
     [document.getElementById('playbackVolume'), document.getElementById('playbackVolumeInput')],
     [document.getElementById('masterVolume'), document.getElementById('masterVolumeInput')],
     [document.getElementById('softness'), document.getElementById('softnessInput')],
+    [document.getElementById('sampleRate'), document.getElementById('sampleRateInput')],
   ];
   sliders.forEach(pair => {if (!pair[2]) syncNumberAndRange(pair[1], pair[0])});
 </script>
@@ -1226,7 +1232,7 @@ const shareModal = document.getElementById("shareModal");
 const historyStack = []; const redoStack = [];
 const MAX_HISTORY_ENTRIES = 80;
 
-let pcm=null, sampleRate=48000, pos=0, fftSize=1024, hop=512, win=hann(1024);
+let pcm=null, sampleRate=parseInt(document.getElementById("sampleRate").value), pos=0, fftSize=1024, hop=512, win=hann(1024);
 let framesTotal=0, x=0, rendering=false;
 let imageBuffer=null;
 let visited = null;
@@ -1338,6 +1344,9 @@ sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
     if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
 sliders[23][0].addEventListener("input", ()=>{softness  =  (sliders[23][0].value); updateBrushPreview();});
 sliders[23][1].addEventListener("input", ()=>{softness  =  (sliders[23][1].value); updateBrushPreview();});
+function efef(){fHigh=sampleRate/2;sliders[0][0].value=sliders[0][1].value=(framesTotal*hop/sampleRate);restartRender();}
+sliders[24][0].addEventListener("input", ()=>{sampleRate=parseInt(sliders[24][0].value);efef();});
+sliders[24][1].addEventListener("input", ()=>{sampleRate=parseInt(sliders[24][1].value);efef();});
 function onPhaseSettingsChange(idx) {
   const v = sliders[19][idx].valueAsNumber;
   switch (phaseTextureEl.value) {
@@ -1639,7 +1648,7 @@ document.addEventListener('keyup', (e)=>{
 <script>
 
 function initEmptyPCM() {
-    const sampleRateLocal = 48000;
+    const sampleRateLocal = parseInt(document.getElementById("sampleRate").value);
     let duration = emptyAudioLengthEl.value; 
     if (duration  < 0.01) duration = 10;
     const type = phaseTextureEl.value;

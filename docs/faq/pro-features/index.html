@@ -152,6 +152,38 @@
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
     @media(max-width:600px) {.tagline{display:none;}}
+    header.hero{
+      position:relative;
+      padding:40px 20px 24px;
+      display:flex;
+      justify-content:center;
+      overflow:hidden;
+      margin-bottom:10px;
+    }
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:url('../../assets/spectrodrawpro-hero.webp');
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      filter: contrast(105%) saturate(110%) brightness(0.72);
+      transform: scale(1.02);
+      z-index:0;
+    }
+    .hero-inner{
+      max-width:1020px;
+      width:100%;
+      text-align:center;
+      padding:32px 28px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      box-shadow:var(--card-glow);
+      border:1px solid var(--glass-2);
+      position:relative;
+      z-index:1;
+    }
   </style>
 </head>
 <body>
@@ -479,6 +511,46 @@
 
     </section>
 
+    <section class="section fade-in">
+      <div class="tool-row" style="align-items:flex-start;">
+        <div class="tool-left">
+        </div>
+        <div class="tool-right">
+          <h2>Pan</h2>
+          <p>SpectroDraw Pro introduces a third dimension to the spectrogram: pan. By default, this is displayed as saturation.</p>
+          <div class="media-row">
+            <img src="../../assets/features/pan1.jpg" alt="Save and open project" class="illustration">
+          </div>
+          <p>Draw with pan textures, like X Circles, to achieve cool stereo effects.</p>
+          <div class="media-row">
+            <img src="../../assets/features/pan2.jpg" alt="Save and open project" class="illustration">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section fade-in">
+      <div class="tool-row" style="align-items:flex-start;">
+        <div class="tool-left">
+          <div class="icon" id="pianoMode" title="Piano mode">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 22" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+              <line x1="7" y1="4" x2="7" y2="15" stroke-width="3"/>
+              <line x1="17" y1="4" x2="17" y2="15" stroke-width="3"/>
+              <line x1="12" y1="4" x2="12" y2="15" stroke-width="3"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-right">
+          <h2>Piano mode</h2>
+          <p>This is where you can get very creative with your sound. Instead of playing the spectrogram exactly how it is, piano mode converts it to a MIDI then plays it back with a custom synth that you can tweak.</p>
+          <div class="media-row">
+            <img src="../../assets/features/pianoMode.jpg" alt="Save and open project" class="illustration">
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Project info -->
     <section class="section fade-in">
       <div class="tool-row" style="align-items:flex-start;">
@@ -488,7 +560,7 @@
           </div>
         </div>
         <div class="tool-right">
-          <h2>Project info</h2>
+          <h2>Files</h2>
           <p><strong>Save and Open Projects</strong> – While downloading the audio is a sufficient way to save the spectrogram, if you want to preserve sprites, channels, expressions, and more, you can save your project as a ZIP file. You can also start a new project with the preset audio by clicking "Save and start new project".</p>
           <div class="media-row">
             <img src="../../assets/features/saveload.jpg" alt="Save and open project" class="illustration">
@@ -517,7 +589,7 @@
           <p>SpectroDraw supports up to <strong>16 layers</strong>. Each layer is an individual spectrogram with its own adjustable zoom, log scale, and speaker.</p>
           
           <p><strong>Adjustable log scale</strong> - Adjust the visual height of all layers. Note: There is a vertical scroll bar on the right of the spectrograms if the layers go off screen.</p>
-          <div class="media-row"><img src="../../assets/features/logScale.jpg" alt="Log scale" class="illustration"></div>
+          <div class="media-row"><img src="../../assets/features/logScale2.jpg" alt="Log scale" class="illustration"></div>
           
           <p><strong>Layer height</strong> - Adjust the visual height of all layers. Note: There is a vertical scroll bar on the right of the spectrograms if the layers go off screen.</p>
           <div class="media-row"><img src="../../assets/features/layerHeight.jpg" alt="Layer Height" class="illustration"></div>
@@ -525,7 +597,7 @@
           <p><strong>Sync layers</strong> - When this is checked, you will edit all layers simultaneously.</p>
           <div class="media-row"><img src="../../assets/features/syncLayers.jpg" alt="Sync layers" class="illustration"></div>
           
-          <p><strong>Layer settings</strong> - Disable/enable to mute/unmute the layer, or adjust the volume slider. Pick between left, right, or both speakers for the layer. The brush pressure affects the brush opacity when drawing on the particular layer. This feature is useful with sync layers as you can draw the same thing on different layers with different volumes.</p>
+          <p><strong>Layer settings</strong> - Disable/enable to mute/unmute the layer, or adjust the volume slider. The brush pressure affects the brush opacity when drawing on the particular layer. This feature is useful with sync layers as you can draw the same thing on different layers with different volumes.</p>
           <div class="media-row"><img src="../../assets/features/layerSettings.jpg" alt="Layer settings" class="illustration"></div>
         </div>
       </div>
@@ -548,14 +620,14 @@
           <p><strong>Layers</strong> - Copies of each layer are kept and automatically updated so you can copy them over to other layers.</p>
           <div class="media-row"><img src="../../assets/features/uploadLayers.jpg" alt="Upload layers" class="illustration"></div>
           
-          <p><strong>Upload samples</strong> - Use the upload box to upload your own audio samples. Stereo audio is split into two uploads. Delete uploads by clicking the ... button and clicking delete.</p>
+          <p><strong>Upload samples</strong> - Use the upload box to upload your own audio samples. Delete uploads by clicking the ... button and clicking delete.</p>
           <div class="media-row"><img src="../../assets/features/uploadUploads.jpg" alt="Upload uploads" class="illustration"></div>
           
           <p><strong>Insertion / replacement into the spectrogram</strong> - click on either the replace or insert button to the right of each audio sample and drag it onto the spectrogram. Release your mouse on the spectrogram to apply, or to the left of the spectrogram to cancel. The insert feature inserts the sample at the cursor position, adding to the buffer length; while the replace feature overwrites the spectrogram. Both will create a new sprite, which you can move around, adjust amplitude, and shift phase. When "sync layers" is checked and there is more than one layer, it will attempt to insert all channels of a particular sample onto the multi-layer spectrogram.</p>
           <div class="media-row"><img src="../../assets/features/replace.jpg" alt="Insert/replace" class="illustration"></div>
-          <small>Replacing using stereo audio with sync channels on</small>
+          <small>Replacing ↑</small>
           <div class="media-row"><img src="../../assets/features/insertion.jpg" alt="Insert/replace" class="illustration"></div>
-          <small>Insertion</small>
+          <small>Insertion ↑</small>
           
           <p><strong>Images</strong> -  Overlay images are stored here. Upload more images using the same upload box. While using the image overlay tool, you can switch between different images in the image gallery. Delete images by clicking the ... button and clicking delete</p>
           <div class="media-row"><img src="../../assets/features/images.jpg" alt="Image gallery" class="illustration"></div>
@@ -635,8 +707,8 @@
         </div>
         <div class="tool-right">
           <h2>Piano Tools</h2>
-          <p><strong>Auto align pitch</strong> - When enabled, edits snap to specific frequencies based on your notes-per-octave and base Hz settings, so drawn notes stay in-tune.</p>
-          <div class="media-row"><img src="../../assets/features/alignPitch.jpg" alt="Align pitch" class="illustration"></div>
+          <p><strong>Auto align pitch</strong> - When enabled, edits snap to specific frequencies based on your notes-per-octave and base Hz settings, so drawn notes stay in-tune. You can also switch between different keys, or manually enable/disable notes on the note wheel.</p>
+          <div class="media-row"><img src="../../assets/features/alignPitch2.jpg" alt="Align pitch" class="illustration"></div>
 
           <p><strong>Auto align time</strong> - Snaps brushes, rectangles, and lines to an adjustable tempo grid. Beat division updates as you zoom in/out.</p>
           <div class="media-row"><img src="../../assets/features/alignTime.jpg" alt="Align time" class="illustration"></div>

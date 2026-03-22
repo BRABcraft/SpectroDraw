@@ -371,6 +371,7 @@ class Knob {
     this.type = options.type || 'continuous';
     this.range = options.range;
     this.marker = this.el.querySelector("line");
+    this.int = options.int?true:false;
 
     // HTML labels container
     this.labelsEl = document.createElement("div");
@@ -463,8 +464,8 @@ class Knob {
       // pixels needed to cover full range (tweakable)
       const pixelsForFullRange = 200;
       const deltaValue = (delta / pixelsForFullRange) * span;
-      const actualValue = this.startV + deltaValue;
-
+      let actualValue = this.startV + deltaValue;
+      if (this.int) actualValue = Math.floor(actualValue);
       // clamp
       this.contvalue = Math.max(min, Math.min(actualValue, max));
       this.value = this.contvalue;
@@ -624,4 +625,18 @@ const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
   type: 'continuous',
   range: [0,1],
   value: 1,
+});
+const sampleRateKnob = new Knob(document.getElementById('sampleRate'), {
+  name:'Sample rate',
+  type: 'continuous',
+  range: [3000,100000],
+  int:true,
+  value: sampleRate,
+  onInput: (knob)=>{
+    sampleRate = knob.value;
+    fHigh=sampleRate/2;
+    simpleRestartRender(0,framesTotal);
+    bufferLengthKnob.value=framesTotal*hop/sampleRate;
+    bufferLengthKnob.render();
+  }
 });

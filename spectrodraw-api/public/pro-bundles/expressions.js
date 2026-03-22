@@ -251,7 +251,7 @@ function addExpressionBtns(){
       menu.textContent = 'Reset Expression';
       menu.style.fontSize = '14px';
       menu.style.position = 'absolute';
-      menu.style.left = e.pageX + 'px';
+      menu.style.left = e.pageX-120 + 'px';
       menu.style.top = e.pageY + 'px';
       menu.style.background = '#222';
       menu.style.border = '1px solid #777';

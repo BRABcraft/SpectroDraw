@@ -597,7 +597,7 @@ function makeLogscaleMenu() {
   inputItem.innerHTML = `
     <div class="slide-row2" style="display:flex;align-items:center;gap:8px">
       <label style="flex:1">Logscale</label>
-      <input type="range" class="ctx-slider" min="1" max="2" step="0.01" value="${value}" style="flex:1; width:50px">
+      <input type="range" class="ctx-slider" min="1" max="2" step="0.01" value="${value}" style="flex:1; width:50px; transform:translateX(0)!important;">
       <input type="number" class="ctx-input" value="${value}" step="0.01" min="1" max="2"
         style="flex:0 0 70px;
                border-radius:6px;

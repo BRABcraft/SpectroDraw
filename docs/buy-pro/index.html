@@ -439,14 +439,6 @@
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
     #signin-cta,#signup-cta{color:#ffb6b6;font-weight:700}
-    #continuetocheckout.disabled {
-      background: #444 !important;
-      color: #888 !important;
-      border-color: #555 !important;
-      box-shadow: none !important;
-      cursor: not-allowed !important;
-      opacity:.8;
-    }
 
     .muted-link{
       color:#cfe3ff;
@@ -489,6 +481,7 @@
       <a href="/" class="brand">SpectroDraw</a>
       <div class="tagline">Interactive Spectrogram Editor</div>
     </div>
+    <a style="display:none;" id="signin-page" href="../signin" target="_blank" rel="noopener"></a>
     <div class="nav-right">
       <a href="../app" class="nav-link">Launch App</a>
       <a href="../faq" class="nav-link">FAQ</a>
@@ -584,11 +577,6 @@
 
           <div id="infoText" style="display:none;text-align:center;margin-top:14px;color:#dfe7ff;"></div>
 
-          <div id="requireSignin" class="signin-banner" style="display:none;">
-            You must be signed in to buy Pro.
-            <a id="signin-cta" href="#">Sign in</a> / <a id="signup-cta" href="#">Sign up</a>
-          </div>
-
           <div class="cta-stack">
             <button id="continuetocheckout" class="btn-primary" type="button">
               <span>Continue to checkout</span>
@@ -638,7 +626,10 @@
     <div style="max-width:560px;width:100%;text-align:center;padding:32px;border-radius:18px;background:rgba(15,23,32,0.92);border:1px solid rgba(255,255,255,0.06);box-shadow:0 20px 80px rgba(0,0,0,0.45);">
       <h1 style="margin:0 0 12px 0;font-size:2.2rem;background:linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">You already own SpectroDraw Pro</h1>
       <p id="finish-email-text" style="margin:0 0 22px 0;color:#d0d9e9;font-size:1.05rem;"></p>
-      <button class="btn-primary" onclick="location.href='../products'"><span>View my products</span></button>
+      <div style="display:flex;flex-direction:row;gap:10px;">
+        <button class="btn-primary" onclick="location.href='../products'"><span>View my products</span></button>
+        <button class="btn-primary" onclick="location.href='./sneakpeek.html'"><span>View sneak peek</span></button>
+      </div>
     </div>
   </div>
 
@@ -650,14 +641,6 @@
   </footer>
 
   <script>
-    document.getElementById('signin-cta').addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('signin-link').click();
-    });
-    document.getElementById('signup-cta').addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('signup-link').click();
-    });
 
     function safeParseJSON(value) {
       try { return JSON.parse(value); } catch { return null; }
@@ -752,7 +735,6 @@
     const s = safeParseJSON(localStorage.getItem('spectrodraw_user'));
     const checkoutBtn = document.getElementById("continuetocheckout");
     const it = document.getElementById("infoText");
-    const rs = document.getElementById("requireSignin");
     const waitEmail = document.getElementById("waitlist-email");
     const saveInterest = document.getElementById("save-interest");
     const waitlistStatus = document.getElementById("waitlist-status");
@@ -789,11 +771,8 @@
     }
 
     if (!s) {
-      checkoutBtn.classList.add("disabled");
-      rs.style.display = "block";
       it.style.display = "none";
     } else {
-      rs.style.display = "none";
       it.style.display = "block";
     }
 
@@ -803,34 +782,14 @@
     }
     setInterestUIState();
 
-    checkoutBtn.addEventListener("click", async (e) => {
+    checkoutBtn.addEventListener("click", (e) => {
       if (!s) {
         e.preventDefault();
-        document.getElementById('signin-link').click();
+        document.getElementById('signin-page').click();
         return;
       }
 
-      const email = getCurrentUserEmail();
-
-      if (email) {
-        if (getCookie(finishCookie(email)) === "1") {
-          showFinishPage();
-          return;
-        }
-
-        const alreadyPurchased = await checkUserPurchase(email);
-        if (alreadyPurchased) {
-          setCookie(finishCookie(email), "1", 365);
-          showFinishPage();
-          return;
-        }
-      }
-
-      const a = document.createElement("a");
-      a.href = "./checkout";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      window.location.href = "./checkout";
     });
 
     async function storeInterest() {

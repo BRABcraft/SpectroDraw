@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sign in</title>
+  <link rel="icon" type="image/x-icon" href="../favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FYGHLB1BCP"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-FYGHLB1BCP');
+  </script>
+
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#e6eefc;
+      --line:#dbe3ee;
+      --line-2:#cfd8e3;
+      --shadow: 0 24px 80px rgba(15, 23, 42, 0.10);
+      --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+      --primary:#2563eb;
+      --primary-hover:#1d4ed8;
+      --primary-active:#1e40af;
+      --focus: rgba(37,99,235,0.18);
+      --success:#0f766e;
+      --danger:#b91c1c;
+    }
+
+    * { box-sizing:border-box; }
+    html, body {
+      margin:0;
+      min-height:100%;
+      font-family: Inter, system-ui;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top, rgba(37,99,235,0.08), transparent 32%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a {
+      color:var(--primary);
+      text-decoration:none;
+    }
+    a:hover { text-decoration:underline; }
+
+    .topbar {
+      width:100%;
+      height:72px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 24px;
+      background: #111;
+    }
+
+    .brand-wrap {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+    }
+
+
+    .brand {
+      display:flex;
+      flex-direction:column;
+      line-height:1.15;
+      min-width:0;
+    }
+
+    .brand a {
+      font-weight:800;
+      color:#fff;
+      font-size:1rem;
+      text-decoration:none;
+    }
+
+    .tagline {
+      color:var(--muted);
+      font-size:.92rem;
+      margin-top:2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .page {
+      min-height:calc(100vh - 72px);
+      display:grid;
+      place-items:center;
+      padding:24px;
+    }
+
+    .auth-shell {
+      width:100%;
+      max-width:460px;
+    }
+
+    .auth-card {
+      background:var(--card);
+      border:1px solid rgba(148,163,184,0.24);
+      border-radius:8px;
+      box-shadow:var(--shadow);
+      padding:32px;
+    }
+
+    .eyebrow {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:.85rem;
+      font-weight:700;
+      color:var(--success);
+      background:rgba(15,118,110,0.08);
+      border:1px solid rgba(15,118,110,0.16);
+      border-radius:999px;
+      padding:7px 12px;
+      margin-bottom:18px;
+    }
+
+    h1 {
+      margin:0 0 8px;
+      font-size:clamp(1.7rem, 3vw, 2.2rem);
+      line-height:1.15;
+      letter-spacing:-0.03em;
+    }
+
+    .auth-copy {
+      margin:0 0 24px;
+      color:var(--muted);
+      font-size:.98rem;
+      line-height:1.55;
+    }
+
+    .auth-form {
+      display:grid;
+      gap:16px;
+    }
+
+    .field {
+      display:grid;
+      gap:8px;
+    }
+
+    .label-text {
+      font-size:.92rem;
+      font-weight:600;
+      color:var(--text);
+    }
+
+    .auth-form input {
+      width:100%;
+      height:50px;
+      padding:0 14px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+      font:inherit;
+      outline:none;
+      transition:border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+
+    .auth-form input::placeholder {
+      color:#94a3b8;
+    }
+
+    .auth-form input:focus {
+      border-color:#93c5fd;
+      box-shadow:0 0 0 4px var(--focus);
+    }
+
+    .primary {
+      width:100%;
+      height:50px;
+      border:none;
+      border-radius:12px;
+      font-weight:700;
+      font-size:1rem;
+      cursor:pointer;
+      color:#fff;
+      background:var(--primary);
+      box-shadow:0 8px 18px rgba(37,99,235,0.20);
+      transition:transform .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+
+    .primary:hover {
+      background:var(--primary-hover);
+      transform:translateY(-1px);
+      box-shadow:0 12px 24px rgba(37,99,235,0.24);
+    }
+
+    .primary:active {
+      background:var(--primary-active);
+      transform:translateY(0);
+    }
+
+    .divider {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      color:#222;
+      font-size:.9rem;
+      margin:4px 0;
+    }
+
+    .divider::before,
+    .divider::after {
+      content:"";
+      height:1px;
+      background:var(--line);
+      flex:1;
+    }
+
+    .google {
+      width:100%;
+      height:50px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+      font-weight:700;
+      cursor:pointer;
+      transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+
+    .google:hover {
+      background:#f8fafc;
+      border-color:var(--line-2);
+      box-shadow:var(--shadow-soft);
+      transform:translateY(-1px);
+    }
+
+    .g-icon {
+      width:18px;
+      height:18px;
+      display:grid;
+      place-items:center;
+      flex:none;
+    }
+
+    .g-icon img {
+      width:18px;
+      height:18px;
+      display:block;
+    }
+
+    .row {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:-2px;
+    }
+
+    .remember {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:#222;
+      font-size:.92rem;
+      user-select:none;
+    }
+
+    .remember input {
+      width:16px;
+      height:16px;
+      margin:0;
+      accent-color:var(--primary);
+    }
+
+    .small-link {
+      font-size:.92rem;
+      font-weight:600;
+    }
+
+    .error {
+      color:var(--danger);
+      background:rgba(185,28,28,0.08);
+      border:1px solid rgba(185,28,28,0.16);
+      padding:.85rem 1rem;
+      border-radius:12px;
+      font-size:.95rem;
+    }
+
+    .footer-note {
+      margin-top:18px;
+      text-align:center;
+      color:#222;
+      font-size:.88rem;
+      line-height:1.5;
+    }
+
+    .footer-note strong {
+      color:var(--text);
+      font-weight:600;
+    }
+
+    @media (max-width: 520px) {
+      .topbar {
+        padding:0 16px;
+      }
+
+      .tagline {
+        display:none;
+      }
+
+      .auth-card {
+        padding:12px;
+        border-radius:20px;
+      }
+
+      .page {
+        padding:8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand-wrap">
+      <div class="brand-mark" aria-hidden="true">S</div>
+      <div class="brand">
+        <a href="/">SpectroDraw</a>
+        <div class="tagline">Interactive Spectrogram Editor</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="auth-shell">
+      <div class="auth-card" aria-labelledby="login-title">
+
+        <h1 id="login-title">Sign in to continue</h1>
+
+        <form id="login-form" autocomplete="on" class="auth-form">
+          <div class="field">
+            <label class="label-text" for="email">Email address</label>
+            <input id="email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
+          </div>
+
+          <div class="field">
+            <label class="label-text" for="password">Password</label>
+            <input id="password" name="password" type="password" required placeholder="" autocomplete="current-password" />
+          </div>
+
+          <div class="row">
+            <label class="remember">
+              <input type="checkbox" name="remember" />
+              Remember me
+            </label>
+            <a class="small-link" href="/forgot-password">Forgot password?</a>
+          </div>
+
+          <button id="primary-btn" type="submit" class="primary">Sign in</button>
+
+          <div class="divider">or</div>
+
+          <button id="google-login" type="button" class="google">
+            <span class="g-icon" aria-hidden="true">
+              <img src="../assets/Google__G__logo.svg" alt="">
+            </span>
+            <span id="google-btn-text">Continue with Google</span>
+          </button>
+
+          <div id="login-error" role="alert" class="error" style="display:none;"></div>
+        </form>
+
+        <div class="footer-note">
+          By continuing, you agree to our <a href="../terms/">Terms</a> and <a href="../privacy/">Privacy Policy</a>.
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="../accounts.js"></script>
+</body>
+</html>

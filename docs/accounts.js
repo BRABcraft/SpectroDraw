@@ -13,7 +13,7 @@
 
   const panel = document.getElementById('login-panel');
   const modal = document.getElementById('login-modal');
-  const closeBtn = modal.querySelector('.modal-close');
+  const closeBtn = modal? modal.querySelector('.modal-close'):null;
   const emailInput = document.getElementById('email');
   const passwordInput = document.getElementById('password');
   const form = document.getElementById('login-form');
@@ -76,35 +76,37 @@
     if (!accountWrap.contains(e.target)) closeAccountMenu();
   }
 
-  signinLink.addEventListener('click', (e) => {
+  if (signinLink) signinLink.addEventListener('click', (e) => {
     e.preventDefault();
     setSignupMode(false);
     openPanel();
   });
-  signupLink.addEventListener('click', (e) => {
+  if (signupLink) signupLink.addEventListener('click', (e) => {
     e.preventDefault();
     setSignupMode(true);
     openPanel();
   });
 
-  closeBtn.addEventListener('click', closePanel);
-  panel.addEventListener('click', (e) => { if (e.target === panel) closePanel(); });
+  if (closeBtn) closeBtn.addEventListener('click', closePanel);
+  if (panel) panel.addEventListener('click', (e) => { if (e.target === panel) closePanel(); });
 
-  toggleSignup.addEventListener('click', (e) => { e.preventDefault(); setSignupMode(!isSignup); });
+  if (toggleSignup) toggleSignup.addEventListener('click', (e) => { e.preventDefault(); setSignupMode(!isSignup); });
 
   function setSignupMode(on) {
     isSignup = !!on;
     signupOnlyElems.forEach(el => { el.style.display = isSignup ? 'flex' : 'none'; });
     primaryBtn.textContent = isSignup ? 'Sign up' : 'Sign in';
     googleBtnText.textContent = isSignup ? 'Sign up with Google' : 'Log in with Google';
-    toggleSignup.textContent = isSignup ? 'Back to login' : 'New? Sign up';
+    if (toggleSignup) toggleSignup.textContent = isSignup ? 'Back to login' : 'New? Sign up';
     document.getElementById('login-title').textContent = isSignup ? 'Create account' : 'Sign in';
+    const username = document.getElementById('username');
+    const confirmPassword = document.getElementById('confirm-password');
     if (isSignup) {
-      document.getElementById('username').setAttribute('required', 'required');
-      document.getElementById('confirm-password').setAttribute('required', 'required');
+      if (username) username.setAttribute('required', 'required');
+      if (confirmPassword) confirmPassword.setAttribute('required', 'required');
     } else {
-      document.getElementById('username').removeAttribute('required');
-      document.getElementById('confirm-password').removeAttribute('required');
+      if (username) username.removeAttribute('required');
+      if (confirmPassword) confirmPassword.removeAttribute('required');
     }
     setTimeout(() => emailInput.focus(), 50);
   }
@@ -159,8 +161,8 @@
   function showError(msg) { loginError.textContent = msg; loginError.style.display = ''; }
 
   function setLoggedInState(user) {
-    signupLink.style.display = 'none';
-    signinLink.style.display = 'none';
+    if (signupLink) signupLink.style.display = 'none';
+    if (signinLink) signinLink.style.display = 'none';
     if (accountWrap) accountWrap.style.display = 'block';console.log(158);
     if (tt) tt.innerText = "Purchasing for: "+user.email;
     let username = user.email && user.email.includes('@') ? user.email.substring(0,user.email.indexOf("@")) : (user.name || 'user');
@@ -173,8 +175,8 @@
 
 
   function setLoggedOutState() {
-    signupLink.style.display = '';
-    signinLink.style.display = '';
+    if (signupLink) signupLink.style.display = '';
+    if (signinLink) signinLink.style.display = '';
     if (accountWrap)accountWrap.style.display = 'none';
     closeAccountMenu();
     try{if (typeof updateNav === 'function') updateNav();} catch (err) {}
@@ -186,7 +188,15 @@
       try {
         localStorage.setItem('spectrodraw_user', JSON.stringify(safeUser));
       } catch (e) {}
+
       setLoggedInState(safeUser);
+
+      const pathname = new URL(window.location.href).pathname.replace(/\/+$/, '');
+      if (pathname.endsWith('/signin')) {
+        window.location.href = '../buy-pro/checkout/';
+        return;
+      }
+
       window.location.reload();
     } catch (e) {
       console.error('onLoginSuccess error', e);

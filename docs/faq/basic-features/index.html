@@ -152,6 +152,38 @@
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
     @media(max-width:600px) {.tagline{display:none;}}
+    header.hero{
+      position:relative;
+      padding:40px 20px 24px;
+      display:flex;
+      justify-content:center;
+      overflow:hidden;
+      margin-bottom:10px;
+    }
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:url('../../assets/spectrogram-hero2.jpg');
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      filter: contrast(105%) saturate(110%) brightness(0.72);
+      transform: scale(1.02);
+      z-index:0;
+    }
+    .hero-inner{
+      max-width:1020px;
+      width:100%;
+      text-align:center;
+      padding:32px 28px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      box-shadow:var(--card-glow);
+      border:1px solid var(--glass-2);
+      position:relative;
+      z-index:1;
+    }
   </style>
 </head>
 <body>

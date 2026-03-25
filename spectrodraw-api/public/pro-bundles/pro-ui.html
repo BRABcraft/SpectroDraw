@@ -9,7 +9,7 @@
   <title>SpectroDraw - Interactive spectrogram editor</title>
 
 <script>
-(async function () {if (true) return;
+(async function () {//if (true) return;
   try {
     if (window.parent && window.parent.location.host === "127.0.0.1:5500") return;
   } catch (e) {}
@@ -167,7 +167,7 @@
 <body>
 <div class="app">
   <header class="top-bar">
-    <a href="https://spectrodraw.com" id="home" title="Home" style="margin-left:10px;"><img src="home.jpg" style="background:transparent; height: 30px;border-radius:4px;"></a>
+    <a href="https://spectrodraw.com" id="home" title="Home" style="margin-left:10px;"><img data-manifest="home.jpg" style="background:transparent; height: 30px;border-radius:4px;"></a>
     <button id="fileBtn" class="top-leftBtn">File</button>
     <button id="editBtn" class="top-leftBtn">Edit</button>
     <button id="viewBtn" class="top-leftBtn">View</button>
@@ -331,7 +331,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
 
-<!-- <script data-manifest="windows.js"></script>
+<script data-manifest="windows.js"></script>
 <script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="filterMasks.js"></script>
@@ -355,11 +355,11 @@
 <script data-manifest="brushPreview.js"></script>
 <script data-manifest="rightClick.js"></script>
 <script data-manifest="initialRenders.js"></script>
-<script data-manifest="eq.js"></script> -->
+<script data-manifest="eq.js"></script>
 
 <!--Comment out on deploy-->
 
-<link rel="stylesheet" type="text/css" href="style.css">
+<!-- <link rel="stylesheet" type="text/css" href="style.css">
 <script src="windows.js"></script>
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
@@ -384,4 +384,4 @@
 <script src="brushPreview.js"></script>
 <script src="rightClick.js"></script>
 <script src="eq.js"></script>
-<script src="initialRenders.js"></script>
+<script src="initialRenders.js"></script> -->

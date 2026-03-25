@@ -188,6 +188,18 @@ img{
   p,li{font-size:15px;}
   .tagline{display:none;}
 }
+table {
+  border-collapse: collapse;
+  box-shadow: 0 0 40px #9333ea33;
+  margin: 40px 0 40px 0;
+}
+
+td{
+  padding:10px;
+  background:#222;
+  color:#eee;
+  border: 2px solid #444;
+}
   </style>
 </head>
 <body>
@@ -266,32 +278,41 @@ img{
 
   <main class="wrap" style="margin-left:150px;">
 
-<h1 class="title">Free Early Access Deal Ends in Four Days</h1>
-<h4>Published: Mar 16, 2026</h4>
+<h1 class="title">SpectroDraw Pro is Now Available to All Buyers</h1>
+<h4>Published: Mar 24, 2026</h4>
 <img src="assets/1.jpg" style="margin-bottom:0;">
 <br>
-<small style="color:#888;">This was the very first version of SpectroDraw, created six months ago.</small>
-<p>SpectroDraw has come a long way. What started as a small side project has grown into a full online 
-  application used by musicians, sound designers, and curious creators exploring new ways to make sound.</p>
-<p>First of all, congratulations to everyone who has already claimed free early access. More than <strong>150 people</strong> 
-  have signed up so far, showing a strong interest in the project. Early users have played a huge role in 
-  helping SpectroDraw grow by sharing the app on social media, creating demonstrations, and leaving thoughtful reviews.</p>
-<img src="assets/2.jpg" style="margin-bottom:0;">
-<br>
-<small style="color:#888;line-height:0.7em;">Thanks to the many users who have reluctantly shared SpectroDraw on their social media to claim the free early access deal.</small>
-<p>The project has also started getting attention from well-known creators in the music community. SpectroDraw has been
-  recognized by <strong>Pushpatterns, Folia Sound, Synthet, Maxeyy, and Bobby Owsinski</strong>, which shows that many people see real
-  potential in this new way of creating sound through spectrograms.</p>
-<p>However, the <strong>free early access offer will end on March 20th</strong>. After that date, users who want early access to SpectroDraw
-  Pro will need to purchase it for $40. However, they will be able to use all features immediately after purchase, though the software may not be in its final release form.</p>
-<p>Following the end of the early access deal, development will focus on building the <strong>SpectroDraw VST plugin</strong>. Once the plugin
-  is complete, both the VST and SpectroDraw Pro will be released to the public at the same time. At that point, users who
-  claimed Pro using free early access will finally gain full access.</p>
-<p>Thank you to everyone who has supported SpectroDraw so far. The feedback, posts, and excitement from the community have
-  helped turn a small experiment into something much bigger. If you have been thinking about claiming early access, this is
-  the final week to do it for free.</p>
-<br><br><br>
-<a class="btn btn-primary" href="../../buy-pro/"><span>Claim free early access!</span>&nbsp;<span id="countdown"></span></a>
+
+<p>SpectroDraw Pro is moving into its next phase, with a new change in how access is granted. Starting now, <strong>anyone who purchases 
+  SpectroDraw Pro for $40 will receive immediate, full access.</strong> This means there is no longer a wait period tied to the final release 
+  for paid users.</p>
+  <p>If you purchased SpectroDraw Pro, you can access it at <a href="https://spectrodraw.com/app">spectrodraw.com/app</a>. If you
+  want to use the free version, then you can go to the same link while logged out. <strong>Please note that there may be a 
+    slight delay before the Pro version loads while our server checks if you purchased it.
+  </strong></p>
+<p>
+This update is designed to make the experience more straightforward and rewarding for those who choose to support the project. Buyers 
+can jump in right away and begin using Pro features as development continues.</p>
+<p>For those who joined through the <strong>free early access program</strong>, your support has been incredibly valuable. That early momentum helped 
+  shape SpectroDraw into what it is today. Your access will remain active, and <strong>you will receive full Pro access once the public 
+  release is complete.</strong></p>
+  <table>
+    <tr>
+      <td>Free early access users (186)</td>
+      <td>$40 Buyers</td>
+    </tr>
+    <tr>
+      <td>Gain access to SpectroDraw Pro once it releases in 1-2 months</td>
+      <td>Immediate access to SpectroDraw Pro upon purchasing. However, the software may not be in its final release form.</td>
+    </tr>
+  </table>
+<p>
+The official Pro release will happen once I complete the VST plugin, which is currently expected to be sometime in May. This
+ plugin will allow users to draw and edit spectrograms directly in their DAWs.</p>
+<p>
+Thank you for all the support and encouragement to continue this project. I'd never imagined my project to get so big. There is a
+ lot more to come!</p><br><br><br>
+<a class="btn btn-primary" href="../../app"><span>Go to spectrodraw.com/app</span></a>
 
   </main>
    
@@ -304,24 +325,6 @@ img{
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
-  </script>
-  <script>
-    const targetDate = new Date("March 20, 2026 00:00:00").getTime();
-    const content = document.getElementById("countdown");
-    function updateCountdown() {
-      const now = Date.now();
-      let diff = targetDate - now;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      diff %= 1000 * 60 * 60 * 24;
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      diff %= 1000 * 60 * 60;
-      const minutes = Math.floor(diff / (1000 * 60));
-      diff %= 1000 * 60;
-      const seconds = Math.floor(diff / 1000);
-      content.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
-    }
-    updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>

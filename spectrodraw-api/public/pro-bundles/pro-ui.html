@@ -7,12 +7,99 @@
   <meta property="og:description" content="Draw directly on audio with the SpectroDraw web app. Visual sound editing, real-time playback, and more — all in your browser.">
   <link rel="canonical" href="https://spectrodraw.com/app">
   <title>SpectroDraw - Interactive spectrogram editor</title>
-
 <script>
 (async function () {//if (true) return;
   try {
     if (window.parent && window.parent.location.host === "127.0.0.1:5500") return;
   } catch (e) {}
+
+  // -------------------------
+  // Loader overlay
+  // -------------------------
+  let loaderEl = null;
+  let loaderFillEl = null;
+  let loaderTextEl = null;
+  let loaderCountEl = null;
+  let loaderTotal = 0;
+  let loaderDone = 0;
+
+  function ensureLoader() {
+    if (loaderEl) return;
+
+    loaderEl = document.createElement("div");
+    loaderEl.id = "spectrodraw-pro-loader";
+    loaderEl.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:18px; width:min(520px, calc(100vw - 48px));">
+        <div style="font-family: Arial, Helvetica, sans-serif; font-size: clamp(28px, 4vw, 56px); font-weight: 700; letter-spacing: 0.04em; color: #fff; text-align:center;">
+          SpectroDraw Pro
+        </div>
+        <div style="width:100%; max-width:420px;">
+          <div style="height:14px; width:100%; background:#222; border:1px solid #444; border-radius:999px; overflow:hidden; box-shadow:0 0 0 1px rgba(255,255,255,0.04) inset;">
+            <div id="spectrodraw-pro-loader-fill" style="height:100%; width:0%; background:#fff; border-radius:999px; transition:width 180ms linear;"></div>
+          </div>
+          <div id="spectrodraw-pro-loader-text" style="margin-top:10px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; color:#fff; text-align:center; opacity:0.92;">
+            Loading assets: 0/0
+          </div>
+        </div>
+      </div>
+    `;
+
+    loaderEl.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: opacity 220ms ease;
+    `;
+
+    (document.body || document.documentElement).appendChild(loaderEl);
+
+    loaderFillEl = loaderEl.querySelector("#spectrodraw-pro-loader-fill");
+    loaderTextEl = loaderEl.querySelector("#spectrodraw-pro-loader-text");
+  }
+
+  function setLoaderTotal(total) {
+    loaderTotal = Math.max(0, total | 0);
+    loaderDone = 0;
+    updateLoader();
+  }
+
+  function updateLoader() {
+    if (!loaderEl || !loaderFillEl || !loaderTextEl) return;
+    const total = loaderTotal;
+    const done = Math.min(loaderDone, total);
+
+    loaderTextEl.textContent = `Loading assets: ${done}/${total}`;
+
+    const pct = total > 0 ? (done / total) * 100 : 100;
+    loaderFillEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  }
+
+  function advanceLoader() {
+    loaderDone += 1;
+    updateLoader();
+  }
+
+  function hideLoader() {
+    if (!loaderEl) return;
+    loaderEl.style.opacity = "0";
+    setTimeout(() => {
+      if (loaderEl && loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
+      loaderEl = null;
+      loaderFillEl = null;
+      loaderTextEl = null;
+    }, 240);
+  }
+
+  ensureLoader();
+
+  // Give the browser a chance to paint the overlay before heavy work starts.
+  await new Promise(requestAnimationFrame);
+
   const manifestUrl = 'https://api.spectrodraw.com/spectrodraw-pro/manifest.json';
   const loaderTimeoutMs = 3000;
   function isAbsolute(u) {return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(u) || u.startsWith('//');}
@@ -20,11 +107,12 @@
     if (!ref) return null;
     return ref.replace(/^[.\/]+/, '');
   }
+
   const manifestPromise = (async () => {
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), loaderTimeoutMs);
-      const r = await fetch(manifestUrl, { method: 'GET',cache: 'no-cache', signal: controller.signal });
+      const r = await fetch(manifestUrl, { method: 'GET', cache: 'no-cache', signal: controller.signal });
       clearTimeout(id);
       if (!r.ok) throw new Error('manifest fetch failed');
       return await r.json();
@@ -33,10 +121,16 @@
       return null;
     }
   })();
+
   const manifest = await manifestPromise;
-  if (!manifest) return;
+  if (!manifest) {
+    hideLoader();
+    return;
+  }
+
   const map = {};
   for (const k of Object.keys(manifest)) map[normalizeKey(k)] = manifest[k];
+
   function resolveManifestUrl(ref) {
     if (!ref) return null;
     if (isAbsolute(ref)) return null;
@@ -45,6 +139,7 @@
     if (!hashed) return null;
     return 'https://api.spectrodraw.com/spectrodraw-pro/' + hashed;
   }
+
   const selectors = [
     'img[src]',
     'script[src]',
@@ -59,20 +154,26 @@
     'link[data-href]',
     '[data-manifest]'
   ];
+
   const elems = Array.from(document.querySelectorAll(selectors.join(',')));
   const scriptsToLoad = [];
+
   for (const el of elems) {
     const manifestName = el.getAttribute('data-href') ||
                          el.getAttribute('data-src') ||
                          el.getAttribute('data-manifest') ||
                          el.getAttribute('src') ||
                          el.getAttribute('href');
+
     let ref = manifestName;
     if (!ref) continue;
     if (isAbsolute(ref)) continue;
+
     const resolved = resolveManifestUrl(ref);
     if (!resolved) continue;
+
     const tag = el.tagName && el.tagName.toLowerCase();
+
     if (tag === 'script') {
       el.removeAttribute('src');
       scriptsToLoad.push({
@@ -85,7 +186,7 @@
       });
     } else if (tag === 'link') {
       el.setAttribute('href', resolved);
-    } else if (tag === 'img' || tag === 'iframe' || tag === 'video' || tag === 'audio' || tag.tagName === undefined) {
+    } else if (tag === 'img' || tag === 'iframe' || tag === 'video' || tag === 'audio') {
       if (el.hasAttribute('src') || el.hasAttribute('data-src')) {
         el.setAttribute('src', resolved);
       } else if (el.hasAttribute('href') || el.hasAttribute('data-href')) {
@@ -105,6 +206,9 @@
       }
     }
   }
+
+  setLoaderTotal(scriptsToLoad.length);
+
   const styleEls = Array.from(document.querySelectorAll('style'));
   for (const s of styleEls) {
     let text = s.textContent;
@@ -116,6 +220,7 @@
     });
     s.textContent = text;
   }
+
   for (const sheet of Array.from(document.styleSheets)) {
     try {
       const rules = sheet.cssRules || [];
@@ -134,28 +239,49 @@
       }
     } catch (e) {}
   }
+
   async function loadScriptsSequentially(items) {
     for (const it of items) {
       const original = it.original;
       const newScript = document.createElement('script');
+
       if (it.module) newScript.type = 'module'; else newScript.type = it.type;
       if (it.async) newScript.async = true;
       if (it.defer) newScript.defer = true;
       if (original.getAttribute('nonce')) newScript.setAttribute('nonce', original.getAttribute('nonce'));
       if (original.id) newScript.id = original.id;
-      await new Promise((resolve, reject) => {
-        newScript.onload = () => resolve();
+
+      await new Promise((resolve) => {
+        newScript.onload = () => {
+          advanceLoader();
+          resolve();
+        };
         newScript.onerror = (e) => {
           console.warn('Failed to load managed script', it.src, e);
+          advanceLoader();
           resolve();
         };
         newScript.src = it.src;
         original.parentNode && original.parentNode.replaceChild(newScript, original);
-        if (it.async) resolve();
+        if (it.async) {
+          advanceLoader();
+          resolve();
+        }
       });
     }
+
+    if (items.length === 0) {
+      updateLoader();
+    }
   }
-  loadScriptsSequentially(scriptsToLoad).catch(e => console.warn('Script loader error', e));
+
+  try {
+    await loadScriptsSequentially(scriptsToLoad);
+  } catch (e) {
+    console.warn('Script loader error', e);
+  } finally {
+    hideLoader();
+  }
 })();
 </script>
 
@@ -354,8 +480,8 @@
 <script data-manifest="brushPreviewData.js"></script>
 <script data-manifest="brushPreview.js"></script>
 <script data-manifest="rightClick.js"></script>
-<script data-manifest="initialRenders.js"></script>
 <script data-manifest="eq.js"></script>
+<script data-manifest="initialRenders.js"></script>
 
 <!--Comment out on deploy-->
 

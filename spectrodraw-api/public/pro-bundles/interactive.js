@@ -164,7 +164,6 @@ function canvasMouseDown(e,touch) {
   }
 
   visited = Array.from({ length: layerCount }, () => new Uint8Array(mags.length));
-  console.log(mags.length);
   stopSource();
   paintedPixels = new Set();
   

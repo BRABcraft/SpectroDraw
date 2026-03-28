@@ -2274,7 +2274,7 @@ function canvasMouseMove(e,touch) {
       const i = hx*specHeight+hy;
       let normalizedMag = Math.min(1, mags[i] / 256);
       let db = (20 * Math.log10(normalizedMag)).toFixed(1);
-      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`
+      info.innerHTML=`Pitch: ${hz.toFixed(0)}hz (${hzToNoteName(hz)}) <br>Time: ${secs}<br>Loudness: ${db} db`;
     }
     if (!painting && (currentShape === "brush" || currentShape === "image")) {
         previewShape(cx, cy);

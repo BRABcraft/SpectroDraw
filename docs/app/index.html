@@ -1352,9 +1352,16 @@ sliders[18][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let v
     if (isNaN(val)) val = noiseRemoveFloor;if (val < min) val = min;if (val > max) val = max;sliders[18][1].value = val;sliders[18][0].value = val;noiseRemoveFloor = val;updateBrushPreview();}});
 sliders[23][0].addEventListener("input", ()=>{softness  =  (sliders[23][0].value); updateBrushPreview();});
 sliders[23][1].addEventListener("input", ()=>{softness  =  (sliders[23][1].value); updateBrushPreview();});
-function efef(){fHigh=sampleRate/2;sliders[0][0].value=sliders[0][1].value=(framesTotal*hop/sampleRate);restartRender();}
-sliders[24][0].addEventListener("input", ()=>{sampleRate=parseInt(sliders[24][0].value);efef();});
-sliders[24][1].addEventListener("input", ()=>{sampleRate=parseInt(sliders[24][1].value);efef();});
+function efef(i){
+  newSR = parseInt(sliders[24][i].value);
+  eqBands.forEach(e=>{e.freq*=newSR/sampleRate});
+  sampleRate= newSR;
+  fHigh=sampleRate/2;
+  sliders[0][0].value=sliders[0][1].value=(framesTotal*hop/sampleRate);
+  restartRender();
+}
+sliders[24][0].addEventListener("input", ()=>{efef(0);});
+sliders[24][1].addEventListener("input", ()=>{efef(1);});
 function onPhaseSettingsChange(idx) {
   const v = sliders[19][idx].valueAsNumber;
   switch (phaseTextureEl.value) {

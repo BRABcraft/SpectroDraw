@@ -633,7 +633,9 @@ const sampleRateKnob = new Knob(document.getElementById('sampleRate'), {
   int:true,
   value: sampleRate,
   onInput: (knob)=>{
-    sampleRate = knob.value;
+    newSR = knob.value;
+    eqBands.forEach(e=>{e.freq*=newSR/sampleRate});
+    sampleRate= newSR;
     fHigh=sampleRate/2;
     simpleRestartRender(0,framesTotal);
     bufferLengthKnob.value=framesTotal*hop/sampleRate;

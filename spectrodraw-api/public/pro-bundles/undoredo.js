@@ -222,10 +222,10 @@ function recomputePCMForCols(colStart, colEnd) {
         const phase = phases[idx] || 0;
         // assume pan in [0,1] where 0=left, 1=right; fallback to center if undefined
         // equal-power panning
-        const panRaw = (layer.pans && layer.pans[idx]);
+        const panRaw = layer.pans && layer.pans[idx];
         const pan = Number.isFinite(panRaw) ? Math.max(0, Math.min(1, panRaw)) : 0.5;
-        const gainL = Math.cos(pan * (Math.PI / 2));
-        const gainR = Math.sin(pan * (Math.PI / 2));
+        const gainL = 1 - pan;
+        const gainR = pan;
         const reVal = mag * Math.cos(phase);
         const imVal = mag * Math.sin(phase);
 

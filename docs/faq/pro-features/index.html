@@ -184,6 +184,70 @@
       position:relative;
       z-index:1;
     }
+    .sneak-card{
+      background:rgba(15,23,32,0.86);
+      border:1px solid var(--soft-border);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow:var(--card-glow);
+    }
+    .sneak-header{
+      padding:18px 22px 0;
+    }
+    .sneak-header h2{
+      margin:0 0 8px;
+      font-size:1.25rem;
+      color:#fff;
+    }
+    .sneak-header p{
+      margin:0;
+      color:#cfd8e7;
+    }
+    .sneak-actions{
+      padding:18px 22px 22px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .sneak-btn{
+      padding:.85rem 1.05rem;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:linear-gradient(45deg,#0f1b45,#3d2490);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+    .sneak-btn:hover{transform:translateY(-1px)}
+    .sneak-note{
+      color:var(--muted);
+      font-size:.95rem;
+      margin:0;
+    }
+    #inlineSneakDiv{
+      display:none;
+      padding:0 22px 22px;
+    }
+    #inlineSneak{
+      height:600px;
+      box-sizing:border-box;
+      border-radius:14px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.05);
+      background:#06070a;
+    }
+    #openInNewTab{
+      margin-bottom:12px;
+      padding:.7rem .9rem;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.08);
+      background:#141824;
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -247,7 +311,7 @@
           <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
           <button id="google-login" type="button" class="google">
             <span class="g-icon" aria-hidden="true">
-              <img src="/assets/Google__G__logo.svg" alt="">
+              <img src="../../assets/Google__G__logo.svg" alt="">
             </span>
             <span id="google-btn-text">Log in with Google</span>
           </button>
@@ -267,7 +331,45 @@
   </header>
 
   <main class="wrap">
+    <div class="sneak-wrap">
+      <div class="sneak-card">
+        <div class="sneak-header">
+          <h2>Preview SpectroDraw Pro</h2>
+          <p>
+            Try out what SpectroDraw Pro has to offer.
+          </p>
+        </div>
 
+        <div class="sneak-actions">
+          <button id="sneakPeekButton" class="sneak-btn" type="button">Take a sneak peek</button>
+          <button id="openInNewTab" class="sneak-btn" type="button" style="display:none;">Open in new tab</button>
+          <p class="sneak-note">Preview only. Recording, reproducing, or distributing is illegal.</p>
+        </div>
+
+        <div id="inlineSneakDiv" style="display:none;">
+          <div id="inlineSneak" style="height:600px;box-sizing:border-box;"></div>
+        </div>
+        <script>
+          const sneakBtn = document.getElementById("sneakPeekButton");
+          const inlineSneakDiv = document.getElementById("inlineSneakDiv");
+          const openInNewTab = document.getElementById("openInNewTab");
+
+          sneakBtn.addEventListener("click", () => {
+            const isOpen = inlineSneakDiv.style.display === "block";
+            inlineSneakDiv.style.display = isOpen ? "none" : "block";
+            openInNewTab.style.display = isOpen ? "none" : "inline-flex";
+            if (!isOpen && typeof window.loadSneakPeek === "function") {
+              window.loadSneakPeek(document.getElementById("inlineSneak"));
+            }
+          });
+
+          openInNewTab.addEventListener("click", () => {
+            window.open("../../buy-pro/sneakpeek.html", "_blank", "noopener");
+          });
+        </script>
+        <script src="../../buy-pro/sneakpeek.js"></script>
+      </div>
+    </div>
     <section class="section">
 
       <h1 style="text-align:center;">Tools:</h1>

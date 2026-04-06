@@ -70,6 +70,9 @@ export default {
 			if (pathname === "/api/make-purchase" && request.method === "POST") {
         return addCors(await handleMakePurchase(request, user, env), request);
       }
+			if (pathname === "/check-product-database" && request.method === "POST") {
+        return addCors(await checkProductDatabase(request,user,env), request);
+      }
       if (pathname === "/api/products" && request.method === "GET") {
         return addCors(await handleProductList(request, user, env), request);
       }
@@ -964,15 +967,65 @@ async function cleanupOldPins(env) {
     continuation = list.truncated ? list.cursor : undefined;
   } while (continuation);
 }
-async function handleMakePurchase(request, user,env) {
-  //more security required
+async function checkProductDatabase(request,user,env){
   try {
-    if (!user || !user.email) return json({ message: JSON.stringify(user) }, 400);
-    const email = String(user.email).trim().toLowerCase();
+    const body = await request.json().catch(() => ({email:""}));
+    const email = String(body.email).trim().toLowerCase();
+    const indexKey = 'products:index';
+    let idxRaw = await env.USERS.get(indexKey);
+    let index = [];
+    if (idxRaw) {
+      try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
+      if (!Array.isArray(index)) index = [];
+    }
+    return json({hasPro:index.includes(email)},201);
+  } catch (err) {
+    console.error('checkProductDatabase error:', err);
+    return json({ message: err.message}, 500);
+  }
+}
+async function handleMakePurchase(request, user, env) {
+  try {
+    const body = await request.json().catch(() => ({}));
+
+    // Prefer the user sent by checkout/index.html
+    let bodyUser = body?.user || null;
+    if (typeof bodyUser === 'string') {
+      try {
+        bodyUser = JSON.parse(bodyUser);
+      } catch {
+        bodyUser = { email: bodyUser };
+      }
+    }
+
+    const bodyEmail = String(bodyUser?.email || '').trim().toLowerCase();
+    const authEmail = String(user?.email || '').trim().toLowerCase();
+
+    // Use the request body account first, since that is the account the UI is on.
+    const email = bodyEmail || authEmail;
+
+    if (!email) return json({ message: 'Missing user email' }, 400);
+
+    // Optional safety check: warn if cookie/session and body disagree
+    if (bodyEmail && authEmail && bodyEmail !== authEmail) {
+      console.warn('handleMakePurchase: auth mismatch', {
+        bodyEmail,
+        authEmail
+      });
+    }
+
     const now = new Date().toISOString();
     const claimKey = `product:${email}`;
 
-    await env.USERS.put(claimKey, JSON.stringify({ email, product:"SpectroDraw Pro", price:"$40.00", claimedAt: now }));
+    await env.USERS.put(
+      claimKey,
+      JSON.stringify({
+        email,
+        product: "SpectroDraw Pro",
+        price: "$40.00",
+        claimedAt: now
+      })
+    );
 
     const indexKey = 'products:index';
     let idxRaw = await env.USERS.get(indexKey);
@@ -1030,26 +1083,20 @@ async function handleProductList(request, user, env) {
       return json({ message: "Server misconfigured: USERS KV not available" }, 500);
     }
 
-    const indexKey = 'products:index';
-    const idxRaw = await env.USERS.get(indexKey);
-    let index = [];
-    if (idxRaw) {
-      try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
-      if (!Array.isArray(index)) index = [];
-    }
-
+    const listed = await env.USERS.list({ prefix: 'product:' });
     const products = [];
-    for (const email of index) {
+
+    for (const key of listed.keys) {
       try {
-        const claimRaw = await env.USERS.get(`product:${String(email).toLowerCase()}`);
-        if (claimRaw) {
-          try {
-            products.push(JSON.parse(claimRaw));
-            continue;
-          } catch (e) { /* fallthrough to fallback */ }
+        const raw = await env.USERS.get(key.name);
+        if (raw) {
+          products.push(JSON.parse(raw));
+        } else {
+          const email = key.name.slice('product:'.length);
+          products.push({ email, claimedAt: null });
         }
-        products.push({ email, claimedAt: null });
-      } catch (e) {
+      } catch {
+        const email = key.name.slice('product:'.length);
         products.push({ email, claimedAt: null });
       }
     }

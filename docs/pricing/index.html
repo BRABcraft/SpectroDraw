@@ -81,8 +81,9 @@
       margin-bottom: 0.25rem;
     }
     .plan p.price {
+      margin:0;
       font-size: 2.5rem;
-      font-weight: 700;
+      font-weight: 1000;
       margin-bottom: 1.5rem;
       color: #6366f1;
     }
@@ -99,7 +100,7 @@
       text-align: left;
     }
     .features li {
-      margin: 0.6rem 0;
+      margin: 0.3rem 0;
       font-size: 1rem;
       display: flex;
       align-items: center;
@@ -149,6 +150,23 @@
     footer a:hover{text-decoration:underline}
     a{color:white;text-decoration:none}
     @media(max-width:600px) {.tagline{display:none;}}
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+
+      gap: .45rem;
+      height: 1.1em;
+      padding: .35rem .65rem;
+      border-radius: 999px;
+      background: rgba(16,185,129,0.12);
+      color: #d8ffef;
+      border: 1px solid rgba(16,185,129,0.2);
+      font-size: .85rem;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -224,14 +242,13 @@
   <link rel="stylesheet" type="text/css" href="../accounts.css">
   <script src="../accounts.js"></script>
   <main>
-  <h1>Upgrade To Pro</h1>
-  <p class="subtitle">Secure your Pro account before the full release</p>
-
+    <h1>Upgrade to Pro</h1>
   <div class="pricing-grid">
     <!-- Free Plan -->
     <div class="plan">
       <h2>Free</h2>
-      <p class="price">$0</p>
+      <p class="price" style="margin-bottom:50px;">$0</p>
+      <p>Start here to try the core editor without paying anything.</p>
       <ul class="features">
         <li><span class="check">✔</span> AI-powered MIDI Conversion</li>
         <li><span class="check">✔</span> Adjustable Spectrogram Resolution</li>
@@ -250,12 +267,14 @@
     </div>
 
     <!-- Pro Plan -->
-    <div class="plan" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);">
+    <div class="plan" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);position:relative;">
+      <div class="badge">Recommended</div>
       <h2>Pro</h2>
       <p class="price">
         $40.00
         <small>One time fee</small>
       </p>
+      <p>Everything unlocked.<br>No limits. No subscriptions.</p>
       <ul class="features">
         <li><span class="check">✔</span> AI-powered MIDI Conversion</li>
         <li><span class="check">✔</span> Adjustable Spectrogram Resolution</li>
@@ -269,9 +288,12 @@
         <li><span class="check">✔</span> Live MIDI Playback</li>
         <li><span class="check">✔</span> Effect Automation</li>
         <li><span class="check">✔</span> Isolate and Edit Frequencies</li>
+        <li><a href="../faq/pro-features" style="font-size:0.9rem; opacity:0.8;">See full Pro feature breakdown</a></li>
       </ul>
       <!--<div style="align-items: center; justify-content: center; display:flex;"><p id="countdown" style="font-size:25px;padding:0;margin:0;"></p></div>-->
-      <a href="../buy-pro" class="btn btn-primary">See a sneak peek</a>
+      <div style="flex-direction:column;display:flex;">
+        <a href="../buy-pro/checkout/" class="btn btn-primary">Get it now</a>
+      </div>
     </div>
   </div>
   </main>

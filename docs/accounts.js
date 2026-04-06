@@ -1,3 +1,14 @@
+function sanitizeUserForStorage(user) {
+    if (!user) return user;
+    const copy = Object.assign({}, user);
+
+    if (copy.name) {
+      copy.name = copy.name.replace(/[^\x20-\x7E]/g, '');
+      if (!copy.name.trim()) copy.name = copy.email;
+    }
+
+    return copy;
+  }
 (function () {
   const oauthBase = "https://oauth.spectrodraw.com/login";
   const authBase  = "https://auth.spectrodraw.com";
@@ -10,6 +21,7 @@
   const accountMenu = document.getElementById('account-menu');
   const accountLogoutBtn = document.getElementById('account-logout');
   const myProductsLink = document.getElementById('my-products');
+  const loginTitle = document.getElementById('login-title');
 
   const panel = document.getElementById('login-panel');
   const modal = document.getElementById('login-modal');
@@ -42,11 +54,13 @@
   }
 
   function openPanel() {
+    if (!panel) return;
     panel.setAttribute('aria-hidden', 'false');
     setTimeout(() => emailInput.focus(), 50);
     document.addEventListener('keydown', escHandler);
   }
   function closePanel() {
+    if (!panel) return;
     panel.setAttribute('aria-hidden', 'true');
     loginError.style.display = 'none';
     document.removeEventListener('keydown', escHandler);
@@ -91,14 +105,14 @@
   if (panel) panel.addEventListener('click', (e) => { if (e.target === panel) closePanel(); });
 
   if (toggleSignup) toggleSignup.addEventListener('click', (e) => { e.preventDefault(); setSignupMode(!isSignup); });
-
+  
   function setSignupMode(on) {
     isSignup = !!on;
     signupOnlyElems.forEach(el => { el.style.display = isSignup ? 'flex' : 'none'; });
     primaryBtn.textContent = isSignup ? 'Sign up' : 'Sign in';
     googleBtnText.textContent = isSignup ? 'Sign up with Google' : 'Log in with Google';
-    if (toggleSignup) toggleSignup.textContent = isSignup ? 'Back to login' : 'New? Sign up';
-    document.getElementById('login-title').textContent = isSignup ? 'Create account' : 'Sign in';
+    if (toggleSignup) toggleSignup.textContent = isSignup ? 'Have an account? Sign in' : 'New? Sign up';
+    if (loginTitle) loginTitle.textContent = isSignup ? 'Create account' : 'Sign in';
     const username = document.getElementById('username');
     const confirmPassword = document.getElementById('confirm-password');
     if (isSignup) {
@@ -136,7 +150,17 @@
         });
         if (!res.ok) { const text = await res.text(); showError(text || 'Sign up failed.'); return; }
         const data = await res.json();
-        if (data && data.user) { onLoginSuccess(data.user); closePanel(); }
+        if (data && data.user) {
+          if (isCheckoutPage()) {
+            const hasPro = await accountAlreadyHasPro(email);
+            if (hasPro) {
+              showError('This account already has Pro. Please choose a different account.');
+              return;
+            }
+          }
+          onLoginSuccess(data.user);
+          closePanel();
+        }
         else if (data && data.redirect) window.location.href = data.redirect;
         else showError('Unexpected response from server.');
       } catch (err) { showError(err.message || 'Network error.'); }
@@ -151,20 +175,30 @@
         });
         if (!res.ok) { const text = await res.text(); showError(text || 'Login failed.'); return; }
         const data = await res.json();
-        if (data && data.user) { onLoginSuccess(data.user); closePanel(); }
+        if (data && data.user) {
+          if (isCheckoutPage()) {
+            const hasPro = await accountAlreadyHasPro(email);
+            if (hasPro) {
+              showError('This account already has Pro. Please choose a different account.');
+              return;
+            }
+          }
+          onLoginSuccess(data.user);
+          closePanel();
+        }
         else if (data && data.redirect) window.location.href = data.redirect;
         else showError('Unexpected response from server.');
       } catch (err) { showError(err.message || 'Network error.'); }
     }
   });
 
-  function showError(msg) { loginError.textContent = msg; loginError.style.display = ''; }
+  function showError(msg) { console.error(msg);loginError.textContent = msg; loginError.style.display = 'block'; }
 
   function setLoggedInState(user) {
     if (signupLink) signupLink.style.display = 'none';
     if (signinLink) signinLink.style.display = 'none';
-    if (accountWrap) accountWrap.style.display = 'block';console.log(158);
-    if (tt) tt.innerText = "Purchasing for: "+user.email;
+    if (accountWrap) accountWrap.style.display = 'block';
+    
     let username = user.email && user.email.includes('@') ? user.email.substring(0,user.email.indexOf("@")) : (user.name || 'user');
     if (accountEmailSpan) {
       accountEmailSpan.textContent = username;
@@ -172,7 +206,29 @@
     }
     try {if (typeof updateNav === 'function') updateNav();} catch (err) {}
   }
+  function isCheckoutPage() {
+    const pathname = new URL(window.location.href).pathname.replace(/\/+$/, '');
+    return pathname.endsWith('/buy-pro/checkout')||pathname.endsWith('/buy-pro/checkout/index.html');
+  }
+  async function accountAlreadyHasPro(email) {console.error(email);
+    if (!email) return true;
 
+    try {
+      const res = await fetch('https://api.spectrodraw.com/check-product-database', {
+        method: 'POST',
+        credentials: 'include',
+        body:{email}
+      });
+
+      if (!res.ok) return true;
+
+      const value = await res.json();
+      return value.hasPro;
+    } catch (err) {
+      console.warn('accountAlreadyHasPro check failed', err);
+      return true;
+    }
+  }
 
   function setLoggedOutState() {
     if (signupLink) signupLink.style.display = '';
@@ -182,7 +238,7 @@
     try{if (typeof updateNav === 'function') updateNav();} catch (err) {}
   }
 
-  function onLoginSuccess(user) {
+  function onLoginSuccess(user) {console.log(240);
     try {
       const safeUser = sanitizeUserForStorage(user);
       try {
@@ -192,6 +248,13 @@
       setLoggedInState(safeUser);
 
       const pathname = new URL(window.location.href).pathname.replace(/\/+$/, '');
+
+      if (pathname.endsWith('/buy-pro/checkout')) {
+        closePanel();
+        window.dispatchEvent(new Event('spectrodraw:auth-changed'));
+        return;
+      }
+
       if (pathname.endsWith('/signin')) {
         window.location.href = '../buy-pro/checkout/';
         return;
@@ -290,10 +353,17 @@
       } catch (e) {}
     }
   })();
-  window.addEventListener('message', (ev) => {
+  window.addEventListener('message', async (ev) => {
     try {
       if (!ev.data || !ev.data.type) return;
       if (ev.data.type === 'oauth-success' && ev.data.user) {
+        if (isCheckoutPage()) {
+          const hasPro = await accountAlreadyHasPro(ev.data.user.email);
+          if (hasPro) {
+            showError('This account already has Pro. Please choose a different account.');
+            return;
+          }
+        }
         onLoginSuccess(ev.data.user);
         closePanel();
         if (ev.data.returnTo) {
@@ -305,7 +375,7 @@
       }
     } catch (e) {}
   });
-  setSignupMode(false);
+  setSignupMode(isCheckoutPage());
   const tagline = document.querySelector('.tagline');
   const navRight = document.querySelector('.nav-right');
   if (!navRight) return;
@@ -313,18 +383,6 @@
   const originalNavHTML = navRight.innerHTML;
   let transformed = false;
   let _outsideClickHandler = null;
-
-  function sanitizeUserForStorage(user) {
-    if (!user) return user;
-    const copy = Object.assign({}, user);
-
-    if (copy.name) {
-      copy.name = copy.name.replace(/[^\x20-\x7E]/g, '');
-      if (!copy.name.trim()) copy.name = copy.email;
-    }
-
-    return copy;
-  }
 
   function escapeHtml(str) {
     return String(str || '')
@@ -627,12 +685,15 @@ window.addEventListener('message', async (ev) => {
       body: JSON.stringify({ email: user.email, username: user.name || user.email })
     });
     if (!res.ok) throw new Error('Session creation failed');
-    document.getElementById('signup-link').style.display = 'none';
-    document.getElementById('signin-link').style.display = 'none';
+    const signupLink = document.getElementById('signup-link');
+    const signinLink = document.getElementById('signin-link');
+    if (signupLink) signupLink.style.display = 'none';
+    if (signinLink) signinLink.style.display = 'none';
     const accountWrap = document.getElementById('account-wrap');
     if (accountWrap) accountWrap.style.display = 'block';
-    accountEmailSpan.textContent = user.email.replace(/@.*/, "");
-    if (tt) tt.innerText = "Purchasing for: "+user.email;
+    const accountEmailSpan = document.getElementById('account-email');
+    if (accountEmailSpan) accountEmailSpan.textContent = user.email.replace(/@.*/, "");
+    
   } catch (err) {
     console.error('auth session error', err);
   }

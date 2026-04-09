@@ -1123,7 +1123,7 @@
       console.log("Stopped because hasPro is true.");
       return;
     }
-    if (!hasLogged && (intent > 10 || timeSpent >= 300)) {
+    if (!hasLogged && (intent > 10 || timeSpent >= 300) && timeSpent >= 120) {
       document.getElementById("intentModal").style.display="flex";
       hasLogged = true;
     }

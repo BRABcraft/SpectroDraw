@@ -1052,7 +1052,7 @@
   ">
     <h2>Pro Feature</h2>
     <p>This feature is available for Pro users only.</p>
-    <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="../buy-pro/checkout/" style="color:black;text-decoration: none;">Unlock now</a></button>
+    <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="../buy-pro/checkout/" style="color:black;text-decoration: none;" target="_blank" rel="noopener">Unlock now</a></button>
     <a href="../faq/pro-features/" style="color:#554497;text-decoration:underline;">See all features</a>
   </div>
   <div id="shareModal" style="position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;display:none;box-shadow:0 10px 30px rgba(255,255,255,0.3);">
@@ -1065,6 +1065,15 @@
         <button class="social-btn" data-provider="reddit"    title="Reddit"    style="background:#FF4500;"><img src="../assets/social-icons/reddit.svg"></button>
       </div>
       <div id="sharepreview" style="margin-top:10px;"></div>
+    </div>
+  </div>
+  <div id="intentModal" style="position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;display:none;box-shadow:0 10px 30px rgba(255,255,255,0.3);">
+    <div style="position:relative;width:500px;background:#111;border-radius:6px;text-align:center;padding:15px;" aria-modal>
+      <button id="closeIntentModal" style="position: absolute;top: 10px;right: 10px;border: none;color: #aaa;background:none;font-size: 18px;cursor: pointer;">✕</button>
+      <h2>Enjoying SpectroDraw?<br>We have a better version!</h2>
+      <img src="../assets/spectrodrawPro.jpg" style="width:80%">
+      <p>See the features of SpectroDraw Pro and take a free sneak peek!</p>
+      <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="../faq/pro-features/" style="color:black;text-decoration: none;" target="_blank" rel="noopener">Go to sneak peek</a></button>
     </div>
   </div>
 
@@ -1105,6 +1114,33 @@
     windowInnerWidth = 1500;
     windowInnerHeight = window.innerHeight / zoom;
   }
+  intent = 0;
+  let timeSpent = 0;
+  let hasLogged = false;
+  function checkConditions() {
+    if (hasPro) {
+      clearInterval(interval); // stop timer
+      console.log("Stopped because hasPro is true.");
+      return;
+    }
+    if (!hasLogged && (intent > 10 || timeSpent >= 300)) {
+      document.getElementById("intentModal").style.display="flex";
+      hasLogged = true;
+    }
+  }
+  const interval = setInterval(() => {
+    timeSpent++;
+    checkConditions();
+  }, 1000);
+
+  function incrementIntent(amount = 1) {
+    if (document.getElementById('tutorialDialog').style.display !== "none") return;
+    intent += amount;
+    checkConditions();
+  }
+  document.getElementById("closeIntentModal").addEventListener("click", () => {
+    document.getElementById("intentModal").style.display = "none";
+  });
   function syncNumberAndRange(numberInput, rangeInput) {
     numberInput.addEventListener('input', () => {
       let val = parseInt(numberInput.value);
@@ -1426,6 +1462,7 @@ panelButtons.forEach(btn => {
 });
 panelButtons.forEach(btn => {
   btn.addEventListener("click", () => {
+    incrementIntent(0.5);
     currentPanel = btn.dataset.tool;
     panelButtons.forEach(b => b.style.background = "");
     btn.style.background = "#4af";
@@ -1683,6 +1720,7 @@ function initEmptyPCM() {
     restartRender(false);
 }
 async function onReset() {
+  incrementIntent(1);
   snapshotMags=new Float32Array(mags);
   snapshotPhases=new Float32Array(phases);
   await initEmptyPCM();
@@ -2322,67 +2360,68 @@ canvas.addEventListener("touchmove", e=>{
 <script src="undoredo.js"></script>
 <script>
 function canvasMouseUp(e,touch) {
-    previewingShape = false;
-    if (zooming) return;
-    if (!mags || !phases || !painting) return;
-    minCol = Infinity; maxCol = -Infinity;
-    visited = null;
-    painting = false;
-    paintedPixels = null;
-    mouseDown = false;
-    stopSource();
-    if (sineOsc) {
-        sineOsc.stop();
-        sineOsc.disconnect();
-        sineOsc = null;
-        sineGain = null;
-    }
-    const { cx, cy } = getCanvasCoords(e,touch);
-    if (currentShape === "rectangle" || currentShape === "line") {
-        commitShape(cx, cy); 
-        overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
-    }
-    if (alignTime && currentTool === "color") {
-      const startFrame = Math.round(cx + iLow);
-      const snapSize = 30/bpm/subBeat;
-      const brushS = brushSize*fWidth/sampleRate*fftSize/512;
+  incrementIntent(0.2);
+  previewingShape = false;
+  if (zooming) return;
+  if (!mags || !phases || !painting) return;
+  minCol = Infinity; maxCol = -Infinity;
+  visited = null;
+  painting = false;
+  paintedPixels = null;
+  mouseDown = false;
+  stopSource();
+  if (sineOsc) {
+      sineOsc.stop();
+      sineOsc.disconnect();
+      sineOsc = null;
+      sineGain = null;
+  }
+  const { cx, cy } = getCanvasCoords(e,touch);
+  if (currentShape === "rectangle" || currentShape === "line") {
+      commitShape(cx, cy); 
+      overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+  }
+  if (alignTime && currentTool === "color") {
+    const startFrame = Math.round(cx + iLow);
+    const snapSize = 30/bpm/subBeat;
+    const brushS = brushSize*fWidth/sampleRate*fftSize/512;
 
-      let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
-      let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
+    let startTime = Math.floor((sx2/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
+    let startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
 
-      startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
-      startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
-      line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
-    }
+    startTime = Math.floor((cx/(sampleRate/hopSizeEl.value))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
+    startFrame0 = Math.round((startTime*(sampleRate/hopSizeEl.value)) + iLow);
+    line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
+  }
 
-    startX=startY=null;
+  startX=startY=null;
 
-    startTime = performance.now();
-    audioProcessed = 0;
+  startTime = performance.now();
+  audioProcessed = 0;
 
-    if (snapshotMags && snapshotPhases && mags && phases) {
+  if (snapshotMags && snapshotPhases && mags && phases) {
 
-      autoRecomputePCM(-1,-1);
+    autoRecomputePCM(-1,-1);
 
-      pendingHistory = true;
-      pendingPlayAfterRender = true; 
-    } else {
+    pendingHistory = true;
+    pendingPlayAfterRender = true; 
+  } else {
 
-      playPCM(startFrame = currentFrame);
-      const playPauseEl = document.getElementById("playPause");
-      if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
-    }
+    playPCM(startFrame = currentFrame);
+    const playPauseEl = document.getElementById("playPause");
+    if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
+  }
 
-    let startFrame = calcMinMaxCol().minCol;
-    if (startFrame == Infinity) startFrame = 0;
-    pos = startFrame * hop;
-    x = startFrame;
-    rendering = true;
-    requestAnimationFrame(() => drawLoop());
+  let startFrame = calcMinMaxCol().minCol;
+  if (startFrame == Infinity) startFrame = 0;
+  pos = startFrame * hop;
+  x = startFrame;
+  rendering = true;
+  requestAnimationFrame(() => drawLoop());
 
-    startTime = performance.now();
-    audioProcessed = 0;
+  startTime = performance.now();
+  audioProcessed = 0;
 
 }
 
@@ -2770,7 +2809,7 @@ function renderFullSpectrogramToImage() {
 }
 
 </script>
-<script src="downloads.js"></script>
+<script type="module" src="downloads.js"></script>
 <script>
 
 function processPendingFramesLive(){

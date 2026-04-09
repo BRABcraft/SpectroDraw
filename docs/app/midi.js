@@ -950,6 +950,7 @@ function filterNotes(notes) {
 }
 async function exportMidi(opts = {}) {
   const downloadName = opts.downloadName ?? "export.mid";
+  incrementIntent(3);
   let notes = await getNotes();
   filterNotes(notes);
   writeMidiFile(notes, { downloadName, tempoBPM: opts.tempoBPM, a4: opts.a4, pitchBendRange: opts.pitchBendRange });

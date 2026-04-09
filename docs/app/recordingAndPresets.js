@@ -205,35 +205,37 @@ let startTime=0;
 let audioProcessed=0; 
 
 fileEl.addEventListener("change", async e=>{
-    const f=e.target.files[0]; if(!f)return;
-    const buf=await f.arrayBuffer();
-    snapshotMags = mags; snapshotPhases = phases;
-    ensureAudioCtx();
-    fHigh = sampleRate/2;
-    fWidth = fHigh;
-    let ab;
-    try {
-      ab = await audioCtx.decodeAudioData(buf.slice(0));
-      pcm = new Float32Array(ab.getChannelData(0));
-      sampleRate = sliders[24][0].value = sliders[24][1].value = ab.sampleRate;fHigh=sampleRate/2;
-      minCol=Infinity;maxCol=0;
+  increaseIntent(1);
+  const f=e.target.files[0]; if(!f)return;
+  const buf=await f.arrayBuffer();
+  snapshotMags = mags; snapshotPhases = phases;
+  ensureAudioCtx();
+  fHigh = sampleRate/2;
+  fWidth = fHigh;
+  let ab;
+  try {
+    ab = await audioCtx.decodeAudioData(buf.slice(0));
+    pcm = new Float32Array(ab.getChannelData(0));
+    sampleRate = sliders[24][0].value = sliders[24][1].value = ab.sampleRate;fHigh=sampleRate/2;
+    minCol=Infinity;maxCol=0;
 
-      status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
-      status.style.display = "block";
-      await restartRender(true);
+    status.textContent=`Loaded ${f.name}, ${pcm.length} samples @ ${sampleRate} Hz`;
+    status.style.display = "block";
+    await restartRender(true);
 
-    //   newHistory();
-      
-    let t = pcm.length / sampleRate;
-    hopSizeEl.value = t<0.5?128:(t<5?512:1024);
-      iLow = 0;
-      iHigh = framesTotal;
+  //   newHistory();
+    
+  let t = pcm.length / sampleRate;
+  hopSizeEl.value = t<0.5?128:(t<5?512:1024);
+    iLow = 0;
+    iHigh = framesTotal;
 
-    } catch (err){
-      alert("Error decoding video. Please try a different video.");
-    }
+  } catch (err){
+    alert("Error decoding video. Please try a different video.");
+  }
 });
 preset.addEventListener("change", async (e) => {
+  increaseIntent(0.5);
   const val = e.target.value;
 
   if (val === "silence") {

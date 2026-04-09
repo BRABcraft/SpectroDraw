@@ -117,6 +117,7 @@ async function renderEQAppliedPCM(bandCount = (typeof curveEQ !== 'undefined' &&
 }
 
 document.getElementById('downloadWav').addEventListener('click', async () => {
+  incrementIntent(2);
   if (!pcm) return alert('No PCM loaded!');
   try {
     // try to render with EQ; choose bandCount based on curveEQ or use default 24
@@ -174,21 +175,24 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
   }
 });
 document.getElementById('downloadSpectrogram').addEventListener('click', function() {
-    let oil = iLow; oih = iHigh; ofl = fLow; ofh = fHigh;
-    iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2; updateCanvasScroll();
-    let canvasUrl = canvas.toDataURL('image/png');
-    const downloadLink = document.createElement('a');
-    downloadLink.href = canvasUrl;
-    downloadLink.download = 'spectrodraw.png';
-    downloadLink.click();
-    shareModal.style.display="flex";
-    shareFileUrl = downloadLink;
-    updateShareModal("image");
-    downloadLink.remove();
-    iLow = oil; iHigh = oih; fLow = ofl; fHigh = ofh;
+  incrementIntent(2);
+  let oil = iLow; oih = iHigh; ofl = fLow; ofh = fHigh;
+  iLow = 0; iHigh = framesTotal; fLow = 0; fHigh = sampleRate/2; updateCanvasScroll();
+  let canvasUrl = canvas.toDataURL('image/png');
+  const downloadLink = document.createElement('a');
+  downloadLink.href = canvasUrl;
+  downloadLink.download = 'spectrodraw.png';
+  downloadLink.click();
+  shareModal.style.display="flex";
+  shareFileUrl = downloadLink;
+  updateShareModal("image");
+  downloadLink.remove();
+  iLow = oil; iHigh = oih; fLow = ofl; fHigh = ofh;
 });
+
 document.getElementById('downloadVideo').addEventListener('click', async function() {
   // --- Create Progress Overlay UI ---
+  incrementIntent(3);
   const overlay = document.createElement('div');
   Object.assign(overlay.style, {
     position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -369,8 +373,22 @@ function updateShareModal(type){
   }
   document.getElementById("sharepreview").appendChild(i);
 }
-document.getElementById("closeShareModal").addEventListener("click",()=>{shareModal.style.display="none";});
-document.querySelectorAll(".social-btn").forEach(sb=>{
+document.getElementById("closeShareModal").addEventListener("click", () => {
+    shareModal.style.display = "none";
+
+    // Stop and reset any audio/video in the preview
+    const mediaElements = document.querySelectorAll("#sharepreview video, #sharepreview audio");
+    mediaElements.forEach(media => {
+        media.pause();
+        media.currentTime = 0;
+        // optionally remove source to free memory
+        media.src = "";
+        media.load();
+    });
+
+    // Clear preview
+    document.getElementById("sharepreview").innerHTML = "";
+});document.querySelectorAll(".social-btn").forEach(sb=>{
   sb.addEventListener("click",()=>{
     const a = document.createElement("a");
     a.setAttribute("target","_blank");

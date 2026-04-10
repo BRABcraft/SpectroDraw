@@ -1073,7 +1073,7 @@
       <h2>Enjoying SpectroDraw?<br>We have a better version!</h2>
       <img src="../assets/spectrodrawPro.jpg" style="width:80%">
       <p>See the features of SpectroDraw Pro and take a free sneak peek!</p>
-      <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff"><a href="../faq/pro-features/" style="color:black;text-decoration: none;" target="_blank" rel="noopener">Go to sneak peek</a></button>
+      <button class="leftBtn" style="width:250px;height:50px;font-size:1rem;box-shadow: 0 0 8px #fff" id="gotosneakpeek">Go to sneak peek</button>
     </div>
   </div>
 
@@ -1091,6 +1091,14 @@
 <div id="status" style="position:absolute;bottom:0px;"></div>
 
 <script>
+  document.getElementById("gotosneakpeek").addEventListener("click",()=>{
+    const a = document.createElement("a");
+    a.href="../faq/pro-features/";
+    a.setAttribute("target","_blank");
+    a.setAttribute("rel","noopener");
+    document.body.appendChild(a);
+    a.click();
+  })
   let windowInnerWidth = window.innerWidth;
   let windowInnerHeight = window.innerHeight;
   

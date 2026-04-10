@@ -388,7 +388,8 @@ document.getElementById("closeShareModal").addEventListener("click", () => {
 
     // Clear preview
     document.getElementById("sharepreview").innerHTML = "";
-});document.querySelectorAll(".social-btn").forEach(sb=>{
+});
+document.querySelectorAll(".social-btn").forEach(sb=>{
   sb.addEventListener("click",()=>{
     const a = document.createElement("a");
     a.setAttribute("target","_blank");

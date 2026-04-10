@@ -525,7 +525,7 @@
             </div>
 
             <div class="row">
-              <button id="toggle-signup">Have an account? Sign in</button>
+              <button id="toggle-signup" type="button">Have an account? Sign in</button>
               <a class="small-link" href="/forgot-password" target="_blank" rel="noopener">Forgot password?</a>
             </div>
 
@@ -564,6 +564,45 @@
 
 <script>
 (function () {
+  function trackEvent(name, params = {}) {
+    try {
+      if (typeof gtag === 'function') {
+        gtag('event', name, params);
+      }
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event: name, ...params });
+    } catch (e) {
+      console.warn('trackEvent failed', e);
+    }
+  }
+  trackEvent('checkout_view', { step: 'payment' });
+
+  let lastTrackedStep = null;
+  function trackStepOnce(step) {
+    if (lastTrackedStep === step) return;
+    lastTrackedStep = step;
+    trackEvent('checkout_step_view', { step });
+  }
+  function wireFieldTracking() {
+    document.querySelectorAll('#login-form input').forEach((input) => {
+      input.addEventListener('blur', () => {
+        if (!input.value.trim()) return;
+        if (input.dataset.completedTracked === '1') return;
+        input.dataset.completedTracked = '1';
+
+        trackEvent('checkout_field_completed', {
+          field: input.name
+        });
+      });
+
+      input.addEventListener('focus', () => {
+        trackEvent('checkout_field_focus', {
+          field: input.name
+        });
+      }, { once: true });
+    });
+  }
+  wireFieldTracking();
   function getCurrentUserEmail() {
     try {
       const raw = localStorage.getItem('spectrodraw_user');
@@ -738,6 +777,7 @@
   }
 
   function updateProgress(view = 'checkout') {
+    trackStepOnce(view);
     const loggedIn = isLoggedIn();
     document.getElementById("pinfo").style.display=loggedIn?"none":"block";
     if (loggedIn) {
@@ -823,7 +863,15 @@
   }
 
   paypal.Buttons({
+    onClick() {
+      trackEvent('checkout_payment_option_click', {
+        provider: 'paypal'
+      });
+    },
     async createOrder() {
+      trackEvent('checkout_payment_start', {
+        provider: 'paypal'
+      });
       const stored = localStorage.getItem('spectrodraw_user');
 
       const res = await fetch("https://api.spectrodraw.com/api/orders", {
@@ -841,6 +889,9 @@
     },
 
     async onApprove(data) {
+      trackEvent('checkout_payment_approved', {
+        provider: 'paypal'
+      });
       const stored = localStorage.getItem('spectrodraw_user');
 
       const capture = await fetch(

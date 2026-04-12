@@ -292,6 +292,18 @@
     .btn-primary:hover::before {
       background: rgba(7, 8, 11, 0.35);
     }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #dfe7ff;
+      padding: 0.8rem 1.2rem;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+      display: block;
+      margin: 20px auto;
+      width:100%;
+    }
 
   </style>
 </head>
@@ -417,6 +429,7 @@
       </div>
     </div>
     <section class="section">
+    <button class="btn-secondary" type="button"><span>Buy now</span></button>
 
       <h1 style="text-align:center;">Tools:</h1>
 
@@ -659,7 +672,7 @@
 
     </section>
 
-    <button class="btn-primary" type="button"><span>Buy now</span></button>
+    <button class="btn-secondary" type="button"><span>Buy now</span></button>
     <section class="section fade-in">
       <h1 style="text-align:center;">Pan</h1>
       <div class="tool-row" style="align-items:flex-start;">
@@ -821,7 +834,7 @@
       </div>
     </section>
 
-    <button class="btn-primary" type="button"><span>Buy now</span></button>
+    <button class="btn-secondary" type="button"><span>Buy now</span></button>
     <!-- Phase texturing -->
     <section class="section fade-in">
       <h2>Phase Texturing</h2>
@@ -905,6 +918,11 @@
   </footer>
 
   <script>
+    document.querySelectorAll(".btn-primary, .btn-secondary").forEach((el) => {
+      el.addEventListener("click", () => {
+        window.open("../../buy-pro/checkout/", "_blank");
+      });
+    });
     document.getElementById('year').textContent = new Date().getFullYear();
     document.querySelectorAll('.tool-row').forEach((el,i)=>{
       el.style.animationDelay = (i*60)+'ms';

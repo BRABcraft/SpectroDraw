@@ -104,3 +104,84 @@ window.addEventListener("message", function (ev) {
   }
 });
 document.getElementById("openInNewTab").addEventListener("click",()=>{window.open("./sneakpeek.html", "_blank");});
+window.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "spectrodraw-upgrade-intent") return;
+
+  const reason = event.data.reason;
+
+  showUpgradeModal(reason);
+});
+
+// ==============================
+// UPGRADE MODAL (HIGH CONVERSION)
+// ==============================
+
+function showUpgradeModal(reason) {
+  let modal = document.getElementById("upgradeModal");
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "upgradeModal";
+
+    Object.assign(modal.style, {
+      position: "fixed",
+      inset: "0",
+      background: "rgba(0,0,0,0.6)",
+      backdropFilter: "blur(6px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999999
+    });
+
+    modal.innerHTML = `
+      <div style="
+        background:#0f1720;
+        padding:28px;
+        border-radius:16px;
+        max-width:420px;
+        width:90%;
+        text-align:center;
+        border:1px solid rgba(255,255,255,0.08);
+      ">
+        <h2 style="margin-top:0;">Unlock SpectroDraw Pro</h2>
+        <p style="color:#cfd8e7;">
+          Export your work, remove watermark, and access full features.
+        </p>
+
+        <button id="upgradeBtn" style="
+          margin-top:16px;
+          padding:12px 16px;
+          border:none;
+          border-radius:10px;
+          background:linear-gradient(90deg,#4f46e5,#9333ea,#ec4899);
+          color:white;
+          font-weight:800;
+          cursor:pointer;
+        ">
+          Upgrade Now
+        </button>
+
+        <div style="margin-top:10px;">
+          <button id="closeUpgrade" style="
+            background:none;
+            border:none;
+            color:#9aa4b2;
+            cursor:pointer;
+          ">Maybe later</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("upgradeBtn").onclick = () => {
+      // 🔥 Hook this to your checkout
+      window.location.href = "/pricing";
+    };
+
+    document.getElementById("closeUpgrade").onclick = () => {
+      modal.remove();
+    };
+  }
+}

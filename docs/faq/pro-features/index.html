@@ -37,8 +37,7 @@
 
     /* Layout */
     *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:
-      radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
+    html,body{height:100%;margin:0;background:linear-gradient(0deg,#0b0c14 0%,#090a10 50%,#0b0c14 100%);
       color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;line-height:1.6;
       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
     }
@@ -248,6 +247,51 @@
       font-weight:700;
       cursor:pointer;
     }
+    .btn-primary {
+      display: block;
+      margin: 20px auto;
+      font-size: 16px;
+      position: relative;
+      background: var(--cta-grad);
+      color: #fff;
+      border-radius: 999px;
+      padding: 1.05rem 1.4rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+      overflow: hidden;
+      transition: transform .25s ease, box-shadow .35s ease, background .25s ease;
+      box-shadow:
+        0 0 50px rgba(79,70,229,0.35),
+        0 0 70px rgba(147,51,234,0.25),
+        inset 0 0 50px rgba(147,51,234,0.2);
+    }
+    .btn-primary::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      background: rgba(7, 8, 11, 0.82);
+      border-radius: inherit;
+      z-index: 0;
+      backdrop-filter: blur(4px);
+      transition: background .25s ease;
+    }
+    .btn-primary span {
+      position: relative;
+      z-index: 1;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 0 18px rgba(79,70,229,0.55),
+        0 0 32px rgba(147,51,234,0.55),
+        inset 0 0 70px rgba(147,51,234,0.35);
+    }
+    .btn-primary:hover::before {
+      background: rgba(7, 8, 11, 0.35);
+    }
+
   </style>
 </head>
 <body>
@@ -355,6 +399,7 @@
           const openInNewTab = document.getElementById("openInNewTab");
 
           sneakBtn.addEventListener("click", () => {
+            gtag('event', "inline_pro_sneak_open", {});
             const isOpen = inlineSneakDiv.style.display === "block";
             inlineSneakDiv.style.display = isOpen ? "none" : "block";
             openInNewTab.style.display = isOpen ? "none" : "inline-flex";
@@ -490,7 +535,7 @@
           </div>
         </div>
       </div>
-
+      <button class="btn-primary" type="button"><span>Buy now</span></button>
       <h1 style="text-align:center;">Effects:</h1>
 
       <!--fill-->

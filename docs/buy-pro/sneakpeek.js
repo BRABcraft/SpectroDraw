@@ -93,10 +93,14 @@ window.addEventListener("keydown", function(e) {
 window.addEventListener('message', function (ev) {
   const msg = ev && ev.data;
   if (msg && msg.type === 'spectrodraw:continueToCheckout') {
-    document.getElementById("checkout")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
+    gtag("event","continuetocheckout_frominlinesneakpeek");
+    window.open("./checkout/", "_blank");
+  }
+});
+window.addEventListener("message", function (ev) {
+  if (ev.data?.type === "spectrodraw:mousedown") {
+    console.log("a");
+    gtag("event","prosneakpeek_mousedown");
   }
 });
 document.getElementById("openInNewTab").addEventListener("click",()=>{window.open("./sneakpeek.html", "_blank");});

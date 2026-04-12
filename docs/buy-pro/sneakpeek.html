@@ -192,12 +192,20 @@
       // expose to window for manual retry or debugging
       window.spectrodrawSneak = { loadPro };
     })();
-    window.addEventListener('message', function (ev) {console.log(ev);
+    window.addEventListener('message', function (ev) {
       const msg = ev && ev.data;
       if (msg && msg.type === 'spectrodraw:continueToCheckout') {
-        window.open("./index.html", "_blank");
+        gtag("event","continuetocheckout_fromfullsneakpeek");
+        window.open("./checkout/", "_blank");
       }
     });
+    window.addEventListener("message", function (ev) {
+      if (ev.data?.type === "spectrodraw:mousedown") {
+        console.log("a");
+        gtag("event","prosneakpeek_mousedown");
+      }
+    });
+    document.body.addEventListener("mousedown",()=>{console.log("a");gtag("event","prosneakpeek_mousedown")});
   </script>
 </body>
 </html>

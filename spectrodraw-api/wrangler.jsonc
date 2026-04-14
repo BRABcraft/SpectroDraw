@@ -56,5 +56,11 @@
   "preview_urls": true,
   "routes": [
     { "pattern": "api.spectrodraw.com/*", "zone_id": "b3f37faad0cfb606d241edd7ca2b03dd" }
-  ]
+  ],
+  "send_email": [
+  {
+    "name": "FEEDBACK_NOTIFY",
+    "destination_address": "spectrodraw@gmail.com"
+  }
+],
 }

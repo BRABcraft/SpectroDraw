@@ -658,7 +658,47 @@ async function handleReviewList(request, user, env) {
     return json({ error: "Failed to load reviews" }, 500);
   }
 }
+import { EmailMessage } from "cloudflare:email";
 
+async function sendFeedbackCopyEmail(env, feedback) {
+  const subject = `New feedback from ${feedback.author || "Anonymous"}`;
+
+  const files =
+    (feedback.files || [])
+      .map(f => `- ${f.name}`)
+      .join("\n") || "None";
+
+  const body = `
+A new SpectroDraw feedback was submitted.
+
+Author: ${feedback.author || "Anonymous"}
+User: ${feedback.user || "anonymous"}
+Created: ${feedback.createdAt}
+
+Message:
+${feedback.text}
+
+Files:
+${files}
+`;
+
+  const rawEmail =
+`From: SpectroDraw <no-reply@spectrodraw.com>
+To: spectrodraw@gmail.com
+Subject: ${subject}
+Content-Type: text/plain; charset=utf-8
+
+${body}
+`;
+
+  const email = new EmailMessage(
+    "no-reply@spectrodraw.com",
+    "spectrodraw@gmail.com",
+    rawEmail
+  );
+
+  await env.FEEDBACK_NOTIFY.send(email);
+}
 // SERVER: handleFeedbackPost
 async function handleFeedbackPost(request, user, env) {
   const form = await request.formData();
@@ -723,7 +763,11 @@ async function handleFeedbackPost(request, user, env) {
   try { allIds = allRaw ? JSON.parse(allRaw) : []; } catch(e){ allIds = []; }
   allIds.push(feedback.id);
   await env.FEEDBACK.put(allKey, JSON.stringify(allIds));
-
+  try {
+    await sendFeedbackCopyEmail(env, feedback);
+  } catch (e) {
+    console.warn("Feedback email failed:", e);
+  }
   return json({ success:true, feedback }, 201);
 }
 async function handleFeedbackList(user, env) {

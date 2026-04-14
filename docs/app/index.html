@@ -1306,7 +1306,7 @@ let pcmChunks = null;
 let trueScaleVal=false;
 let overlayImage = null;
 let useHz = false;
-let autoPlayOnFinish = true;
+let autoPlayOnFinish = false;
 let alignPitch=false;let alignTime=false;midiAlignTime=true;useMidiAI=false;
 let subBeat = 1;mSubBeat=16;midiBpm=120;
 let tQTempo=120;tQStrength=0;
@@ -2021,23 +2021,25 @@ function drawFrame(w,h) {
         snapshotMags = null;
         snapshotPhases = null;
       }
-      if (pendingPlayAfterRender) {
-        pendingPlayAfterRender = false;
-        try {
-          playing = true;
-          playPause.innerHTML = pauseHtml;
-          playPCM(false,currentFrame<specWidth*0.8?minCol:specWidth*0.8); 
-        } catch (e) { console.warn("playPCM() failed after render:", e); }
-        const playPauseEl = document.getElementById("playPause");
-        if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
-      }
+      playing = false;
+      document.getElementById("playPause").innerHTML = playHtml;
+      // if (pendingPlayAfterRender) {
+      //   pendingPlayAfterRender = false;
+      //   try {
+      //     playing = true;
+      //     playPause.innerHTML = pauseHtml;
+      //     playPCM(false,currentFrame<specWidth*0.8?minCol:specWidth*0.8); 
+      //   } catch (e) { console.warn("playPCM() failed after render:", e); }
+      //   const playPauseEl = document.getElementById("playPause");
+      //   if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
+      // }
 
-      if (!painting && autoPlayOnFinish) {
-          autoPlayOnFinish = false;
-          playing = true;
-          playPause.innerHTML = pauseHtml;
-          playPCM(true,currentFrame<specWidth*0.8?minCol:specWidth*0.8);
-      }
+      // if (!painting && autoPlayOnFinish) {
+      //     autoPlayOnFinish = false;
+      //     playing = true;
+      //     playPause.innerHTML = pauseHtml;
+      //     playPCM(true,currentFrame<specWidth*0.8?minCol:specWidth*0.8);
+      // }
       status.style.display = "none";
       minCol = Infinity;
       return false;
@@ -2123,7 +2125,7 @@ function drawCursor(clear){
       const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
       if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
       overlayCtx.strokeStyle = "#0f0";
-      overlayCtx.lineWidth = iWidth/500;
+      overlayCtx.lineWidth = (iHigh-iLow)/500;
       overlayCtx.beginPath();
       overlayCtx.moveTo(x + 0.5, 0);
       overlayCtx.lineTo(x + 0.5, specHeight);

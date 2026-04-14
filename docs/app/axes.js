@@ -564,13 +564,10 @@ function makeWheelZoomHandler(elem, opts){
       e.preventDefault();
       const scale = Math.exp(sign * delta * WHEEL_SENSITIVITY);
 
-      if (opts.zoomTimeline && elem === canvas) {
-        // canvas zooms both by default
-        zoomTimelineAt(e.clientX, timeline, scale);
-      } else if (opts.zoomTimeline) {
+      if (opts.zoomTimeline) {
         zoomTimelineAt(e.clientX, timeline, scale);
       }
-      if (opts.zoomYAxis && elem !== canvas) {
+      if (opts.zoomYAxis) {
         zoomYAxisAt(e.clientY, yAxis, scale);
       }
       if (e.deltaY === 0) zooming = false;

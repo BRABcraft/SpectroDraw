@@ -239,14 +239,14 @@ function previewShape(__cx, __cy) {
     // vertical guide
     ctx.save();
     ctx.strokeStyle = "#0f0";
-    ctx.lineWidth = framesTotal / 500;
+    ctx.lineWidth = (iHigh-iLow) / 500;
     ctx.beginPath();
     ctx.moveTo(x + 0.5, 0);
     ctx.lineTo(x + 0.5, specHeight);
     ctx.stroke();
 
     ctx.strokeStyle = "#fff";
-    ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
+    ctx.lineWidth = Math.max(1, Math.min(4, Math.floor((iHigh-iLow) / 500)));
 
     const hasStart = startX !== null && startY !== null;
 

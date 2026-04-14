@@ -654,7 +654,7 @@ function drawCursor(clear){
     const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
     if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
     overlayCtx.strokeStyle = "#0f0";
-    overlayCtx.lineWidth = iWidth/500;
+    overlayCtx.lineWidth = (iHigh-iLow)/500;
     overlayCtx.beginPath();
     overlayCtx.moveTo(x + 0.5, 0);
     overlayCtx.lineTo(x + 0.5, specHeight);

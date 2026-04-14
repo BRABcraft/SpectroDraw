@@ -170,8 +170,7 @@ async function renderEQAppliedPCM(bandCount = curveEQ.bandCount) {
   rendered.copyFromChannel(out, 0);
   return out;
 }
-
-document.getElementById('downloadWav').addEventListener('click', async () => {
+async function downloadWav(){
   let view;
   if (layerCount > 1) {
     // find longest PCM length across all layers and both channels
@@ -279,6 +278,12 @@ document.getElementById('downloadWav').addEventListener('click', async () => {
   a.download = 'output_' + layerCount + '_layer' + ((layerCount > 1) ? 's' : '') + '.wav';
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+document.getElementById('downloadWav').addEventListener('click', async () => {
+  downloadWav();
+});
+document.getElementById('downloadWav2').addEventListener('click', async () => {
+  downloadWav();
 });
 document.getElementById('downloadSpectrogram').addEventListener('click', function() {
     const oil = iLow, oih = iHigh, ofl = fLow, ofh = fHigh;

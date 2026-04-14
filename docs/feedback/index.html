@@ -354,9 +354,24 @@
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
   </footer>
-
+  <script src="../dictionary.js"></script>
   <script>
-    // ---- state & helpers ----
+    function emailToPublicUsername(email) {
+      if (!email) return "Anonymous";
+
+      const seed = email.toLowerCase();
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) {
+        hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+      }
+
+      const a = adjectives[hash % adjectives.length];
+      let bi = (hash >> 3) % animals.length;
+      while (bi<0) bi+=animals.length;
+      const b = animals[bi];
+      const digits = (hash % 1000).toString().padStart(3, "0");
+      return `${a.charAt(0).toUpperCase()+a.slice(1)}${b}${digits}`;
+    }
     const attachBtn = document.getElementById("attach-btn");
     const attachInput = document.getElementById("attach-input");
     const submitFeedbackBtn = document.getElementById("submit-feedback");
@@ -378,7 +393,6 @@
       return prefix + '_' + Math.random().toString(36).slice(2,9);
     }
 
-    // ---- auth / load user ----
     function getCurrentUser() {
       try {
         const raw = localStorage.getItem(LOCAL_USER_KEY);
@@ -698,7 +712,7 @@
         const meta = document.createElement('div');
         meta.className = 'feedback-meta';
 
-        const name = fb.author || (fb.userId ? String(fb.userId) : 'Anonymous');
+        const name = emailToPublicUsername(fb.author);
         const when = new Date(fb.createdAt || Date.now()).toLocaleString();
 
         const avatarEl = makeAvatarElement(name, fb.avatar || null);

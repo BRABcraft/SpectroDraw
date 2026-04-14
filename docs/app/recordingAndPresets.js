@@ -205,7 +205,7 @@ let startTime=0;
 let audioProcessed=0; 
 
 fileEl.addEventListener("change", async e=>{
-  increaseIntent(1);
+  incrementIntent(1);
   const f=e.target.files[0]; if(!f)return;
   const buf=await f.arrayBuffer();
   snapshotMags = mags; snapshotPhases = phases;
@@ -235,7 +235,7 @@ fileEl.addEventListener("change", async e=>{
   }
 });
 preset.addEventListener("change", async (e) => {
-  increaseIntent(0.5);
+  incrementIntent(0.5);
   const val = e.target.value;
 
   if (val === "silence") {

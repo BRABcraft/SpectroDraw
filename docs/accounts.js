@@ -1,15 +1,33 @@
 function sanitizeUserForStorage(user) {
-    if (!user) return user;
-    const copy = Object.assign({}, user);
+  if (!user) return user;
+  const copy = Object.assign({}, user);
 
-    if (copy.name) {
-      copy.name = copy.name.replace(/[^\x20-\x7E]/g, '');
-      if (!copy.name.trim()) copy.name = copy.email;
-    }
-
-    return copy;
+  if (copy.name) {
+    copy.name = copy.name.replace(/[^\x20-\x7E]/g, '');
+    if (!copy.name.trim()) copy.name = copy.email;
   }
+
+  return copy;
+}
 (function () {
+  function getHasProFromStorage() {
+    try {
+      const raw = localStorage.getItem('spectrodraw_hasPro');
+      return raw === null ? null : JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function cacheHasProForEmail(email) {
+    if (!email) return false;
+
+    const hasPro = await accountAlreadyHasPro(email);
+    try {
+      localStorage.setItem('spectrodraw_hasPro', JSON.stringify(!!hasPro));
+    } catch (e) {}
+    return !!hasPro;
+  }
   const oauthBase = "https://oauth.spectrodraw.com/login";
   const authBase  = "https://auth.spectrodraw.com";
 
@@ -199,12 +217,37 @@ function sanitizeUserForStorage(user) {
     if (signinLink) signinLink.style.display = 'none';
     if (accountWrap) accountWrap.style.display = 'block';
     
-    let username = user.email && user.email.includes('@') ? user.email.substring(0,user.email.indexOf("@")) : (user.name || 'user');
+    const username = user.email && user.email.includes('@')
+      ? user.email.substring(0, user.email.indexOf("@"))
+      : (user.name || 'user');
+
+    const hasPro = (() => {
+      try {
+        const raw = localStorage.getItem('spectrodraw_hasPro');
+        return raw ? JSON.parse(raw) === true : false;
+      } catch (e) {
+        return false;
+      }
+    })();
+
     if (accountEmailSpan) {
-      accountEmailSpan.textContent = username;
+      accountEmailSpan.textContent = '';
       accountEmailSpan.title = username || user.name || '';
+
+      const nameNode = document.createElement('span');
+      nameNode.textContent = username;
+
+      accountEmailSpan.appendChild(nameNode);
+
+      if (hasPro) {
+        const badge = document.createElement('span');
+        badge.textContent = 'Pro';
+        badge.style = "color:#000;background:linear-gradient(135deg, #c0ed3a, #e8eb25);display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;font-size:14px;font-weight:700;line-height:1;vertical-align:middle;";
+        accountEmailSpan.appendChild(badge);
+      }
     }
-    try {if (typeof updateNav === 'function') updateNav();} catch (err) {}
+
+    try { if (typeof updateNav === 'function') updateNav(); } catch (err) {}
   }
   function isCheckoutPage() {
     const pathname = new URL(window.location.href).pathname.replace(/\/+$/, '');
@@ -217,7 +260,7 @@ function sanitizeUserForStorage(user) {
       const res = await fetch('https://api.spectrodraw.com/check-product-database', {
         method: 'POST',
         credentials: 'include',
-        body:{email}
+        body:JSON.stringify({ email })
       });
 
       if (!res.ok) return true;
@@ -238,7 +281,7 @@ function sanitizeUserForStorage(user) {
     try{if (typeof updateNav === 'function') updateNav();} catch (err) {}
   }
 
-  function onLoginSuccess(user) {console.log(240);
+  async function onLoginSuccess(user) {
     try {
       const safeUser = sanitizeUserForStorage(user);
       try {
@@ -246,6 +289,7 @@ function sanitizeUserForStorage(user) {
       } catch (e) {}
 
       setLoggedInState(safeUser);
+      if (safeUser.email) await cacheHasProForEmail(safeUser.email);
 
       const pathname = new URL(window.location.href).pathname.replace(/\/+$/, '');
 
@@ -277,6 +321,7 @@ function sanitizeUserForStorage(user) {
   async function doLogout() {
     try { 
       localStorage.removeItem('spectrodraw_user'); 
+      localStorage.removeItem('spectrodraw_hasPro');
     } catch (e) {}
 
     try {
@@ -313,6 +358,12 @@ function sanitizeUserForStorage(user) {
         
         if (user && (user.email || user.name)) {
           setLoggedInState(user);
+          let hasPro = getHasProFromStorage();
+
+          if (hasPro === null && user.email) {
+            hasPro = await cacheHasProForEmail(user.email);
+          }
+
           try {
             await fetch('https://api.spectrodraw.com/auth/session', {
               method: 'POST',
@@ -667,6 +718,12 @@ window.addEventListener('message', async (ev) => {
     try {
       const safeUser = sanitizeUserForStorage(user);
       localStorage.setItem('spectrodraw_user', JSON.stringify(safeUser));
+      if (safeUser.email) {
+        const hasPro = await accountAlreadyHasPro(safeUser.email);
+        try {
+          localStorage.setItem('spectrodraw_hasPro', JSON.stringify(!!hasPro));
+        } catch (e) {}
+      }
     } catch (e) {}
 
     let stored = null;

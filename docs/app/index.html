@@ -174,7 +174,7 @@
           return;
         }
 
-        if (price !== "$40.00") return;
+        if (price !== "$39.99") return;
         
         const overlay = document.createElement('div');
         overlay.id = 'spectrodraw-pro-iframe-overlay';
@@ -1608,7 +1608,15 @@ function keyBind(event) {
     return; 
   }
   const key = event.key.toLowerCase();
-  if (key === 'b') {
+  if (key === "arrowleft" || key === "arrowright") {
+    let deltaFrames = ((key === "arrowleft")?-1:1)*Math.floor((iHigh-iLow)/40);
+    currentCursorX += deltaFrames;
+    pausedAtSample += deltaFrames*hop;
+    timelineCursorX = currentFrame = currentCursorX;
+    overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
+    drawTimeline();
+    drawCursor();
+  } else if (key === 'b') {
     document.getElementById("brushBtn").click();
   } else if (key === 'e') {
     document.getElementById("eraserBtn").click();
@@ -1654,7 +1662,7 @@ function keyBind(event) {
 document.addEventListener("keydown", (e) => {
   const active = document.activeElement;
   if (active && active.matches("input[type=range], .leftBtn")) {
-    if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Tab"].includes(e.key)) {
+    if (["ArrowUp","ArrowDown","Tab"].includes(e.key)) {
       return; 
     }
 
@@ -2830,7 +2838,6 @@ function renderFullSpectrogramToImage() {
 </script>
 <script type="module" src="downloads.js"></script>
 <script>
-
 function processPendingFramesLive(){
 
   if (!pcm || !fftSize) return;

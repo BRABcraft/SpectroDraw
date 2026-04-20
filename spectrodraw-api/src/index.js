@@ -1066,7 +1066,7 @@ async function handleMakePurchase(request, user, env) {
       JSON.stringify({
         email,
         product: "SpectroDraw Pro",
-        price: "$40.00",
+        price: "$39.99",
         claimedAt: now
       })
     );

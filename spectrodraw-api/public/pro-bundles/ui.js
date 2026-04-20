@@ -411,6 +411,18 @@ function keyBind(event) {
   }
   const key = event.key.toLowerCase();
   const ctrl = (event.ctrlKey || event.metaKey);
+  if (key === "arrowleft" || key === "arrowright") {
+    let deltaFrames = ((key === "arrowleft")?-1:1)*Math.floor((iHigh-iLow)/(ctrl?8:40));
+    currentCursorX += deltaFrames;
+    pausedAtSample += deltaFrames*hop;
+    timelineCursorX = currentFrame = currentCursorX;
+    for (l=0;l<layerCount;l++){
+      const o = document.getElementById("overlay-"+l);
+      o.getContext("2d").clearRect(0,0,o.width, o.height);
+    }
+    drawTimeline();
+    drawCursor();
+  }
   if (!ctrl) {
     if (!event.shiftKey) {
       if (key === 'b') {

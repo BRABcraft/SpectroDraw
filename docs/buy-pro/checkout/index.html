@@ -472,7 +472,7 @@
 <body>
   <nav class="nav">
     <div class="nav-left">
-      <a href="/" class="brand">SpectroDraw</a>
+      <a href="/"  style="display:flex;"><img src="../../BannerLogo2.png" style="height:36px;margin:0 !important;max-width:100% !important;"></a>
     </div>
     <div class="nav-right">
       <a target="_blank" rel="noopener" href="https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=spectrodraw@gmail.com" id="support-link" class="nav-link">Support</a>
@@ -701,6 +701,18 @@
       copy: 'Your purchase is complete. Open Pro from your products page.',
       buttonText: 'Launch Pro',
       buttonHref: '../../products'
+    });
+    gtag('event', 'purchase', {
+      transaction_id: Date.now().toString(),
+      value: 39.99,
+      currency: 'USD',
+      items: [
+        {
+          item_name: 'SpectroDraw Pro',
+          price: 39.99,
+          quantity: 1
+        }
+      ]
     });
   }
 

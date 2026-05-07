@@ -1318,6 +1318,7 @@ let t0 = 0, tau = 1.0, sigma = 0.3, harmonicCenter = 8, userDelta = 0, refPhaseF
 let softness = 0, mouseVelocity=0;
 let shareFileUrl;
 let shouldAutoplay = false;
+let largeBufferThreshold = 4000;
 if (!document.cookie.includes("visitedBefore=true")) {
     shouldAutoplay = true;
     document.cookie = "visitedBefore=true; max-age=31536000; path=/app/";
@@ -1718,7 +1719,6 @@ function initEmptyPCM() {
     sampleRate = sampleRateLocal;
 
     iLow = null;
-    minCol = 0; maxCol = 
     restartRender(false);
 }
 async function onReset() {
@@ -1859,7 +1859,9 @@ function restartRender(autoPlay, clear=true){
     timeline.style.width = canvas.style.width;
     timeline.height = 40;
 
-    imageBuffer = new ImageData(canvas.width, canvas.height);
+    const isLong = (iHigh-iLow)>largeBufferThreshold;
+    let bufferW = isLong?Math.min(largeBufferThreshold,iHigh-iLow):canvas.width;
+    imageBuffer = new ImageData(bufferW, canvas.height);
     specWidth = canvas.width;
     specHeight = canvas.height;
 
@@ -1978,19 +1980,24 @@ function drawFrame(w,h) {
         phases[idx] = phase;
     }
 
-    for (let yy = 0; yy < h; yy+=recording?4:1) {
+    const isLong = (iHigh-iLow)>largeBufferThreshold||wasUsingLargeBufferMethod;
+    let bufferW = Math.min(largeBufferThreshold,iHigh-iLow);
+    let xStep = (iHigh-iLow)/bufferW;
+    if (Math.floor(Math.ceil(x / xStep) * xStep) === x || !isLong) {
+      for (let yy = 0; yy < h; yy+=recording?4:1) {
         const mappedBin = displayYToBin(yy, h);
-        const idx = x * h + mappedBin;
+        const idx = (isLong?(Math.floor(x)+iLow):x)*h+mappedBin;
         const mag = mags[idx] || 0;
         const phase = phases[idx] || 0;
         const [r, g, b] = magPhaseToRGB(mag, phase);
         for (let i = 0; i < (recording?4:1); i++) {       
-          const pix = ((yy+i) * w + x) * 4; 
+          const pix = (isLong?((yy+i)*bufferW+Math.floor(x/xStep)):((yy+i) * imageBuffer.width + x))*4;
           imageBuffer.data[pix]     = r;
           imageBuffer.data[pix + 1] = g;
           imageBuffer.data[pix + 2] = b;
           imageBuffer.data[pix + 3] = 255;
         }
+      }
     }
     pos += hop; x++;
     audioProcessed += hop;
@@ -2090,6 +2097,15 @@ function drawLoop() {
         if (!drawFrame(w,h)) break;
     }
 
+    const isLong = (iHigh-iLow)>largeBufferThreshold||wasUsingLargeBufferMethod;
+    if (isLong) {
+      let bufferW = Math.min(largeBufferThreshold,iHigh-iLow);
+      specCanvas.width=bufferW;
+      specCanvas.height=h;
+    } else {
+      // specCanvas.width=canvas.width;
+      // specCanvas.height=canvas.height;
+    }
     specCtx.putImageData(imageBuffer, 0, 0);
     renderView();
     drawCursor(true);
@@ -2143,21 +2159,29 @@ function drawCursor(clear){
 function updateCanvasScroll() {
     if (!imageBuffer || !specCanvas) return;
 
-    const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
+    const sourceWidth = Math.min(largeBufferThreshold, Math.max(1, Math.floor(iHigh - iLow)));
     const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
     const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
     const viewHeight = Math.max(1, fEnd - fStart);
 
-    canvas.width = viewWidth;
+    const isLongReal = (iHigh - iLow) > largeBufferThreshold;
+    const isLong = isLongReal || wasUsingLargeBufferMethod;
+
+    const displayWidth = isLongReal ? Math.floor(iHigh - iLow) : specWidth; // or framesTotal
+    canvas.width = displayWidth;
     canvas.height = viewHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
         specCanvas,
-        Math.max(0, Math.floor(iLow)), fStart, 
-        viewWidth, viewHeight,                 
-        0, 0,                                  
-        canvas.width, canvas.height            
+        isLongReal ? 0 : Math.max(0, Math.floor(iLow)),
+        fStart,
+        sourceWidth,
+        viewHeight,
+        0,
+        0,
+        displayWidth,
+        canvas.height
     );
 
     overlayCanvas.width = canvas.width;
@@ -2170,21 +2194,29 @@ function updateCanvasScroll() {
 function renderView() {
     if (!specCanvas || !imageBuffer) return;
 
-    const viewWidth = Math.max(1, Math.floor(iHigh - iLow));
+    const sourceWidth = Math.min(largeBufferThreshold, Math.max(1, Math.floor(iHigh - iLow)));
     const fStart = Math.max(0, Math.floor(specHeight * (1 - fHigh / (sampleRate/2))));
     const fEnd = Math.min(specHeight, Math.floor(specHeight * (1 - fLow / (sampleRate/2))));
     const viewHeight = Math.max(1, fEnd - fStart);
 
-    canvas.width = viewWidth;
+    const isLongReal = (iHigh - iLow) > largeBufferThreshold;
+    const isLong = isLongReal || wasUsingLargeBufferMethod;
+
+    const displayWidth = isLongReal ? Math.floor(iHigh - iLow) : specWidth; // or framesTotal if that is your true full width
+    canvas.width = displayWidth;
     canvas.height = viewHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
         specCanvas,
-        Math.max(0, Math.floor(iLow)), fStart, 
-        viewWidth, viewHeight,                 
-        0, 0,                                  
-        canvas.width, canvas.height            
+        isLongReal ? 0 : Math.max(0, Math.floor(iLow)),
+        fStart,
+        sourceWidth,
+        viewHeight,
+        0,
+        0,
+        displayWidth,
+        canvas.height
     );
 
     overlayCanvas.width = canvas.width;
@@ -2192,7 +2224,6 @@ function renderView() {
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
 }
-
 let painting=false;
 let paintedPixels=null;
 
@@ -2425,6 +2456,9 @@ function canvasMouseUp(e,touch) {
   pos = startFrame * hop;
   x = startFrame;
   rendering = true;
+
+  let bufferW = Math.min(largeBufferThreshold,iHigh-iLow);
+  if (iHigh-iLow>largeBufferThreshold||wasUsingLargeBufferMethod) imageBuffer = new ImageData(bufferW,specHeight);
   requestAnimationFrame(() => drawLoop());
 
   startTime = performance.now();
@@ -2792,27 +2826,37 @@ async function playFrame(frameX) {
   pausedAtSample = null;
 }
 
-function renderFullSpectrogramToImage() {
-    if (!imageBuffer || !mags || !phases) return;
-    const w = specWidth, h = specHeight;
-    for(let xx=0; xx<w; xx++){
+function renderFullSpectrogramToImage(use=true) {
+  const isLongReal = (iHigh-iLow)>largeBufferThreshold;
+  const isLong = isLongReal||wasUsingLargeBufferMethod;
+  if (!imageBuffer || !mags || !phases) return;
+  const w = specWidth, h = specHeight;
+  let bufferW = isLongReal?Math.min(largeBufferThreshold,iHigh-iLow):w;
+  let maxXX = isLongReal?(iHigh-iLow):w;
+  let xStep = isLongReal?((iHigh-iLow)/bufferW):1;
+  if (isLong) imageBuffer = new ImageData(bufferW,specHeight);
+  for (let xx=0;xx<maxXX;xx+=xStep) {
 
-        for(let yy=0; yy<h; yy++){
+    for(let yy=0; yy<h; yy++){
 
-            const bin = displayYToBin(yy, h);
-            const idx = xx * h + bin;
-            const mag = mags[idx] || 0;
-            const phase = phases[idx] || 0;
-            const [r,g,b] = magPhaseToRGB(mag, phase);
-            const pix = (yy * w + xx) * 4;
-            imageBuffer.data[pix] = r;
-            imageBuffer.data[pix+1] = g;
-            imageBuffer.data[pix+2] = b;
-            imageBuffer.data[pix+3] = 255;
-        }
+      const bin = displayYToBin(yy, h);
+      const idx = (isLong?Math.floor(xx+iLow):xx)*h+bin;
+      const mag = mags[idx] || 0;
+      const phase = phases[idx] || 0;
+      const [r,g,b] = magPhaseToRGB(mag, phase);
+      const pix = (isLong?(yy*bufferW+Math.floor((xx)/xStep)):(yy * imageBuffer.width + xx))*4;
+      imageBuffer.data[pix] = r;
+      imageBuffer.data[pix+1] = g;
+      imageBuffer.data[pix+2] = b;
+      imageBuffer.data[pix+3] = 255;
     }
-    specCtx.putImageData(imageBuffer, 0, 0);
-    renderView();
+  }
+  if (isLong) {
+    specCanvas.width=bufferW;
+    specCanvas.height=h;
+  }
+  specCtx.putImageData(imageBuffer, 0, 0);
+  renderView();
 }
 
 </script>

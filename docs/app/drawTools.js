@@ -419,8 +419,11 @@ function drawPixel(xFrame, yDisplay, mag, phase, bo, po) {
     const [r, g, b] = magPhaseToRGB(clampedMag, newPhase);
 
     // write rows
+    const isLong = (iHigh-iLow>largeBufferThreshold||wasUsingLargeBufferMethod);
+    let bufferW = Math.floor(Math.min(largeBufferThreshold,iHigh-iLow));
+    let xStep = (iHigh-iLow)/bufferW;
     for (let yPixel = yStart; yPixel <= yEnd; yPixel++) {
-      const pix = (yPixel * width + xI) * 4;
+      const pix = (isLong?(yPixel*bufferW+Math.floor((xI-iLow)/xStep)):(yPixel*imageBuffer.width + xI))*4;
       imgData[pix]     = r;
       imgData[pix + 1] = g;
       imgData[pix + 2] = b;
@@ -559,7 +562,6 @@ function ftvsy(f) {
 }
 function paint(cx, cy) {
     if (!mags || !phases) return;
-
     const fullW = specWidth;
     const fullH = specHeight;
     const po = currentTool === "eraser" ? 1 : phaseStrength;

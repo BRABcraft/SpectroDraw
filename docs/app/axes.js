@@ -9,7 +9,25 @@ let draggingBounds = false;
 let tDmode = -1;
 let oldX = null;
 let iWidth = iHigh - iLow;
+let wasUsingLargeBufferMethod = false;
+function updateZoom(use){
+  if (iHigh-iLow>largeBufferThreshold || wasUsingLargeBufferMethod) {
+    renderFullSpectrogramToImage(use);
+    wasUsingLargeBufferMethod=(iHigh-iLow>largeBufferThreshold);
+    if (!wasUsingLargeBufferMethod) {
+      let startFrame = calcMinMaxCol().minCol;
+      if (startFrame == Infinity) startFrame = 0;
+      pos = startFrame * hop;
+      x = startFrame;
+      rendering = true;
 
+      let bufferW = Math.min(largeBufferThreshold,iHigh-iLow);
+      if (iHigh-iLow>largeBufferThreshold||wasUsingLargeBufferMethod) imageBuffer = new ImageData(bufferW,specHeight);
+      requestAnimationFrame(() => drawLoop());
+    }
+  }
+  else updateCanvasScroll(); 
+}
 function drawTimeline() {
     tctx.clearRect(0, 0, timeline.width, timeline.height);
 
@@ -132,7 +150,8 @@ function timelineMousemove(e,touch) {
       if ((Math.abs(mouseX - sLow)<15 && tDmode == -1) || tDmode === 0) {
         timeline.style.cursor = "e-resize";
         if (!draggingBounds) return;
-        updateCanvasScroll();
+        
+        updateZoom(false);
         tDmode = 0;
         iLow = mouseX/rect.width*framesTotal;
         if (iLow < 0) {
@@ -142,7 +161,8 @@ function timelineMousemove(e,touch) {
       } else if ((Math.abs(mouseX - sHigh)<15 && tDmode == -1) || tDmode == 1) {
         timeline.style.cursor = "w-resize";
         if (!draggingBounds) return;
-        updateCanvasScroll();
+        
+        updateZoom(false);
         tDmode = 1;
         iHigh = mouseX/rect.width*framesTotal;
         if (iHigh > framesTotal) {
@@ -152,7 +172,8 @@ function timelineMousemove(e,touch) {
       } else {
         timeline.style.cursor = "move";
         if (!draggingBounds) return;
-        updateCanvasScroll();
+        
+        updateZoom(false);
         tDmode = 2;
         const inc = (mouseX-oldX)/rect.width*framesTotal
         iLow += inc;
@@ -179,30 +200,31 @@ window.addEventListener("touchmove", e => {
     timelineMousemove(e,true);
 });
 function timelineMouseup(e) {
+  updateZoom(true);
   tDmode = -1;
-    draggingBounds = false;
-    if (!draggingTimeline) return;
-    draggingTimeline = false;
-    const frame = timelineCursorX;
+  draggingBounds = false;
+  if (!draggingTimeline) return;
+  draggingTimeline = false;
+  const frame = timelineCursorX;
 
-    pausedAtSample = frame * hop;
+  pausedAtSample = frame * hop;
 
-    if (wasPlayingDuringDrag) {
-        playPCM(true, frame);
-        document.getElementById("playPause").innerHtml = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 20 20">
-        <rect x="2" y="0" width="5" height="18" rx="2" ry="2"/>
-        <rect x="12" y="0" width="5" height="18" rx="2" ry="2"/>
-      </svg>
-        `;
-    } else {
-        specCtx.putImageData(imageBuffer, 0, 0);
-        renderView();
-        drawCursor(true);
-    }
-    drawTimeline();
-    drawLogScale();
-    drawYAxis();
+  if (wasPlayingDuringDrag) {
+      playPCM(true, frame);
+      document.getElementById("playPause").innerHtml = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 20 20">
+      <rect x="2" y="0" width="5" height="18" rx="2" ry="2"/>
+      <rect x="12" y="0" width="5" height="18" rx="2" ry="2"/>
+    </svg>
+      `;
+  } else {
+      specCtx.putImageData(imageBuffer, 0, 0);
+      renderView();
+      drawCursor(true);
+  }
+  drawTimeline();
+  drawLogScale();
+  drawYAxis();
 }
 window.addEventListener("mouseup", e => {
     timelineMouseup(e);
@@ -342,7 +364,8 @@ function yAxisMousemove(e,touch) {
         if ((Math.abs(mouseY - (rect.height - sLow)) < 15 && fDmode == -1) || fDmode === 0) {
             yAxis.style.cursor = "s-resize";
             if (!draggingFreq) return;
-            updateCanvasScroll();
+            
+            updateZoom(false);
             fDmode = 0;
             fLow = (1 - mouseY / rect.height) * (sampleRate/2);
             if (fLow < 0) fLow = 0;
@@ -350,7 +373,8 @@ function yAxisMousemove(e,touch) {
         } else if ((Math.abs(mouseY - (rect.height - sHigh)) < 15 && fDmode == -1) || fDmode == 1) {
             yAxis.style.cursor = "n-resize";
             if (!draggingFreq) return;
-            updateCanvasScroll();
+            
+            updateZoom(false);
             fDmode = 1;
             fHigh = (1 - mouseY / rect.height) * (sampleRate/2);
             if (fHigh > sampleRate/2) fHigh = sampleRate/2;
@@ -358,7 +382,8 @@ function yAxisMousemove(e,touch) {
         } else {
             yAxis.style.cursor = "move";
             if (!draggingFreq) return;
-            updateCanvasScroll();
+            
+            updateZoom(false);
             fDmode = 2;
             const inc = (oldY - mouseY) / rect.height * (sampleRate/2);
             fLow += inc;
@@ -470,7 +495,8 @@ function zoomTimelineAt(clientX, elem, scaleFactor){
   iLow = Math.round(newLow);
   iHigh = Math.round(iLow + newWidth);
   iWidth = iHigh - iLow;
-  updateCanvasScroll();
+  
+  updateZoom(false);
   drawTimeline();
   drawCursor(true);
   renderView && renderView();
@@ -535,7 +561,8 @@ function zoomYAxisAt(clientY, elem, scaleFactor){
   fLow = ((newLow)*(sampleRate/specHeight/2));
   fHigh = ((newLow+newHeight)*(sampleRate/specHeight/2));
   fWidth = fHigh - fLow;
-  updateCanvasScroll();
+  
+  updateZoom(false);
   drawYAxis();
   drawCursor(true);
   renderView && renderView();
@@ -572,7 +599,8 @@ function makeWheelZoomHandler(elem, opts){
       }
       if (e.deltaY === 0) zooming = false;
       
-      updateCanvasScroll();
+      
+      updateZoom(false);
       drawYAxis();
       drawCursor(true);
       renderView && renderView();
@@ -600,7 +628,8 @@ function makeWheelZoomHandler(elem, opts){
       iLow = Math.round(_clamp(iLow + incFrames, 0, Math.max(1, framesTotal - iWidth)));
       iHigh = iLow + iWidth;
 
-      updateCanvasScroll();
+      
+      updateZoom(false);
       drawTimeline();
       drawCursor(true);
       renderView && renderView();
@@ -622,7 +651,8 @@ function makeWheelZoomHandler(elem, opts){
         fLow = _clamp(fLow + incHz, 0, Math.max(1, (sampleRate / 2) - fWidth));
         fHigh = fLow + fWidth;
 
-        updateCanvasScroll();
+        
+        updateZoom(false);
         drawYAxis();
         drawCursor(true);
         renderView && renderView();
@@ -638,7 +668,8 @@ function makeWheelZoomHandler(elem, opts){
         iLow = Math.round(_clamp(iLow + incFrames, 0, Math.max(1, framesTotal - iWidth)));
         iHigh = iLow + iWidth;
 
-        updateCanvasScroll();
+        
+        updateZoom(false);
         drawTimeline();
         drawCursor(true);
         renderView && renderView();

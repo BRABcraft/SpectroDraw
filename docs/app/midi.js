@@ -1105,7 +1105,10 @@ function writeMidiFile(notes, opts = {}) {
   }
   return out;
 }
-function removeHarmonics({harmonicTolerance = 0.04,maxHarmonic = 8,peakMadMultiplier = 4} = {}) {
+function removeHarmonics() {
+  let harmonicTolerance = 0.04;
+  let maxHarmonic = 8;
+  let peakMadMultiplier = 4;
   if (typeof snapshotMags !== "undefined") {
     snapshotMags = new Float32Array(mags);
     snapshotPhases = new Float32Array(phases);

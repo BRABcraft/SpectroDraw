@@ -1074,7 +1074,7 @@ async function handleMakePurchase(request, user, env) {
       })
     );
 
-    const indexKey = 'products:index';
+    const indexKey = 'spectrodraw-pro-buyers:index';
     let idxRaw = await env.USERS.get(indexKey);
     let index = [];
     if (idxRaw) {
@@ -1169,7 +1169,12 @@ async function handleUserProState(request, user, env) {
     "deltaeffectsman@gmail.com","jona.klockars@gmail.com","hummusman5@gmail.com","kosepe5482@faxzu.com","lyon.m.ram.1@gmail.com","pranayandchaitnyaagarwal@gmail.com","808broken@gmail.com","geraldominic5@gmail.com","callan.walke@gmail.com","dustinc01@gmail.com","lolharambe33@gmail.com","snowbeast54@gmail.com","viruartt@gmail.com","rinyam1425@gmail.com",
     "milla.h.bell@protonmail.com","toxix0524@gmail.com","toxix0514@gmail.com","cnfans@tutamail.com","joeb2026@proton.me","chrisgameboygd@gmail.com","visonevea011@gmail.com","cp3938191@gmail.com","zach.isdale@gmail.com","carson123isfnaf@gmail.com","ramidak4@gmail.com","lavastrudel@gmail.com","milesferg@icloud.com","browsingtheinterwebs@gmail.com",
     "iccullghtblu@gmail.com","sethroneatlas@gmail.com","clipriot3@gmail.com","tjw65653@gmail.com","cosmo.parisi.archi@gmail.com","lyradavis8568@gmail.com","narcisooubinabustelo@gmail.com","blake@slipsong.com"].includes(user.email)) return json({price: "Free (early access deal)"}, 200);
-  else if (["bruninhohenrri@gmail.com","ami@zooaszoo.com","billie@lightburnsoftware.com","davidnewnes2@gmail.com","opprobe@hotmail.fr","agiunio@gmail.com","aaron.vanada@gmail.com"].includes(user.email)) return json({price: "$40.00"}, 200);
+  else {
+    const indexKey = 'spectrodraw-pro-buyers:index';
+    let idxRaw = await env.USERS.get(indexKey);
+    let index = JSON.parse(idxRaw);
+    if (index.includes(user.email)) return json({price: "$40.00"}, 200);
+  }
   return json({message:"User not in quick database yet"}, 200);
 }//pls when I have time, add a proper KV pair that tracks purchasers
 async function handleSneakPeak(request, env) {

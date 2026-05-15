@@ -76,6 +76,9 @@ export default {
       if (pathname === "/api/products" && request.method === "GET") {
         return addCors(await handleProductList(request, user, env), request);
       }
+      if (pathname === "/api/user-pro-state" && request.method === "GET") {
+        return addCors(await handleUserProState(request, user, env), request);
+      }
       if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-ui-kv') {
         return addCors(await handleKVProUI(request, env), request);
       }
@@ -1151,6 +1154,24 @@ async function handleProductList(request, user, env) {
     return json({ message: err.message || 'Failed to list products' }, 500);
   }
 }
+async function handleUserProState(request, user, env) {
+  if (["blooperbotsae@gmail.com","guillaume.barrette@gmail.com","nerdsalot@gmail.com","theophilus828@gmail.com","johneconte@gmail.com","denizennightfever+spectrodraw@gmail.com","unrequited.wackiness641@passfwd.com","jacob1coder@gmail.com","aira.crux@gmail.com","josephwupengyu@gmail.com","joonasylanne87@gmail.com","joonasylanne87@yahoo.fi",
+    "luigibolzon@gmail.com","mutableauralisma@gmail.com","unrealregis@gmail.com","h4n1in.r3n@gmail.com","carlolaurenzi@icloud.com","gugansurya99@icloud.com","defaultuser21001@gmail.com","mikogold@yahoo.com","metaldoge27@gmail.com","kec@schnapsen.at","juho.tuomisto@gmail.com","tiniko2009tiniko@gmail.com","wertmakes@gmail.com","jwcoukell@gmail.com",
+    "prismaticsnake@gmail.com","brent3831@gmail.com","supertheunderdog@gmail.com","noah@bruijninckx.net","carter.aaron.cope@gmail.com","nbachtle@gmail.com","xeoelosos@gmail.com","lebtebteb@gmail.com","richtercamden@gmail.com","virtualfox1912@gmail.com","finnlaw485@gmail.com","veyastro99@gmail.com","embervhs1@gmail.com","atom.drizzle30@icloud.com",
+    "tom.oka3600@gmail.com","a83109118@gmail.com","ravwen2011@gmail.com","lews.hermiston@gmail.com","originallyrami@gmail.com","wrochna.f@gmail.com","kye.sideprojects@gmail.com","ohara.everett@gmail.com","skaahejo@gmail.com","marcinrau12@gmail.com","sireclark7@gmail.com","nathandt1000@gmail.com","oystermgmt@gmail.com","1962fenderjaguar@gmail.com",
+    "bellachatsworth@gmail.com","robloxponyyt@gmail.com","hdakaaveragesynthuser@gmail.com","mrcarjr@gmail.com","kalbwhitt@gmail.com","pempekaapluto@gmail.com","marsicek.vojtech@gmail.com","joschi64xd@gmail.com","levandai419@gmail.com","toweringramparts@gmail.com","niko36701@gmail.com","ripdood69@gmail.com","jdetty211@gmail.com","robotosaurus0@gmail.com",
+    "bubsneedham123@gmail.com","noahmostafaa@gmail.com","mzizit927@gmail.com","eros744@gmail.com","mateos8971@gmail.com","cltcarterdale@gmail.com","philipkohn@gmail.com","km824005@gmail.com","miscpractice@gmail.com","kburns0975@gmail.com","rotariuaurelia39@gmail.com","theusername727@gmail.com","nomorefd344343@gmail.com","olliequayle08@gmail.com",
+    "resbertaninon@gmail.com","alexghshshs@gmail.com","jona102010m@gmail.com","bittybugxo3@gmail.com","lopplopp8312@gmail.com","robblebug10@gmail.com","cyrusf@gmail.com","easysteve@gmx.de","pesfandiar@gmail.com","tp5666024phamtrinh19820@gmail.com","josiahmanly@gmail.com","sammytav05@gmail.com","apoorbaugh@gmail.com","alexanderalfredbrand@yahoo.com",
+    "breadandeggsben@gmail.com","asdzxcvb1234576@gmail.com","haveyouever994@gmail.com","blahajgaming@proton.me","wassimchabbou2@gmail.com","saglebanbuboy@gmail.com","ge822015@gmail.com","jimexoh888@coswz.com","blockatetutoriate@gmail.com","insertsp0mhere@gmail.com","asher87_6915@outlook.com","utsavbaluni223@gmail.com","andrey.begtin@gmail.com",
+    "flayzachtires@gmail.com","hhornegeneral@gmail.com","mauro254832@gmail.com","burritoartsyt@gmail.com","chr0ma.i11ustrates.games@gmail.com","gabrielbotello11@gmail.com","the_surf_doc@yahoo.co.uk","hixom67761@azeriom.com","donor.edger_2r@icloud.com","945208993@qq.com","francisconattibouchet@gmail.com","djmartinstudios@gmail.com","elcorreomio@hotmail.com",
+    "robert_w_1982@outlook.com","hippo.o.matic@gmail.com","samuelnovak01@gmail.com","oioifoioi366@gmail.com","kicool.grumm@gmail.com","bliprevoc@gmail.com","ericafromparis@gmail.com","syconsenti@gmail.com","imsillylilyy@gmail.com","princesstulip413@gmail.com","afl004@uit.no","anselnolanriley@gmail.com","haidemac25@gmail.com","fkeglevich@tutanota.com",
+    "xcoolcat502@gmail.com","redearth1029@gmail.com","edisongarcialoya@gmail.com","jumpedzebra508@gmail.com","juvepena@icloud.com","sammyr5002@gmail.com","nguyen060913@stu.vinschool.edu.vn","camapdangnguyen2021@gmail.com","wafelznutella.mail@gmail.com","cinamonas99@hotmail.com","hamilton.ryan04@gmail.com","avernus2@atomicmail.io","popseecool@gmail.com",
+    "deltaeffectsman@gmail.com","jona.klockars@gmail.com","hummusman5@gmail.com","kosepe5482@faxzu.com","lyon.m.ram.1@gmail.com","pranayandchaitnyaagarwal@gmail.com","808broken@gmail.com","geraldominic5@gmail.com","callan.walke@gmail.com","dustinc01@gmail.com","lolharambe33@gmail.com","snowbeast54@gmail.com","viruartt@gmail.com","rinyam1425@gmail.com",
+    "milla.h.bell@protonmail.com","toxix0524@gmail.com","toxix0514@gmail.com","cnfans@tutamail.com","joeb2026@proton.me","chrisgameboygd@gmail.com","visonevea011@gmail.com","cp3938191@gmail.com","zach.isdale@gmail.com","carson123isfnaf@gmail.com","ramidak4@gmail.com","lavastrudel@gmail.com","milesferg@icloud.com","browsingtheinterwebs@gmail.com",
+    "iccullghtblu@gmail.com","sethroneatlas@gmail.com","clipriot3@gmail.com","tjw65653@gmail.com","cosmo.parisi.archi@gmail.com","lyradavis8568@gmail.com","narcisooubinabustelo@gmail.com","blake@slipsong.com"].includes(user.email)) return json({price: "Free (early access deal)"}, 200);
+  else if (["bruninhohenrri@gmail.com","ami@zooaszoo.com","billie@lightburnsoftware.com","davidnewnes2@gmail.com","opprobe@hotmail.fr","agiunio@gmail.com","aaron.vanada@gmail.com"].includes(user.email)) return json({price: "$40.00"}, 200);
+  return json({message:"User not in quick database yet"}, 200);
+}//pls when I have time, add a proper KV pair that tracks purchasers
 async function handleSneakPeak(request, env) {
   try {
     const kvBindingName = "SNEAK_PEAK";

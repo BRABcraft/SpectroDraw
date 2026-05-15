@@ -615,7 +615,7 @@ function makeEQMenu(cx,cy){
 
     eqBands.splice(idx, 0, newPoint);
     applyEQChanges();
-};
+  };
   const removePoint = ()=> {
     const pos = {x:cx, y:cy};
     const hit = findHit(pos);

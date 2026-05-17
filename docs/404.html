@@ -5,9 +5,26 @@
   <meta charset="UTF-8">
   <title>Page Not Found - SpectroDraw</title>
   <style>
-    body { background:#111; color:#eee; font-family:sans-serif; text-align:center; padding:5em; }
+    body { background:#111; color:#eee; font-family:sans-serif; text-align:center; margin:0;}
     h1 { font-size:3em; margin-bottom:0.5em; }
     a { color:#6cf; text-decoration:none; }
+    
+  nav{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:1rem 2rem;
+    position:sticky;
+    top:0;
+    z-index:40;
+    backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+  }
+  .nav-left{display:flex;align-items:center;gap:1rem}
+  .nav-right{display:flex;gap:1rem;align-items:center}
+  .nav-right a{font-weight:600;text-decoration:none;color:#dfe7ff;opacity:0.95}
+  .nav-right a:hover{color:var(--accent1)}
   </style>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4104479922308013"
      crossorigin="anonymous"></script>
@@ -22,14 +39,13 @@
 </head>
   <nav class="nav">
     <div class="nav-left">
-      <div  style="display:flex;"><img src="../BannerLogo2.png" style="height:36px;"></a>">SpectroDraw</div>
-      <div class="tagline">Interactive Spectrogram Editor</div>
+      <div  style="display:flex;"><a href="./"><img src="BannerLogo2.png" style="height:36px;"></a></div>
     </div>
     <div class="nav-right">
-      <a href="../app" class="nav-link">Launch App</a>
-      <a href="../faq" class="nav-link">FAQ</a>
-      <a href="../news" class="nav-link">News</a>
-      <a href="../pricing" class="nav-link">Pricing</a>
+      <a href="./app" class="nav-link">Launch App</a>
+      <a href="./faq" class="nav-link">FAQ</a>
+      <a href="./news" class="nav-link">News</a>
+      <a href="./pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
       <div id="account-wrap" style="display:none; position:relative;">
@@ -80,7 +96,7 @@
           <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
           <button id="google-login" type="button" class="google">
             <span class="g-icon" aria-hidden="true">
-              <img src="../assets/Google__G__logo.svg" alt="">
+              <img src="./assets/Google__G__logo.svg" alt="">
             </span>
             <span id="google-btn-text">Log in with Google</span>
           </button>
@@ -89,11 +105,14 @@
       </form>
     </div>
   </div>
-  <link rel="stylesheet" type="text/css" href="../accounts.css">
-  <script src="../accounts.js"></script>
+  <link rel="stylesheet" type="text/css" href="./accounts.css">
+  <script src="./accounts.js"></script>
   <body>
-    <h1>404</h1>
-    <p>Sorry, the page you’re looking for doesn’t exist.</p>
-    <p><a href="/">Go back home</a></p>
+    <div style="display:flex;justify-content:center;align-items:center;height:60vh;">
+      <div>
+      <h1>404</h1>
+      <p>Sorry, the page you’re looking for doesn’t exist.</p>
+      <p><a href="./">Go back home</a></p></div>
+    </div>
   </body>
 </html>

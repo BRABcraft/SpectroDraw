@@ -76,7 +76,7 @@ export default {
       if (pathname === "/api/products" && request.method === "GET") {
         return addCors(await handleProductList(request, user, env), request);
       }
-      if (pathname === "/api/user-pro-state" && request.method === "GET") {
+      if (pathname === "/user-pro-state" && request.method === "GET") {
         return addCors(await handleUserProState(request, user, env), request);
       }
       if (request.method === 'GET' && pathname === '/spectrodraw-pro/pro-ui-kv') {

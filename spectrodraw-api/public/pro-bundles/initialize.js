@@ -401,6 +401,9 @@ class Knob {
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
 
+    if (options.useBeats !== undefined) this.useBeats = options.useBeats;
+    if (options.bpm !== undefined) this.bpm = options.bpm;
+
     this.el.addEventListener("pointerdown", this._onEQPointerDown);
     document.addEventListener("pointermove", this._onPointerMove);
     document.addEventListener("pointerup", this._onPointerUp);
@@ -587,6 +590,8 @@ const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
   type: 'continuous',
   range: [0,100],
   value: 10,
+  useBeats: false,
+  bpm:120,
   onInput: (knob)=>{
     emptyAudioLength = knob.value;
     initEmptyPCM(false);

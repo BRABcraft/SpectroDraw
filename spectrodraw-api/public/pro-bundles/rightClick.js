@@ -669,7 +669,172 @@ function makePopOutMenu(i){
   return buildMenu([{ label: '↗ Pop out', onClick: ()=>{document.getElementById(i+"popOut").click()} }]);
 }
 function makeKnobMenu(knob){
-  if (knob.type==="discrete")return null;
+  if (knob.type==="discrete") return null;
+
+  const isBufferLengthKnob = knob.name === "Buffer Length";
+
+  if (isBufferLengthKnob) {
+    const menu = buildMenu([
+      { type:'input', label:'', value:0 }, // Use Beats checkbox row
+      { type:'input', label:'', value:0 }, // main row
+      { type:'input', label:'', value:0 }, // second row (beats only)
+      { type:'input', label:'', value:0 }, // min row
+      { type:'input', label:'', value:0 }, // max row
+    ]);
+
+    const inputs = Array.from(menu.querySelectorAll('.ctx-input'));
+    const [useBeatsEl, mainEl, secondEl, minEl, maxEl] = [
+      inputs[0].closest('.ctx-item'),
+      inputs[1].closest('.ctx-item'),
+      inputs[2].closest('.ctx-item'),
+      inputs[3].closest('.ctx-item'),
+      inputs[4].closest('.ctx-item')
+    ];
+
+    useBeatsEl.innerHTML = `
+      <div class="slider-row2">
+        <label for="UseBeatsCheckbox">Use beats</label>
+        <input type="checkbox" id="UseBeatsCheckbox" style="margin-left:60px;">
+      </div>
+    `;
+
+    mainEl.innerHTML = `
+      <div class="slider-row2">
+        <label id="MainLabel">Set value</label>
+        <input type="number" id="MainInput" class="ctx-input" step="0.001" min="0" max="128" value="${knob.bpm ?? 120}" style="flex:0 0 90px;margin-left:25px;">
+      </div>
+    `;
+
+    secondEl.innerHTML = `
+      <div class="slider-row2">
+        <label id="SecondLabel">Set beats</label>
+        <input type="number" id="SecondInput" class="ctx-input" step="0.001" min="0" max="128" value="${knob.getValue()*parseFloat(knob.bpm)/60}" style="flex:0 0 90px;margin-left:25px;">
+      </div>
+    `;
+
+    minEl.innerHTML = `
+      <div class="slider-row2">
+        <label id="MinLabel">Set min value</label>
+        <input type="number" id="MinInput" class="ctx-input" step="0.001" min="0" max="128" value="${knob.range[0]}" style="flex:0 0 90px;margin-left:25px;">
+      </div>
+    `;
+
+    maxEl.innerHTML = `
+      <div class="slider-row2">
+        <label id="MaxLabel">Set max value</label>
+        <input type="number" id="MaxInput" class="ctx-input" step="0.001" min="0" max="128" value="${knob.range[1]}" style="flex:0 0 90px;margin-left:25px;">
+      </div>
+    `;
+
+    const useBeatsCheckbox = menu.querySelector(`#UseBeatsCheckbox`);
+    const mainInput = menu.querySelector(`#MainInput`);
+    const secondInput = menu.querySelector(`#SecondInput`);
+    const minInputEl = menu.querySelector(`#MinInput`);
+    const maxInputEl = menu.querySelector(`#MaxInput`);
+    const mainLabel = menu.querySelector(`#MainLabel`);
+    const secondLabel = menu.querySelector(`#SecondLabel`);
+    const minLabel = menu.querySelector(`#MinLabel`);
+    const maxLabel = menu.querySelector(`#MaxLabel`);
+    function clampMenuToViewport() {
+      const pad = 8;
+      const rect = menu.getBoundingClientRect();
+      const vh = document.documentElement.clientHeight;
+      const top = parseFloat(menu.style.top) || 0;
+
+      if (rect.bottom > vh - pad) {
+        menu.style.top = Math.max(pad, top - (rect.bottom - (vh - pad))) + 'px';
+      }
+    }
+    function syncBufferLengthMenu() {
+      const useBeats = useBeatsCheckbox.checked;
+      secondEl.style.display = useBeats ? "" : "none";
+
+      if (useBeats) {
+        mainLabel.textContent = "Set BPM";
+        secondLabel.textContent = "Set beats";
+        minLabel.textContent = "Set min beats";
+        maxLabel.textContent = "Set max beats";
+
+        mainInput.value = knob.bpm ?? 120;
+        secondInput.value = knob.beats ?? 1;
+      } else {
+        mainLabel.textContent = "Set value";
+        minLabel.textContent = "Set min";
+        maxLabel.textContent = "Set max";
+
+        mainInput.value = knob.value ?? 0;
+      }
+      secondInput.value = knob.getValue()*parseFloat(mainInput.value)/60;
+      requestAnimationFrame(clampMenuToViewport);
+    }
+
+    useBeatsCheckbox.checked = !!knob.useBeats;
+    syncBufferLengthMenu();
+
+    useBeatsCheckbox.addEventListener("change", () => {
+      knob.useBeats = useBeatsCheckbox.checked;
+      syncBufferLengthMenu();
+    });
+
+    mainInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        let val = parseFloat(mainInput.value);
+        if (isNaN(val)) return;
+
+        if (useBeatsCheckbox.checked) {
+          mainInput.value = val;
+          secondInput.value = knob.getValue()*parseFloat(mainInput.value)/60;
+          knob.bpm = val;
+        } else {
+          if (val < minInputEl.value) val = minInputEl.value;
+          if (val > maxInputEl.value) val = maxInputEl.value;
+          knob.setValue(val);
+          mainInput.value = val;
+        }
+
+        knob.render();
+      }
+    });
+
+    secondInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        let val = parseFloat(secondInput.value);
+        if (isNaN(val)) return;
+
+        knob.setValue(val*60/parseFloat(mainInput.value));
+        secondInput.value = val;
+      }
+    });
+
+    minInputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        let val = parseFloat(minInputEl.value);
+        if (isNaN(val)) return;
+        if (val < 0) val = 0;
+        if (val > maxInputEl.value) val = knob.range[0];
+        minInputEl.value = val;
+        knob.range[0] = val;
+        knob._buildLabels();
+        knob.render();
+      }
+    });
+
+    maxInputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        let val = parseFloat(maxInputEl.value);
+        if (isNaN(val)) return;
+        if (val < 0) val = 0;
+        if (val < minInputEl.value) val = knob.range[1];
+        maxInputEl.value = val;
+        knob.range[1] = val;
+        knob._buildLabels();
+        knob.render();
+      }
+    });
+
+    return menu;
+  }
+
   const menu = buildMenu([
     { type:'input', label:'', value:0 },
     { type:'input', label:'', value:0 },

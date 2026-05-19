@@ -250,7 +250,7 @@
   <nav class="nav">
     <div class="nav-left">
       <a href="../"  style="display:flex;"><img src="../BannerLogo2.png" style="height:36px;"></a>
-      <div class="tagline">Interactive Spectrogram Editor</div>
+      <!--<div class="tagline">Interactive Spectrogram Editor</div>-->
     </div>
     <div class="nav-right">
       <a href="../app" class="nav-link">Launch App</a>
@@ -323,14 +323,41 @@
   <header class="hero">
     <div class="hero-inner fade-in">
       <h1 class="title">SpectroDraw Events</h1>
-      <p class="subtitle">🔴 3 happening now</p>
+      <p class="subtitle">🔴 1 happening now</p>
     </div>
   </header>
   <main class="wrap">
+    <style>
+      .event-category {
+        background:#444;
+        border-radius:6px;
+        padding:10px;
+        cursor:pointer;
+        color:white;
+      }
+    </style>
+    <div style="display:flex;flex-direction:row;gap:10px;margin-bottom:10px;">
+      <div class="event-category" t="0" style="background:#666;">Current (1)</div>
+      <div class="event-category" t="1">Past (0)</div>
+      <div class="event-category" t="2">Upcoming (2)</div>
+    </div>
     <div class="news-grid" id="newsGrid"></div>
   </main>
   
   <script>
+    let currentTab = "0";
+    document.querySelectorAll(".event-category").forEach(c=>{
+      c.addEventListener("click",()=>{
+        currentTab = c.getAttribute("t");
+        document.querySelectorAll(".event-category").forEach(g=>{
+          g.style.background=(g.getAttribute("t")===currentTab)?"#666":"#333";
+        });
+        document.querySelectorAll(".news-card").forEach(g=>{
+          g.style.display=(g.getAttribute("category")===["current","past","future"][parseInt(currentTab)])?"flex":"none";
+        });
+        
+      });
+    });
     const events = [
       {
         image:"../assets/marketing/send_feedback_win_$25.jpg",
@@ -338,9 +365,25 @@
         for:"SpectroDraw Pro Free early access users and buyers",
         start:"5/18/2026 12:00AM",
         end:"6/1/2026 12:00AM",
-        link:"../app?event=1",
+        link:"../app/?event=1",
         category:null,
-      }
+      },{
+        image:"../assets/marketing/5-25.jpg",
+        title:"Transform a sample, WIN $20",
+        for:"SpectroDraw Pro Free early access users and buyers",
+        start:"5/21/2026 12:00AM",
+        end:"6/1/2026 12:00AM",
+        link:"../app/?event=2",
+        category:null,
+      },{
+        image:"../assets/marketing/5-26.jpg",
+        title:"Build a sound kit, WIN $30",
+        for:"SpectroDraw Pro Free early access users and buyers",
+        start:"5/26/2026 12:00AM",
+        end:"6/1/2026 12:00AM",
+        link:"../app/?event=3",
+        category:null,
+      },
     ];
     function parseEventDateTime(txt) {
       const match = txt.match(
@@ -383,13 +426,13 @@
 
       const div = document.createElement("div");
       div.classList.add("news-card");
-
-      const liveText = event.category === "current" ? ' 🔴 Live' : '';
+      div.setAttribute("category",event.category);
+      const liveText = event.category === "current" ? '🔴 LIVE: ' : '';
 
       div.innerHTML = `
         <img src="${event.image}">
         <div class="news-card-content">
-          <h3>${event.title}${liveText}</h3>
+          <h3>${liveText}${event.title}</h3>
           <p>For: ${event.for}</p>
           <small>Start: ${event.start}</small><br>
           <small>End: ${event.end}</small><br>

@@ -20,14 +20,14 @@
   </script>
   <style>
     :root{
-      --bg:#07080b;
-      --panel:#0f1720;
-      --muted:#9aa4b2;
-      --text:#e6eefc;
+      --bg:#fff;
+      --panel:#ccc;
+      --muted:#fff;
+      --text:#000;
       --accent1:#4f46e5;
       --accent2:#9333ea;
       --accent3:#ec4899;
-      --soft-border: rgba(255,255,255,0.04);
+      --soft-border: rgba(0, 0, 0, 0.74);
       --card-glow: 0 6px 30px rgba(147,51,234,0.12);
       --glass-2: rgba(255,255,255,0.02);
       --cta-grad: linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
@@ -37,12 +37,19 @@
     html,body{
       height:100%;
       margin:0;
-      background: radial-gradient(ellipse at 10% 10%, #0b0c14 0%, #090a10 30%, var(--bg) 100%);
+      background:
+        linear-gradient(
+          0deg,
+          #000 0%,
+          #111 50%,
+          #000 100%
+        );
       color:var(--text);
       font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
       line-height:1.6;
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
+      font-size:20px;
     }
 
     nav{
@@ -58,58 +65,60 @@
       border-bottom: 1px solid var(--soft-border);
     }
     .nav-left{display:flex;align-items:center;gap:1rem}
-    .brand{font-weight:800;letter-spacing:0.2px;color:white;text-decoration:none;font-size:1.05rem}
+    .brand{font-weight:800;letter-spacing:0.2px;color:#9333ea;text-decoration:none;font-size:1.05rem}
     .nav-right{display:flex;gap:1rem;align-items:center}
     .nav-right a{
       font-weight:600;
       text-decoration:none;
-      color:#dfe7ff;
+      color:#fff !important;
       opacity:0.95;
       padding:.45rem .6rem;
       border-radius:8px
     }
     .nav-right a:hover{
-      color:white;
+      color:#fff;
       background:linear-gradient(90deg, rgba(79,70,229,0.12), rgba(147,51,234,0.06));
       box-shadow:0 8px 30px rgba(79,70,229,0.12);
     }
 
     header.hero{
       position:relative;
-      padding:56px 20px;
+      padding:10px 20px;
       display:flex;
-      justify-content:center;
-      align-items:center;
+      justify-content:left;
+      align-items:left;
       overflow:hidden;
+      margin-bottom:30px;
+    }
+    .hero::before{
+      content:"";              /* REQUIRED */
+      position:absolute;       /* REQUIRED to size it */
+      inset:0;                 /* fill the hero */
+      background-image:url('../assets/spectrogram-hero2.jpg');
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      filter: contrast(105%) saturate(110%) brightness(0.72);
+      transform: scale(1.02);
+      z-index:0;
     }
     .hero-inner{
-      max-width:980px;
-      width:100%;
-      text-align:center;
+      margin-left:280px;
+      text-align:left;
       padding:28px;
-      border-radius:14px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
-      box-shadow:var(--card-glow);
-      border:1px solid var(--glass-2);
+      position:relative;       /* keep text above image */
+      z-index:1;
     }
     .title{
       font-size:2.1rem;
       font-weight:800;
-      margin:6px 0 8px 0;
       background:var(--cta-grad);
       -webkit-background-clip:text;background-clip:text;
       -webkit-text-fill-color:transparent;
-      text-shadow:0 8px 30px rgba(147,51,234,0.08);
+      text-shadow:0 0px 15px rgba(120, 26, 208, 0.8);
     }
 
-    main{
-      padding:36px 20px;
-      max-width:1100px;
-      margin:0 auto 36px;
-    }
-    .wrap{max-width:980px;margin:18px auto;padding:24px;}
-    p{margin:12px 0;color:#d0d9e9}
-    strong{color:#fff}
+    p{margin:12px 0;color:#000}
     .section{padding:18px 0;border-top:1px solid var(--soft-border);}
     .section:first-of-type{border-top:0;padding-top:8px}
 
@@ -126,13 +135,122 @@
     }
     footer a{color:#cfe3ff;text-decoration:none}
     footer a:hover{text-decoration:underline}
+    .btn-primary {
+      display:inline-block;
+      margin-top:12px;
+      position: relative;
+      background: var(--cta-grad);
+      color: #fff;
+      border-radius: 999px;
+      padding: 0.6rem 1.3rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+      overflow: hidden;
+      transition: transform .4s ease, box-shadow .6s ease, background .4s ease;
+    }
+    .btn-primary::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      background: none;
+      border-radius: inherit;
+      z-index: 0;
+      backdrop-filter: blur(4px);
+      transition: background .5s ease, box-shadow .5s ease;
+    }
+    .btn-primary span {
+      position: relative;
+      z-index: 1;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 0 15px rgba(79,70,229,0.6),
+        0 0 25px rgba(147,51,234,0.7),
+        inset 0 0 60px rgba(147,51,234,0.8); 
+    }
+    .btn-primary:hover::before {
+      background: rgba(7, 8, 11, 0.3); 
+    }
+    .nav-link {
+      font-size: 16px;
+      line-height: 1.0;
+    }
+    .account-menu {background:#eee !important;}
+
+    /* FAQ Cards */
+    .news-grid{
+      display:flex;
+      flex-direction:column;
+      gap:20px;
+    }
+    .news-card{
+      display:flex;
+      align-items:center;
+      gap:20px;
+      text-decoration:none;
+      color:inherit;
+      background:rgba(255,255,255,1);
+      border:1px solid var(--soft-border);
+      transition:transform .25s ease, box-shadow .25s ease, background .25s ease;
+    }
+    .news-card:hover{
+      background:rgba(255,255,255,0.9);
+      box-shadow:var(--card-glow);
+      transform:translateY(-3px);
+    }
+    .news-card img{
+      width:400px;
+      height:270px;
+      object-fit:cover;
+      flex-shrink:0;
+    }
+    .news-card-content{
+      flex:1;
+      padding:20px;
+    }
+    .news-card h3{
+      margin:0;
+      font-size:1.1rem;
+      font-weight:700;
+      color:rgb(0, 0, 0);
+    }
+    .news-card p{
+      margin:.3rem 0 0;
+      color:#000;
+      font-size:.95rem;
+    }
+    @media(max-width:600px) {
+      .news-card img{width:150px;height:250px;}
+      .news-card p, .news-card h3, .news-card{font-size:17px;}
+      .news-card-content{padding:5px;}
+      .news-card{gap:5px;}
+      .hero-inner{margin-left:0;width:100%;text-align:center;}
+    }
+
+    footer{
+      padding:2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+      margin-top:2rem;
+      border-top:1px solid var(--soft-border);
+      font-size:.95rem
+    }
+    footer a{color:#cfe3ff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
     @media(max-width:600px) {.tagline{display:none;}}
+    small{color:#444;}
+    .wrap{max-width:1000px;margin:18px auto;}
+    .subtitle{color:#eee;}
   </style>
 </head>
 <body>
   <nav class="nav">
     <div class="nav-left">
-      <a href="/"  style="display:flex;"><img src="../BannerLogo2.png" style="height:36px;"></a>
+      <a href="../"  style="display:flex;"><img src="../BannerLogo2.png" style="height:36px;"></a>
+      <div class="tagline">Interactive Spectrogram Editor</div>
     </div>
     <div class="nav-right">
       <a href="../app" class="nav-link">Launch App</a>
@@ -190,7 +308,7 @@
           <button id="toggle-signup" type="button" class="link-btn">New? Sign up</button>
           <button id="google-login" type="button" class="google">
             <span class="g-icon" aria-hidden="true">
-              <img src="../../assets/Google__G__logo.svg" alt="">
+              <img src="../assets/Google__G__logo.svg" alt="">
             </span>
             <span id="google-btn-text">Log in with Google</span>
           </button>
@@ -205,24 +323,89 @@
   <header class="hero">
     <div class="hero-inner fade-in">
       <h1 class="title">SpectroDraw Events</h1>
+      <p class="subtitle">🔴 3 happening now</p>
     </div>
   </header>
+  <main class="wrap">
+    <div class="news-grid" id="newsGrid"></div>
+  </main>
+  
   <script>
     const events = [
-      {start: "5/18"}
+      {
+        image:"../assets/marketing/send_feedback_win_$25.jpg",
+        title:"Send feedback, WIN $25",
+        for:"SpectroDraw Pro Free early access users and buyers",
+        start:"5/18/2026 12:00AM",
+        end:"6/1/2026 12:00AM",
+        link:"../app?event=1",
+        category:null,
+      }
     ];
+    function parseEventDateTime(txt) {
+      const match = txt.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(AM|PM)$/i
+      );
+
+      if (!match) return null;
+
+      let [, month, day, year, hour, minute, meridiem] = match;
+
+      month = Number(month);
+      day = Number(day);
+      year = Number(year);
+      hour = Number(hour);
+      minute = Number(minute);
+
+      meridiem = meridiem.toUpperCase();
+
+      if (meridiem === "PM" && hour !== 12) hour += 12;
+      if (meridiem === "AM" && hour === 12) hour = 0;
+
+      return new Date(year, month - 1, day, hour, minute);
+    }
+    for (let event of events) {
+      const start = parseEventDateTime(event.start);
+      const end = parseEventDateTime(event.end);
+      const now = new Date();
+
+      if (start && end) {
+        if (now >= start && now <= end) {
+          event.category = "current";
+        } else if (now < start) {
+          event.category = "future";
+        } else {
+          event.category = "past";
+        }
+      } else {
+        event.category = "past";
+      }
+
+      const div = document.createElement("div");
+      div.classList.add("news-card");
+
+      const liveText = event.category === "current" ? ' 🔴 Live' : '';
+
+      div.innerHTML = `
+        <img src="${event.image}">
+        <div class="news-card-content">
+          <h3>${event.title}${liveText}</h3>
+          <p>For: ${event.for}</p>
+          <small>Start: ${event.start}</small><br>
+          <small>End: ${event.end}</small><br>
+          <a class="btn btn-primary" href="${event.link}"><span>Launch Event</span></a>
+        </div>
+      `;
+
+      document.getElementById("newsGrid").appendChild(div);
+    }
   </script>
-  <main class="wrap">
-    
-  </main>
-    
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
     <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
-    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
-    <a href="/terms" style="color:white;">Terms</a>
+    <a href="../privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="../terms" style="color:white;">Terms</a>
   </footer>
-
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>

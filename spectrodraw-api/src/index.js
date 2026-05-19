@@ -98,6 +98,9 @@ export default {
       if (request.method === "GET" && pathname === "/load-sneak-peak") {
         return addCors(await handleSneakPeak(request, env), request);
       }
+      if (pathname === "/send-quick-feedback" && request.method === "POST") {
+        return addCors(await handleSendQuickFeedback(request, env), request);
+      }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
         const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
         const kv = env && env[kvBindingName];
@@ -694,13 +697,18 @@ Content-Type: text/plain; charset=utf-8
 ${body}
 `;
 
-  const email = new EmailMessage(
-    "no-reply@spectrodraw.com",
-    "spectrodraw@gmail.com",
-    rawEmail
-  );
+  if (!env.FEEDBACK_NOTIFY || typeof env.FEEDBACK_NOTIFY.send !== 'function') {
+  console.error('FEEDBACK_NOTIFY binding is missing or invalid');
+  return json({ message: 'Email binding not configured' }, 500);
+}
 
-  await env.FEEDBACK_NOTIFY.send(email);
+const email = new EmailMessage(
+  "no-reply@spectrodraw.com",
+  "spectrodraw@gmail.com",
+  rawEmail
+);
+
+await env.FEEDBACK_NOTIFY.send(email);
 }
 // SERVER: handleFeedbackPost
 async function handleFeedbackPost(request, user, env) {
@@ -1155,6 +1163,15 @@ async function handleProductList(request, user, env) {
   }
 }
 async function handleUserProState(request, user, env) {
+  if (!user) {
+    const raw = request.headers.get("X-Spectrodraw-User");
+
+    try {
+      user = JSON.parse(raw);
+    } catch {
+      user = null;
+    }
+  }
   if (["blooperbotsae@gmail.com","guillaume.barrette@gmail.com","nerdsalot@gmail.com","theophilus828@gmail.com","johneconte@gmail.com","denizennightfever+spectrodraw@gmail.com","unrequited.wackiness641@passfwd.com","jacob1coder@gmail.com","aira.crux@gmail.com","josephwupengyu@gmail.com","joonasylanne87@gmail.com","joonasylanne87@yahoo.fi",
     "luigibolzon@gmail.com","mutableauralisma@gmail.com","unrealregis@gmail.com","h4n1in.r3n@gmail.com","carlolaurenzi@icloud.com","gugansurya99@icloud.com","defaultuser21001@gmail.com","mikogold@yahoo.com","metaldoge27@gmail.com","kec@schnapsen.at","juho.tuomisto@gmail.com","tiniko2009tiniko@gmail.com","wertmakes@gmail.com","jwcoukell@gmail.com",
     "prismaticsnake@gmail.com","brent3831@gmail.com","supertheunderdog@gmail.com","noah@bruijninckx.net","carter.aaron.cope@gmail.com","nbachtle@gmail.com","xeoelosos@gmail.com","lebtebteb@gmail.com","richtercamden@gmail.com","virtualfox1912@gmail.com","finnlaw485@gmail.com","veyastro99@gmail.com","embervhs1@gmail.com","atom.drizzle30@icloud.com",
@@ -1367,5 +1384,67 @@ async function handleApiOrdersCapture(request, env, orderID) {
   } catch (err) {
     console.error('handleApiOrdersCapture error', err);
     return json({ message: err.message || String(err) || 'Failed to capture order' }, 500);
+  }
+}
+
+async function handleSendQuickFeedback(request, env) {
+  try {
+    let data = {};
+
+    const contentType = request.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      data = await request.json();
+    } else if (contentType.includes("form-data")) {
+      const form = await request.formData();
+      data = {
+        qfm1: form.get("qfm1") || "",
+        qfm2: form.get("qfm2") || "",
+        qfm3: form.get("qfm3") || "",
+        qfm4: form.get("qfm4") || ""
+      };
+    } else {
+      return json({ message: "Unsupported content type" }, 400);
+    }
+
+    const qfm1 = String(data.qfm1 || "").trim();
+    const qfm2 = String(data.qfm2 || "").trim();
+    const qfm3 = String(data.qfm3 || "").trim();
+    const qfm4 = String(data.qfm4 || "").trim();
+
+    const body = `New quick feedback submission:
+
+What confused you?
+${qfm1}
+
+What feature felt coolest?
+${qfm2}
+
+What is your most hated feature?
+${qfm3}
+
+Any other feedback?
+${qfm4}
+`;
+
+    const rawEmail = `From: SpectroDraw <no-reply@spectrodraw.com>
+To: spectrodraw@gmail.com
+Subject: New quick feedback submission
+Content-Type: text/plain; charset=utf-8
+
+${body}
+`;
+
+    const email = new EmailMessage(
+      "no-reply@spectrodraw.com",
+      "spectrodraw@gmail.com",
+      rawEmail
+    );
+
+    await env.FEEDBACK_NOTIFY.send(email);
+
+    return json({ success: true }, 200);
+  } catch (err) {
+    console.error("handleSendQuickFeedback error:", err);
+    return json({ message: err.message || "Failed to send feedback" }, 500);
   }
 }

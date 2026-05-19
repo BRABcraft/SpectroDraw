@@ -191,7 +191,7 @@ function timelineMouseup(e) {
   pausedAtSample = frame * hop;
 
   if (wasPlayingDuringDrag) {
-    playPCM(true, frame);
+    playPCM( frame);
     document.getElementById("playPause").innerHtml = `
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 20 20">
       <rect x="2" y="0" width="5" height="18" rx="2" ry="2"/>
@@ -408,7 +408,7 @@ function playPause() {
       playPauseBtn.innerHTML = playHtml;
   } else {
       const startFrame = (pausedAtSample !== null) ? Math.floor(pausedAtSample / hop) : 0;
-      playPCM(true, startFrame);
+      playPCM( startFrame);
       playPauseBtn.innerHTML = pauseHtml;
   }
 }

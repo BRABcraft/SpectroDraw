@@ -101,6 +101,7 @@ const sliders = [
   [document.getElementById('chorusDetune'), document.getElementById('chorusDetuneInput')],
   [document.getElementById('chorusPanSpread'), document.getElementById('chorusPanSpreadInput')],
   [document.getElementById('chorusRandomness'), document.getElementById('chorusRandomnessInput')],
+  [document.getElementById('pitchPreviewVolume'), document.getElementById('pitchPreviewVolumeInput')],
 ];
   sliders.forEach(pair => {if (!pair[2]&&pair.length) syncNumberAndRange(pair[1], pair[0])});
 // sliders[0][0].addEventListener('input', () =>{sliders[0][1].value = sliders[0][0].value;});
@@ -518,6 +519,11 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     e.stopPropagation();
   }
+  if (document.getElementById('quickFeedbackModal').style.display !== 'none') {
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') e.preventDefault();
+  }
 });
 document.addEventListener('keydown', (event) => {
   if (editingExpression===null) keyBind(event);
@@ -619,6 +625,7 @@ async function saveProject() {
     hop: hopSizeKnob.getValue(),
     bufferLength: emptyAudioLength,
     drawVolume: document.getElementById("drawVolume").value,
+    pitchPreviewVolume: document.getElementById("pitchPreviewVolume").value,
     masterVolume: masterVolumeKnob.getValue(),
     playbackVolume: document.getElementById("playbackVolume").value,
     logScaleVal,
@@ -717,6 +724,7 @@ function openProject(file) {
       if (parsed.bufferLength !== undefined) emptyAudioLength = parsed.bufferLength;
       if (parsed.drawVolume !== undefined) document.getElementById("drawVolumeInput").value = document.getElementById("drawVolume").value = !!parsed.drawVolume;
       if (parsed.playbackVolume !== undefined) document.getElementById("playbackVolumeInput").value = document.getElementById("playbackVolume").value = !!parsed.playbackVolume;
+      if (parsed.pitchPreviewVolume !== undefined) document.getElementById("pitchPreviewVolumeInput").value = document.getElementById("pitchPreviewVolume").value = !!parsed.pitchPreviewVolume;
       if (parsed.masterVolume !== undefined) masterVolumeKnob.setValue(!!parsed.masterVolume);
       if (parsed.logScaleVal !== undefined) logScaleVal = parsed.logScaleVal;
       if (parsed.trueScaleVal !== undefined) window.trueScaleVal = parsed.trueScaleVal;
@@ -2316,3 +2324,149 @@ document.getElementById("blurX").addEventListener("input",()=>{
   minCol=0;maxCol=framesTotal;
   restartRender(false,true);
 });
+
+{
+//EVENTS
+const quickFeedbackBtn = document.getElementById("quickFeedbackBtn");
+const qfm = document.getElementById("quickFeedbackModal");
+quickFeedbackBtn.addEventListener("click",()=>{
+  qfm.style.display = (qfm.style.display==="none")?"flex":"none";
+});
+const requiredWords = 30;
+const rows = [
+  { textarea: document.getElementById('qfm1') },
+  { textarea: document.getElementById('qfm2') },
+  { textarea: document.getElementById('qfm3') },
+  { textarea: document.getElementById('qfm4') }
+].filter(r => r.textarea);
+
+const submitBtn = document.getElementById("qfmsubmitbutton");
+let hasSubmitted = false;
+
+function countWords(text) {
+  const matches = text.trim().match(/\S+/g);
+  return matches ? matches.length : 0;
+}
+
+function setWhite(el) {
+  if (!el) return;
+  el.style.color = 'white';
+  if (el.tagName === 'TEXTAREA') {
+    el.style.border = '1px solid #999';
+    el.style.background = '#111';
+  }
+}
+
+function setRed(el) {
+  if (!el) return;
+  el.style.color = '#ffb3b3';
+  if (el.tagName === 'TEXTAREA') {
+    el.style.border = '1px solid #ff6b6b';
+    el.style.background = '#111';
+  }
+}
+
+function updateRow(row) {
+  const textarea = row.textarea;
+  const td = textarea.closest('tr')?.querySelector('td');
+  const p = td ? td.querySelector('p') : null;
+
+  const words = countWords(textarea.value);
+  if (p) p.textContent = `${words}/30 required words`;
+
+  const valid = words >= requiredWords;
+
+  if (!hasSubmitted) {
+    setWhite(textarea);
+    if (td) setWhite(td);
+    if (p) setWhite(p);
+    return valid;
+  }
+
+  if (valid) {
+    setWhite(textarea);
+    if (p) setWhite(p);
+  } else {
+    setRed(textarea);
+    if (p) setRed(p);
+  }
+
+  return valid;
+}
+
+function validateAll() {
+  let allValid = true;
+  rows.forEach(row => {
+    const ok = updateRow(row);
+    if (!ok) allValid = false;
+  });
+  return allValid;
+}
+
+rows.forEach(row => {
+  const textarea = row.textarea;
+  const td = textarea.closest('tr')?.querySelector('td');
+  const p = td ? td.querySelector('p') : null;
+
+  setWhite(textarea);
+  if (td) setWhite(td);
+  if (p) setWhite(p);
+
+  updateRow(row);
+
+  textarea.addEventListener('input', () => {
+    updateRow(row);
+  });
+});
+
+submitBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+  hasSubmitted = true;
+
+  const allValid = validateAll();
+  if (!allValid) {
+    return;
+  }
+
+  const payload = {
+    qfm1: document.getElementById('qfm1')?.value || '',
+    qfm2: document.getElementById('qfm2')?.value || '',
+    qfm3: document.getElementById('qfm3')?.value || '',
+    qfm4: document.getElementById('qfm4')?.value || ''
+  };
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('https://api.spectrodraw.com/send-quick-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      console.error('Server error:', await res.text());
+      throw new Error(`Failed to send feedback (${res.status})`);
+    }
+
+    submitBtn.textContent = 'Sent!';
+    qfm.style.display = 'none';
+    document.getElementById("quickFeedbackSuccessModal").style.display="flex";
+  } catch (err) {
+    console.error(err);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit feedback';
+    alert('Could not send feedback right now.');
+  }
+});
+
+document.getElementById("joinEarlyTestersDiscordBtn").addEventListener("click",()=>{
+  const a = document.createElement("a");
+  a.href="https://discord.gg/QRFwfqAFB2";
+  a.target="_blank",a.rel="noopener";
+  document.body.appendChild(a);
+  a.click();
+});
+
+}

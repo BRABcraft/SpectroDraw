@@ -1957,8 +1957,8 @@ function setDocked(panel, dockObj){
   newWindow({
       name:"Preferences",
       id:"preferencesWindow",
-      width:300,
-      height:440,
+      width:350,
+      height:350,
       docked:false,
       dockEdge:"none",
       dockTo:null,
@@ -1967,8 +1967,8 @@ function setDocked(panel, dockObj){
       moving:false,
       resizing:false,
       minimized:false,
-      left:window.innerWidth/2-150,
-      top:window.innerHeight/2-220,
+      left:window.innerWidth/2-175,
+      top:window.innerHeight/2-175,
       showing:false,
       showHeader:true,
       innerHTML:`<div class="slider-row" title="Playback volume">
@@ -1976,10 +1976,19 @@ function setDocked(panel, dockObj){
               <input id="playbackVolume"  type="range" min="0" max="1" value="1" step="0.01">
               <input id="playbackVolumeInput" type="number" value="1" min="0" max="1">
           </div>
-          <div class="slider-row" title="Oscillator Volume while drawing">
+          <div class="slider-row" title="Frame-seeking volume while drawing">
               <label class="h2">Draw volume</label>
-              <input id="drawVolume"  type="range" min="0" max="1" value="1" step="0.01">
-              <input id="drawVolumeInput" type="number" value="1" min="0" max="1">
+              <input id="drawVolume"  type="range" min="0" max="1" value="0" step="0.01">
+              <input id="drawVolumeInput" type="number" value="0" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Oscillator Volume while drawing">
+              <label class="h2">Pitch preview volume</label>
+              <input id="pitchPreviewVolume"  type="range" min="0" max="1" value="0.2" step="0.01">
+              <input id="pitchPreviewVolumeInput" type="number" value="0.2" min="0" max="1">
+          </div>
+          <div class="slider-row" title="Autoplay after edit">
+              <label class="h2">Autoplay</label>
+              <input id="autoplay" type="checkbox">
           </div>
           <hr>
           <div style="align-items:center;display:flex;flex-direction:column;">

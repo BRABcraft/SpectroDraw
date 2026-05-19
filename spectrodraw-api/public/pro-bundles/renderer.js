@@ -557,12 +557,13 @@ function drawFrame(w,h) {
       snapshotMags = null;
       snapshotPhases = null;
     }
-    if (pendingPlayAfterRender) {
+    pausedAtSample = (currentFrame<specWidth*0.8?minCol:specWidth*0.8)*hop;
+    if (pendingPlayAfterRender && document.getElementById("autoplay").checked) {
       pendingPlayAfterRender = false;
       try {
         playing = true;
         playPause.innerHTML = pauseHtml;
-        playPCM(false,currentFrame<specWidth*0.8?minCol:specWidth*0.8);
+        playPCM(currentFrame<specWidth*0.8?minCol:specWidth*0.8);
       } catch (e) { console.warn("playPCM() failed after render:", e); }
       const playPauseEl = document.getElementById("playPause");
       if (playPauseEl) playPauseEl.innerHTML = pauseHtml;
@@ -572,7 +573,7 @@ function drawFrame(w,h) {
       autoPlayOnFinish = false;
       playing = true;
       playPause.innerHTML = pauseHtml;
-      playPCM(true,currentFrame<specWidth*0.8?minCol:specWidth*0.8);
+      playPCM(currentFrame<specWidth*0.8?minCol:specWidth*0.8);
     }
     status.style.display = "none";
     minCol = Infinity;

@@ -447,7 +447,143 @@
         <rect x="8" y="1" width="8" height="2" rx="2" ry="2" stroke-width="1"/>
       </svg>
     </button>
+    <div style="margin-left:auto;">
+      <button style="width:auto;padding:10px;color:black;background:linear-gradient(90deg, #5865F2, #6a58f2, #6f58f2);" class="topBar-btn" id="joinEarlyTestersDiscordBtn">
+        Join early testers Discord
+      </button>
+      <button style="width:auto;padding:10px;color:black;background:linear-gradient(90deg, #cdfbc5, #c3fcd3, #bdf3f5);" class="topBar-btn" id="quickFeedbackBtn">
+        Quick feedback
+      </button>
+    </div>
   </header>
+  <div id="quickFeedbackModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center;z-index:9999999999969420;">
+    <style>
+      .qfm{
+        background:#111;
+        border:1px solid #999;
+        width:400px;
+        height:100px;
+      }
+
+      .qfmtable td,
+      .qfmtable textarea{
+        text-align:left;
+        vertical-align:top;
+        color:white;
+        font-family:'Inter', 'Segoe UI', sans-serif;
+      }
+
+      .qfmtable td{color:white;}
+      .qfmtable p{color:white;}
+
+      .qfm-close{
+        position:absolute;
+        top:12px;
+        right:12px;
+        width:34px;
+        height:34px;
+        border:none;
+        border-radius:50%;
+        background:rgba(255,255,255,0.08);
+        color:white;
+        font-size:20px;
+        cursor:pointer;
+        transition:0.15s ease;
+      }
+
+      .qfm-close:hover{
+        background:rgba(255,255,255,0.18);
+        transform:scale(1.05);
+      }
+
+      .qfm-youtube{
+        cursor:pointer;
+        transition:0.15s ease;
+      }
+
+      .qfm-youtube:hover{
+        filter:brightness(1.15);
+        transform:scale(1.03);
+      }
+    </style>
+
+    <div class="modal-content" style="position:relative;background:#222; padding:20px; border-radius:8px; max-width:600px; width:90%;">
+
+      <button class="qfm-close" onclick="document.getElementById('quickFeedbackModal').style.display='none'">
+        ×
+      </button>
+
+      <h2 style="margin:0 0 8px 0;font-size:32px;line-height:1.05;color:white;font-weight:800;">
+        Send feedback, win $25
+      </h2>
+
+      <p style="margin:0 0 14px 0;color:#e6e6e6;font-size:15px;line-height:1.6;">
+        SpectroDraw Pro is in early development, and your feedback can help shape what gets built next. Share what confused you, what felt coolest, and what you want improved.
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;">
+          <div style="color:#fff;font-weight:700;font-size:13px;">Giveaway closes</div>
+          <div style="color:#d1d5db;font-size:13px;">June 1st</div>
+        </div>
+
+        <div class="qfm-youtube" onclick="window.open('https://www.youtube.com/live/_b4Zj7BjUrM','_blank')" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;gap:12px;">
+          <div>
+            <div style="color:#fff;font-weight:700;font-size:13px;">
+              Winners announced
+            </div>
+            <div style="color:#d1d5db;font-size:13px;">
+              Live at 6PM EST, June 2nd
+            </div>
+          </div>
+          <div style="background:white;border-radius:3px;padding:4px;display:flex;align-items:center;justify-content:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="red">
+              <path d="M23.498 6.186c-.275-1.033-1.08-1.847-2.113-2.124C19.6 3.5 12 3.5 12 3.5s-7.6 0-9.386.562c-1.033.277-1.838 1.091-2.113 2.124C0 7.972 0 12 0 12s0 4.028.501 5.814c.275 1.033 1.08 1.847 2.113 2.124C4.4 20.5 12 20.5 12 20.5s7.6 0 9.386-.562c1.033-.277 1.838-1.091 2.113-2.124C24 16.028 24 12 24 12s0-4.028-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <table class="qfmtable">
+        <tr><td>What confused you?<p>0/30 required words</p></td><td><textarea id="qfm1" class="qfm"></textarea></td></tr>
+        <tr><td>What feature felt coolest?<p>0/30 required words</p></td><td><textarea id="qfm2" class="qfm"></textarea></td></tr>
+        <tr><td>What is your most hated feature?<p>0/30 required words</p></td><td><textarea id="qfm3" class="qfm"></textarea></td></tr>
+        <tr><td>Any other feedback?<p>0/30 required words</p></td><td><textarea id="qfm4" class="qfm"></textarea></td></tr>
+      </table>
+
+      <div style="display:flex;">
+        <button style="margin-left:auto;background:var(--accent-gradient);padding:5px 10px;border:none;border-radius:5px;" id="qfmsubmitbutton">
+          Submit feedback
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="quickFeedbackSuccessModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center;z-index:9999999999969420;">
+    <div class="modal-content" style="position:relative;background:#222; padding:20px; border-radius:8px; max-width:500px; width:90%;">
+      <button class="qfm-close" onclick="document.getElementById('quickFeedbackSuccessModal').style.display='none'">
+        ×
+      </button>
+
+      <h2 style="margin:0 0 8px 0;font-size:28px;line-height:1.05;color:rgb(0, 255, 0);font-weight:800;">
+        Feedback succesfully submitted!
+      </h2>
+      <div class="qfm-youtube" onclick="window.open('https://www.youtube.com/live/_b4Zj7BjUrM','_blank')" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;gap:12px;">
+        <div>
+          <div style="color:#fff;font-size:20px;">
+            Don't miss the giveaway stream!
+          </div>
+          <div style="color:#d1d5db;font-size:16px;">
+            Live at 6PM EST, June 2nd
+          </div>
+        </div>
+        <div style="background:white;border-radius:3px;padding:4px;display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="red">
+            <path d="M23.498 6.186c-.275-1.033-1.08-1.847-2.113-2.124C19.6 3.5 12 3.5 12 3.5s-7.6 0-9.386.562c-1.033.277-1.838 1.091-2.113 2.124C0 7.972 0 12 0 12s0 4.028.501 5.814c.275 1.033 1.08 1.847 2.113 2.124C4.4 20.5 12 20.5 12 20.5s7.6 0 9.386-.562c1.033-.277 1.838-1.091 2.113-2.124C24 16.028 24 12 24 12s0-4.028-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="presetsModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center;z-index:9999999999969420;">
     <div class="modal-content" style="background:#222; padding:20px; border-radius:8px; max-width:300px; width:90%;">
       <h2 style="margin:0;margin-bottom:5px;">New Project</h2>

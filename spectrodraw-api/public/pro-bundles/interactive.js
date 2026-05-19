@@ -212,7 +212,7 @@ function canvasMouseDown(e,touch) {
     sineOsc = audioCtx.createOscillator();
     sineOsc.setPeriodicWave(wave);
     sineGain = audioCtx.createGain();
-    sineGain.gain.value = 0.2*document.getElementById("drawVolume").value*masterVolumeKnob.getValue();
+    sineGain.gain.value = 0.2*document.getElementById("pitchPreviewVolume").value*masterVolumeKnob.getValue();
 
     sineOsc.connect(sineGain).connect(audioCtx.destination);
     setSineFreq(realY);
@@ -532,7 +532,7 @@ function _getPlaybackTarget() {
 }
 
 
-async function playPCM(loop = true, startFrame = null) {
+async function playPCM(startFrame = null) {
   ensureAudioCtx();
   if (pianoMode) {if (startFrame) currentCursorX = startFrame; playNotes();return;}
 
@@ -627,7 +627,7 @@ async function playPCM(loop = true, startFrame = null) {
   }
 
   sourceNode.buffer = buffer;
-  sourceNode.loop = !!loop;
+  sourceNode.loop = true;
 
   try {
     const targetNode = _getPlaybackTarget();

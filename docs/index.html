@@ -1074,7 +1074,26 @@ body{
       }
     });
   });
+  function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie =
+      name + "=" + encodeURIComponent(value) +
+      "; expires=" + expires +
+      "; path=/" +
+      "; SameSite=Lax";
+  }
 
+  function getCookie(name) {
+    return document.cookie
+      .split("; ")
+      .find(row => row.startsWith(name + "="))
+      ?.split("=")[1] ? decodeURIComponent(
+        document.cookie
+          .split("; ")
+          .find(row => row.startsWith(name + "="))
+          .split("=")[1]
+      ) : null;
+  }
   (async function () {
     async function fetchUserProState(email) {
       const response = await fetch("https://api.spectrodraw.com/user-pro-state", {
@@ -1104,7 +1123,10 @@ body{
 
       function showEarlyAccessModal() {
         if (window.__sdEarlyAccessModalShown) return;
+        if (getCookie("sd_early_access_seen") === "1") return;
+
         window.__sdEarlyAccessModalShown = true;
+        setCookie("sd_early_access_seen", "1", 1);
 
         const overlay = document.createElement("div");
         overlay.id = "spectrodraw-early-access-modal";

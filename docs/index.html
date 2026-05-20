@@ -502,9 +502,119 @@ body{
       </div>
     </div>
   </nav>
-  <div id="early-access-banner">
-    <a style="text-decoration: underline;" href="./buy-pro/" id="countdown">The Pro version is now officially available to new buyers!</a>
+  <div id="early-access-banner" class="news-gallery">
+  <button class="news-arrow left" id="newsPrev" aria-label="Previous news item"><</button>
+
+  <div class="news-viewport">
+    <div class="news-track" id="newsTrack">
+      <a style="text-decoration: underline;" href="./events/" class="news-item">
+        🎁 SpectroDraw Pro: Send feedback to enter a $25 giveaway! 🎁
+      </a>
+
+      <a style="text-decoration: underline;" href="./buy-pro/" class="news-item">
+        The Pro version is now officially available to new buyers!
+      </a>
+    </div>
   </div>
+
+  <button class="news-arrow right" id="newsNext" aria-label="Next news item">></button>
+</div>
+
+<style>
+  #early-access-banner.news-gallery {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .news-viewport {
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .news-track {
+    display: flex;
+    transition: transform 0.45s ease;
+    will-change: transform;
+  }
+
+  .news-item {
+    flex: 0 0 100%;
+    display: block;
+    text-align: center;
+    text-decoration: underline;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .news-arrow {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 0.6rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    user-select: none;
+    font-weight:700;
+  }
+
+  .news-arrow:hover {
+    opacity: 0.8;
+  }
+</style>
+
+<script>
+  (function () {
+    const track = document.getElementById("newsTrack");
+    const prevBtn = document.getElementById("newsPrev");
+    const nextBtn = document.getElementById("newsNext");
+    if (!track || !prevBtn || !nextBtn) return;
+
+    const items = track.querySelectorAll(".news-item");
+    let index = 0;
+    let timer = null;
+
+    function update() {
+      track.style.transform = `translateX(-${index * 100}%)`;
+    }
+
+    function next() {
+      index = (index + 1) % items.length;
+      update();
+    }
+
+    function prev() {
+      index = (index - 1 + items.length) % items.length;
+      update();
+    }
+
+    function startAutoScroll() {
+      stopAutoScroll();
+      timer = setInterval(next, 10000);
+    }
+
+    function stopAutoScroll() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    }
+
+    nextBtn.addEventListener("click", () => {
+      next();
+      startAutoScroll();
+    });
+
+    prevBtn.addEventListener("click", () => {
+      prev();
+      startAutoScroll();
+    });
+
+    startAutoScroll();
+  })();
+</script>
   <div id="login-panel" class="modal-overlay" aria-hidden="true">
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <button class="modal-close" aria-label="Close">&times;</button>

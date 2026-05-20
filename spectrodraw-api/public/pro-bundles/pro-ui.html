@@ -102,147 +102,387 @@
     window.__sdEarlyAccessModalShown = true;
 
     const overlay = document.createElement("div");
+    overlay.id = "spectrodraw-early-access-modal";
     Object.assign(overlay.style, {
       position: "fixed",
       inset: "0",
-      background: "rgba(0,0,0,0.6)",
+      background: "rgba(4, 6, 12, 0.72)",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      zIndex: "10000"
+      padding: "24px",
+      zIndex: "10000",
     });
-    overlay.id = "spectrodraw-early-access-modal";
 
     const modal = document.createElement("div");
     Object.assign(modal.style, {
-      background: "#111",
-      width: "500px",
-      maxWidth: "90%",
-      padding: "40px",
-      borderRadius: "8px",
       position: "relative",
-      boxShadow: "0 10px 30px rgba(255,255,255,0.3)",
-      fontFamily: "sans-serif"
+      width: "min(640px, 100%)",
+      borderRadius: "24px",
+      overflow: "hidden",
+      background:
+        "linear-gradient(180deg, rgba(20,24,36,0.98) 0%, rgba(11,13,20,0.98) 100%)",
+      color: "#fff",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.55)",
+      border: "1px solid rgba(255,255,255,0.10)",
+      fontFamily:
+        'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    });
+
+    const topBar = document.createElement("div");
+    Object.assign(topBar.style, {
+      height: "7px",
+      background:
+        "linear-gradient(90deg, #5865F2 0%, #7C3AED 45%, #22C55E 100%)",
     });
 
     const closeBtn = document.createElement("button");
-    closeBtn.textContent = "✕";
+    closeBtn.type = "button";
+    closeBtn.innerHTML = "✕";
     Object.assign(closeBtn.style, {
       position: "absolute",
-      top: "10px",
-      right: "10px",
-      border: "none",
-      color: "#aaa",
-      background: "none",
-      fontSize: "18px",
-      cursor: "pointer"
+      top: "16px",
+      right: "16px",
+      width: "38px",
+      height: "38px",
+      borderRadius: "999px",
+      border: "1px solid rgba(255,255,255,0.12)",
+      background: "rgba(255,255,255,0.06)",
+      color: "#fff",
+      fontSize: "16px",
+      cursor: "pointer",
+      display: "grid",
+      placeItems: "center",
+      transition: "transform 0.15s ease, background 0.15s ease",
     });
+    closeBtn.onmouseenter = () => {
+      closeBtn.style.background = "rgba(255,255,255,0.12)";
+      closeBtn.style.transform = "scale(1.05)";
+    };
+    closeBtn.onmouseleave = () => {
+      closeBtn.style.background = "rgba(255,255,255,0.06)";
+      closeBtn.style.transform = "scale(1)";
+    };
 
     const content = document.createElement("div");
-    content.style = "text-align:center;color:white;";
+    Object.assign(content.style, {
+      padding: "34px 32px 30px",
+    });
+
     content.innerHTML = `
-      <br>
-      <h2>Thank you for claiming SpectroDraw Pro!</h2>
-      <p>You now have access to the first public Pro build.</p>
+      <div style="display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(88,101,242,0.14);border:1px solid rgba(88,101,242,0.28);color:#cfd6ff;font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:18px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 0 4px rgba(34,197,94,0.12);"></span>
+        Early Access is now live
+      </div>
 
-      <p>This version is still actively in development, so your feedback is extremely valuable. If you run into bugs, confusing UI, missing features, workflow issues, performance problems, or just have ideas that would improve SpectroDraw, please share your feedback at <a href="https://spectrodraw.com/feedback/" target="_blank" rel="noopener">https://spectrodraw.com/feedback/</a> or email me at <a href="mailto:spectrodraw@gmail.com">spectrodraw@gmail.com</a>.</p>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <h2 style="margin:0;font-size:34px;line-height:1.08;letter-spacing:-0.03em;">
+          Thank you for claiming SpectroDraw Pro
+        </h2>
 
-      <p>Thank you for supporting SpectroDraw Pro early and helping improve the app!</p>
-      <p>5/14/2026</p>
+        <p style="margin:0;font-size:17px;line-height:1.6;color:rgba(255,255,255,0.82);max-width:52ch;">
+          You now have access to the first public Pro build. It is still actively evolving, and your feedback will directly shape what comes next.
+        </p>
+      </div>
+
+      <div style="margin-top:22px;padding:18px 18px 16px;border-radius:18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:10px;">Helpful feedback includes:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px;line-height:1.45;color:rgba(255,255,255,0.76);">
+          <div>• Bugs or crashes</div>
+          <div>• Confusing UI moments</div>
+          <div>• Missing features</div>
+          <div>• Performance issues</div>
+          <div>• Workflow frustrations</div>
+          <div>• Ideas that save time</div>
+        </div>
+      </div>
+
+      <div style="margin-top:22px;font-size:15px;line-height:1.7;color:rgba(255,255,255,0.84);">
+        Share feedback at
+        <a href="https://spectrodraw.com/feedback/" target="_blank" rel="noopener noreferrer" style="color:#9db4ff;text-decoration:none;font-weight:700;">spectrodraw.com/feedback</a>
+        , using the quick feedback button, through the <a href="https://discord.com/invite/QRFwfqAFB2" style="color:#9db4ff;text-decoration:none;font-weight:700;">SpectroDraw Early Testers discord</a>, 
+        or email
+        <a href="mailto:spectrodraw@gmail.com" style="color:#9db4ff;text-decoration:none;font-weight:700;" target="_blank" rel="noopener noreferrer">spectrodraw@gmail.com</a>.
+      </div>
     `;
 
     function close() {
+      document.removeEventListener("keydown", onKeyDown);
       overlay.remove();
     }
 
-    document.addEventListener("keydown", e => {
+    function onKeyDown(e) {
       if (e.key === "Escape") close();
-    }, { once: true });
+    }
+
+    document.addEventListener("keydown", onKeyDown);
 
     closeBtn.onclick = close;
     overlay.onclick = (e) => {
       if (e.target === overlay) close();
     };
 
+    modal.appendChild(topBar);
     modal.appendChild(closeBtn);
     modal.appendChild(content);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
   }
-
   function showEventModal(event) {
     if (window.__sdEarlyAccessModalShown) return;
     window.__sdEarlyAccessModalShown = true;
 
     const overlay = document.createElement("div");
+    overlay.id = "spectrodraw-early-access-modal";
     Object.assign(overlay.style, {
       position: "fixed",
       inset: "0",
-      background: "rgba(0,0,0,0.6)",
+      background: "rgba(4, 6, 12, 0.72)",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      padding: "24px",
       zIndex: "10000"
     });
-    overlay.id = "spectrodraw-early-access-modal";
 
     const modal = document.createElement("div");
     Object.assign(modal.style, {
-      background: "#111",
-      width: "500px",
-      maxWidth: "90%",
-      padding: "40px",
-      borderRadius: "8px",
       position: "relative",
-      boxShadow: "0 10px 30px rgba(255,255,255,0.3)",
-      fontFamily: "sans-serif"
+      width: "min(640px, 100%)",
+      maxHeight: "calc(100vh - 48px)",
+      overflowY: "auto",
+      borderRadius: "24px",
+      background:"linear-gradient(180deg, rgba(20,24,36,0.98) 0%, rgba(11,13,20,0.98) 100%)",
+      color: "#fff",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.55)",
+      border: "1px solid rgba(255,255,255,0.10)",
+      fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      WebkitOverflowScrolling: "touch",
+    });
+    modal.className = "sd-hide-scrollbar";
+
+    const topBar = document.createElement("div");
+    Object.assign(topBar.style, {
+      height: "7px",
+      background:
+        "linear-gradient(90deg, #5865F2 0%, #7C3AED 45%, #22C55E 100%)",
     });
 
     const closeBtn = document.createElement("button");
-    closeBtn.textContent = "✕";
+    closeBtn.type = "button";
+    closeBtn.innerHTML = "✕";
     Object.assign(closeBtn.style, {
       position: "absolute",
-      top: "10px",
-      right: "10px",
-      border: "none",
-      color: "#aaa",
-      background: "none",
-      fontSize: "18px",
-      cursor: "pointer"
+      top: "16px",
+      right: "16px",
+      width: "38px",
+      height: "38px",
+      borderRadius: "999px",
+      border: "1px solid rgba(255,255,255,0.12)",
+      background: "rgba(255,255,255,0.06)",
+      color: "#fff",
+      fontSize: "16px",
+      cursor: "pointer",
+      display: "grid",
+      placeItems: "center",
+      transition: "transform 0.15s ease, background 0.15s ease",
     });
+    closeBtn.onmouseenter = () => {
+      closeBtn.style.background = "rgba(255,255,255,0.12)";
+      closeBtn.style.transform = "scale(1.05)";
+    };
+    closeBtn.onmouseleave = () => {
+      closeBtn.style.background = "rgba(255,255,255,0.06)";
+      closeBtn.style.transform = "scale(1)";
+    };
 
     const content = document.createElement("div");
-    content.style = "text-align:center;color:white;";
-    content.innerHTML = `
-      <br>
-      <h2>Event 1</h2>
-      <p>You now have access to the first public Pro build.</p>
+    Object.assign(content.style, {
+      padding: "34px 32px 30px",
+    });
 
-      <p>This version is still actively in development, so your feedback is extremely valuable. If you run into bugs, confusing UI, missing features, workflow issues, performance problems, or just have ideas that would improve SpectroDraw, please share your feedback at <a href="https://spectrodraw.com/feedback/" target="_blank" rel="noopener">https://spectrodraw.com/feedback/</a> or email me at <a href="mailto:spectrodraw@gmail.com">spectrodraw@gmail.com</a>.</p>
+    content.innerHTML = (event==1?`
+      <div style="display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(88,101,242,0.14);border:1px solid rgba(88,101,242,0.28);color:#cfd6ff;font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:18px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#c5225e;display:inline-block;box-shadow:0 0 0 4px rgba(197,34,94,0.12);"></span>
+        Ends 6/1/2026
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <h2 style="margin:0;font-size:34px;line-height:1.08;letter-spacing:-0.03em;">
+           Share feedback and WIN $25!
+        </h2>
+      </div>
+      <img src="https://spectrodraw.com/assets/marketing/send_feedback_win_$25.jpg" style="width:100%;">
+      <p>I am giving away $25 to two random users who give feedback to SpectroDraw Pro.</p>
+      <h4>Use the Pro version however you like: </h4>
+      <ul>
+        <li>Transform a sample</li>
+        <li>Create a sound effect</li>
+        <li>Create an ambience</li>
+        <li>Make a song</li>
+        <li>Split vocals</li>
+      </ul>
+      
+      <p>
+        Then, submit feedback through the <strong>quick feedback button, <a href="https://discord.gg/QRFwfqAFB2" target="_blank" rel="noopener noreferrer" style="color:#9db4ff;font-weight:700;">discord server</a></strong>, or by <a href="mailto:spectrodraw@gmail.com" style="color:#9db4ff;font-weight:700;" target="_blank" rel="noopener noreferrer">sending an email to spectrodraw@gmail.com</a>. Let me know what felt intuitive, what felt confusing, what worked smoothly, what did not, what you expected to happen, and what you would improve first. To be eligible for the reward, your feedback must be honest, specific, and detailed.
+      </p>
+      
+      <p>
+        Giveaway winners will be announced on June 2nd, 2026!
+      </p>
 
-      <p>Thank you for supporting SpectroDraw Pro early and helping improve the app!</p>
-      <p>5/14/2026</p>
+    `:(event==2?`
+      <div class="evstatus" style="display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(88,101,242,0.14);border:1px solid rgba(88,101,242,0.28);color:#cfd6ff;font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:18px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#c5225e;display:inline-block;box-shadow:0 0 0 4px rgba(197,34,94,0.12);"></span>
+        <div livetext="Challenge 2 is live" upcomingtext="Upcoming Challenge" pasttext="Past Challenge" start="2026-5-22 00:00:00" end="2026-6-1 00:00:00"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <h2 style="margin:0;font-size:34px;line-height:1.08;letter-spacing:-0.03em;">
+          Transform a sample, WIN $20
+        </h2>
+      </div>
+      
+      <img src="https://spectrodraw.com/assets/marketing/5-22.jpg" style="width:100%;">
+      <h3>You may:</h3>
+  
+      <ul>
+        <li>Apply global filters</li>
+        <li>Turn the sample into a drawing</li>
+        <li>Quantize or stretch the audio</li>
+        <li>Turn the sample into another sound effect</li>
+        <li>Or create anything original using spectral editing!</li>
+      </ul>
+      
+      <h3>Submission requirements:</h3>
+  
+      <ul>
+        <li><a href="https://discord.gg/QRFwfqAFB2" target="_blank" rel="noopener noreferrer" style="color:#9db4ff;font-weight:700;">Join the discord server</a></li>
+        <li>Submit in Discord in #challenge-1-submissions</li>
+        <li>Upload both the before and transformed sample</li>
+        <li>Include a screenshot of the SpectroDraw project</li>
+        <li>Optional: include a short description of what you did</li>
+      </ul>
+      
+      <h3>Rules:</h3>
+  
+      
+      <ul>
+        <li>Must use SpectroDraw Pro for everything</li>
+        <li>Maximum length: 60 seconds</li>
+      </ul>
+      
+      <h3>Prize: $20 to the winner</h3>
+      
+      <p>The winner will be selected live based on creativity, interesting use of spectral editing, and the most surprising transformation. Come watch the livestream to vote: <a style="color:#9db4ff;font-weight:700;" href="https://www.youtube.com/live/_b4Zj7BjUrM">https://www.youtube.com/live/_b4Zj7BjUrM</a></p>
+      <p>I cannot wait to see what you create!</p>
+  
+    `
+    :(event=="3"?`
+      <div class="evstatus" style="display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(88,101,242,0.14);border:1px solid rgba(88,101,242,0.28);color:#cfd6ff;font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:18px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#c5225e;display:inline-block;box-shadow:0 0 0 4px rgba(197,34,94,0.12);"></span>
+        <div livetext="Challenge 2 is live" upcomingtext="Upcoming Challenge" pasttext="Past Challenge" start="2026-5-26 00:00:00" end="2026-6-1 00:00:00"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <h2 style="margin:0;font-size:34px;line-height:1.08;letter-spacing:-0.03em;">
+          Build a sound kit to win $30
+        </h2>
+      </div>
+      <img src="https://spectrodraw.com/assets/marketing/5-26.jpg" style="width:100%;">
+      
+      <p>Open: 5/26/26 to 6/1/26</p>
+      
+      <h3>You can make a:</h3>
+
+      <ul>
+        <li>Drum kit
+        </li><li>FX pack</li>
+        <li>Texture </li>
+        <li>Bass pack</li>
+        <li>Cinematic sounds</li>
+        <li>Glitch pack</li>
+      </ul>
+      
+      <h3>Submission requirements:</h3>
+  
+      <ul>
+        <li><a href="https://discord.gg/QRFwfqAFB2" target="_blank" rel="noopener noreferrer" style="color:#9db4ff;font-weight:700;">Join the discord server</a></li>
+        <li>Submit in Discord in #challenge-2-submissions</li>
+        <li>Include at least 5 sounds</li>
+        <li>Upload a ZIP file of WAVs</li>
+        <li>Include one screenshot of SpectroDraw Pro</li>
+      </ul>
+      
+      <h3>Rules:</h3>
+
+      <ul>
+        <li>Sounds must be entirely created or modified in SpectroDraw Pro</li>
+        <li>Any style is allowed</li>
+      </ul>
+      <h3>Prize:</h3>
+
+      <ul>
+        <li>$30 to the winner</li>
+      </ul>
+      <p>The winner will be voted for on livestream on June 2nd. <a style="color:#9db4ff;font-weight:700;" rel="noopener noreferrer" href="https://www.youtube.com/live/_b4Zj7BjUrM">Come to the livestream to vote!</a></p>
+  
+    `:``)
+    ))+`
+    <div class="button-wrap" style="padding: 10px 0 8px 0;display:flex;gap:10px;">
+      <a class="cta" href="https://discord.gg/QRFwfqAFB2" target="_blank" rel="noopener noreferrer"
+      rel="noopener noreferrer" style="display: inline-block; width:50%; color: #fff !important; text-decoration: none; font-weight: 700; font-size: 15px; line-height: 1; padding: 14px 22px; display:flex; gap:10px;background-color:#5865F2;border-radius:5px;">
+        <img src="https://images-eds-ssl.xboxlive.com/image?url=4rt9.lXDC4H_93laV1_eHHFT949fUipzkiFOBH3fAiZZUCdYojwUyX2aTonS1aIwMrx6NUIsHfUHSLzjGJFxxsG72wAo9EWJR4yQWyJJaDaqSp8L_JnVcp7d1FDT8JeCh813ShhcwYXsWmJABMaxDBwfxTpfofZ83pyHlOgG7WM-&amp;format=source" style="height:30px;">
+        <div style="margin-top:6px;">Join Discord Server</div>
+      </a>
+      <a class="cta" id="emclose" 
+      rel="noopener noreferrer" style="display: inline-block; width:50%; background:linear-gradient(90deg, #763487, #873468, #433596); color: #fff; text-decoration: none; font-weight: 700; font-size: 20px; padding: 14px 22px; text-align:center;justify-text:center;border-radius:5px;cursor:pointer;">
+        <div>Start creating</div>
+      </a>
+    </div>
     `;
-
     function close() {
+      document.removeEventListener("keydown", onKeyDown);
       overlay.remove();
     }
 
-    document.addEventListener("keydown", e => {
+    function onKeyDown(e) {
       if (e.key === "Escape") close();
-    }, { once: true });
+    }
+
+    document.addEventListener("keydown", onKeyDown);
 
     closeBtn.onclick = close;
     overlay.onclick = (e) => {
       if (e.target === overlay) close();
     };
 
+    modal.appendChild(topBar);
     modal.appendChild(closeBtn);
     modal.appendChild(content);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    modal.querySelectorAll(".evstatus").forEach(div=>{
+      const el=div.querySelector("div");
+      const span=div.querySelector("span");
+      span.style.display="none";
+      const now = new Date();
+      const start = new Date(el.getAttribute("start"));
+      const end = new Date(el.getAttribute("end"));
+      if (now>=start&&now<=end) {
+        el.innerText=el.getAttribute("livetext");
+        span.style.display="inline-block";
+      } else if (now>end){
+        el.innerText=el.getAttribute("pasttext");
+      } else {
+        el.innerText=el.getAttribute("upcomingtext");
+      }
+    });
+    document.getElementById("emclose").addEventListener("click",()=>{close()});
   }
-
 
   // Give the browser a chance to paint the overlay before heavy work starts.
   await new Promise(requestAnimationFrame);
@@ -429,14 +669,11 @@
   } finally {
     hideLoader();
     const params = new URLSearchParams(window.location.search);
-    if (params.get("event") === "1") {
-      requestAnimationFrame(() => {
-        showEventModal(1);
-      });
+    const eventId = params.get("event");
+    if (eventId !== null && !isNaN(eventId)) {
+      requestAnimationFrame(() => showEventModal(Number(eventId)));
     } else if (params.get("welcome") === "1") {
-      requestAnimationFrame(() => {
-        showEarlyAccessModal();
-      });
+      requestAnimationFrame(showEarlyAccessModal);
     }
   }
 })();
@@ -450,7 +687,7 @@
 <body>
 <div class="app">
   <header class="top-bar">
-    <a href="https://spectrodraw.com" id="home" title="Home" style="margin-left:10px;"><img data-manifest="home.jpg" style="background:transparent; height: 30px;border-radius:4px;"></a>
+    <a href="https://spectrodraw.com" id="home" target="_top" rel="noopener noreferrer" title="Home" style="margin-left:10px;"><img data-manifest="home.jpg" style="background:transparent; height: 30px;border-radius:4px;"></a>
     <button id="fileBtn" class="top-leftBtn">File</button>
     <button id="editBtn" class="top-leftBtn">Edit</button>
     <button id="viewBtn" class="top-leftBtn">View</button>

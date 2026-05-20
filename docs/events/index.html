@@ -346,15 +346,18 @@
   
   <script>
     let currentTab = "0";
+    function updateCards(){
+      document.querySelectorAll(".news-card").forEach(g=>{
+        g.style.display=(g.getAttribute("category")===["current","past","future"][parseInt(currentTab)])?"flex":"none";
+      });
+    }
     document.querySelectorAll(".event-category").forEach(c=>{
       c.addEventListener("click",()=>{
         currentTab = c.getAttribute("t");
         document.querySelectorAll(".event-category").forEach(g=>{
           g.style.background=(g.getAttribute("t")===currentTab)?"#666":"#333";
         });
-        document.querySelectorAll(".news-card").forEach(g=>{
-          g.style.display=(g.getAttribute("category")===["current","past","future"][parseInt(currentTab)])?"flex":"none";
-        });
+        updateCards();
         
       });
     });
@@ -371,7 +374,7 @@
         image:"../assets/marketing/5-25.jpg",
         title:"Transform a sample, WIN $20",
         for:"SpectroDraw Pro Free early access users and buyers",
-        start:"5/21/2026 12:00AM",
+        start:"5/22/2026 12:00AM",
         end:"6/1/2026 12:00AM",
         link:"../app/?event=2",
         category:null,
@@ -442,6 +445,7 @@
 
       document.getElementById("newsGrid").appendChild(div);
     }
+    updateCards();
   </script>
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>

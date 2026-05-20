@@ -951,3 +951,22 @@ select {
 .synthControl-row { display:flex; gap:3px; align-items:center; }
 .synthGroup { padding:4px; border-radius:6px; background:linear-gradient(180deg,#06121a,#07131b); border:1px solid #152a3a; }
 .synthPanel { background:#111; border:1px solid #222; padding:10px; border-radius:2px; }
+
+
+.sd-hide-scrollbar{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.45) transparent;
+}
+
+.sd-hide-scrollbar::-webkit-scrollbar{
+  width:8px;
+}
+
+.sd-hide-scrollbar::-webkit-scrollbar-track{
+  background:transparent;
+}
+
+.sd-hide-scrollbar::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,0.45);
+  border-radius:999px;
+}

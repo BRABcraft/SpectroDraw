@@ -374,9 +374,14 @@ body{
   margin-top: 1.25rem;
   align-items: stretch;
 }
-
+#legacywebapp-btn {display:none;}
 @media (min-width: 920px) {
   .feature-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+}
+@media (max-width:920px) {
+  #plugin-btn {display:none;}
+  #webapp-btn {display:none;}
+  #legacywebapp-btn {display:block;}
 }
 
 /* large card styling */
@@ -669,8 +674,9 @@ body{
         SpectroDraw’s interactive spectrogram lets you paint frequency content directly, adding a new dimension to sound design. Create sound effects, convert to midi, and more.
       </p>
       <div class="cta-wrap" role="region" aria-label="primary actions">
-        <a href="app" class="btn btn-primary" title="Try SpectroDraw for free"><span>Open web app</span></a>
-        <a href="vst" class="btn btn-primary" title="Try SpectroDraw for free"><span>Download Plugin</span></a>
+        <a href="app" class="btn btn-primary" id="legacywebapp-btn" title="Try SpectroDraw for free"><span>Try it for free</span></a>
+        <a href="app" class="btn btn-primary" id="webapp-btn" title="Try SpectroDraw for free"><span>Open web app</span></a>
+        <a href="vst" class="btn btn-primary" id="plugin-btn" title="Try SpectroDraw for free"><span>Download Plugin</span></a>
       </div>
     </div>
   </header>

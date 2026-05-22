@@ -102,13 +102,7 @@
       text-shadow:0 8px 30px rgba(147,51,234,0.08);
     }
 
-    main{
-      padding:36px 20px;
-      max-width:1100px;
-      margin:0 auto 36px;
-      padding:5rem;
-    }
-    .wrap{max-width:980px;margin:18px auto;padding:24px;}
+    .wrap{max-width:80%;margin:18px auto;padding:24px;}
     p{margin:12px 0;color:#d0d9e9}
     strong{color:#fff}
     .section{padding:18px 0;border-top:1px solid var(--soft-border);}
@@ -239,23 +233,195 @@
   <link rel="stylesheet" type="text/css" href="../accounts.css">
   <script src="../accounts.js"></script>
 
-  <header class="hero">
-    <div class="hero-inner fade-in">
-      <h1 class="title">SpectroDraw Plugin</h1>
-    </div>
-  </header>
   <main class="wrap">
-  <div id="text-wrap">
-    <h3>The first version of the VST Plugin is out! Congrats on finding it before I begin marketing</h3>
-    <a href="/vst/SpectroDraw.vst3" download="" class="download-btn">⬇ Download SpectroDraw VST (.vst3)</a>
-  </div>
-  </main>
-    
+    <div
+      style="
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+        gap: 36px;
+        align-items: center;
+      "
+    >
+      <div style="max-width: 560px;">
+        <h1
+          style="
+            margin: 0 0 18px;
+            font-size: clamp(2rem, 3vw, 2.7rem);
+            line-height: 1.1;
+            font-weight: 500;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+          "
+        >
+          SpectroDraw VST Plugin
+        </h1>
+
+        <p style="margin: 0 0 28px; font-size: 1rem; line-height: 1.75; color: #7a8494;">
+          SpectroDraw’s VST plugin lets you draw, edit, and manipulate audio directly inside your DAW, completely offline. It includes most of the features from the free edition of SpectroDraw, along with DAW integration features like dropping audio samples directly onto the spectrogram and dragging generated audio or MIDI clips straight into your project timeline. It is compatible with most DAWs, including Fl studio, Ableton, and Cubase.
+        </p>
+
+        <div style="display: grid; gap: 14px; max-width: 360px;">
+          <a
+            href="/vst/SpectroDraw.vst3"
+            download
+            style="
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 10px;
+              padding: 18px 22px;
+              border-radius: 4px;
+              background: #3e7ddb;
+              color: #fff;
+              text-decoration: none;
+              font-size: 1.02rem;
+              font-weight: 600;
+              box-shadow: 0 2px 0 rgba(0, 0, 0, 0.08);
+              transition: transform 0.15s ease, filter 0.15s ease;
+            "
+            onmouseover="this.style.transform='translateY(-1px)';this.style.filter='brightness(1.03)'"
+            onmouseout="this.style.transform='translateY(0)';this.style.filter='none'"
+          >
+            Download SpectroDraw.vst
+          </a>
+          <div style="margin-top: -8px; font-size: 0.9rem; color: #8b95a3;">
+            Version: 1.0 · 24.4MB
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: center;">
+        <div
+          style="
+            position: relative;
+            width: min(100%, 760px);
+            aspect-ratio: 1.28;
+          "
+        >
+          <img
+            src="./mockup.jpg"
+            alt="SpectroDraw desktop app preview"
+            style="
+              position: absolute;
+              inset: 0;
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+              filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.18));
+            "
+          />
+        </div>
+      </div>
+    </div>
+</main>
+    <section style="margin-top:100px;">
+    <div class="container" style="display:flex;flex-direction:column;align-items:center;gap:1rem">
+      <h1 class="section-head" style="text-align:center">Reviews</h1>
+      <div style="display:grid;place-items:center;">
+        <div style="display: inline-flex; align-items: center; gap: 14px; padding: 18px 22px;">
+          <canvas id="stars" width="170" height="34" aria-hidden="true" style="display:block;"></canvas>
+          <div style="font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #fff; white-space: nowrap;">4.67 <span style="color: #ccc; font-weight: 600;">rating of 239 reviews</span></div>
+        </div>
+      </div>
+      <section id="reviews-list-section" class="section" aria-label="All reviews" style="margin-top:18px;">
+        <h2 style="margin:0 0 12px 0;font-weight:700;color:var(--text);">All reviews</h2>
+        <div id="reviewsContainer" style="display:flex;flex-direction:column;gap:12px;padding:16px;"></div>
+
+        <div style="display:flex;justify-content:center;margin-top:12px;">
+          <button id="load-more-reviews"
+                  style="padding:10px 14px;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:white;cursor:pointer;">
+            Load more
+          </button>
+        </div>    
+      </section>
+      <script>
+        (function(){
+          const canvas = document.getElementById('stars');
+          const ctx = canvas.getContext('2d');
+          const rating = 4.67;
+          const starCount = 5;
+          const starSize = 26;
+          const gap = 4;
+          const partialFill = rating-Math.floor(rating);
+
+          function drawStarPath(ctx, cx, cy, outerRadius, innerRadius, points = 5) {
+            let angle = -Math.PI / 2;
+            const step = Math.PI / points;
+
+            ctx.beginPath();
+            for (let i = 0; i < points * 2; i++) {
+              const r = i % 2 === 0 ? outerRadius : innerRadius;
+              const x = cx + Math.cos(angle) * r;
+              const y = cy + Math.sin(angle) * r;
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+              angle += step;
+            }
+            ctx.closePath();
+          }
+
+          function drawStar(x, y, size, fillStyle, strokeStyle = null, lineWidth = 1) {
+            const cx = x + size / 2;
+            const cy = y + size / 2;
+            const outer = size / 2;
+            const inner = outer * 0.48;
+
+            drawStarPath(ctx, cx, cy, outer, inner);
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+
+            if (strokeStyle) {
+              ctx.strokeStyle = strokeStyle;
+              ctx.lineWidth = lineWidth;
+              ctx.stroke();
+            }
+          }
+
+          function drawPartialStar(x, y, size, fraction) {
+            drawStar(x, y, size, '#e5e7eb', '#d1d5db', 1);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, size * fraction, size);
+            ctx.clip();
+            drawStar(x, y, size, '#f59e0b');
+            ctx.restore();
+          }
+
+          const dpr = window.devicePixelRatio || 1;
+          const logicalWidth = canvas.width;
+          const logicalHeight = canvas.height;
+
+          canvas.width = logicalWidth * dpr;
+          canvas.height = logicalHeight * dpr;
+          canvas.style.width = logicalWidth + 'px';
+          canvas.style.height = logicalHeight + 'px';
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+
+          const totalWidth = starCount * starSize + (starCount - 1) * gap;
+          const startX = 0;
+          const y = 4;
+          let i=0;
+          while (i<Math.floor(rating)) {
+            drawStar(startX + i * (starSize + gap), y, starSize, '#f59e0b');
+            i++;
+          }
+          drawPartialStar(startX + i * (starSize + gap), y, starSize, partialFill);
+          i++;
+          while (i<5) {
+            drawStar(startX + i * (starSize + gap), y, starSize, '#e5e7eb');
+            i++;
+          }
+        })()
+      </script>
+      <script src="../reviews.js"></script>
+    </div>
+  </section>
   <footer>
     © <span id="year"></span> SpectroDraw · Built for creative sound design<br>
     <small>Pitch detection powered by <a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> (© Spotify AB, Apache 2.0)</small><br>
-    <a href="/privacy" style="color:white; margin-right:20px;">Privacy</a>
-    <a href="/terms" style="color:white;">Terms</a>
+    <a href="../privacy" style="color:white; margin-right:20px;">Privacy</a>
+    <a href="../terms" style="color:white;">Terms</a>
   </footer>
 
   <script>

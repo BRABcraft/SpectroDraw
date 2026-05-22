@@ -649,6 +649,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
   const xI = (xFrame + 0.5) | 0;
   if (xI < 0 || xI >= specWidth) return;
   const idxBase = xI * specHeight;
+  if (ch===undefined)ch=0;
   const imgData = imageBuffer[ch].data;
   const phasesArr = layers[ch].phases;
   let displayYFloat = yDisplay;
@@ -782,7 +783,7 @@ function drawPixel(xFrame, yDisplay, mag, phase, pan, bo, po, ch) {
   binEnd   = Math.min(specHeight - 1, binEnd);
   for (let bin = binStart; bin <= binEnd; bin++) {
     const velFactor = (currentShape==="synth")?(20/(mouseVelocity===Infinity?20:mouseVelocity)):1;
-    processBin(bin, bo*velFactor);
+    processBin(bin, bo);
   }
 }
 function applyEffectToPixel(oldMag, oldPhase, oldPan, x, bin, newEffect, integral) {
@@ -1012,6 +1013,7 @@ function ftvsy(f,ch,l) {
   return visY;
 }
 let vr = 1;
+let visitedCols = [];
 function paint(cx, cy) {
   let $s = syncLayers?0:currentLayer, $e = syncLayers?layerCount:currentLayer+1;
   for (let ch=$s;ch<$e;ch++){
@@ -1114,8 +1116,20 @@ function paint(cx, cy) {
           const nearestY = p0y + t * vy;
           const dx = xx - nearestX;
           const dy = yy - nearestY;
-          if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > (currentShape==="synth"?0.001:1)) continue;
-          drawPixel(xx, yy, brushMag, brushPhase, brushPan, bo, po, ch);
+          if (currentShape === "synth") {
+            if (dx * dx + dy * dy > 0.25) continue;
+          } else {
+            if ((dx * dx) / radiusXsq + (dy * dy) / radiusYsq > 1) continue;
+          }
+          if (alignTime) {
+            const factorXX = hop/sampleRate*bpm/30*subBeat;
+            const startXX = Math.floor(xx*factorXX)/factorXX;
+            const stopXX = (Math.floor(xx*factorXX)+1)/factorXX;
+            if (visitedCols[startXX]) continue;
+            if (currentShape==="synth") visitedCols[startXX] = true;
+            for (let xxx=startXX;xxx<=stopXX;xxx++) drawPixel(xxx, yy, brushMag, brushPhase, brushPan, bo, po, ch);
+          }
+          else drawPixel(xx, yy, brushMag, brushPhase, brushPan, bo, po, ch);
         }
       }
     } else if (currentTool === "blur") {

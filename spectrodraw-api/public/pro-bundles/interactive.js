@@ -168,6 +168,7 @@ function canvasMouseDown(e,touch) {
   paintedPixels = new Set();
   
   if (alignTime) {
+    visitedCols = Array.from({length:framesTotal},()=>false);
     const snapSize = 30/bpm/subBeat;
     const startTime = Math.floor((cx/(sampleRate/hop))/snapSize)*snapSize;
     const startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
@@ -336,20 +337,21 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
     commitShape(cx, cy);
     overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
   }
-  if (alignTime && currentTool === "fill" && currentShape !== "rectangle") {
-    const startFrame = Math.round(cx + iLow);
-    const snapSize = 30/bpm/subBeat;
-    let brushS = (brushSize)*((fHigh-fLow)/(sampleRate/4));
-    if (currentShape === "synth") brushS = 1;
+  //visitedCols = [];
+  // if (alignTime && currentTool === "fill" && currentShape !== "rectangle") {
+  //   const startFrame = Math.round(cx + iLow);
+  //   const snapSize = 30/bpm/subBeat;
+  //   let brushS = (brushSize)*((fHigh-fLow)/(sampleRate/4));
+  //   if (currentShape === "synth") brushS = 1;
 
-    let startTime = Math.floor((sx2/(sampleRate/hop))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
-    let startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
-    line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
+  //   let startTime = Math.floor((sx2/(sampleRate/hop))/snapSize)*snapSize + ((cx<startX) ? snapSize : 0);
+  //   let startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
+  //   line(startFrame0, sx2, visibleToSpecY(sy2), visibleToSpecY(sy2),brushS);
 
-    startTime = Math.floor((cx/(sampleRate/hop))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
-    startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
-    line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
-  }
+  //   startTime = Math.floor((cx/(sampleRate/hop))/snapSize)*snapSize + ((cx>startX) ? snapSize : 0);
+  //   startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
+  //   line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
+  // }
   simpleRestartRender();
 }
 
@@ -511,7 +513,7 @@ function stopSource(preservePaused=false){
     sourceNode.stop();
       sourceNode = null;
   }
-
+  playPauseBtn.innerHTML = playHtml;
   if (!preservePaused) pausedAtSample = null;
   playing = false;
 }
@@ -534,6 +536,7 @@ function _getPlaybackTarget() {
 
 async function playPCM(startFrame = null) {
   ensureAudioCtx();
+  playPauseBtn.innerHTML = pauseHtml;
   if (pianoMode) {if (startFrame) currentCursorX = startFrame; playNotes();return;}
 
   if (!layers || layers.length === 0) {

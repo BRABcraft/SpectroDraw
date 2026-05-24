@@ -263,7 +263,7 @@ function recomputePCMForCols(colStart, colEnd) {
         const w = win[i];
         newSegmentL[segIndex] += reL[i] * w;
         newSegmentR[segIndex] += reR[i] * w;
-        overlapCount[segIndex] += w * w;
+        overlapCount[segIndex] += w*((xCol==colStart||xCol>=colEnd-1)?1:w);
       }
     }
     // normalize by overlap
@@ -276,27 +276,7 @@ function recomputePCMForCols(colStart, colEnd) {
         newSegmentR[i] = 0;
       }
     }
-
-    // fetch old segments (safe slice even if pcm shorter)
-    const oldSegmentL = pcmL.slice(sampleStart, sampleEnd);
-    const oldSegmentR = pcmR.slice(sampleStart, sampleEnd);
-
-    // fade at edges to avoid clicks
-    const fadeLen = Math.min(Math.max(1, hop), fadeCap, segmentLen);
-    for (let i = 0; i < fadeLen; i++) {
-      const t = i / fadeLen;
-      newSegmentL[i] = newSegmentL[i] * t + (oldSegmentL[i] || 0) * (1 - t);
-      newSegmentR[i] = newSegmentR[i] * t + (oldSegmentR[i] || 0) * (1 - t);
-
-      const j = segmentLen - 1 - i;
-      if (j >= 0 && j < segmentLen) {
-        const oldIdx = oldSegmentL.length - 1 - i;
-        const oldValL = oldSegmentL[oldIdx] || 0;
-        const oldValR = oldSegmentR[oldIdx] || 0;
-        newSegmentL[j] = newSegmentL[j] * t + oldValL * (1 - t);
-        newSegmentR[j] = newSegmentR[j] * t + oldValR * (1 - t);
-      }
-    }
+    const edgeFade = 32;
 
     //write back into layer pcm buffers (ensure length)
     if (pcmL.length < sampleEnd) {
@@ -309,8 +289,34 @@ function recomputePCMForCols(colStart, colEnd) {
       tmp.set(pcmR);
       layer.pcm[1] = tmp;
     }
-    layer.pcm[0].set(newSegmentL, sampleStart);
-    layer.pcm[1].set(newSegmentR, sampleStart);
+    const fadeSamples = hop * 2;
+
+for (let i = 0; i < segmentLen; i++) {
+  const globalIndex = sampleStart + i;
+
+  let mix = 1;
+
+  // fade in at left edge
+  if (i < fadeSamples) {
+    mix = i / fadeSamples;
+  }
+
+  // fade out at right edge
+  else if (i > segmentLen - fadeSamples) {
+    mix = (segmentLen - i) / fadeSamples;
+  }
+
+  mix = Math.max(0, Math.min(1, mix));
+
+  const oldL = layer.pcm[0][globalIndex] || 0;
+  const oldR = layer.pcm[1][globalIndex] || 0;
+
+  layer.pcm[0][globalIndex] =
+    oldL * (1 - mix) + newSegmentL[i] * mix;
+
+  layer.pcm[1][globalIndex] =
+    oldR * (1 - mix) + newSegmentR[i] * mix;
+}
     //console.log(new Float32Array(layer.pcm[0]));
   }
   if (layers && layers[0] && layers[0].pcm[0]) {

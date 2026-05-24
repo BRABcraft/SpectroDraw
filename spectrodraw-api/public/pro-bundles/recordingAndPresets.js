@@ -41,7 +41,7 @@ async function initEmptyPCM(doReset) {
   }
   if (pianoMode) recomputeNotesForCols(0,framesTotal);
   sampleRate = sampleRateLocal;
-  iLow = 0; iHigh = framesTotal;
+  if (!iLow||iLow<0)iLow = 0; if (!iHigh||iHigh>framesTotal)iHigh = framesTotal;
   restartRender(false);
   minCol = 0; 
   maxCol = framesTotal;

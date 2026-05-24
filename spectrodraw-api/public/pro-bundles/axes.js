@@ -429,8 +429,9 @@ function updateTimelineCursor() {
     const elapsed = pianoMode?((notesStartOffset + (audioCtx.currentTime - notesStartTime))):audioCtx.currentTime - sourceStartTime;
     let samplePos = elapsed * sampleRate;
 
-    if (sourceNode&&sourceNode.loop) {
-        samplePos = samplePos % layers[0].pcm[0].length;
+    if (sourceNode && sourceNode.loop) {
+      const loopSamples = Math.max(1,Math.floor(bufferLengthKnob.getValue() * sampleRate));
+      samplePos = samplePos % loopSamples;
     }
 
     const frame = Math.floor(samplePos / hop);

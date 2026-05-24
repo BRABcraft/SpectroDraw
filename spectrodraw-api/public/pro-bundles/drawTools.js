@@ -279,8 +279,6 @@ function applyImageToChannel(ch, img, dstOx, dstOy, dstW, dstH, boMult = 1, poMu
   }
 }
 function syncOverlaySize(canvas,overlay) {
-  overlay.width  = canvas.width;
-  overlay.height = canvas.height;
   overlay.style.width  = canvas.style.width;
   overlay.style.height = canvas.style.height;
 }
@@ -336,9 +334,10 @@ function drawSpriteOutline(useDelta,cx,cy){
     function getY(i){
       return (pts[i].y + dy);
     }
-    ctx.moveTo(pts[0].x + dx, getY(0));
+    const fx = 1024/framesTotal, fy = 720/specHeight;
+    ctx.moveTo((pts[0].x + dx)*fx, getY(0)*fy);
     for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x + dx, getY(i));
+      ctx.lineTo((pts[i].x + dx)*fx, getY(i)*fy);
     }
     ctx.closePath();
     ctx.fillStyle = "rgba(255,200,0,0.08)"; 
@@ -353,21 +352,33 @@ function drawSpriteOutline(useDelta,cx,cy){
 }
 function drawSampleRegion(cx) {
   const framesVisible = Math.max(1, iHigh - iLow);
-  let ch = currentLayer;
+  const ch = currentLayer;
   const overlayCanvas = document.getElementById("overlay-" + ch);
   if (!overlayCanvas) return;
+
   const ctx = overlayCanvas.getContext("2d");
   ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-  const startFrame = Math.max(0, Math.min(framesTotal - 1, Math.round(cx)));
-  const endFrame = Math.min(framesTotal, cx + Math.floor((draggingSample ? draggingSample.pcm[0].length : 0) / (hop || 1)));
-  const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
-  const xPixel = mapX(startFrame);
-  const endPixel = mapX(endFrame);
-  const width = Math.max(1, Math.round(endPixel - xPixel));
+
+  const sampleFrames = draggingSample.pcm[0].length / hop;
+
+  // cx is already in canvas pixels, so keep it as pixels
+  const xPixel = Math.max(0, Math.min(overlayCanvas.width, cx));
+
+  // Convert sample length in frames to pixel width on the overlay canvas
+  const width = Math.max(
+    1,
+    Math.round((sampleFrames / framesVisible) * overlayCanvas.width)
+  );
+
   ctx.save();
-  ctx.fillStyle = dragInsert?"#0f0":"rgba(255,0,0,0.15)";
-  if (dragInsert) ctx.fillRect(Math.round(xPixel), 0, 5, overlayCanvas.height);
-  else            ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+  ctx.fillStyle = dragInsert ? "#0f0" : "rgba(255,0,0,0.15)";
+
+  if (dragInsert) {
+    ctx.fillRect(Math.round(xPixel), 0, 5, overlayCanvas.height);
+  } else {
+    ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+  }
+
   ctx.restore();
 }
 function previewShape(cx, cy) {
@@ -376,7 +387,8 @@ function previewShape(cx, cy) {
   pendingPreview = true;
   requestAnimationFrame(() => {
     pendingPreview = false;
-    const { cx, cy } = lastPreviewCoords;
+    let { cx, cy } = lastPreviewCoords;
+    cx*=1024/(iHigh-iLow);cy*=720/((fHigh-fLow)/sampleRate*fftSize);
     const overlayCanvas = document.getElementById("overlay-"+currentLayer); 
     const ctx = overlayCanvas.getContext("2d"); 
     const canvas = document.getElementById("canvas-"+currentLayer); 
@@ -421,53 +433,46 @@ function previewShape(cx, cy) {
       drawSpriteOutline(true,cx,cy);
       return;
     }
+    const hasStart = startX !== null && startY !== null;
+    let _startX = startX*1024/(iHigh-iLow), _startY = startY*720/((fHigh-fLow)/sampleRate*fftSize);
     if (currentShape==="select"){
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 100)));
       ctx.setLineDash([40, 40]);
       ctx.lineDashOffset = 0;
-      ctx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
+      ctx.strokeRect(_startX + 0.5, _startY + 0.5, cx - _startX, cy - _startY);
       ctx.restore();
       ctx.setLineDash([0, 0]);
       return;
     }
     const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
-    const x = (currentCursorX - iLow) * canvas.width / (iHigh - iLow);
-    ctx.save();
-    ctx.strokeStyle = "#0f0";
-    ctx.lineWidth = framesTotal / 500;
-    ctx.beginPath();
-    ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, specHeight);
-    ctx.stroke();
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
-    const hasStart = startX !== null && startY !== null;
     if (currentShape === "rectangle" && hasStart) {
-      ctx.strokeRect(startX + 0.5, startY + 0.5, cx - startX, cy - startY);
+      ctx.strokeRect(_startX + 0.5, _startY + 0.5, cx - _startX, cy - _startY);
       ctx.restore();
       return;
     }
     if (currentShape === "line" && hasStart) {
       ctx.lineWidth = brushSize / 4;
       ctx.beginPath();
-      ctx.moveTo(startX + 0.5, startY + 0.5);
+      ctx.moveTo(_startX + 0.5, _startY + 0.5);
       ctx.lineTo(cx + 0.5, cy + 0.5);
       ctx.stroke();
       ctx.restore();
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const pixelsPerFrame = rect.width  / Math.max(1, canvas.width);
-    const pixelsPerBin   = rect.height / Math.max(1, canvas.height);
+    const rect = overlayCanvas.getBoundingClientRect();
+    const pixelsPerFrame = rect.width  / Math.max(1, overlayCanvas.width);
+    const pixelsPerBin   = rect.height / Math.max(1, overlayCanvas.height);
     const bw = brushWidth;
     const bh = brushHeight;
     if (currentShape === "image" && images[selectedImage] && images[selectedImage].img) {
       if (dragToDraw && hasStart) {
-        const x0 = Math.min(startX, cx);
-        const y0 = Math.min(startY, cy);
-        const w  = Math.max(1, Math.abs(cx - startX));
-        const h  = Math.max(1, Math.abs(cy - startY));
+        const x0 = Math.min(_startX, cx);
+        const y0 = Math.min(_startY, cy);
+        const w  = Math.max(1, Math.abs(cx - _startX));
+        const h  = Math.max(1, Math.abs(cy - _startY));
         ctx.strokeRect(x0 + 0.5, y0 + 0.5, w, h);
         if (images[selectedImage].img.complete && images[selectedImage].img.naturalWidth !== 0) {
           ctx.imageSmoothingEnabled = false;
@@ -492,10 +497,10 @@ function previewShape(cx, cy) {
           currentStamp.img = new Image();
           currentStamp.img.src = currentStamp.dataUrl;
         }
-        const x0 = Math.min(startX, cx);
-        const y0 = Math.min(startY, cy);
-        const w  = Math.max(1, Math.abs(cx - startX));
-        const h  = Math.max(1, Math.abs(cy - startY));
+        const x0 = Math.min(_startX, cx);
+        const y0 = Math.min(_startY, cy);
+        const w  = Math.max(1, Math.abs(cx - _startX));
+        const h  = Math.max(1, Math.abs(cy - _startY));
         ctx.strokeRect(x0 + 0.5, y0 + 0.5, w, h);
         if (currentStamp.img.complete && currentStamp.img.naturalWidth !== 0) {
           ctx.imageSmoothingEnabled = false;

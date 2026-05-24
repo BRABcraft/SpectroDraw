@@ -97,7 +97,7 @@ const defaultFadePoints = [
   { x: 1.0, y: 1.0, mx: 120, my: 0, tLen: 120 }
 ];
 
-let pcm=null, sampleRate=48000, pos=0, fftSize=4096, hop=1024, win=hann(fftSize);
+let pcm=null, sampleRate=48000, pos=0, fftSize=2048, hop=512, win=hann(fftSize);
 let framesTotal=0, x=0, rendering=false;
 let imageBuffer=null;
 let visited = null;
@@ -602,13 +602,14 @@ const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
   name:'Hop',
   type: 'continuous',
   range: [0,fftSize],
-  value: 1024,
+  value: hop,
   onInput: (knob)=>{
     hop = knob.value;
     minCol = 0; maxCol = Math.floor(sampleRate*emptyAudioLength/hop);
     currentCursorX = timelineCursorX = (currentCursorX/framesTotal)*maxCol;
     restartRender(false);
     drawTimeline();
+    drawCursor();
   }
 });
 const fftSizeKnob = new Knob(document.getElementById('fftSize'), {

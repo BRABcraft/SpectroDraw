@@ -490,17 +490,19 @@ function updateCursorLoop() {
     if (!pianoMode) {
       const elapsed = audioCtx.currentTime - sourceStartTime; 
       let samplePos = elapsed * sampleRate;
-      if (sourceNode&&sourceNode.loop) {
-        samplePos = samplePos % layers[currentLayer].pcm[0].length; 
+      if (sourceNode && sourceNode.loop) {
+        const loopSamples = Math.max(1,Math.floor(bufferLengthKnob.getValue() * sampleRate));
+        samplePos = samplePos % loopSamples;
       }
       const frame = Math.floor(samplePos / hop);
       currentCursorX = Math.min(frame, specWidth - 1);
+      //console.log(currentCursorX,specWidth);
     } else {
       currentCursorX = (notesStartOffset + (audioCtx.currentTime - notesStartTime))/emptyAudioLength*framesTotal;
     }
     //specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
     //renderView();
-    drawCursor(false);
+    //drawCursor(false);
     drawEQ();
   }
   requestAnimationFrame(updateCursorLoop);
@@ -551,6 +553,13 @@ async function playPCM(startFrame = null) {
     const rightLen = ch.pcm[1] ? ch.pcm[1].length : 0;
     return Math.max(max, leftLen, rightLen);
   }, 0);
+  const loopSamples = Math.max(
+    1,
+    Math.min(
+      totalSamples,
+      Math.floor(bufferLengthKnob.getValue() * sampleRate) // if getValue() is already samples, remove * sampleRate
+    )
+  );
 
   if (totalSamples === 0) {
     console.warn("Channels contain no PCM data.");
@@ -560,9 +569,9 @@ async function playPCM(startFrame = null) {
   // Compute startSample clamped to the totalSamples
   let startSample = 0;
   if (startFrame !== null && !isNaN(startFrame)) {
-    startSample = Math.max(0, Math.min(totalSamples - 1, Math.floor(startFrame * hop)));
+    startSample = Math.max(0, Math.min(loopSamples - 1, Math.floor(startFrame * hop)));
   } else if (pausedAtSample !== null) {
-    startSample = Math.max(0, Math.min(totalSamples - 1, pausedAtSample));
+    startSample = Math.max(0, Math.min(loopSamples - 1, pausedAtSample));
   }
 
   // stop any previous node(s)
@@ -573,7 +582,7 @@ async function playPCM(startFrame = null) {
 
   // stereo output buffer
   const outChannels = 2; // stereo: 0 = left, 1 = right
-  const buffer = audioCtx.createBuffer(outChannels, totalSamples, sampleRate);
+  const buffer = audioCtx.createBuffer(outChannels, loopSamples, sampleRate);
 
   // get direct access to output arrays
   const left = buffer.getChannelData(0);
@@ -602,7 +611,7 @@ async function playPCM(startFrame = null) {
     if (vol < 0) vol = 0;
 
     // max samples this layer can contribute (don't read past available data)
-    const maxI = Math.min(totalSamples, Math.max(leftLen, rightLen));
+    const maxI = Math.min(loopSamples, Math.max(leftLen, rightLen));
 
     for (let i = 0; i < maxI; i++) {
       const sL = (i < leftLen ? leftPcm[i] : 0) * vol;
@@ -615,7 +624,7 @@ async function playPCM(startFrame = null) {
 
   // Avoid clipping: simple normalization if peak > 1
   let peak = 0;
-  for (let i = 0; i < totalSamples; i++) {
+  for (let i = 0; i < loopSamples; i++) {
     const a = Math.abs(left[i]);
     const b = Math.abs(right[i]);
     if (a > peak) peak = a;
@@ -623,7 +632,7 @@ async function playPCM(startFrame = null) {
   }
   if (peak > 1) {
     const scale = 1 / peak;
-    for (let i = 0; i < totalSamples; i++) {
+    for (let i = 0; i < loopSamples; i++) {
       left[i] *= scale;
       right[i] *= scale;
     }
@@ -631,6 +640,8 @@ async function playPCM(startFrame = null) {
 
   sourceNode.buffer = buffer;
   sourceNode.loop = true;
+  sourceNode.loopStart = 0;
+  sourceNode.loopEnd = loopSamples / sampleRate;
 
   try {
     const targetNode = _getPlaybackTarget();

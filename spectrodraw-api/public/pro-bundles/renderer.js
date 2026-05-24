@@ -41,6 +41,7 @@ function restartRender(autoPlay,overrideHasCanvases=false){
 
       // overlay
       overlayCanvas = document.createElement("canvas");
+      overlayCanvas.width=1024;overlayCanvas.height=720;
       overlayCanvas.id = `overlay-${ch}`;
       overlayCanvas.style.cssText = "background:transparent;position:absolute;left:40px;pointer-events:none;z-index:10;top:"+(40 + ch*offsetY)+"px";
       // overlay should also be pixelated
@@ -174,8 +175,6 @@ function restartRender(autoPlay,overrideHasCanvases=false){
     ctx.imageSmoothingQuality = "low";
 
     // Also set the overlay canvas backing store to match the backing store size so drawing coords map 1:1.
-    overlayCanvas.width = canvas.width;
-    overlayCanvas.height = canvas.height;
     // Make sure overlay ctx is also unsmoothed
     const overlayCtx = overlayCanvas.getContext("2d");
     overlayCtx.imageSmoothingEnabled = false;
@@ -652,18 +651,18 @@ function drawCursor(clear){
     const canvas = document.getElementById("canvas-"+ch);
     const overlayCanvas = document.getElementById("overlay-"+ch);
     const overlayCtx = overlayCanvas.getContext("2d");
-    const x = (currentCursorX-iLow) * canvas.width / (iHigh-iLow);
-    if (clear) overlayCtx.clearRect(0,0, canvas.width, canvas.height);
+    const x = (currentCursorX-iLow)* overlayCanvas.width / (iHigh-iLow);
+    if (clear) overlayCtx.clearRect(0,0, overlayCanvas.width, overlayCanvas.height);
     overlayCtx.strokeStyle = "#0f0";
-    overlayCtx.lineWidth = (iHigh-iLow)/500;
+    overlayCtx.lineWidth = 3;
     overlayCtx.beginPath();
     overlayCtx.moveTo(x + 0.5, 0);
     overlayCtx.lineTo(x + 0.5, specHeight);
     overlayCtx.stroke();
     if (alignTime) {
       overlayCtx.strokeStyle = "#444";
-      for (let i = 0; i < specWidth; i += (sampleRate/fftSize)/subBeat * (120/bpm)) {
-        const x = (i-iLow)* canvas.width / (iHigh-iLow);
+      for (let i = 0; i < framesTotal; i += (sampleRate/hop)/subBeat * (30/bpm)) {
+        const x = (i-iLow)* overlayCanvas.width / (iHigh-iLow);
         overlayCtx.beginPath();
         overlayCtx.moveTo(x,0);
         overlayCtx.lineTo(x,specHeight);
@@ -696,8 +695,6 @@ function updateCanvasScroll() {
     canvas.height = viewHeight;
 
     // Keep overlay backing store matching
-    overlayCanvas.width = canvas.width;
-    overlayCanvas.height = canvas.height;
 
     // Keep CSS sizes in sync: preserve how it looked before (so DOM-scaling doesn't happen unexpectedly)
     // If you want CSS to remain the same visual size, leave canvas.style.width/height untouched.
@@ -751,8 +748,8 @@ function renderView() {
     );
 
     // Keep overlay in sync (backing store and CSS)
-    overlayCanvas.width = canvas.width;
-    overlayCanvas.height = canvas.height;
+    // overlayCanvas.width = canvas.width;
+    // overlayCanvas.height = canvas.height;
     overlayCanvas.style.width = canvas.style.width;
     overlayCanvas.style.height = canvas.style.height;
   }

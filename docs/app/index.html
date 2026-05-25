@@ -186,8 +186,8 @@
         const proUrl = new URL('https://api.spectrodraw.com/spectrodraw-pro/pro-ui-kv');
         proUrl.searchParams.set('t', token);
         if (showWelcome) proUrl.searchParams.set('welcome', '1');
-        for (let i=0;i<3;i++)
-        if (window.location.href.indexOf("?event="+i)==window.location.href.length-8) proUrl.searchParams.set('event',""+i);
+        for (let i=0;i<3;i++) if (window.location.href.indexOf("?event="+i)==window.location.href.length-8) proUrl.searchParams.set('event',""+i);
+        if (window.location.href.indexOf("?survey=true")==window.location.href.length-12) proUrl.searchParams.set('survey',"true");
 
         iframe.src = proUrl.toString();
       } catch (err) {

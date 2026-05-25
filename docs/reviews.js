@@ -1,19 +1,3 @@
-function emailToPublicUsername(email) {
-    if (!email) return "Anonymous";
-
-    const seed = email.toLowerCase();
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) {
-      hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-    }
-
-    const a = adjectives[hash % adjectives.length];
-    let bi = (hash >> 3) % animals.length;
-    while (bi<0) bi+=animals.length;
-    const b = animals[bi];
-    const digits = (hash % 1000).toString().padStart(3, "0");
-    return `${a.charAt(0).toUpperCase()+a.slice(1)}${b}${digits}`;
-  }
 /**
  * Render reviews to canvases and append to container.
  * reviews: array of { id, user, rating, text, image, createdAt }

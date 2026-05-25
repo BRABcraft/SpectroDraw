@@ -644,7 +644,7 @@ const sampleRateKnob = new Knob(document.getElementById('sampleRate'), {
     sampleRate= newSR;
     fHigh=sampleRate/2;
     simpleRestartRender(0,framesTotal);
-    bufferLengthKnob.value=framesTotal*hop/sampleRate;
-    bufferLengthKnob.render();
+    bufferLengthKnob.setValue(framesTotal*hop/sampleRate);
+    //bufferLengthKnob.render();
   }
 });

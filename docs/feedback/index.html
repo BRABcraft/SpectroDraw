@@ -697,7 +697,7 @@
         const meta = document.createElement('div');
         meta.className = 'feedback-meta';
 
-        const name = emailToPublicUsername(fb.author);
+        const name = window.emailToPublicUsername ? window.emailToPublicUsername(fb.author) : fb.author;
         const when = new Date(fb.createdAt || Date.now()).toLocaleString();
 
         const avatarEl = makeAvatarElement(name, fb.avatar || null);

@@ -69,7 +69,7 @@ function createReviewCanvases(reviews, container = document.getElementById('revi
 
   // helper to format date and meta text (same logic as before)
   function buildMeta(review) {
-    const publicName = emailToPublicUsername(review.user);
+    const publicName = window.emailToPublicUsername ? window.emailToPublicUsername(fb.author) : fb.author;
 
     try {
       const date = new Date(review.createdAt);

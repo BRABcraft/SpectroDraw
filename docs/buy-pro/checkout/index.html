@@ -553,7 +553,7 @@
         <div class="finish-card">
           <h1 id="success-title">You’re ready to launch Pro</h1>
           <p id="success-copy">Your purchase is complete.</p>
-          <button class="pay-btn" id="launch-btn" onclick="location.href='../../products'">Launch Pro</button>
+          <button class="pay-btn" id="launch-btn" onclick="location.href='../../app/?survey=true'">Launch Pro</button>
         </div>
       </section>
 
@@ -563,7 +563,7 @@
 <script src="../../accounts.js"></script>
 
 <script>
-(function () {
+//(function () {
   function trackEvent(name, params = {}) {
     try {
       if (typeof gtag === 'function') {
@@ -700,7 +700,7 @@
       title: 'You’re ready to launch Pro',
       copy: 'Your purchase is complete. Open Pro from your products page.',
       buttonText: 'Launch Pro',
-      buttonHref: '../../products'
+      buttonHref: '../../app/?survey=true'
     });
     gtag('event', 'purchase', {
       transaction_id: Date.now().toString(),
@@ -755,7 +755,7 @@
     titleEl.textContent = title || 'You’re ready to launch Pro';
     copyEl.textContent = copy || 'Your purchase is complete.';
     btn.textContent = buttonText || 'Launch Pro';
-    btn.onclick = () => location.href = buttonHref || '../../products';
+    btn.onclick = () => location.href = buttonHref || '../../app/?survey=true';
 
     setVisible(document.getElementById('checkout-page'), false);
     setVisible(document.getElementById('account-page'), false);
@@ -870,7 +870,7 @@
       title: 'You’re ready to launch Pro',
       copy: 'Your payment went through successfully. Open Pro from your products page.',
       buttonText: 'Launch Pro',
-      buttonHref: '../../products'
+      buttonHref: '../../app/?survey=true'
     });
   }
 
@@ -977,7 +977,7 @@
         title: 'You already own SpectroDraw Pro',
         copy: 'No need to purchase again. Open your products page to launch it.',
         buttonText: 'Launch Pro',
-        buttonHref: '../../products'
+        buttonHref: '../../app'
       });
       return;
     }
@@ -990,11 +990,11 @@
         title: 'You already own SpectroDraw Pro',
         copy: 'No need to buy again. Open your products page to launch it.',
         buttonText: 'Launch Pro',
-        buttonHref: '../../products'
+        buttonHref: '../../app'
       });
     }
   })();
-})();
+//})();
 </script>
 
 </body>

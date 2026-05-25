@@ -101,6 +101,9 @@ export default {
       if (pathname === "/send-quick-feedback" && request.method === "POST") {
         return addCors(await handleSendQuickFeedback(request, env), request);
       }
+      if (pathname === "/api/submit-buyer-survey" && request.method === "POST") {
+        return addCors(await handleSubmitBuyerSurvey(request, user, env), request);
+      }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
         const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
         const kv = env && env[kvBindingName];
@@ -1446,5 +1449,70 @@ ${body}
   } catch (err) {
     console.error("handleSendQuickFeedback error:", err);
     return json({ message: err.message || "Failed to send feedback" }, 500);
+  }
+}
+
+async function handleSubmitBuyerSurvey(request, user, env) {
+  try {
+    if (!user || !user.email) {
+      return json({ message: "Missing authenticated user email" }, 400);
+    }
+
+    if (!env || typeof env.SURVEY_FEEDBACK === "undefined") {
+      return json({ message: "Server misconfigured: SURVEY_FEEDBACK KV not available" }, 500);
+    }
+
+    if (request.method !== "POST") {
+      return json({ message: "Method not allowed" }, 405);
+    }
+
+    let payload;
+    try {
+      payload = await request.json();
+    } catch (e) {
+      return json({ message: "Invalid JSON body" }, 400);
+    }
+
+    const submission = {
+      heardAbout: Array.isArray(payload?.heardAbout) ? payload.heardAbout : [],
+      heardAbout_other: String(payload?.heardAbout_other || "").trim(),
+      useType: Array.isArray(payload?.useType) ? payload.useType : [],
+      useType_other: String(payload?.useType_other || "").trim(),
+      usePurpose: Array.isArray(payload?.usePurpose) ? payload.usePurpose : [],
+      usePurpose_other: String(payload?.usePurpose_other || "").trim(),
+      occupation: Array.isArray(payload?.occupation) ? payload.occupation : [],
+      occupation_other: String(payload?.occupation_other || "").trim(),
+    };
+
+    const email = String(user.email).trim().toLowerCase();
+    const now = new Date().toISOString();
+
+    const entry = {
+      ...submission,
+      email,
+      submittedAt: now,
+    };
+
+    const key = "buyer";
+    let existingRaw = await env.SURVEY_FEEDBACK.get(key);
+    let existing = [];
+
+    if (existingRaw) {
+      try {
+        existing = JSON.parse(existingRaw);
+      } catch (e) {
+        existing = [];
+      }
+      if (!Array.isArray(existing)) existing = [];
+    }
+
+    existing.push(entry);
+
+    await env.SURVEY_FEEDBACK.put(key, JSON.stringify(existing));
+
+    return json({ submitted: true, email, submittedAt: now }, 201);
+  } catch (err) {
+    console.error("handleSubmitBuyerSurvey error:", err);
+    return json({ message: err.message || "Failed to record survey submission" }, 500);
   }
 }

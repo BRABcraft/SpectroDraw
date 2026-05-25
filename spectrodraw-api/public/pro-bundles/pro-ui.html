@@ -519,7 +519,7 @@
     Object.assign(topBar.style, {
       height: "7px",
       background:
-        "linear-gradient(90deg, #5865F2 0%, #7C3AED 45%, #22C55E 100%)",
+        "linear-gradient(90deg, #9F24E5 0%, #7C3AED 45%, #CA1BC4 100%)",
     });
 
     const closeBtn = document.createElement("button");
@@ -537,10 +537,11 @@
       color: "#fff",
       fontSize: "16px",
       cursor: "pointer",
-      display: "grid",
+      display: "none",
       placeItems: "center",
       transition: "transform 0.15s ease, background 0.15s ease",
     });
+
     closeBtn.onmouseenter = () => {
       closeBtn.style.background = "rgba(255,255,255,0.12)";
       closeBtn.style.transform = "scale(1.05)";
@@ -555,42 +556,132 @@
       padding: "34px 32px 30px",
     });
 
-    content.innerHTML = `
-      <div style="display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(88,101,242,0.14);border:1px solid rgba(88,101,242,0.28);color:#cfd6ff;font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:18px;">
-        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 0 4px rgba(34,197,94,0.12);"></span>
-        Early Access is now live
-      </div>
+    const answers = {
+      heardAbout: [],
+      heardAbout_other: "",
+      useType: [],
+      useType_other: "",
+      usePurpose: [],
+      usePurpose_other: "",
+      occupation: [],
+      occupation_other: "",
+    };
 
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <h2 style="margin:0;font-size:34px;line-height:1.08;letter-spacing:-0.03em;">
-          Thank you for claiming SpectroDraw Pro
-        </h2>
+    const steps = [
+      {
+        title: "Thanks for purchasing SpectroDraw Pro!",
+        subtitle:
+          "We’d really appreciate it if you could take a quick survey. Your answers help us understand how people discover and use SpectroDraw, so we can improve our marketing and reach the right audience.",
+        type: "welcome",
+        cta: "Start Survey",
+      },
+      {
+        title: "How did you hear about SpectroDraw?",
+        subtitle:
+          "Select all that apply. This helps us understand which places bring people to SpectroDraw.",
+        type: "multi",
+        key: "heardAbout",
+        options: ["Reddit", "YouTube", "Instagram", "TikTok", "Other..."],
+        allowOther: true,
+        otherPlaceholder: "Please specify",
+      },
+      {
+        title: "How do you plan to use SpectroDraw?",
+        subtitle:
+          "Select all that apply. We’d love to know whether you’re using it for work, personal projects, or something else.",
+        type: "multi",
+        key: "useType",
+        options: ["Work", "Personal project", "Other..."],
+        allowOther: true,
+        otherPlaceholder: "Please specify",
+      },
+      {
+        title: "What will you use SpectroDraw for most?",
+        subtitle:
+          "Select all that apply. This helps us better understand the kinds of creative work our users are doing.",
+        type: "multi",
+        key: "usePurpose",
+        options: ["Sound design", "Audio enhancement", "Music production", "Other..."],
+        allowOther: true,
+        otherPlaceholder: "Please specify",
+      },
+      {
+        title: "Which best describes your occupation?",
+        subtitle:
+          "Select all that apply. This helps us learn more about the people using SpectroDraw Pro.",
+        type: "multi",
+        key: "occupation",
+        options: ["Sound designer", "Live audio", "Music producer", "Hobbyist", "Other..."],
+        allowOther: true,
+        otherPlaceholder: "Please specify",
+      },
+      {
+        title: "Thank you for completing the survey!",
+        subtitle:
+          "We really appreciate your feedback. If you’d like, join the SpectroDraw Pro Discord server for community events, updates, and giveaways.",
+        type: "done",
+      },
+    ];
 
-        <p style="margin:0;font-size:17px;line-height:1.6;color:rgba(255,255,255,0.82);max-width:52ch;">
-          You now have access to the first public Pro build. It is still actively evolving, and your feedback will directly shape what comes next.
-        </p>
-      </div>
+    let currentStep = 0;
+    let activeNextBtn = null;
+    let activeBackBtn = null;
+    let activeProgressShell = null;
+    let activeProgressFill = null;
+    let activeOtherInput = null;
+    let activeOtherWrap = null;
+    let previousProgress = 0;
+        let submissionError = "";
+    let isSubmitting = false;
 
-      <div style="margin-top:22px;padding:18px 18px 16px;border-radius:18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
-        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:10px;">Helpful feedback includes:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px;line-height:1.45;color:rgba(255,255,255,0.76);">
-          <div>• Bugs or crashes</div>
-          <div>• Confusing UI moments</div>
-          <div>• Missing features</div>
-          <div>• Performance issues</div>
-          <div>• Workflow frustrations</div>
-          <div>• Ideas that save time</div>
-        </div>
-      </div>
+    function buildSubmissionPayload() {
+      return {
+        heardAbout: answers.heardAbout || [],
+        heardAbout_other: (answers.heardAbout_other || "").trim(),
+        useType: answers.useType || [],
+        useType_other: (answers.useType_other || "").trim(),
+        usePurpose: answers.usePurpose || [],
+        usePurpose_other: (answers.usePurpose_other || "").trim(),
+        occupation: answers.occupation || [],
+        occupation_other: (answers.occupation_other || "").trim(),
+      };
+    }
 
-      <div style="margin-top:22px;font-size:15px;line-height:1.7;color:rgba(255,255,255,0.84);">
-        Share feedback at
-        <a href="https://spectrodraw.com/feedback/" target="_blank" rel="noopener noreferrer" style="color:#9db4ff;text-decoration:none;font-weight:700;">spectrodraw.com/feedback</a>
-        , using the quick feedback button, through the <a href="https://discord.com/invite/QRFwfqAFB2" style="color:#9db4ff;text-decoration:none;font-weight:700;">SpectroDraw Early Testers discord</a>, 
-        or email
-        <a href="mailto:spectrodraw@gmail.com" style="color:#9db4ff;text-decoration:none;font-weight:700;" target="_blank" rel="noopener noreferrer">spectrodraw@gmail.com</a>.
-      </div>
-    `;
+    async function submitSurvey() {
+      if (!isStepValid(currentStep) || isSubmitting) return;
+
+      submissionError = "";
+      isSubmitting = true;
+      renderStep();
+
+      try {
+        const res = await fetch("https://api.spectrodraw.com/api/submit-buyer-survey", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(buildSubmissionPayload()),
+        });
+
+        if (!res.ok) {
+          let detail = "";
+          try {
+            detail = (await res.text()).trim();
+          } catch {}
+          throw new Error(detail || `Request failed with status ${res.status}`);
+        }
+
+        currentStep = 5;
+        submissionError = "";
+        isSubmitting = false;
+        renderStep();
+      } catch (err) {
+        submissionError = err instanceof Error ? err.message : String(err);
+        isSubmitting = false;
+        renderStep();
+      }
+    }
 
     function close() {
       document.removeEventListener("keydown", onKeyDown);
@@ -598,23 +689,405 @@
     }
 
     function onKeyDown(e) {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape" && currentStep === steps.length - 1) close();
     }
 
     document.addEventListener("keydown", onKeyDown);
 
     closeBtn.onclick = close;
     overlay.onclick = (e) => {
-      if (e.target === overlay) close();
+      if (e.target === overlay && currentStep === steps.length - 1) close();
     };
+
+    function isSelected(stepKey, option) {
+      return (answers[stepKey] || []).includes(option);
+    }
+
+    function getOtherText(stepKey) {
+      return (answers[stepKey + "_other"] || "").trim();
+    }
+
+    function setDisabledStyle(btn, disabled) {
+      btn.disabled = disabled;
+      btn.setAttribute("aria-disabled", disabled ? "true" : "false");
+      Object.assign(btn.style, {
+        opacity: disabled ? "0.55" : "1",
+        cursor: disabled ? "not-allowed" : "pointer",
+        pointerEvents: "auto",
+      });
+    }
+
+    function isStepValid(stepIndex) {
+      const step = steps[stepIndex];
+      if (!step || step.type !== "multi") return true;
+
+      const selected = answers[step.key] || [];
+      if (!selected.length) return false;
+
+      if (selected.includes("Other...") && !getOtherText(step.key)) return false;
+
+      return true;
+    }
+
+    function getProgressWidth(stepIndex) {
+      if (stepIndex <= 0 || stepIndex >= steps.length - 1) return null;
+      if (stepIndex === 1) return isStepValid(stepIndex) ? 25 : 0;
+      if (stepIndex === 2) return isStepValid(stepIndex) ? 50 : 25;
+      if (stepIndex === 3) return isStepValid(stepIndex) ? 75 : 50;
+      if (stepIndex === 4) return isStepValid(stepIndex) ? 100 : 75;
+    
+      return null;
+    }
+    function updateControls() {
+      const step = steps[currentStep];
+      if (!step) return;
+
+      if (activeProgressShell) {
+        const showProgress = currentStep > 0 && currentStep < steps.length - 1;
+        activeProgressShell.style.display = showProgress ? "block" : "none";
+
+        if (showProgress && activeProgressFill) {
+          const width = getProgressWidth(currentStep);
+          const start = previousProgress;
+        
+          activeProgressFill.style.transition = "none";
+          activeProgressFill.style.transform = `scaleX(${start / 100})`;
+          activeProgressFill.getBoundingClientRect(); // force reflow
+        
+          requestAnimationFrame(() => {
+            activeProgressFill.style.transition =
+              "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+            activeProgressFill.style.transform = `scaleX(${width / 100})`;
+          });
+        
+          previousProgress = width;
+        }
+      }
+
+      if (activeBackBtn) {
+        activeBackBtn.style.display = currentStep <= 1 ? "none" : "inline-flex";
+      }
+
+      if (activeNextBtn) {
+        const valid = step.type === "multi" ? isStepValid(currentStep) : true;
+        const isSubmitPage = currentStep === 4;
+        const loading = isSubmitPage && isSubmitting;
+
+        activeNextBtn.textContent = loading ? "Submitting..." : isSubmitPage ? "Submit" : "Next";
+        setDisabledStyle(activeNextBtn, loading || (step.type === "multi" ? !valid : false));
+      }
+
+      if (activeOtherWrap && activeOtherInput && step.type === "multi" && step.allowOther) {
+        const showOther = isSelected(step.key, "Other...");
+        activeOtherWrap.style.display = showOther ? "block" : "none";
+      }
+    }
+
+    function createOptionPill(label, selected) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = label;
+      Object.assign(btn.style, {
+        padding: "12px 14px",
+        borderRadius: "14px",
+        border: selected
+          ? "1px solid rgba(88,101,242,0.9)"
+          : "1px solid rgba(255,255,255,0.10)",
+        background: selected
+          ? "rgba(88,101,242,0.18)"
+          : "rgba(255,255,255,0.04)",
+        color: "#fff",
+        cursor: "pointer",
+        fontSize: "14px",
+        fontWeight: "600",
+        transition:
+          "transform 0.15s ease, background 0.15s ease, border-color 0.15s ease",
+        textAlign: "left",
+      });
+
+      btn.onmouseenter = () => {
+        btn.style.transform = "translateY(-1px)";
+        if (!selected) btn.style.background = "rgba(255,255,255,0.07)";
+      };
+      btn.onmouseleave = () => {
+        btn.style.transform = "translateY(0)";
+        btn.style.background = selected
+          ? "rgba(88,101,242,0.18)"
+          : "rgba(255,255,255,0.04)";
+      };
+
+      return btn;
+    }
+
+    function toggleSelection(stepKey, option) {
+      const current = new Set(answers[stepKey] || []);
+      if (current.has(option)) current.delete(option);
+      else current.add(option);
+
+      answers[stepKey] = Array.from(current);
+      submissionError = "";
+      renderStep();
+    }
+
+    function renderStep() {
+      const step = steps[currentStep];
+      content.innerHTML = "";
+
+      activeNextBtn = null;
+      activeBackBtn = null;
+      activeProgressShell = null;
+      activeProgressFill = null;
+      activeOtherInput = null;
+      activeOtherWrap = null;
+
+      closeBtn.style.display = currentStep === steps.length - 1 ? "grid" : "none";
+
+      const header = document.createElement("div");
+
+      const progressShell = document.createElement("div");
+      Object.assign(progressShell.style, {
+        display: currentStep > 0 && currentStep < steps.length - 1 ? "block" : "none",
+        width: "100%",
+        height: "10px",
+        borderRadius: "999px",
+        background: "rgba(255,255,255,0.08)",
+        overflow: "hidden",
+        marginBottom: "18px",
+      });
+
+      const progressFill = document.createElement("div");
+      Object.assign(progressFill.style, {
+        width: "100%",
+        height: "100%",
+        borderRadius: "999px",
+        background:
+          "linear-gradient(90deg, #5865F2 0%, #7C3AED 45%, #22C55E 100%)",
+        transformOrigin: "left center",
+        transform: "scaleX(0)",
+        transition: "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "transform",
+      });
+
+      progressShell.appendChild(progressFill);
+      header.appendChild(progressShell);
+
+      activeProgressShell = progressShell;
+      activeProgressFill = progressFill;
+
+      const title = document.createElement("h2");
+      title.textContent = step.title;
+      Object.assign(title.style, {
+        fontSize: "28px",
+        lineHeight: "1.15",
+        margin: "0 0 12px 0",
+        fontWeight: "800",
+        letterSpacing: "-0.03em",
+      });
+
+      const subtitle = document.createElement("p");
+      subtitle.textContent = step.subtitle;
+      Object.assign(subtitle.style, {
+        margin: "0 0 22px 0",
+        color: "rgba(255,255,255,0.78)",
+        fontSize: "15px",
+        lineHeight: "1.6",
+      });
+
+      content.appendChild(header);
+      content.appendChild(title);
+      content.appendChild(subtitle);
+      
+      if (currentStep === 4 && submissionError) {
+        const errorBox = document.createElement("div");
+        errorBox.textContent = submissionError;
+        Object.assign(errorBox.style, {
+          marginTop: "0 0 18px 0",
+          padding: "12px 14px",
+          borderRadius: "14px",
+          background: "rgba(239, 68, 68, 0.14)",
+          border: "1px solid rgba(239, 68, 68, 0.35)",
+          color: "#FCA5A5",
+          fontSize: "14px",
+          lineHeight: "1.5",
+          whiteSpace: "pre-wrap",
+        });
+        content.appendChild(errorBox);
+      }
+
+      const footer = document.createElement("div");
+      Object.assign(footer.style, {
+        display: "flex",
+        gap: "12px",
+        marginTop: "26px",
+        alignItems: "center",
+        flexWrap: "wrap",
+      });
+
+      if (step.type === "welcome") {
+        const beginBtn = document.createElement("button");
+        beginBtn.type = "button";
+        beginBtn.textContent = step.cta || "Begin";
+        Object.assign(beginBtn.style, {
+          padding: "12px 18px",
+          borderRadius: "14px",
+          border: "none",
+          background: "#5865F2",
+          color: "#fff",
+          fontSize: "14px",
+          fontWeight: "700",
+          cursor: "pointer",
+        });
+
+        beginBtn.onclick = () => {
+          currentStep++;
+          renderStep();
+        };
+
+        footer.appendChild(beginBtn);
+      } else if (step.type === "multi") {
+        const grid = document.createElement("div");
+        Object.assign(grid.style, {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+          gap: "10px",
+          width: "100%",
+        });
+
+        const currentValues = new Set(answers[step.key] || []);
+
+        step.options.forEach((option) => {
+          const pill = createOptionPill(option, currentValues.has(option));
+          pill.onclick = () => toggleSelection(step.key, option);
+          grid.appendChild(pill);
+        });
+
+        content.appendChild(grid);
+
+        if (step.allowOther) {
+          const otherWrap = document.createElement("div");
+          Object.assign(otherWrap.style, {
+            marginTop: "12px",
+            display: currentValues.has("Other...") ? "block" : "none",
+            width: "100%",
+          });
+
+          const otherInput = document.createElement("input");
+          otherInput.type = "text";
+          otherInput.placeholder = step.otherPlaceholder || "Please specify";
+          Object.assign(otherInput.style, {
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "12px 14px",
+            borderRadius: "14px",
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)",
+            color: "#fff",
+            outline: "none",
+            fontSize: "14px",
+          });
+
+          otherInput.value = answers[step.key + "_other"] || "";
+          otherInput.oninput = () => {
+            answers[step.key + "_other"] = otherInput.value;
+            submissionError = "";
+            updateControls();
+          };
+
+          otherWrap.appendChild(otherInput);
+          content.appendChild(otherWrap);
+
+          activeOtherWrap = otherWrap;
+          activeOtherInput = otherInput;
+        }
+
+        const backBtn = document.createElement("button");
+        backBtn.type = "button";
+        backBtn.textContent = "Back";
+        Object.assign(backBtn.style, {
+          padding: "12px 18px",
+          borderRadius: "14px",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.04)",
+          color: "#fff",
+          fontSize: "14px",
+          fontWeight: "700",
+          cursor: "pointer",
+        });
+
+        backBtn.onclick = () => {
+          currentStep--;
+          renderStep();
+        };
+
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.textContent = currentStep === 4 ? "Submit" : "Next";
+        Object.assign(nextBtn.style, {
+          padding: "12px 18px",
+          borderRadius: "14px",
+          border: "none",
+          background: "#5865F2",
+          color: "#fff",
+          fontSize: "14px",
+          fontWeight: "700",
+          cursor: "pointer",
+          opacity: "1",
+        });
+
+        nextBtn.onclick = async () => {
+          if (!isStepValid(currentStep)) return;
+        
+          if (currentStep === 4) {
+            submitSurvey();
+          } else {
+            currentStep++;
+            renderStep();
+          }
+        };
+
+        activeBackBtn = backBtn;
+        activeNextBtn = nextBtn;
+
+        footer.appendChild(backBtn);
+        footer.appendChild(nextBtn);
+      } else if (step.type === "done") {
+        const discordWrap = document.createElement("div");
+        Object.assign(discordWrap.style, {
+          padding: "10px 0 8px 0",
+        });
+
+        discordWrap.innerHTML = `
+          <a class="cta" target="_blank" rel="noopener" href="https://discord.gg/QRFwfqAFB2" style="background-color:#5865F2; display:inline-flex; align-items:center; gap:10px; padding:12px 18px; border-radius:14px; color:#fff; text-decoration:none; font-weight:700;" rel="noopener noreferrer">
+            <img src="https://images-eds-ssl.xboxlive.com/image?url=4rt9.lXDC4H_93laV1_eHHFT949fUipzkiFOBH3fAiZZUCdYojwUyX2aTonS1aIwMrx6NUIsHfUHSLzjGJFxxsG72wAo9EWJR4yQWyJJaDaqSp8L_JnVcp7d1FDT8JeCh813ShhcwYXsWmJABMaxDBwfxTpfofZ83pyHlOgG7WM-&amp;format=source" style="height:30px;" alt="">
+            <div>Join Discord Server</div>
+          </a>
+        `;
+        content.appendChild(discordWrap);
+
+        const closeHint = document.createElement("div");
+        closeHint.textContent =
+          "You can close this window anytime using the X in the corner.";
+        Object.assign(closeHint.style, {
+          marginTop: "14px",
+          color: "rgba(255,255,255,0.65)",
+          fontSize: "13px",
+          lineHeight: "1.5",
+        });
+        content.appendChild(closeHint);
+      }
+
+      content.appendChild(footer);
+      updateControls();
+    }
 
     modal.appendChild(topBar);
     modal.appendChild(closeBtn);
     modal.appendChild(content);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-  }
 
+    renderStep();
+  }
   // Give the browser a chance to paint the overlay before heavy work starts.
   await new Promise(requestAnimationFrame);
 
@@ -1121,7 +1594,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- <script>alert("Warning: You have claimed SpectroDraw Pro on this account, but it is still in development. Please sign in on an account without pro to return to the standard app.")</script> -->
 
-<!-- <script data-manifest="windows.js"></script>
+<script data-manifest="windows.js"></script>
 <script data-manifest="fft.js"></script>
 <script data-manifest="initialize.js"></script>
 <script data-manifest="filterMasks.js"></script>
@@ -1145,11 +1618,11 @@
 <script data-manifest="brushPreview.js"></script>
 <script data-manifest="rightClick.js"></script>
 <script data-manifest="eq.js"></script>
-<script data-manifest="initialRenders.js"></script> -->
+<script data-manifest="initialRenders.js"></script>
 
 <!--Comment out on deploy-->
 
-<link rel="stylesheet" type="text/css" href="style.css">
+<!-- <link rel="stylesheet" type="text/css" href="style.css">
 <script src="windows.js"></script>
 <script src="fft.js"></script>
 <script src="initialize.js"></script>
@@ -1174,4 +1647,4 @@
 <script src="brushPreview.js"></script>
 <script src="rightClick.js"></script>
 <script src="eq.js"></script>
-<script src="initialRenders.js"></script>
+<script src="initialRenders.js"></script> -->

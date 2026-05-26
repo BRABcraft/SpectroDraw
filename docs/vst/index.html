@@ -281,7 +281,9 @@
             "
             onmouseover="this.style.transform='translateY(-1px)';this.style.filter='brightness(1.03)'"
             onmouseout="this.style.transform='translateY(0)';this.style.filter='none'"
+            id="downloadVst"
           >
+          <script>document.getElementById("downloadVst").addEventListener("click",()=>{gtag('event', 'downloadVST', {});});</script>
             Download SpectroDraw.vst
           </a>
           <div style="margin-top: -8px; font-size: 0.9rem; color: #8b95a3;">

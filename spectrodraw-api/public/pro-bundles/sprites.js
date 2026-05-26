@@ -742,6 +742,7 @@ async function deleteSprite(spriteId) {
     stopSource(true);
     playPCM(true);
   }
+  document.getElementById("moveSpriteBtn").click();
   selectedSpriteId = null;
   renderSpritesTable();
   updateEditorSelection(null);

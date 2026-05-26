@@ -8,14 +8,14 @@ let panels = [];
   const middleWidth = window.innerWidth-leftWidth-rightWidth;
   const brushSettingsHeight = (window.innerHeight-30)*0.6;
   const spritesHeight = (window.innerHeight-30)*0.4;
-  const toolsHeight = (window.innerHeight-30-infoHeight)*0.3;
+  const toolsHeight = (window.innerHeight-30-infoHeight)*0.15;
   const specialFxHeight = (window.innerHeight-30-infoHeight)*0.4;
   const uploadsHeight = (window.innerHeight-30-infoHeight)*0.3;
   const eqWidth = 200;
   let baseTop = 30;
   let edgeThickness = 5;
   let edgeDocks = [
-    { left: 0,                                 top: baseTop,                            axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:3, size:infoHeight},{panelIndex:1, size:toolsHeight},{panelIndex:2,size:specialFxHeight},{panelIndex:9,size:uploadsHeight}]), thickness: [leftWidth], name:"left" }, 
+    { left: 0,                                 top: baseTop,                            axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:3, size:infoHeight},{panelIndex:1, size:toolsHeight},{panelIndex:14, size:toolsHeight},{panelIndex:2,size:specialFxHeight},{panelIndex:9,size:uploadsHeight}]), thickness: [leftWidth], name:"left" }, 
     { left: window.innerWidth - edgeThickness, top: baseTop,                            axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:0, size:brushSettingsHeight},{panelIndex:7, size:spritesHeight}]), thickness: [rightWidth], name:"right" }, 
     { left: leftWidth,                         top: baseTop,                            axis: "horizontal", length: middleWidth,                  panels: new Array([{panelIndex:4,size:waveformHeight}],[{panelIndex:5,size:window.innerHeight-110-waveformHeight}]), thickness: [waveformHeight,window.innerHeight-110-waveformHeight], name:"top" }, 
     { left: leftWidth,                         top: window.innerHeight - edgeThickness, axis: "horizontal", length: middleWidth,                  panels: new Array([{panelIndex:11,size:eqWidth},{panelIndex:6,size:window.innerWidth-rightWidth-leftWidth-eqWidth,}]), thickness: [80], name:"bottom" }, 
@@ -28,49 +28,52 @@ let panels = [];
     panelObj.style.height = opts.height+"px";
     panelObj.style.left = opts.left+"px";
     panelObj.style.top = opts.top+"px";
-    panelObj.style.background = "#111";
+    panelObj.style.background = "#14171a";
     panelObj.style.position = "absolute";
     panelObj.style.boxShadow = "0 0 20px rgba(0,0,0,0.9)";
     panelObj.style.overflow = "hidden";
     panelObj.style.border = "1px solid #555";
+    panelObj.style.borderRadius = "6px";
     panelObj.style.zIndex=opts.docked?"0":"9999";
     panelObj.setAttribute("idx",panels.length);
-    const topbar = 15;
-    const minimizeSvg = `<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+    const topbar = 25;
+    const topbarPadding = 10;
+    const iconSize = topbar - topbarPadding;
+    const minimizeSvg = `<svg width="${iconSize}" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
             <line x1="17" y1="10" x2="3" y2="10" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
           </svg>`;
-    const maximizeSvg = `<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+    const maximizeSvg = `<svg width="${iconSize}" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
             <line x1="17" y1="10" x2="3" y2="10" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
             <line x1="10" y1="3" x2="10" y2="17" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
           </svg>`
     const popOutSVGs = {
-      "right":`<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      "right":`<svg width="${iconSize}" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
         <rect x="8" y="5" width="10" height="10" fill="none" stroke="#ccc" stroke-width="2"/>
         <line x1="13" y1="10" x2="1" y2="10" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
         <path d="M1 10 L4 7 M1 10 L4 13" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
-      "left":`<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      "left":`<svg width="${iconSize}" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="5" width="10" height="10" fill="none" stroke="#ccc" stroke-width="2"/>
         <line x1="7" y1="10" x2="19" y2="10" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
         <path d="M19 10 L16 7 M19 10 L16 13" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
-      "top":`<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      "top":`<svg width="${iconSize}" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
         <rect x="5" y="2" width="10" height="10" fill="none" stroke="#ccc" stroke-width="2"/>
         <line x1="10" y1="7" x2="10" y2="19" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
         <path d="M10 19 L7 16 M10 19 L13 16" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
-      "bottom":`<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      "bottom":`<svg width="${iconSize}" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
         <rect x="5" y="8" width="10" height="10" fill="none" stroke="#ccc" stroke-width="2"/>
         <line x1="10" y1="13" x2="10" y2="1" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
         <path d="M10 1 L7 4 M10 1 L13 4" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
     }
-    const closeSVG = `<svg width="20" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+    const closeSVG = `<svg width="${iconSize}" height="${topbar}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
             <line x1="16" y1="16" x2="4" y2="4" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
             <line x1="16" y1="4" x2="4" y2="16" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
           </svg>`;
     panelObj.innerHTML = `
-    <div id="${opts.id}header" style="height:${topbar}px;border-bottom:1px solid #888;display:${(!opts.showHeader&&opts.docked)?"none":"flex"};flex-direction:row;">
+    <div id="${opts.id}header" style="height:${topbar}px;border-bottom:1px solid #888;display:${(!opts.showHeader&&opts.docked)?"none":"flex"};flex-direction:row;background:#26282e">
       <p style="color:white;font-family:'Inter',system-ui,sans-serif;margin:0;align-self:center;margin-left:5px;">${opts.name}</p>
       <div style="display:flex;margin-left:auto;">
         <button id="${opts.id}popOut" style="background:none;border:none;display:${opts.docked?"block":"none"};">${popOutSVGs[opts.dockEdge]}</button>
@@ -1139,8 +1142,8 @@ function setDocked(panel, dockObj){
     `,
   });
   newWindow({
-      name:"Brushes",
-      id:"brushesWindow",
+      name:"Tools",
+      id:"toolsWindow",
       width:leftWidth,
       height:toolsHeight,
       docked:true,
@@ -1156,8 +1159,7 @@ function setDocked(panel, dockObj){
       showing:true,
       showHeader:true,
       innerHTML:`
-      <h4 style="margin:0;">Tools</h4>
-      <table style="background:#fff;width:90%;margin:5px;color:#000;border:none;border-spacing:0;" role="grid">
+      <table style="width:90%;margin:5px;color:#000;border:none;border-spacing:0;" role="grid">
         <thead>
           <tr>
             <th style="width:25%;"></th>
@@ -1207,65 +1209,13 @@ function setDocked(panel, dockObj){
             </td>
           </tr>
         </tbody>
-      </table>
-      <h4 style="margin:0;">Effects</h4>
-      <table style="background:#fff;width:90%;margin:5px;color:#000;border:none;border-spacing:0;" role="grid">
-        <thead>
-          <tr>
-            <th style="width:25%;"></th>
-            <th style="width:25%;"></th>
-            <th style="width:25%;"></th>
-            <th style="width:25%;"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <button class="tool-btn" data-tool="fill" id="colorBtn" title="Fill (f)" data-tool="color" id="colorBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><circle cx="12" cy="12" r="9"/></svg>
-              </button>
-            </td>
-            <td>
-              <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"width="18.19" height="19.22" viewBox="0,0,18.19,19.22"><g transform="translate(-0.90,-0.39)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.70,2.43l2.87,-2.04l7.13,10.01l-2.87,2.04z" stroke-width="NaN"/><path d="M0.90,4.90l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M2.28,6.82l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M3.73,8.91l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M5.10,10.83l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M6.45,12.73l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M11.39,11.97l2.26,-1.61l5.44,7.64l-2.26,1.61z" stroke-width="NaN"/></g></g></svg>
-              </button>
-            </td>
-            <td>
-              <button class="tool-btn" data-tool="cloner" id="clonerBtn" title="Cloner (c)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 23 23" > <g fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round" > <rect x="1.5" y="8.16" width="13.33" height="13.33" rx="2" ry="2" /> <rect x="8.16" y="1.5" width="13.33" height="13.33" rx="2" ry="2" /> </g> </svg>
-              </button>
-            </td>
-            <td>
-              <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune (shift+a)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork"><path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" /><line x1="10" y1="14" x2="10" y2="17.5" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </button>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/><path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/></svg>
-              </button>
-            </td>
-            <td>
-              <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
-                <svg width="20" height="20" viewBox="-1 -1 16 16"><path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/><path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/></svg>
-              </button>
-            </td>
-            <td>
-              <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/></svg>
-              </button>
-            </td>
-          </tr>
-        </tbody>
       </table>`
   });
   newWindow({
       name:"Special Effects",
       id:"specialFXWindow",
       width:leftWidth,
-      height:window.innerHeight-30-infoHeight-uploadsHeight-toolsHeight,
+      height:window.innerHeight-30-infoHeight-uploadsHeight-toolsHeight*2,
       docked:true,
       dockEdge:"left",
       dockTo:edgeDocks[0],
@@ -1275,7 +1225,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:0,
-      top:30+infoHeight+toolsHeight,
+      top:30+infoHeight+toolsHeight*2,
       showing:true,
       showHeader:true,
       innerHTML:`<div class="toolsWrapper">
@@ -2243,13 +2193,83 @@ function setDocked(panel, dockObj){
     </div>
   </div>`
   });
+  newWindow({
+      name:"Effects",
+      id:"effectsWindow",
+      width:leftWidth,
+      height:toolsHeight,
+      docked:true,
+      dockEdge:"left",
+      dockTo:edgeDocks[0],
+      layer:0,
+      hit:"none",
+      moving:false,
+      resizing:false,
+      minimized:false,
+      left:0,
+      top:30+infoHeight+toolsHeight,
+      showing:true,
+      showHeader:true,
+      innerHTML:`
+      <table style="width:90%;margin:5px;color:#000;border:none;border-spacing:0;" role="grid">
+        <thead>
+          <tr>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+            <th style="width:25%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <button class="tool-btn" data-tool="fill" id="colorBtn" title="Fill (f)" data-tool="color" id="colorBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><circle cx="12" cy="12" r="9"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"width="18.19" height="19.22" viewBox="0,0,18.19,19.22"><g transform="translate(-0.90,-0.39)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.70,2.43l2.87,-2.04l7.13,10.01l-2.87,2.04z" stroke-width="NaN"/><path d="M0.90,4.90l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M2.28,6.82l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M3.73,8.91l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M5.10,10.83l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M6.45,12.73l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M11.39,11.97l2.26,-1.61l5.44,7.64l-2.26,1.61z" stroke-width="NaN"/></g></g></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="cloner" id="clonerBtn" title="Cloner (c)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 23 23" > <g fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round" > <rect x="1.5" y="8.16" width="13.33" height="13.33" rx="2" ry="2" /> <rect x="8.16" y="1.5" width="13.33" height="13.33" rx="2" ry="2" /> </g> </svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune (shift+a)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork"><path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" /><line x1="10" y1="14" x2="10" y2="17.5" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/><path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
+                <svg width="20" height="20" viewBox="-1 -1 16 16"><path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/><path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/></svg>
+              </button>
+            </td>
+            <td>
+              <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>`
+  });
 })();
 function getLayerHeight(){
   return parseInt(panels[5].obj.style.height);
 }
 /*
 brushSettings: 0
-brushes: 1
+tools: 1
 specialFX: 2
 info: 3
 
@@ -2264,4 +2284,5 @@ preferences: 10
 eq: 11
 layers: 12
 pianoModeSettings: 13
+effects: 14
 */

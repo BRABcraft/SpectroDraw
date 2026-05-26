@@ -101,21 +101,13 @@ function renderSpritesTable() {
     tdEnabled.appendChild(cb);
     tr.addEventListener("mouseenter", () => {
       spritePath = generateSpriteOutlinePath(sprite, { height: specHeight });
-      drawSpriteOutline(false);
+      showSpriteOutline = true;
+      overlayCanvasPaint();
     });
 
     tr.addEventListener("mouseleave", () => {
-      if (sprite.ch==="all") {
-        for (let ch=0;ch<layerCount;ch++){
-          const overlayCanvas = document.getElementById("overlay-"+ch);
-          const overlayCtx = overlayCanvas.getContext("2d");
-          overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        }
-      } else {
-        const overlayCanvas = document.getElementById("overlay-"+sprite.ch);
-        const overlayCtx = overlayCanvas.getContext("2d");
-        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-      }
+      showSpriteOutline = false;
+      overlayCanvasPaint();
     });
 
 
@@ -156,6 +148,7 @@ function updateEditorSelection(spriteId) {
   } else {
     const s=getSpriteById(spriteId);
     spriteEditorDiv.removeAttribute('disabled');
+    if (!s.name) return;
     nameEl.value = s.name;
     enabledEl.checked = s.enabled;
     if (s.effect.tool==="sample"){toolEl.style.display="none";document.getElementById("stlb").innerText="Effect: sample"}else{toolEl.style.display="";toolEl.value = s.effect.tool;}
@@ -504,7 +497,6 @@ async function updateSpriteEffects(spriteId, newEffect) {
           const id = x * specHeight + y;
           const newPixel = (sprite.effect.shape==="select")?{mag:newMag,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift,pan:newPan}
           :applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, z?newPan:prevPan, x, y, newEffect, integral);
-          //console.log(newPixel.mag,z?newMag:prevMag);
           mags[id] = newPixel.mag;
           phases[id] = newPixel.phase;
           pans[id] = newPixel.pan;

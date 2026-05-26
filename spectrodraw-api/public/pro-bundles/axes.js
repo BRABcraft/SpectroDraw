@@ -104,7 +104,7 @@ function timelineMousedown(e,touch) {
       drawTimeline();
       drawYAxis();
       drawLogScale();
-      drawCursor(true);
+      overlayCanvasPaint();
     } else {
       draggingBounds = true;
       oldX = (touch ? e.touches[0].clientX : e.clientX)- rect.left;
@@ -173,7 +173,7 @@ function timelineMousemove(e,touch) {
   drawTimeline();
   drawYAxis();
   drawLogScale();
-  drawCursor(true);
+  overlayCanvasPaint();
 }
 window.addEventListener("mousemove", e => {
     timelineMousemove(e,false);
@@ -203,7 +203,7 @@ function timelineMouseup(e) {
     const specCtx = specCanvas.getContext("2d");
     specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
     renderView();
-    drawCursor(true);
+    overlayCanvasPaint();
   }
   drawTimeline();
   drawLogScale();
@@ -378,7 +378,7 @@ function yAxisMousemove(e,touch) {
   drawTimeline();
   drawYAxis();
   drawLogScale();
-  // drawCursor(true);
+  // overlayCanvasPaint();
 }
 window.addEventListener("mousemove", e => {yAxisMousemove(e,false);});
 window.addEventListener("touchmove", e => {yAxisMousemove(e,true);});
@@ -439,7 +439,7 @@ function updateTimelineCursor() {
     currentCursorX = timelineCursorX;
     drawTimeline();
     drawYAxis();
-    drawCursor(true);
+    overlayCanvasPaint();
   }
   requestAnimationFrame(updateTimelineCursor);
 }
@@ -467,7 +467,7 @@ function zoomTimelineAt(clientX, elem, scaleFactor){
   iWidth = iHigh - iLow;
   updateCanvasScroll();
   drawTimeline();
-  drawCursor(true);
+  overlayCanvasPaint();
   renderView && renderView();
 }
 
@@ -490,7 +490,7 @@ function zoomYAxisAt(clientY, elem, scaleFactor){
   fWidth = fHigh - fLow;
   updateCanvasScroll();
   drawYAxis();
-  drawCursor(true);
+  overlayCanvasPaint();
   renderView && renderView();
 }
 
@@ -533,7 +533,7 @@ function makeWheelZoomHandler(elem, opts){
       
       updateCanvasScroll();
       drawYAxis();
-      drawCursor(true);
+      overlayCanvasPaint();
       renderView && renderView();
       return;
     }
@@ -561,7 +561,7 @@ function makeWheelZoomHandler(elem, opts){
 
       updateCanvasScroll();
       drawTimeline();
-      drawCursor(true);
+      overlayCanvasPaint();
       renderView && renderView();
       return;
     }
@@ -583,7 +583,7 @@ function makeWheelZoomHandler(elem, opts){
 
         updateCanvasScroll();
         drawYAxis();
-        drawCursor(true);
+        overlayCanvasPaint();
         renderView && renderView();
         return;
       }
@@ -599,7 +599,7 @@ function makeWheelZoomHandler(elem, opts){
 
         updateCanvasScroll();
         drawTimeline();
-        drawCursor(true);
+        overlayCanvasPaint();
         renderView && renderView();
         return;
       }

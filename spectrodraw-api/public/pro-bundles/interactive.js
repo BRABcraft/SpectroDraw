@@ -86,7 +86,7 @@ function handlemoveSpritesMode(cx,cy){
       sprite.sigSprite = z?sprite:formatSignificantAsSprite(sprite, getSignificantPixels(sprite, { height: specHeight }));
     }
     const s = sprite.sigSprite;
-    if (s.ch!=="all" && currentLayer !== s.ch) continue;
+    if (s.ch===null || (s.ch!=="all" && currentLayer !== s.ch)) continue;
     if (cx>s.maxCol||cx<s.minCol) continue;
     let $s = s.ch==="all"?0:s.ch, $e = s.ch==="all"?layerCount:s.ch+1;
     for (let ch=$s;ch<$e;ch++){
@@ -102,7 +102,8 @@ function handlemoveSpritesMode(cx,cy){
     if (!movingSprite || spriteHit!==selectedSpriteId) document.getElementById("canvas-"+currentLayer).style.cursor = "pointer";
     if (spritePath !== null) return;
     spritePath = generateSpriteOutlinePath(getSpriteById(spriteHit), { height: specHeight });
-    drawSpriteOutline(false);
+    showSpriteOutline = true;
+    overlayCanvasPaint();
   } else {
     const c = document.getElementById("canvas-"+currentLayer);
     if (!movingSprite) c.style.cursor = "default"; else c.style.cursor = "grabbing";
@@ -285,7 +286,7 @@ function canvasMouseMove(e,touch,el) {
     const realY = visibleToSpecY(cy);
     setClonerYShift();
     paint(cx + iLow, realY);
-    drawCursor(true);
+    overlayCanvasPaint();
   }
   
   prevMouseX = cx, prevMouseY = cy;
@@ -810,6 +811,7 @@ function updateNoiseProfile(d,sid=selectedSpriteId){
 }
 
 function createNewSpriteFromSelection(startX, startY, endX, endY) {
+  startX += iLow; endX += iLow;
   const minX = Math.floor(Math.min(startX, endX));
   const minY = Math.floor(Math.min(startY, endY));
   const maxX = Math.floor(Math.max(startX, endX));

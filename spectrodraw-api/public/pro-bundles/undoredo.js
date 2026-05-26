@@ -358,7 +358,7 @@ function renderSpectrogramColumnsToImageBuffer(colStart, colEnd, ch) {
   }
   specCtx.putImageData(imageBuffer[ch], 0, 0, colStart, 0, (colEnd-colStart+1), specHeight);
   renderView();
-  drawCursor();
+  overlayCanvasPaint();
 }
 document.addEventListener('keydown', (ev) => {
   if (editingExpression !== null) return; 

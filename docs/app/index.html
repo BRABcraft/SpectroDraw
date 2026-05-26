@@ -1508,7 +1508,7 @@ function keyBind(event) {
     timelineCursorX = currentFrame = currentCursorX;
     overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
     drawTimeline();
-    drawCursor();
+    overlayCanvasPaint();
   } else if (key === 'b') {
     document.getElementById("brushBtn").click();
   } else if (key === 'e') {

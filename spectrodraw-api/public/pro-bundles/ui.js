@@ -117,8 +117,8 @@ sliders[6][1].addEventListener("input", ()=>{if (!isNaN(sliders[6][1].value)) {c
 sliders[7][0].addEventListener('input', () =>{noiseFloor=parseFloat(sliders[7][0].value); sliders[7][1].value = noiseFloor;});
 sliders[7][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[7][1].value);const min = parseFloat(sliders[7][0].min);const max = parseFloat(sliders[7][0].max);
     if (isNaN(val)) val = noiseFloor;      if (val < min) val = min;if (val > max) val = max;sliders[7][1].value = val;sliders[7][0].value = val;noiseFloor = val;}});
-sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);drawCursor(true);});
-sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);drawCursor(true);});
+sliders[8][0].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][0].value);overlayCanvasPaint();});
+sliders[8][1].addEventListener("input", ()=>{bpm         =parseFloat(sliders[8][1].value);overlayCanvasPaint();});
 sliders[9][0].addEventListener('input', () => {startOnP = parseFloat(sliders[9][0].value); sliders[9][1].value = startOnP;});
 sliders[9][1].addEventListener('keydown', (e) => {if (e.key === 'Enter') {let val = parseFloat(sliders[9][1].value);const min = parseFloat(sliders[9][0].min);const max = parseFloat(sliders[9][0].max);
     if (isNaN(val)) val = startOnP;if (val < min) val = min;if (val > max) val = max;sliders[9][1].value = val;sliders[9][0].value = val;startOnP = val;}});
@@ -254,7 +254,7 @@ function updateBrushSettingsDisplay(){
   const dragToDraw = document.getElementById("dragToDraw").checked;
   bs.style.display = (showToolSettings && (((d('line') || d('image') && !dragToDraw)) || (!(d('line') || d('image')) && !(d('rectangle') || d('note')))))?"flex":"none";
 
-  let disp = showToolSettings?true:false;;
+  let disp = showToolSettings?true:false;
   if (d("line") || d("rectangle") || d("synth")) disp = false;
   if (d("image")) disp=true;
   if (dragToDraw) disp=false;
@@ -352,7 +352,7 @@ trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueSc
 yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"#444"; drawYAxis();});
 uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"#444";});
 alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"#444"; pitchAlignDiv.style.display=alignPitch?"block":"none";});
-alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#444"; timeAlignDiv.style.display=alignTime?"block":"none";drawCursor(true);});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#444"; timeAlignDiv.style.display=alignTime?"block":"none";overlayCanvasPaint();});
 midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:#444;margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
 useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});
 overlayFile.addEventListener("change", e => {
@@ -422,7 +422,7 @@ function keyBind(event) {
       o.getContext("2d").clearRect(0,0,o.width, o.height);
     }
     drawTimeline();
-    drawCursor();
+    overlayCanvasPaint();
   }
   if (!ctrl) {
     if (!event.shiftKey) {
@@ -579,35 +579,44 @@ window.addEventListener('beforeunload', function (e) {
 // <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 // --- saveProject (updated) ---
-async function saveProject() {
-  // helper to delta-encode a Float32Array with quantization
+async function saveProject(options = {}) {
+  const { saveAs = false } = options;
+
   function deltaEncode(typedArr, decimals) {
     if (!typedArr) return null;
     const len = typedArr.length;
     const out = new Array(len);
     if (len === 0) return out;
+
     let prev = 0;
     const factor = Math.pow(10, decimals);
+
     for (let i = 0; i < len; ++i) {
       const v = typedArr[i];
       const delta = v - prev;
-      // quantize
       out[i] = Math.round(delta * factor) / factor;
       prev = v;
     }
+
     return out;
   }
 
-  // Build layers array to save. Prefer existing global `layers` if present,
-  // otherwise fall back to using top-level mags/phases for layer 0.
+  async function blobToArrayBuffer(blob) {
+    return await blob.arrayBuffer();
+  }
+
+  function safeZipName(name, fallback = "spectro_project") {
+    return (name || fallback).replace(/[^\w\-]+/g, "_");
+  }
+
+  // Build layers array to save
   const outChannels = new Array(Math.max(0, layerCount || 0));
-  const srcChannels = (typeof layers !== "undefined" && Array.isArray(layers)) ? layers : null;
+  const srcChannels = (typeof layers !== "undefined" && Array.isArray(layers)) ? layers : [];
 
   for (let i = 0; i < outChannels.length; ++i) {
-    let src = layers[i];
+    const src = srcChannels[i] || {};
 
-    // Quantize & delta-encode per-layer (keep only mags & phases in saved file)
-    const encoded = {
+    outChannels[i] = {
       mags: src.mags ? deltaEncode(src.mags, 8) : null,
       phases: src.phases ? deltaEncode(src.phases, 3) : null,
       pans: src.pans ? deltaEncode(src.pans, 2) : null,
@@ -615,7 +624,6 @@ async function saveProject() {
       enabled: src.enabled,
       brushPressure: src.brushPressure,
     };
-    outChannels[i] = encoded;
   }
 
   const project = {
@@ -632,8 +640,7 @@ async function saveProject() {
     trueScaleVal,
     useHz,
     iLow, iHigh, fLow, fHigh,
-    uploads,             // if uploads contains only metadata / pcm it's fine
-    // images will be replaced with metadata below
+    uploads,
     images: null,
     currentTool,
     currentShape,
@@ -650,12 +657,11 @@ async function saveProject() {
   if (Array.isArray(images) && images.length > 0) {
     for (let i = 0; i < images.length; i++) {
       const it = images[i];
-      // prefer original File if you stored it earlier (it.file)
       let blob = null;
+
       if (it && it.file instanceof Blob) {
         blob = it.file;
       } else if (it && typeof it.src === "string") {
-        // fetch the objectURL or remote URL to get a blob
         try {
           const resp = await fetch(it.src);
           blob = await resp.blob();
@@ -665,12 +671,11 @@ async function saveProject() {
       }
 
       if (!blob) {
-        // skip this image (or push metadata with no file)
         imageMeta.push({ name: it && it.name ? it.name : `image_${i}`, file: null });
         continue;
       }
 
-      const safeName = `${i}_${sanitizeFilename(it.name || "image")}`;
+      const safeName = `${i}_${safeZipName(it.name || "image")}`;
       const path = `images/${safeName}`;
       zip.file(path, blob);
       imageMeta.push({ name: it && it.name ? it.name : safeName, file: path });
@@ -678,20 +683,31 @@ async function saveProject() {
   }
 
   project.images = imageMeta;
+  zip.file("project.json", JSON.stringify(project));
 
-  // Store the project.json
-  const json = JSON.stringify(project);
-  zip.file("project.json", json);
-
-  // optionally you could add uploads/audio files as well (not shown)
-
-  // generate zip
   const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+  const fileName = `${safeZipName(project.name || "spectro_project")}.zip`;
+
+  if (saveAs && window.showSaveFilePicker) {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: fileName,
+      types: [
+        {
+          description: "SpectroDraw Project",
+          accept: { "application/zip": [".zip"] }
+        }
+      ]
+    });
+
+    const writable = await handle.createWritable();
+    await writable.write(zipBlob);
+    await writable.close();
+    return;
+  }
 
   const a = document.createElement("a");
   a.href = URL.createObjectURL(zipBlob);
-  const safeName = (project.name || "spectro_project").replace(/[^\w\-]+/g, "_");
-  a.download = `${safeName}.zip`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -870,9 +886,123 @@ function openProject(file) {
 
   reader.readAsArrayBuffer(file);
 }
+async function newProject() {
+  const val = document.getElementById('presets').value;
+  modal.style.display = 'none';
+
+  if (val === "silence") {
+    initEmptyPCM(true);
+    return;
+  }
+
+  try {
+    ensureAudioCtx();
+
+    let decoded;
+
+    if (val === "custom") {
+      const fileInput = document.getElementById("uploadSample");
+      const file = fileInput && fileInput.files && fileInput.files[0];
+
+      if (!file) {
+        status.textContent = "Please choose an audio file first.";
+        return;
+      }
+
+      status.textContent = `Loading custom audio "${file.name}"…`;
+
+      const ab = await file.arrayBuffer();
+      decoded = await audioCtx.decodeAudioData(ab.slice(0));
+    } else {
+      const presetMap = {
+        dog: "presets/dog.wav",
+        flute: "presets/flute.wav",
+        trumpet: "presets/trumpet.wav",
+        bomb: "presets/bomb.wav",
+        male: "presets/male.wav",
+        female: "presets/female.wav",
+        birdChirp: "presets/birdChirp.mp3",
+        lionRoar: "presets/lionRoar.wav",
+        seaLion: "presets/seaLion.mp3",
+        violin: "presets/violin.mp3",
+        timpani: "presets/timpani.wav",
+        piano: "presets/piano.ogg",
+        cymbal: "presets/cymbal.wav",
+        computerBeeps: "presets/computerBeeps.mp3",
+        scream: "presets/scream.mp3",
+        engine: "presets/engine.mp3",
+        fullSpectra: "presets/fullSpectra.wav",
+        bass808: "presets/808bass.wav",
+        hardstyle: "presets/hardstyle.wav",
+        kick: "presets/kick.wav",
+        hihat: "presets/hihat.wav",
+        clap: "presets/clap.wav",
+        cave14: "presets/cave14.mp3",
+        sine: "presets/sine.wav",
+        triangle: "presets/triangle.wav",
+        square: "presets/square.wav",
+        saw: "presets/saw.wav"
+      };
+
+      const presetPath = presetMap[val];
+      if (!presetPath) {
+        console.warn("No URL defined for preset:", val);
+        status.textContent = "Unknown preset.";
+        return;
+      }
+
+      const url = "https://spectrodraw.com/app/" + presetPath;
+
+      status.textContent = `Loading preset "${val}"…`;
+
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
+      const ab = await resp.arrayBuffer();
+      decoded = await audioCtx.decodeAudioData(ab.slice(0));
+    }
+    document.getElementById("projectName").value=document.getElementById("newProjectName").value;
+
+    layers[0].pcm[0] = new Float32Array(decoded.getChannelData(0));
+    layers[0].pcm[1] = new Float32Array(
+      decoded.getChannelData(decoded.numberOfChannels > 1 ? 1 : 0)
+    );
+    sampleRate = decoded.sampleRate || sampleRate;
+
+    const label = val === "custom" ? "custom audio" : `preset "${val}"`;
+    status.textContent = `Loaded ${label}, ${layers[0].pcm[0].length} samples @ ${sampleRate} Hz`;
+
+    let t = layers[0].pcm[0].length / sampleRate;
+    hopSizeKnob.setValue(lockHop ? Math.pow(2, fftSizeKnob.getValue()) : (t < 0.5 ? 128 : (t < 5 ? 512 : 1024)));
+    emptyAudioLength = Math.ceil(t);
+    bufferLengthKnob.setValue(Math.ceil(t));
+    minCol = 0;
+    maxCol = Math.floor(layers[0].pcm[0].length / hopSizeKnob.getValue());
+    iLow = 0;
+    iHigh = framesTotal;
+    layerCount = 1;
+    updateLayers();
+    await waitFor(() => !rendering);
+    renderSpectrogramColumnsToImageBuffer(0, framesTotal, 0);
+    uploads = [];
+    images = [];
+    sprites = [];
+    renderUploads();
+    renderSpritesTable();
+    movingSprite = false;
+    selectedImage = null;
+    selectedSpriteId = null;
+    document.getElementById("canvas-0").style.cursor = 'crosshair';
+  } catch (err) {
+    console.error("Preset load error:", err);
+    status.textContent = "Error loading preset: " + (err.message || err);
+  }
+}
 
 document.getElementById("saveProjectBtn").addEventListener('click', () => {
   saveProject();
+});
+document.getElementById("saveProjectAsBtn").addEventListener("click", () => {
+  saveProject({ saveAs: true });
 });
 document.getElementById("openProjectBtn").addEventListener('click', () => {
   document.getElementById("openProject").click();
@@ -889,84 +1019,12 @@ document.getElementById('closeProjectModalBtn').addEventListener('click', () => 
 document.getElementById("newProjectBtn").addEventListener('click', () => {
   modal.style.display = 'flex';
 });
-
+document.getElementById("start").addEventListener('click', async () => {
+  newProject();
+});
 document.getElementById("saveAndStart").addEventListener('click', async () => {
   saveProject();
-  const val = document.getElementById('presets').value;
-  modal.style.display = 'none';
-
-  if (val === "silence") {
-    initEmptyPCM(true);
-    return;
-  }
-
-  const presetMap = {
-    dog: "presets/dog.wav",
-    flute: "presets/flute.wav",
-    trumpet: "presets/trumpet.wav",
-    bomb: "presets/bomb.wav",
-    male: "presets/male.wav",
-    female: "presets/female.wav",
-    birdChirp: "presets/birdChirp.mp3",
-    lionRoar: "presets/lionRoar.wav",
-    seaLion: "presets/seaLion.mp3",
-    violin: "presets/violin.mp3",
-    timpani: "presets/timpani.wav",
-    piano: "presets/piano.ogg",
-    cymbal: "presets/cymbal.wav",
-    computerBeeps: "presets/computerBeeps.mp3",
-    scream: "presets/scream.mp3",
-    engine: "presets/engine.mp3",
-    fullSpectra: "presets/fullSpectra.wav",
-    bass808: "presets/808bass.wav",
-    hardstyle: "presets/hardstyle.wav",
-    kick: "presets/kick.wav",
-    hihat: "presets/hihat.wav",
-    clap: "presets/clap.wav",
-    cave14: "presets/cave14.mp3",
-    sine: "presets/sine.wav",
-    triangle: "presets/triangle.wav",
-    square: "presets/square.wav",
-    saw: "presets/saw.wav"
-  };
-
-  const url = presetMap[val];
-  if (!url) {
-    console.warn("No URL defined for preset:", val);
-    return;
-  }
-
-  try {
-    status.textContent = `Loading preset "${val}"…`;
-    ensureAudioCtx(); 
-
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
-    const ab = await resp.arrayBuffer();
-    const decoded = await audioCtx.decodeAudioData(ab.slice(0));
-    layers[0].pcm[0] = new Float32Array(decoded.getChannelData(0));
-    layers[0].pcm[1] = decoded.getChannelData(1)?new Float32Array(decoded.getChannelData(1)):new Float32Array(decoded.getChannelData(0));
-    sampleRate = decoded.sampleRate || sampleRate;
-
-    status.textContent = `Loaded preset "${val}", ${layers[0].pcm[0].length} samples @ ${sampleRate} Hz`;
-    let t = layers[0].pcm[0].length / sampleRate;
-    hopSizeKnob.setValue(lockHop?Math.pow(2,fftSizeKnob.getValue()):(t<0.5?128:(t<5?512:1024)));
-    emptyAudioLength = Math.ceil(t);
-    bufferLengthKnob.setValue(Math.ceil(t));
-    minCol = 0; maxCol = Math.floor(layers[0].pcm[0].length/hopSizeKnob.getValue());
-    iLow = 0;
-    iHigh = framesTotal;
-    layerCount = 1;
-    updateLayers();
-    await waitFor(() => !rendering);
-    renderSpectrogramColumnsToImageBuffer(0,framesTotal,0);
-    uploads=[]; images=[]; sprites=[]; renderUploads(); renderSpritesTable();
-    movingSprite = false; selectedImage = null; selectedSpriteId = null; 
-    document.getElementById("canvas-0").style.cursor = 'crosshair'; 
-  } catch (err) {
-    console.error("Preset load error:", err);
-    status.textContent = "Error loading preset: " + (err.message || err);
-  }
+  newProject();
 });
 
 // Close modal if clicking outside modal content
@@ -981,9 +1039,19 @@ document.getElementById("syncLayers").addEventListener("change", (e)=>{
   syncLayers = document.getElementById("syncLayers").checked;
 });
 
+const uploadSample = document.getElementById("uploadSample");
 
+uploadSample.addEventListener("change", () => {
+  const button = uploadSample;
+  const dt = new DataTransfer();
+  button.setAttribute("data-label", "upload a sample");
 
+  preset.value="custom";
+});
 
+preset.addEventListener("change",()=>{
+  if (preset.value==="custom") uploadSample.click();
+});
 
 
 
@@ -2324,6 +2392,12 @@ document.getElementById("blurX").addEventListener("input",()=>{
   minCol=0;maxCol=framesTotal;
   restartRender(false,true);
 });
+
+
+
+
+
+
 
 {
 //EVENTS

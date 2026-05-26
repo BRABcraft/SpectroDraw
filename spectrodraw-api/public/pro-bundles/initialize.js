@@ -193,6 +193,7 @@ let moveSpritesMode = false, spriteHit = null;
 let panShift=0.5,panStrength=1,panBand=100;
 let chorusVoices=1,chorusVoiceStrength=0.6,chorusDetune=20,chorusPanSpread=0.25,chorusRandomness=0.1;
 let pianoMode = false;
+let showSpriteOutline = false;
 
 let handlers = {
   "canvas-": (el) => {
@@ -359,6 +360,220 @@ function updateOptionValue(select, oldValue, newValue, newText = newValue) {
 }
 function logDebugTime(msg){console.log(msg,Date.now()-debugTime);debugTime=Date.now();}
 
+
+function overlayCanvasPaint(opts={}) {
+  for (let ch=0;ch<layerCount;ch++){
+    const canvas = document.getElementById("canvas-"+ch);
+    const overlayCanvas = document.getElementById("overlay-"+ch);
+    const overlayCtx = overlayCanvas.getContext("2d");
+    const x = (currentCursorX-iLow)* overlayCanvas.width / (iHigh-iLow);
+    overlayCtx.clearRect(0,0, overlayCanvas.width, overlayCanvas.height);
+    overlayCtx.strokeStyle = "#0f0";
+    overlayCtx.lineWidth = 3;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(x + 0.5, 0);
+    overlayCtx.lineTo(x + 0.5, specHeight);
+    overlayCtx.stroke();
+    if (alignTime) {
+      overlayCtx.strokeStyle = "#444";
+      for (let i = 0; i < framesTotal; i += (sampleRate/hop)/subBeat * (30/bpm)) {
+        const x = (i-iLow)* overlayCanvas.width / (iHigh-iLow);
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(x,0);
+        overlayCtx.lineTo(x,specHeight);
+        overlayCtx.stroke();
+      }
+    }
+  }
+  const cx = opts.cx, cy = opts.cy;
+  if (cx!==undefined && cy!==undefined) {
+    lastPreviewCoords = { cx, cy };
+    if (!pendingPreview) {
+      pendingPreview = true;
+      requestAnimationFrame(() => {
+        pendingPreview = false;
+        let { cx, cy } = lastPreviewCoords;
+        cx*=1024/(iHigh-iLow);cy*=720/((fHigh-fLow)/sampleRate*fftSize);
+        const overlayCanvas = document.getElementById("overlay-"+currentLayer); 
+        const ctx = overlayCanvas.getContext("2d"); 
+        const canvas = document.getElementById("canvas-"+currentLayer); 
+        if (changingNoiseProfile) {
+          if (currentPanel!=="2"){
+            noiseProfileMin = Math.min(noiseProfileMin,Math.floor(cx));
+            noiseProfileMax = Math.max(noiseProfileMax,Math.floor(cx));
+          } else {
+            const e = getSpriteById(selectedSpriteId).effect;
+            e.noiseProfileMin = Math.min(e.noiseProfileMin,Math.floor(cx));
+            e.noiseProfileMax = Math.max(e.noiseProfileMax,Math.floor(cx));
+          }
+          updateNoiseProfile(false);
+          const framesVisible = Math.max(1, iHigh - iLow);
+          const overlayCanvas = document.getElementById("overlay-" + currentLayer);
+          const ctx = overlayCanvas.getContext("2d");
+          const mapX = (frameX) => ((frameX - iLow) * overlayCanvas.width) / framesVisible;
+          let xPixel;
+          let endPixel; 
+          if (currentPanel==="2"){
+            const e = getSpriteById(selectedSpriteId).effect;
+            xPixel= mapX(e.noiseProfileMin);
+            endPixel= mapX(e.noiseProfileMax);
+          } else {
+            xPixel= mapX(noiseProfileMin);
+            endPixel= mapX(noiseProfileMax);
+          }
+          const width = Math.max(1, Math.round(endPixel - xPixel));
+          ctx.save();
+          ctx.fillStyle = "rgba(255,0,0,0.15)";
+          ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+          ctx.restore();
+        } else if (draggingSample===null&&!movingSprite) {
+          const hasStart = startX !== null && startY !== null;
+          let _startX = startX*1024/(iHigh-iLow), _startY = startY*720/((fHigh-fLow)/sampleRate*fftSize);
+          if (currentShape==="select"){
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 100)));
+            ctx.setLineDash([40, 40]);
+            ctx.lineDashOffset = 0;
+            ctx.strokeRect(_startX + 0.5, _startY + 0.5, cx - _startX, cy - _startY);
+            ctx.restore();
+            ctx.setLineDash([0, 0]);
+          } else {
+            const dragToDraw = !!(document.getElementById("dragToDraw") && document.getElementById("dragToDraw").checked);
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = Math.max(1, Math.min(4, Math.floor(framesTotal / 500)));
+            if (currentShape === "rectangle" && hasStart) {
+              ctx.strokeRect(_startX + 0.5, _startY + 0.5, cx - _startX, cy - _startY);
+              ctx.restore();
+            } else if (currentShape === "line" && hasStart) {
+              ctx.lineWidth = brushSize / 4;
+              ctx.beginPath();
+              ctx.moveTo(_startX + 0.5, _startY + 0.5);
+              ctx.lineTo(cx + 0.5, cy + 0.5);
+              ctx.stroke();
+              ctx.restore();
+            } else {
+              const rect = overlayCanvas.getBoundingClientRect();
+              const pixelsPerFrame = rect.width  / Math.max(1, overlayCanvas.width);
+              const pixelsPerBin   = rect.height / Math.max(1, overlayCanvas.height);
+              const bw = brushWidth;
+              const bh = brushHeight;
+              if (currentShape === "image" && images[selectedImage] && images[selectedImage].img) {
+                if (dragToDraw && hasStart) {
+                  const x0 = Math.min(_startX, cx);
+                  const y0 = Math.min(_startY, cy);
+                  const w  = Math.max(1, Math.abs(cx - _startX));
+                  const h  = Math.max(1, Math.abs(cy - _startY));
+                  ctx.strokeRect(x0 + 0.5, y0 + 0.5, w, h);
+                  if (images[selectedImage].img.complete && images[selectedImage].img.naturalWidth !== 0) {
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(images[selectedImage].img, x0, y0, w, h);
+                  } else {
+                    ctx.fillStyle = "rgba(255,200,0,0.04)";
+                    ctx.fillRect(x0, y0, w, h);
+                  }
+                } else {
+                  const screenW = Math.max(1, bw);
+                  const screenH = Math.max(1, bh);
+                  const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+                  const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+                  ctx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+                }
+                ctx.restore();
+              } else if (currentShape === "stamp" && currentStamp !== null) {
+                if (dragToDraw && hasStart) {
+                  if (!currentStamp.img) {
+                    currentStamp.img = new Image();
+                    currentStamp.img.src = currentStamp.dataUrl;
+                  }
+                  const x0 = Math.min(_startX, cx);
+                  const y0 = Math.min(_startY, cy);
+                  const w  = Math.max(1, Math.abs(cx - _startX));
+                  const h  = Math.max(1, Math.abs(cy - _startY));
+                  ctx.strokeRect(x0 + 0.5, y0 + 0.5, w, h);
+                  if (currentStamp.img.complete && currentStamp.img.naturalWidth !== 0) {
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(currentStamp.img, x0, y0, w, h);
+                  } else {
+                    ctx.fillStyle = "rgba(255,200,0,0.04)";
+                    ctx.fillRect(x0, y0, w, h);
+                  }
+                } else {
+                  const screenW = Math.max(1, bw);
+                  const screenH = Math.max(1, bh);
+                  const overlayW = Math.max(1, Math.round(screenW / pixelsPerFrame));
+                  const overlayH = Math.max(1, Math.round(screenH / pixelsPerBin));
+                  ctx.strokeRect(cx - overlayW / 2, cy - overlayH / 2, overlayW, overlayH);
+                }
+                ctx.restore();
+              } else if (currentShape === "brush") {
+                const radiusX = (bw / 2) / pixelsPerFrame; 
+                const radiusY = (bh / 2) / pixelsPerBin;   
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, Math.max(0.5, radiusX), Math.max(0.5, radiusY), 0, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.restore();
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+  if (cx!==undefined&&draggingSample) {
+    const framesVisible = Math.max(1, iHigh - iLow);
+    const ch = currentLayer;
+    const overlayCanvas = document.getElementById("overlay-" + ch);
+    if (overlayCanvas) {
+      const ctx = overlayCanvas.getContext("2d");
+      const sampleFrames = draggingSample.pcm[0].length / hop;
+      const xPixel = Math.max(0, Math.min(overlayCanvas.width, cx));
+      const width = Math.max(1,Math.round((sampleFrames / framesVisible) * overlayCanvas.width));
+      ctx.save();
+      ctx.fillStyle = dragInsert ? "#0f0" : "rgba(255,0,0,0.15)";
+      if (dragInsert) {
+        ctx.fillRect(Math.round(xPixel), 0, 5, overlayCanvas.height);
+      } else {
+        ctx.fillRect(Math.round(xPixel), 0, width, overlayCanvas.height);
+      }
+      ctx.restore();
+    }
+  }
+  if ((cx!==undefined&&cy!==undefined&&movingSprite)||(spritePath!==null&&showSpriteOutline)) {
+    let $s = spritePath.ch==="all"?0:spritePath.ch, $e = spritePath.ch==="all"?layerCount:spritePath.ch+1;
+    for (let ch=$s;ch<$e;ch++){
+      const overlayCanvas = document.getElementById("overlay-"+ch);
+      const canvas = document.getElementById("canvas-"+ch);
+      const overlayCtx = overlayCanvas.getContext("2d");
+      const framesVisible = Math.max(1, iHigh - iLow);
+      const mapX = (frameX) => ((frameX - iLow) * canvas.width) / framesVisible;
+      const mapY = (binY)   => (binY * canvas.height) / Math.max(1, specHeight);
+      const pts = spritePath.points.map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
+      const ctx = overlayCtx;
+      ctx.save();
+      ctx.beginPath();
+      const useDelta = movingSprite;
+      let dx = useDelta?(0.5 + (cx-startX)):0, dy = useDelta?(0.5+(cy-startY)):0;
+      const yf = (sampleRate/2)/fWidth;
+      function getY(i){
+        return (pts[i].y + dy);
+      }
+      const fx = 1024/(iHigh-iLow), fy = 720/((fHigh-fLow)/sampleRate*fftSize);
+      ctx.moveTo((pts[0].x + dx)*fx, getY(0)*fy);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo((pts[i].x + dx)*fx, getY(i)*fy);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(255,200,0,0.08)"; 
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#ff0000ff";
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
 
 class Knob {
   static instances = [];
@@ -609,7 +824,7 @@ const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
     currentCursorX = timelineCursorX = (currentCursorX/framesTotal)*maxCol;
     restartRender(false);
     drawTimeline();
-    drawCursor();
+    overlayCanvasPaint();
   }
 });
 const fftSizeKnob = new Knob(document.getElementById('fftSize'), {

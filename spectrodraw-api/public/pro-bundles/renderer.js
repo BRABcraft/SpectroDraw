@@ -626,7 +626,6 @@ function drawLoop() {
   for (let ch=$s;ch<$e;ch++) {
     document.getElementById("spec-"+ch).getContext("2d").putImageData(imageBuffer[ch], 0, 0);
   }
-  //drawCursor(true);
   renderView();
 
 
@@ -647,29 +646,7 @@ function drawLoop() {
 }
 
 function drawCursor(clear){
-  for (let ch=0;ch<layerCount;ch++){
-    const canvas = document.getElementById("canvas-"+ch);
-    const overlayCanvas = document.getElementById("overlay-"+ch);
-    const overlayCtx = overlayCanvas.getContext("2d");
-    const x = (currentCursorX-iLow)* overlayCanvas.width / (iHigh-iLow);
-    if (clear) overlayCtx.clearRect(0,0, overlayCanvas.width, overlayCanvas.height);
-    overlayCtx.strokeStyle = "#0f0";
-    overlayCtx.lineWidth = 3;
-    overlayCtx.beginPath();
-    overlayCtx.moveTo(x + 0.5, 0);
-    overlayCtx.lineTo(x + 0.5, specHeight);
-    overlayCtx.stroke();
-    if (alignTime) {
-      overlayCtx.strokeStyle = "#444";
-      for (let i = 0; i < framesTotal; i += (sampleRate/hop)/subBeat * (30/bpm)) {
-        const x = (i-iLow)* overlayCanvas.width / (iHigh-iLow);
-        overlayCtx.beginPath();
-        overlayCtx.moveTo(x,0);
-        overlayCtx.lineTo(x,specHeight);
-        overlayCtx.stroke();
-      }
-    }
-  }
+  overlayCanvasPaint();
 }
 
 function updateCanvasScroll() {
@@ -714,7 +691,7 @@ function updateCanvasScroll() {
     overlayCanvas.style.height = canvas.style.height;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
   }
-  drawCursor(true);
+  overlayCanvasPaint();
 }
 
 
@@ -769,7 +746,7 @@ function processPendingFramesLive(){
   const specCtx = specCanvas.getContext("2d");
   specCtx.putImageData(imageBuffer[currentLayer], 0, 0);
   renderView();
-  drawCursor(true);
+  overlayCanvasPaint();
 }
 function renderFullSpectrogramToImage() {
   const specCanvas=document.getElementById("spec-"+currentLayer);

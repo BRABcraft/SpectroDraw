@@ -424,6 +424,8 @@ function keyBind(event) {
     drawTimeline();
     overlayCanvasPaint();
   }
+  
+  if (event.altKey&&event.ctrlKey&&!event.shiftKey&&event.key==="n") {document.getElementById("newProjectBtn").click(); return;}
   if (!ctrl) {
     if (!event.shiftKey) {
       if (key === 'b') {
@@ -470,8 +472,6 @@ function keyBind(event) {
         document.getElementById("eqBtn").click();
       } else if (key === 'q') {
         document.getElementById("layersBtn").click();
-      } else if (key === 'b') {
-        //document.getElementById("spritesBtn").click();
       } else if (key === 'u') {
         document.getElementById("uploadsBtn").click();
       } else if (key === 'o') {
@@ -529,7 +529,7 @@ document.addEventListener('keydown', (event) => {
   if (editingExpression===null) keyBind(event);
 });
 let pressedN=false;document.addEventListener('keydown', (e) => {
-  if (e.key === 'n') {
+  if (e.key === 'n' && !e.altKey && !e.shiftKey && !e.ctrlKey) {
     pressedN = true;
 
     if (!sineOsc) {

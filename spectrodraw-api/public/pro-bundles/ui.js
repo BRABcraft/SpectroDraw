@@ -192,14 +192,14 @@ function angleDiff(a, b) {
 
 panelButtons.forEach(btn => {
   if(btn.dataset.tool === currentPanel) {
-    btn.style.background = "#4af"; 
+    btn.style.background = "#6d19f4"; 
   }
 });
 
 
 toolButtons.forEach(btn => {
   if(btn.dataset.tool === currentTool) {
-    btn.style.background = "#4af"; 
+    btn.style.background = "#6d19f4"; 
   }
 });
 document.getElementById("changeClonerPosBtn").addEventListener("click",()=>{
@@ -299,10 +299,12 @@ function onToolChange(tool){
   if (c("cloner")&&(d("image")||d("stamp"))) tool = "fill";
   else if (c("autotune")&&(d("image")||d("synth"))) tool = "fill";
   else if (c("noiseRemover")&&d("image")) tool = "fill";
-  currentTool = tool;
+  currentTool = tool;setProjectDirty();
   toolButtons.forEach(b => {
     const t = b.dataset.tool;
-    b.style.background =(t===tool&&!d("select"))?"#4af":(shouldHide(t))?"#999":""});
+    b.style.background =(t===tool&&!d("select"))?"#6d19f4":(shouldHide(t))?"#555":"";
+    b.style.cursor =(t===tool&&!d("select"))?"pointer":(shouldHide(t))?"not-allowed":"";
+  });
   document.getElementById("brushEffectSelect").value=tool;
   updateBrushSettingsDisplay();
   updateBrushPreview();
@@ -317,17 +319,18 @@ document.getElementById("brushEffectSelect").addEventListener("input",()=>{
 });
 shapeButtons.forEach(btn => {
   if(btn.dataset.shape === currentShape) {
-    btn.style.background = "#4af"; 
+    btn.style.background = "#6d19f4"; 
   }
 });
 function onShapeChange(shape){
   if (shape!=="image" || images.length>0) {
     //if (shape==="select")document.getElementById("spritesBtn").click(); else document.getElementById("toolEditBtn").click();
     document.getElementById("brushToolSelect").value=currentShape = shape;
-    shapeButtons.forEach(b => b.style.background = (b.dataset.shape===shape)?"#4af":"");
+    shapeButtons.forEach(b => b.style.background = (b.dataset.shape===shape)?"#6d19f4":"");
     document.getElementById("brushSizeDiv").style.display=(currentShape === 'rectangle')?"none":"flex";
     updateBrushWH();
     updateBrushPreview();
+    setProjectDirty();
   } else if (images.length === 0){
     overlayFile.click();
   }
@@ -348,12 +351,12 @@ shapeButtons.forEach(btn => {
 document.getElementById("brushToolSelect").addEventListener("input",()=>{
   onShapeChange(document.getElementById("brushToolSelect").value);
 });
-trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#4af":"#444"; restartRender(false);});
-yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#4af":"#444"; drawYAxis();});
-uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#4af":"#444";});
-alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#4af":"#444"; pitchAlignDiv.style.display=alignPitch?"block":"none";});
-alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#4af":"#444"; timeAlignDiv.style.display=alignTime?"block":"none";overlayCanvasPaint();});
-midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#4af;margin:none;":"background:#444;margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
+trueScale.addEventListener("click", () =>  {trueScaleVal = !trueScaleVal; trueScale.style.background = trueScaleVal?"#6d19f4":"#444"; restartRender(false);});
+yAxisMode.addEventListener("click", () =>  {useHz        = !useHz;        yAxisMode.style.background = useHz       ?"#6d19f4":"#444"; drawYAxis();});
+uvcb.addEventListener("click",()=>{useVolumeControllers=!useVolumeControllers;uvcb.style.background = useVolumeControllers?"#6d19f4":"#444";});
+alignPitchBtn.addEventListener("click",()=>{alignPitch=!alignPitch;alignPitchBtn.style.background = alignPitch?"#6d19f4":"#444"; pitchAlignDiv.style.display=alignPitch?"block":"none";});
+alignTimeBtn.addEventListener("click",()=>{alignTime=!alignTime;alignTimeBtn.style.background = alignTime?"#6d19f4":"#444"; timeAlignDiv.style.display=alignTime?"block":"none";overlayCanvasPaint();});
+midiAlignTimeBtn.addEventListener("change",()=>{midiAlignTime=midiAlignTimeBtn.checked;midiAlignTimeBtn.style = midiAlignTime?"background:#6d19f4;margin:none;":"background:#444;margin-bottom:15px;";matOptions.style.display=midiAlignTime?"block":"none";});
 useAIEl.addEventListener("change",()=>{useMidiAI=useAIEl.checked;nonAIMidiOptions.style.display=useMidiAI?"none":"block";AIMidiOptions.style.display=!useMidiAI?"none":"block";});
 overlayFile.addEventListener("change", e => {
   const f = e.target.files[0];
@@ -363,7 +366,7 @@ overlayFile.addEventListener("change", e => {
     document.getElementById("brushToolSelect").value=currentShape="image";onToolChange(currentTool);
     updateBrushSettingsDisplay();
     shapeButtons.forEach(b => b.style.background = "");
-    document.getElementById("imageBtn").style.background = "#4af";
+    document.getElementById("imageBtn").style.background = "#6d19f4";
     selectedImage = images.length;
     images.push({img, name:f.name, src: URL.createObjectURL(f)});
     renderUploads();
@@ -392,6 +395,7 @@ async function toggleLockHop() {
   await waitFor(() => !rendering);
   for(let ch=0;ch<layerCount;ch++)renderSpectrogramColumnsToImageBuffer(0,maxCol,ch);
   lockHop = !lockHop;
+  setProjectDirty();
 }
 document.addEventListener('mousemove', e=>{
   const {cx,cy} = getCanvasCoords(e,false);
@@ -627,7 +631,7 @@ async function saveProject(options = {}) {
   }
 
   const project = {
-    name: document.getElementById("projectName").value,
+    name: document.getElementById("projectName").value.replace(/\.sdproj$/, ""),
     layerCount,
     fftSize,
     hop: hopSizeKnob.getValue(),
@@ -686,7 +690,7 @@ async function saveProject(options = {}) {
   zip.file("project.json", JSON.stringify(project));
 
   const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-  const fileName = `${safeZipName(project.name || "spectro_project")}.zip`;
+  const fileName = `${safeZipName(project.name || "spectro_project")}.sdproj`;
 
   if (saveAs && window.showSaveFilePicker) {
     const handle = await window.showSaveFilePicker({
@@ -694,7 +698,7 @@ async function saveProject(options = {}) {
       types: [
         {
           description: "SpectroDraw Project",
-          accept: { "application/zip": [".zip"] }
+          accept: { "application/zip": [".sdproj"] }
         }
       ]
     });
@@ -712,6 +716,7 @@ async function saveProject(options = {}) {
   a.click();
   a.remove();
   URL.revokeObjectURL(a.href);
+  setProjectClean();
 }
 
 
@@ -724,7 +729,7 @@ function openProject(file) {
     try {
       const zip = await JSZip.loadAsync(ev.target.result);
       const jsonFile = zip.file("project.json");
-      if (!jsonFile) throw new Error("project.json not found in ZIP");
+      if (!jsonFile) throw new Error("project.json not found in SDProj file");
 
       const jsonText = await jsonFile.async("string");
       const parsed = JSON.parse(jsonText);
@@ -732,7 +737,7 @@ function openProject(file) {
       // Apply to DOM & global state (same as your current code)
       if (parsed.name !== undefined) {
         const nameEl = document.getElementById("projectName");
-        if (nameEl) nameEl.value = parsed.name;
+        if (nameEl) nameEl.value = parsed.name+".sdproj";
       }
       if (parsed.fftSize !== undefined) fftSize = parsed.fftSize;
       if (parsed.layerCount !== undefined) layerCount = parsed.layerCount;
@@ -757,7 +762,7 @@ function openProject(file) {
       if (parsed.currentShape !== undefined) currentShape = parsed.currentShape;
       shapeButtons.forEach(btn => {
         if(btn.dataset.shape === currentShape) {
-          btn.style.background = "#4af"; 
+          btn.style.background = "#6d19f4"; 
         } else {
           btn.style.background = "";
         }
@@ -832,7 +837,7 @@ function openProject(file) {
           // try to read the blob from the zip
           const fileEntry = zip.file(meta.file);
           if (!fileEntry) {
-            console.warn("Image file not found in ZIP:", meta.file);
+            console.warn("Image file not found in SDP:", meta.file);
             images.push({ img: null, name: meta.name || `image_${i}`, src: null });
             continue;
           }
@@ -841,13 +846,13 @@ function openProject(file) {
             const url = URL.createObjectURL(blob);
             const img = new Image();
             // push temporarily with null img; only push after onload to ensure ready to use
-            await new Promise((res, rej) => {
+            await new Promise((res, rej) => {console.warn("Failed to extract image blob from SDProj for", meta.file, err);
               img.onload = () => {
                 images.push({ img, name: meta.name || `image_${i}`, src: url, file: null });
                 res();
               };
               img.onerror = (err) => {
-                console.warn("Image failed to load from ZIP entry", meta.file, err);
+                console.warn("Image failed to load from SDProj entry", meta.file, err);
                 // still push something so UI won't break
                 images.push({ img: null, name: meta.name || `image_${i}`, src: url, file: null });
                 res(); // treat as resolved so openProject continues
@@ -855,7 +860,7 @@ function openProject(file) {
               img.src = url;
             });
           } catch (err) {
-            console.warn("Failed to extract image blob from zip for", meta.file, err);
+            console.warn("Failed to extract image blob from SDProj for", meta.file, err);
             images.push({ img: null, name: meta.name || `image_${i}`, src: null });
           }
         }
@@ -885,6 +890,7 @@ function openProject(file) {
   };
 
   reader.readAsArrayBuffer(file);
+  setProjectClean();
 }
 async function newProject() {
   const val = document.getElementById('presets').value;
@@ -960,7 +966,7 @@ async function newProject() {
       const ab = await resp.arrayBuffer();
       decoded = await audioCtx.decodeAudioData(ab.slice(0));
     }
-    document.getElementById("projectName").value=document.getElementById("newProjectName").value;
+    document.getElementById("projectName").value=document.getElementById("newProjectName").value+".sdproj";
 
     layers[0].pcm[0] = new Float32Array(decoded.getChannelData(0));
     layers[0].pcm[1] = new Float32Array(
@@ -996,6 +1002,7 @@ async function newProject() {
     console.error("Preset load error:", err);
     status.textContent = "Error loading preset: " + (err.message || err);
   }
+  setProjectClean();
 }
 
 document.getElementById("saveProjectBtn").addEventListener('click', () => {
@@ -1074,13 +1081,13 @@ function renderStamps() {
     }
     if (currentStamp === stamp) {
       document.querySelectorAll(".stamp-tile").forEach((s)=>{s.style.border="1px solid #555"});
-      tile.style.border = "2px solid #4af";
+      tile.style.border = "2px solid #6d19f4";
     }
     tile.addEventListener('click', (ev) => {
       if (currentStamp !== stamp) {
         currentStamp = stamp;
         document.querySelectorAll(".stamp-tile").forEach((s)=>{s.style.border="1px solid #555"});
-        tile.style.border = "2px solid #4af";
+        tile.style.border = "2px solid #6d19f4";
       } else {
         currentStamp = null;
         tile.style.border = "2px solid #555";
@@ -1958,7 +1965,7 @@ document.querySelectorAll("#globalXYTools td").forEach(td=>{
       const v = td.querySelector("div");
       if (!v.id.includes("stretch")&&!v.id.includes("translate")) return;
       newGlobalXYHistory("undo");
-      v.style.color = "#4af";
+      v.style.color = "#6d19f4";
       Gtarget = v.id;
       _gX = e.clientX; _gY = e.clientY;
     });
@@ -2392,11 +2399,13 @@ document.getElementById("blurX").addEventListener("input",()=>{
   minCol=0;maxCol=framesTotal;
   restartRender(false,true);
 });
-
-
-
-
-
+projectNameEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter")
+    projectNameEl.value = projectNameEl.value.replace(/\.sdproj$/, "") + ".sdproj";
+});
+projectNameEl.addEventListener("blur", () => {
+  projectNameEl.value = projectNameEl.value.replace(/\.sdproj$/, "") + ".sdproj";
+});
 
 
 {

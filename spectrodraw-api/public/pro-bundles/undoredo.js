@@ -79,11 +79,10 @@ function combineAndDraw(startSample, endSample) {
 
   // helper: map pan (0..1) to color from white -> blue
   function panToColor(pan) {
-    // pan=0 => white (255,255,255); pan=1 => blue (0,0,255)
-    const r = Math.round(255 * (1 - pan));
-    const g = Math.round(255 * (1 - pan));
-    const b = 255;
-    return `rgb(${r},${g},${b})`;
+    const hue = 260;
+    const saturation = Math.round(pan * 100);
+    const lightness = 50;
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   }
 
   // Sparse case: draw a smooth polyline, color each short segment according to pan at segment midpoint
@@ -172,6 +171,7 @@ function combineAndDraw(startSample, endSample) {
   }
 }
 function recomputePCMForCols(colStart, colEnd) {
+  setProjectDirty();
   colStart = Math.max(0, Math.floor(colStart));
   colEnd   = Math.min(specWidth - 1, Math.floor(colEnd));
   if (colEnd < colStart) return;

@@ -1,7 +1,7 @@
 (function updateTools(){
     toolButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tool === currentTool);
-        btn.style.background = (btn.dataset.tool === currentTool)?"#4af":(shouldHide(currentShape))?"#999":"";
+        btn.style.background = (btn.dataset.tool === currentTool)?"#6d19f4":(shouldHide(currentShape))?"#999":"";
     });
     if(currentTool === "image") overlayFile.click();
     document.getElementById("brushEffectSelect").value=currentTool;
@@ -694,7 +694,7 @@ function makeKnobMenu(knob){
     useBeatsEl.innerHTML = `
       <div class="slider-row2">
         <label for="UseBeatsCheckbox">Use beats</label>
-        <input type="checkbox" id="UseBeatsCheckbox" style="margin-left:60px;">
+        <input type="checkbox" id="UseBeatsCheckbox" style="margin-left:65px;transform:translateY(-2px);">
       </div>
     `;
 

@@ -1044,14 +1044,14 @@ window.synthParams = {
         b.style.background = '';
       });
       btn.classList.add('active');
-      btn.style.background = '#4af';
+      btn.style.background = '#6d19f4';
       currentTab = btn.dataset.tab;
       updateKnobsFromEnvelope();
       drawEnvelope();
     });
   });
   document.querySelectorAll('.env-tab').forEach(b => {
-    b.style.background = (b.dataset.tab === currentTab ? '#4af' : '');
+    b.style.background = (b.dataset.tab === currentTab ? '#6d19f4' : '');
     if (b.dataset.tab === currentTab) b.classList.add('active');
   });
   updateKnobsFromEnvelope();

@@ -5,14 +5,16 @@ let panels = [];
   const infoHeight = 67.2;
   const rightWidth = 310;
   const leftWidth = 250;
+  const margin = 8;
+  const headerBarHeight = parseInt(document.querySelector(".top-bar").getBoundingClientRect().height);
   const middleWidth = window.innerWidth-leftWidth-rightWidth;
-  const brushSettingsHeight = (window.innerHeight-30)*0.6;
-  const spritesHeight = (window.innerHeight-30)*0.4;
-  const toolsHeight = (window.innerHeight-30-infoHeight)*0.15;
-  const specialFxHeight = (window.innerHeight-30-infoHeight)*0.4;
-  const uploadsHeight = (window.innerHeight-30-infoHeight)*0.3;
+  const brushSettingsHeight = (window.innerHeight-headerBarHeight)*0.6;
+  const spritesHeight = (window.innerHeight-headerBarHeight)*0.4;
+  const toolsHeight = (window.innerHeight-headerBarHeight-infoHeight)*0.18;
+  const specialFxHeight = (window.innerHeight-headerBarHeight-infoHeight)*0.34;
+  const uploadsHeight = (window.innerHeight-headerBarHeight-infoHeight)*0.3;
   const eqWidth = 200;
-  let baseTop = 30;
+  let baseTop = headerBarHeight;
   let edgeThickness = 5;
   let edgeDocks = [
     { left: 0,                                 top: baseTop,                            axis: "vertical",   length: window.innerHeight - baseTop, panels: new Array([{panelIndex:3, size:infoHeight},{panelIndex:1, size:toolsHeight},{panelIndex:14, size:toolsHeight},{panelIndex:2,size:specialFxHeight},{panelIndex:9,size:uploadsHeight}]), thickness: [leftWidth], name:"left" }, 
@@ -24,10 +26,10 @@ let panels = [];
     const panelObj = document.createElement("div");
     panelObj.classList.add("window");
     panelObj.id=opts.id;
-    panelObj.style.width = opts.width+"px";
-    panelObj.style.height = opts.height+"px";
-    panelObj.style.left = opts.left+"px";
-    panelObj.style.top = opts.top+"px";
+    panelObj.style.width = opts.width-margin+"px";
+    panelObj.style.height = opts.height-margin+"px";
+    panelObj.style.left = opts.left+(margin/2)+"px";
+    panelObj.style.top = opts.top+(margin/2)+"px";
     panelObj.style.background = "#14171a";
     panelObj.style.position = "absolute";
     panelObj.style.boxShadow = "0 0 20px rgba(0,0,0,0.9)";
@@ -90,13 +92,13 @@ let panels = [];
     function setX(panel,x){
       if (x>window.innerWidth-120) x = window.innerWidth-120;
       if (x<120-panel.width) x = 120-panel.width;
-      panel.obj.style.left=(x+"px");
+      panel.obj.style.left=(x+(margin/2)+"px");
       panel.left=x;
     }
     function setY(panel,y){
       if (y>window.innerHeight-50) y = window.innerHeight-50;
       if (y<50-panel.height) y = 50-panel.height;
-      panel.obj.style.top=(y+"px");
+      panel.obj.style.top=(y+(margin/2)+"px");
       panel.top=y;
     }
     function goTo(panel,x,y){
@@ -108,12 +110,12 @@ let panels = [];
       if (panel.id==="eqWindow"&&w>200) w=200;
       const mw = window.innerWidth-leftWidth-rightWidth-200;
       if (panel.id==="bottom-bar"&&w<mw&&panels[11].docked) {w=mw;recomputeEdgeBounds();}
-      panel.obj.style.width=w+"px";
+      panel.obj.style.width=w-margin+"px";
       panel.width=w;
     }
     function setHeight(panel,h){
       if (h<topbar) h = topbar;
-      panel.obj.style.height=h+"px";
+      panel.obj.style.height=h-margin+"px";
       panel.height=h;
     }
     function hitEdge(panel,hitX,hitY){
@@ -342,7 +344,7 @@ let panels = [];
       } else {
         panel.showing = true;
         panelObj.style.display = "block";
-        if (toggleButton2) toggleButton2.style.background = "#4af";
+        if (toggleButton2) toggleButton2.style.background = "#6d19f4";
         if (check) check.innerText = "";
         if (panel._savedDock) {
           restoreDock(panel);
@@ -866,7 +868,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:window.innerWidth-rightWidth,
-      top:30,
+      top:headerBarHeight,
       showing:true,
       showHeader:true,
       innerHTML:`<div style="overflow-y:auto;overflow-x:hidden;">
@@ -1155,7 +1157,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:0,
-      top:30+infoHeight,
+      top:headerBarHeight+infoHeight,
       showing:true,
       showHeader:true,
       innerHTML:`
@@ -1171,40 +1173,40 @@ function setDocked(panel, dockObj){
         <tbody>
           <tr>
             <td>
-              <button class="shape-btn" title="Brush (b)" data-shape="brush" id="brushBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="5 4 18 18" fill="#333"><path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/></svg>
+              <button class="shape-btn" title="Brush (b)" data-shape="brush" id="brushBtn" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="5 4 18 18" fill="#a1a5af"><path d="M20.71 4.63a2 2 0 0 0-2.83 0l-9.9 9.9a3 3 0 0 0-.78 1.37l-.69 2.76a1 1 0 0 0 1.21 1.21l2.76-.69a3 3 0 0 0 1.37-.78l9.9-9.9a2 2 0 0 0 0-2.83zm-11.24 11.3l-.88.22.22-.88 9.19-9.19.66.66z"/></svg>
               </button>
             </td>
             <td>
-              <button title="Synth brush (o)" class="shape-btn" id="synthBtn" data-shape="synth">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20px" height="20px"><path fill="#333" d="M28.6,178.2c0,0-13.7,53.7-18.6,74.8l26.3-36c-2.4-5.3-0.9-13.4,3.2-17.9c5.6-6.1,15.6-6.1,21.7-0.5c6.2,5.6,6.5,15.1,1,21.2c-4.3,4.6-12.1,6.5-17.7,4.4l-32.9,30.9l69.3-26.8l27.8-41.7l-36.4-34.1L28.6,178.2z M223.3,1.4c-10.5,7.2-142,140.9-142,140.9l37,35.4c0,0,111.5-132,127.7-158.8C243.6-3.8,223.3,1.4,223.3,1.4z"/></svg>
+              <button title="Synth brush (o)" class="shape-btn" id="synthBtn" data-shape="synth" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20px" height="20px"><path fill="#a1a5af" d="M28.6,178.2c0,0-13.7,53.7-18.6,74.8l26.3-36c-2.4-5.3-0.9-13.4,3.2-17.9c5.6-6.1,15.6-6.1,21.7-0.5c6.2,5.6,6.5,15.1,1,21.2c-4.3,4.6-12.1,6.5-17.7,4.4l-32.9,30.9l69.3-26.8l27.8-41.7l-36.4-34.1L28.6,178.2z M223.3,1.4c-10.5,7.2-142,140.9-142,140.9l37,35.4c0,0,111.5-132,127.7-158.8C243.6-3.8,223.3,1.4,223.3,1.4z"/></svg>
               </button>
             </td>
             <td>
-              <button class="shape-btn" title="Stamp (s)" data-shape="stamp" id="stampBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="1.25 1.25 17.5 17.5" > <g fill="#333" stroke="#333" stroke-width="2" stroke-linejoin="round" > <rect x="2.5" y="10" width="15" height="5" rx="2" ry="2" /> <line x1="10" y1="9" x2="10" y2="6" /> <rect x="8" y="4" width="4" height="3" rx="2" ry="2" /> </g> </svg>
+              <button class="shape-btn" title="Stamp (s)" data-shape="stamp" id="stampBtn" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="1.25 1.25 17.5 17.5" > <g fill="#a1a5af" stroke="#a1a5af" stroke-width="2" stroke-linejoin="round" > <rect x="2.5" y="10" width="15" height="5" rx="2" ry="2" /> <line x1="10" y1="9" x2="10" y2="6" /> <rect x="8" y="4" width="4" height="3" rx="2" ry="2" /> </g> </svg>
               </button>
             </td>
             <td>
-              <button class="shape-btn" title="Line (l)" data-shape="line" id="lineBtn" >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke = "#333" stroke-width = "3"><path d="M20 0 L 0 20"/></svg>
+              <button class="shape-btn" title="Line (l)" data-shape="line" id="lineBtn" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke = "#a1a5af" stroke-width = "3"><path d="M20 0 L 0 20"/></svg>
               </button>
             </td>
           </tr>
           <tr>
             <td>
-              <button class="shape-btn" title="Rectangle (r)" data-shape="rectangle" id="rectBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke = "#333" stroke-width = "5"><path d="M0 0 H 20 V 20 H 0 V -20"/></svg>
+              <button class="shape-btn" title="Rectangle (r)" data-shape="rectangle" id="rectBtn" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke = "#a1a5af" stroke-width = "5"><path d="M0 0 H 20 V 20 H 0 V -20"/></svg>
               </button>
             </td>
             <td>
-              <button class="shape-btn" title="Image Overlay (i)" data-shape="image" id="imageBtn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="3" fill="#333" stroke="none"/><polygon points="1,20 8,10 15,20" fill="#333"/><polygon points="8,20 15,12 23,20" fill="#333"/></svg>
+              <button class="shape-btn" title="Image Overlay (i)" data-shape="image" id="imageBtn" onclick="this.blur()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a1a5af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="3" fill="#a1a5af" stroke="none"/><polygon points="1,20 8,10 15,20" fill="#a1a5af"/><polygon points="8,20 15,12 23,20" fill="#a1a5af"/></svg>
               </button>
             </td>
             <td>
-              <button class="shape-btn" title="Selection Tool" data-shape="select" id="selectBtn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ><rect x="1" y="1" width="22" height="22" rx="3" ry="3" stroke-dasharray="3 5" /></svg>
+              <button class="shape-btn" title="Selection Tool" data-shape="select" id="selectBtn" onclick="this.blur()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a1a5af" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ><rect x="1" y="1" width="22" height="22" rx="3" ry="3" stroke-dasharray="3 5" /></svg>
               </button>
             </td>
           </tr>
@@ -1215,7 +1217,7 @@ function setDocked(panel, dockObj){
       name:"Special Effects",
       id:"specialFXWindow",
       width:leftWidth,
-      height:window.innerHeight-30-infoHeight-uploadsHeight-toolsHeight*2,
+      height:specialFxHeight,
       docked:true,
       dockEdge:"left",
       dockTo:edgeDocks[0],
@@ -1225,7 +1227,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:0,
-      top:30+infoHeight+toolsHeight*2,
+      top:headerBarHeight+infoHeight+toolsHeight*2,
       showing:true,
       showHeader:true,
       innerHTML:`<div class="toolsWrapper">
@@ -1366,10 +1368,10 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:0,
-      top:30,
+      top:headerBarHeight,
       showing:true,
       showHeader:false,
-      innerHTML:`<div style="border:1px solid #888; padding: 4px;" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>`,
+      innerHTML:`<div style="padding: 4px;" id="midiv" title="Hold 'n' to preview pitch"><label id="mouseInfo">Pitch: 0hz<br>Time: 0.0<br>Loudness: -inf dB</label><br></div>`,
   });
   newWindow({
       name:"Waveform",
@@ -1385,7 +1387,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:leftWidth,
-      top:30,
+      top:headerBarHeight,
       showing:true,
       showHeader:false,
       innerHTML:`<canvas id="waveform" width="1000" style="margin-left:40px;width:calc(100% - 40px);height:100%;" height=${waveformHeight}>`,
@@ -1394,7 +1396,7 @@ function setDocked(panel, dockObj){
       name:"mainArea",
       id:"main-area",
       width:window.innerWidth-rightWidth-leftWidth,
-      height:window.innerHeight-waveformHeight-80-30,
+      height:window.innerHeight-waveformHeight-80-headerBarHeight,
       docked:true,
       dockEdge:"top",
       dockTo:edgeDocks[3],
@@ -1404,7 +1406,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:leftWidth,
-      top:waveformHeight+30,
+      top:waveformHeight+headerBarHeight,
       showing:true,
       showHeader:false,
       innerHTML:`<div id="canvasWrapper" style="width:100%; top:0px"></div>`,
@@ -1433,7 +1435,7 @@ function setDocked(panel, dockObj){
       showHeader:false,
       innerHTML:`<div style="display:flex;flex-direction:row;height:100%;gap:5px;padding-left:5px;overflow-x:auto;">
     <div style="width:200px;">
-      <table id="globalXYTools">
+      <table id="globalXYTools" style="margin:0;">
         <thead>
           <div style="display:flex;flex-direction:row;">
             <input type="checkbox" id="globalUseMagsCheckbox" title="Affect magnitudes" checked></input>
@@ -1525,7 +1527,7 @@ function setDocked(panel, dockObj){
     </div>
     <div class="knob-wrapper">
       <button id="playPause" title="Play (space)" style="background:linear-gradient(180deg,#2b2b2b,#161616);border:0;border-radius:50%;width:75px;height:75px;" onClick="this.blur();">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="#333" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="#a1a5af" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
           <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="6"/>
           <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="2" />
           <path d="M40 70 V30 l30 20z"/ fill="#fff">
@@ -1548,7 +1550,7 @@ function setDocked(panel, dockObj){
     <div class="knob-wrapper">
       <div class="knob" id="hopSize" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
-    <div class="knob-wrapper">
+    <div class="knob-wrapper" style="margin-left:4px;">
       <div class="knob" id="sampleRate" data-knob="true" aria-hidden="true">${knobSVG}</div>
     </div>
   </div>`,
@@ -1567,7 +1569,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:window.innerWidth-rightWidth,
-      top:30+brushSettingsHeight,
+      top:headerBarHeight+brushSettingsHeight,
       showing:true,
       showHeader:true,
       innerHTML:`<div id="spriteTableWrap">
@@ -1844,7 +1846,7 @@ function setDocked(panel, dockObj){
       name:"Uploads",
       id:"uploadsWindow",
       width:leftWidth,
-      height:window.innerHeight-30-infoHeight-toolsHeight-specialFxHeight,
+      height:window.innerHeight-headerBarHeight-infoHeight-toolsHeight*2-specialFxHeight,
       docked:true,
       dockEdge:"left",
       dockTo:edgeDocks[0],
@@ -1854,7 +1856,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:0,
-      top:30+infoHeight+toolsHeight+specialFxHeight,
+      top:headerBarHeight+infoHeight+toolsHeight*2+specialFxHeight,
       showing:true,
       showHeader:true,
       innerHTML:`
@@ -2207,7 +2209,7 @@ function setDocked(panel, dockObj){
       resizing:false,
       minimized:false,
       left:0,
-      top:30+infoHeight+toolsHeight,
+      top:headerBarHeight+infoHeight+toolsHeight,
       showing:true,
       showHeader:true,
       innerHTML:`
@@ -2223,40 +2225,40 @@ function setDocked(panel, dockObj){
         <tbody>
           <tr>
             <td>
-              <button class="tool-btn" data-tool="fill" id="colorBtn" title="Fill (f)" data-tool="color" id="colorBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><circle cx="12" cy="12" r="9"/></svg>
+              <button class="tool-btn" data-tool="fill" id="colorBtn" title="Fill (f)" data-tool="color" id="colorBtn" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#a1a5af"><circle cx="12" cy="12" r="9"/></svg>
               </button>
             </td>
             <td>
-              <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)">
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"width="18.19" height="19.22" viewBox="0,0,18.19,19.22"><g transform="translate(-0.90,-0.39)"><g fill="#333333" stroke="none" stroke-miterlimit="10"><path d="M3.70,2.43l2.87,-2.04l7.13,10.01l-2.87,2.04z" stroke-width="NaN"/><path d="M0.90,4.90l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M2.28,6.82l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M3.73,8.91l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M5.10,10.83l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M6.45,12.73l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M11.39,11.97l2.26,-1.61l5.44,7.64l-2.26,1.61z" stroke-width="NaN"/></g></g></svg>
+              <button class="tool-btn" data-tool="noiseRemover" id="noiseRemoverBtn" title="Noise Remover (x)" onclick="this.blur()">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"width="18.19" height="19.22" viewBox="0,0,18.19,19.22"><g transform="translate(-0.90,-0.39)"><g fill="#a1a5af" stroke="none" stroke-miterlimit="10"><path d="M3.70,2.43l2.87,-2.04l7.13,10.01l-2.87,2.04z" stroke-width="NaN"/><path d="M0.90,4.90l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M2.28,6.82l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M3.73,8.91l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M5.10,10.83l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M6.45,12.73l3.08,-2.20l0.75,1.05l-3.08,2.20z" stroke-width="0"/><path d="M11.39,11.97l2.26,-1.61l5.44,7.64l-2.26,1.61z" stroke-width="NaN"/></g></g></svg>
               </button>
             </td>
             <td>
-              <button class="tool-btn" data-tool="cloner" id="clonerBtn" title="Cloner (c)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 23 23" > <g fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round" > <rect x="1.5" y="8.16" width="13.33" height="13.33" rx="2" ry="2" /> <rect x="8.16" y="1.5" width="13.33" height="13.33" rx="2" ry="2" /> </g> </svg>
+              <button class="tool-btn" data-tool="cloner" id="clonerBtn" title="Cloner (c)" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 23 23" > <g fill="none" stroke="#a1a5af" stroke-width="3" stroke-linejoin="round" > <rect x="1.5" y="8.16" width="13.33" height="13.33" rx="2" ry="2" /> <rect x="8.16" y="1.5" width="13.33" height="13.33" rx="2" ry="2" /> </g> </svg>
               </button>
             </td>
             <td>
-              <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune (shift+a)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork"><path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" /><line x1="10" y1="14" x2="10" y2="17.5" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <button class="tool-btn" data-tool="autotune" id="autotuneBtn" title="Autotune (shift+a)" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" role="img" aria-label="Pitchfork"><path d=" M 8 2.5 V 12 A 4 10 0 0 0 12 12 V 2.5 " stroke="#a1a5af" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" /><line x1="10" y1="14" x2="10" y2="17.5" stroke="#a1a5af" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
               </button>
             </td>
           </tr>
           <tr>
             <td>
-              <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#333"/><path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#333" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <button class="tool-btn" data-tool="amplifier" id="amplifierBtn" title="Amplifier / Reducer (a)" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 8V12C2 12.55 2.45 13 3 13H5L7 17C7.18 17.36 7.56 17.59 7.95 17.59C8.63 17.59 9.08 16.86 8.79 16.25L7.2 13H9L16 17V3L9 7H5V7H3C2.45 7 2 7.45 2 8Z" fill="#a1a5af"/><path d="M18 7C18.55 7 19 7.45 19 8V12C19 12.55 18.55 13 18 13" stroke="#a1a5af" stroke-width="1.2" stroke-linecap="round"/></svg>
               </button>
             </td>
             <td>
-              <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)">
-                <svg width="20" height="20" viewBox="-1 -1 16 16"><path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#333" stroke="#333" stroke-width="1"/><path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="white" stroke="#333" stroke-width="1"/></svg>
+              <button class="tool-btn" data-tool="eraser" id="eraserBtn" title="Eraser (e)" onclick="this.blur()">
+                <svg width="20" height="20" viewBox="-1 -1 16 16"><path d="M5,0 L0,5 L5,10 L10,5 Z " fill="#a1a5af" stroke="#a1a5af" stroke-width="1"/><path d="M5,10 L10,5 L15,10 L12,13 L8,13 Z" fill="#444" stroke="#a1a5af" stroke-width="1"/></svg>
               </button>
             </td>
             <td>
-              <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#333"><path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/></svg>
+              <button class="tool-btn" data-tool="blur" id="blurBtn" title="Blur (u)" onclick="this.blur()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#a1a5af"><path d="M12 2C12 2 7 10 7 14a5 5 0 0 0 10 0c0-4-5-12-5-12z"/></svg>
               </button>
             </td>
           </tr>

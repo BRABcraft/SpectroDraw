@@ -354,6 +354,7 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
   //   line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
   // }
   simpleRestartRender();
+  drawEQ();
 }
 
 //Restarts render without resetting all canvases

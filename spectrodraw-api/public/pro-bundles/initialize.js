@@ -49,9 +49,9 @@ class RecorderProcessor extends AudioWorkletProcessor {
 registerProcessor('recorder-processor', RecorderProcessor);
 `;
 const micHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 5 19 19" fill="none" stroke="#a1a5af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M8 15a4 4 0 0 0 8 0" />
-  <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="#333"/>
+  <rect x="10" y="7" width="4" height="8" rx="2" ry="2" fill="#a1a5af"/>
   <line x1="12" y1="18" x2="12" y2="17"/>
   <line x1="9" y1="21" x2="15" y2="21"/>
 </svg>`;
@@ -89,6 +89,7 @@ const sWidth = document.getElementById("sWidth");
 const sWidthI = document.getElementById("sWidthInput");
 const sHeight = document.getElementById("sHeight");
 const sHeightI = document.getElementById("sHeightInput");
+const projectNameEl = document.getElementById("projectName");
 
 const MAX_HISTORY_ENTRIES = 80;
 const defaultFadePoints = [
@@ -361,6 +362,54 @@ function updateOptionValue(select, oldValue, newValue, newText = newValue) {
 function logDebugTime(msg){console.log(msg,Date.now()-debugTime);debugTime=Date.now();}
 
 
+function updateRangeFill(range) {
+  const min = range.min === "" ? 0 : Number(range.min);
+  const max = range.max === "" ? 100 : Number(range.max);
+  const val = Number(range.value);
+  const pct = ((val - min) / (max - min)) * 100;
+  range.style.setProperty("--fill", `${pct}%`);
+}
+
+function patchRangeValueSetter() {
+  const descriptor = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value"
+  );
+
+  Object.defineProperty(HTMLInputElement.prototype, "value", {
+    get: descriptor.get,
+    set: function(v) {
+      descriptor.set.call(this, v);
+
+      if (this.type === "range") {
+        updateRangeFill(this);
+      }
+    }
+  });
+}
+
+function initRangeFill() {
+  document.querySelectorAll('input[type="range"]').forEach(range => {
+    updateRangeFill(range);
+
+    range.addEventListener("input", () => updateRangeFill(range));
+    range.addEventListener("change", () => updateRangeFill(range));
+  });
+}
+
+patchRangeValueSetter();
+
+document.addEventListener("DOMContentLoaded", initRangeFill);
+function setProjectDirty() {
+  if (!projectNameEl.value.endsWith("*")) {
+    projectNameEl.value += "*";
+  }
+}
+function setProjectClean() {
+  if (projectNameEl.value.endsWith("*")) {
+    projectNameEl.value = projectNameEl.value.slice(0, -1);
+  }
+}
 function overlayCanvasPaint(opts={}) {
   for (let ch=0;ch<layerCount;ch++){
     const canvas = document.getElementById("canvas-"+ch);
@@ -714,6 +763,7 @@ class Knob {
 
   // render - for discrete, base on index; for continuous, base on numeric value
   render() {
+    this._buildLabels();
     this.updateTitle();
     if (!Array.isArray(this.range) || this.range.length < 2) return;
 
@@ -723,23 +773,62 @@ class Knob {
     let t = 0;
 
     if (this.type === 'discrete') {
-      // compute index for current value (use indexOf, fallback to closest)
       let idx = this.range.indexOf(this.value);
       if (idx === -1) idx = this._closestIndex(this.value);
-
       const n = this.range.length;
-      t = idx / (n - 1); // position across sweep
+      t = idx / (n - 1);
     } else {
-      // continuous mapping
       const span = max - min;
-      if (span === 0) t = 0;
-      else t = (this.value - min) / span;
+      t = span === 0 ? 0 : (this.value - min) / span;
     }
 
-    // clamp t
     t = Math.max(0, Math.min(1, t));
 
-    const angle = -135 + t * 270; // -135..+135
+    const startAngle = -135;
+    const endAngle = startAngle + t * 270;
+    const cx = 50;
+    const cy = 50;
+    const r = 34;
+
+    const degToRad = (deg) => (deg - 90) * Math.PI / 180;
+    const polarToCartesian = (centerX, centerY, radius, angleDeg) => ({
+      x: centerX + radius * Math.cos(degToRad(angleDeg)),
+      y: centerY + radius * Math.sin(degToRad(angleDeg))
+    });
+
+    const svg = this.el.querySelector("svg");
+    if (svg) {
+      if (!this.arcEl) {
+        this.arcEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        this.arcEl.setAttribute("class", "knob-arc");
+        this.arcEl.setAttribute("fill", "none");
+        this.arcEl.setAttribute("stroke", "#b27dfb");
+        this.arcEl.setAttribute("stroke-width", "5");
+        this.arcEl.setAttribute("stroke-linecap", "round");
+
+        const markerIndex = Array.from(svg.children).indexOf(this.marker);
+        if (markerIndex >= 0) {
+          svg.insertBefore(this.arcEl, this.marker);
+        } else {
+          svg.appendChild(this.arcEl);
+        }
+      }
+
+      if (t <= 0) {
+        this.arcEl.setAttribute("d", "");
+      } else {
+        const start = polarToCartesian(cx, cy, r, startAngle);
+        const end = polarToCartesian(cx, cy, r, endAngle);
+        const largeArcFlag = (endAngle - startAngle) > 180 ? 1 : 0;
+
+        this.arcEl.setAttribute(
+          "d",
+          `M ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)}`
+        );
+      }
+    }
+
+    const angle = startAngle + t * 270;
     this.marker.setAttribute("transform", `rotate(${angle} 50 50)`);
   }
 
@@ -747,38 +836,11 @@ class Knob {
   _buildLabels() {
     this.labelsEl.innerHTML = "";
     if (!Array.isArray(this.range) || this.range.length < 2) return;
+    
     const size = this.el.clientWidth || 72;
     const radius = size * 0.5 * 0.8;
     const cx = size / 2;
     const cy = size / 2;
-
-    // for continuous, sample a small number of ticks between range[0] and range[1]
-    let tempRange = this.range;
-    const diff = this.range[1] - this.range[0];
-    if (this.type === "continuous") {
-      tempRange = Array.from({ length: 5 }, (_, i) =>
-        (this.range[0] + i * diff / 4).toFixed((diff>5)?0:1)
-      );
-    }
-
-    const n = tempRange.length;
-    for (let i = 0; i < n; i++) {
-      const value = tempRange[i];
-      const t = i / (n - 1);
-      const angleDeg = -225 + t * 270;
-      const angleRad = angleDeg * Math.PI / 180;
-
-      const x = cx + Math.cos(angleRad) * radius;
-      const y = cy + Math.sin(angleRad) * radius;
-
-      const label = document.createElement("div");
-      label.className = "knob-label";
-      label.textContent = value;
-      label.style.fontSize = (size / 9) + "px";
-      label.style.left = `${x}px`;
-      label.style.top = `${y}px`;
-      this.labelsEl.appendChild(label);
-    }
 
     // name label
     const nameLabel = document.createElement("div");
@@ -787,8 +849,22 @@ class Knob {
     nameLabel.style.fontSize = (size / 6) + "px";
     nameLabel.style.background = "#222";
     nameLabel.style.left = `${cx}px`;
-    nameLabel.style.top = `${cy * 1.85}px`;
+    nameLabel.style.top = `${cy * 1.65}px`;
     this.labelsEl.appendChild(nameLabel);
+
+    // Continuous mode: no tick labels, only one value label on top of the knob
+    const valueLabel = document.createElement("div");
+    valueLabel.className = "knob-label knob-value-label";
+    valueLabel.textContent = (typeof Number(this.value).toFixed === "function") ? Number(this.value).toFixed(2) : this.value;
+    valueLabel.style.fontSize = (size / 7) + "px";
+    valueLabel.style.left = `${cx}px`;
+    valueLabel.style.top = `5px`; // above the knob center
+    valueLabel.style.transform = "translate(-50%, -50%)";
+    this.labelsEl.appendChild(valueLabel);
+
+    this.valueLabelEl = valueLabel;
+    return;
+    
   }
   setDisabled(disable) {
     if (disable) {
@@ -846,6 +922,7 @@ const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
   type: 'continuous',
   range: [0,1],
   value: 1,
+  onInput: ()=>{},
 });
 const sampleRateKnob = new Knob(document.getElementById('sampleRate'), {
   name:'Sample rate',

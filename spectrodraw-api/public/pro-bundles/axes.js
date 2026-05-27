@@ -389,11 +389,59 @@ window.addEventListener("touchend", e => {fDmode = -1;draggingFreq = false;});
 
 
 const playPauseBtn = document.getElementById("playPause");
-const ppohtml = `<svg xmlns="http://www.w3.org/2000/svg" fill="#333" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="6"/>
-          <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="2" />`;
-const playHtml = ppohtml + `<path d="M40 70 V30 l30 20z"/ fill="#fff"></svg>`
-const pauseHtml = ppohtml+`<rect x="34" y="30" width="10" height="36" rx="2" ry="2" fill="#fff"/><rect x="54" y="30" width="10" height="36" rx="2" ry="2" fill="#fff"/></svg>`;
+const ppohtml = `<svg viewBox="22 10 131 132" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+            gradientTransform="translate(87.5 76) rotate(90) scale(76 87.5)">
+            <stop offset="0%" stop-color="#1A1A1D"/>
+            <stop offset="70%" stop-color="#141416"/>
+            <stop offset="100%" stop-color="#101012"/>
+          </radialGradient>
+          <radialGradient id="disc" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+            gradientTransform="translate(87.5 76) rotate(90) scale(48 48)">
+            <stop offset="0%" stop-color="#151518"/>
+            <stop offset="100%" stop-color="#101013"/>
+          </radialGradient>
+          <radialGradient id="ringGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+            gradientTransform="translate(87.5 76) rotate(90) scale(66 66)">
+            <stop offset="58%" stop-color="#4B356F" stop-opacity="0"/>
+            <stop offset="78%" stop-color="#7050B8" stop-opacity="0.16"/>
+            <stop offset="92%" stop-color="#8A63E6" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#B38CFF" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="playFill" x1="70" y1="54" x2="110" y2="102" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#C7A7FF"/>
+            <stop offset="55%" stop-color="#A97DFF"/>
+            <stop offset="100%" stop-color="#8E62F3"/>
+          </linearGradient>
+          <filter id="blur8" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="8"/>
+          </filter>
+          <filter id="blur3" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3"/>
+          </filter>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feOffset dy="2"/>
+            <feGaussianBlur stdDeviation="2.5"/>
+            <feColorMatrix type="matrix" values="
+              0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 0.55 0"/>
+          </filter>
+        </defs>
+        <circle cx="87.5" cy="76" r="64" fill="#17171A"/>
+        <circle cx="87.5" cy="76" r="64" fill="none" stroke="#35353A" stroke-opacity="0.32" stroke-width="2"/>
+        <g filter="url(#blur8)"> <path d="M 34 94 A 58 58 0 0 0 141 94" fill="none" stroke="url(#ringGlow)" stroke-width="16" stroke-linecap="round" stroke-dasharray="94 280" stroke-dashoffset="28"/> </g>
+        <circle cx="87.5" cy="76" r="58" fill="none" stroke="#3B3A45" stroke-opacity="0.28" stroke-width="5"/>
+        <circle cx="87.5" cy="76" r="39" fill="url(#disc)"/>
+        <circle cx="87.5" cy="76" r="39" fill="none" stroke="#26252B" stroke-opacity="0.75" stroke-width="2"/>
+        <ellipse cx="87.5" cy="82" rx="31" ry="22" fill="#7B5AE5" opacity="0.06" filter="url(#blur3)"/>`;
+const playHtml = ppohtml + `<path d="M 69 53 L 69 99 L 105 76 Z" fill="url(#playFill)"/>`;
+const pauseHtml = ppohtml + `<g filter="url(#playfill)" transform="scale(1.4) translate(-25 -21)">
+          <rect x="76" y="56" width="6.5" height="40" rx="2.5" fill="url(#playFill)"/>
+          <rect x="92" y="56" width="6.5" height="40" rx="2.5" fill="url(#playFill)"/>
+        </g></svg>`;
 
 function playPause() {
   ensureAudioCtx();

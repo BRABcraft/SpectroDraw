@@ -195,6 +195,7 @@ let panShift=0.5,panStrength=1,panBand=100;
 let chorusVoices=1,chorusVoiceStrength=0.6,chorusDetune=20,chorusPanSpread=0.25,chorusRandomness=0.1;
 let pianoMode = false;
 let showSpriteOutline = false;
+let projectDirty = false;
 
 let handlers = {
   "canvas-": (el) => {
@@ -397,17 +398,16 @@ function initRangeFill() {
   });
 }
 
-patchRangeValueSetter();
-
-document.addEventListener("DOMContentLoaded", initRangeFill);
 function setProjectDirty() {
   if (!projectNameEl.value.endsWith("*")) {
     projectNameEl.value += "*";
+    projectDirty = true;
   }
 }
 function setProjectClean() {
   if (projectNameEl.value.endsWith("*")) {
     projectNameEl.value = projectNameEl.value.slice(0, -1);
+    projectDirty = false;
   }
 }
 function overlayCanvasPaint(opts={}) {
@@ -887,6 +887,7 @@ const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
     emptyAudioLength = knob.value;
     initEmptyPCM(false);
     visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
+    setProjectDirty();
   }
 });
 const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
@@ -901,6 +902,7 @@ const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
     restartRender(false);
     drawTimeline();
     overlayCanvasPaint();
+    setProjectDirty();
   }
 });
 const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
@@ -915,6 +917,7 @@ const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
     if (hopSizeKnob.range[1]<fftSize){hopSizeKnob.range[1]=fftSize; hopSizeKnob._buildLabels(); hopSizeKnob.render();}
     if (lockHop) {hopSizeKnob.setValue(fftSizeKnob.getValue());}
     visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
+    setProjectDirty();
   }
 });
 const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
@@ -922,7 +925,7 @@ const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
   type: 'continuous',
   range: [0,1],
   value: 1,
-  onInput: ()=>{},
+  onInput: ()=>{setProjectDirty();},
 });
 const sampleRateKnob = new Knob(document.getElementById('sampleRate'), {
   name:'Sample rate',
@@ -937,6 +940,7 @@ const sampleRateKnob = new Knob(document.getElementById('sampleRate'), {
     fHigh=sampleRate/2;
     simpleRestartRender(0,framesTotal);
     bufferLengthKnob.setValue(framesTotal*hop/sampleRate);
+    setProjectDirty();
     //bufferLengthKnob.render();
   }
 });

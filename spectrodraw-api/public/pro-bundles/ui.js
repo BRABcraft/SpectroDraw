@@ -2399,13 +2399,36 @@ document.getElementById("blurX").addEventListener("input",()=>{
   minCol=0;maxCol=framesTotal;
   restartRender(false,true);
 });
+projectNameEl.addEventListener("focus", () => {
+  // remove trailing "*" while editing
+  projectNameEl.value = projectNameEl.value.replace(/\*+$/, "");
+});
+
+function finalizeProjectName() {
+  let name = projectNameEl.value.replace(/\*+$/, "");
+  if (!name.endsWith(".sdproj")) {
+    name = name.replace(/\.sdproj$/, "") + ".sdproj";
+  }
+  projectNameEl.value = name;
+  if (projectDirty) setProjectDirty();
+}
+
 projectNameEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter")
-    projectNameEl.value = projectNameEl.value.replace(/\.sdproj$/, "") + ".sdproj";
+  if (e.key === "Enter") {
+    finalizeProjectName();
+  }
 });
+
 projectNameEl.addEventListener("blur", () => {
-  projectNameEl.value = projectNameEl.value.replace(/\.sdproj$/, "") + ".sdproj";
+  finalizeProjectName();
 });
+
+
+
+
+
+
+
 
 
 {

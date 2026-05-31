@@ -76,9 +76,8 @@
         }
         
         const price = String(j.price ?? "").trim();
-        
 
-        if (price !== "$39.99" && price !== "$40.00" && price !== "Free (early access deal)") return;
+        if (price !== "$39.99" && price !== "$40.00" && price !== "Free (early access deal)" && price !== "subscription") return;
         
         const overlay = document.createElement('div');
         overlay.id = 'spectrodraw-pro-iframe-overlay';

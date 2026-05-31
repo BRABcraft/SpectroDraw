@@ -1210,13 +1210,17 @@ async function handleUserProState(request, user, env) {
     "xcoolcat502@gmail.com","redearth1029@gmail.com","edisongarcialoya@gmail.com","jumpedzebra508@gmail.com","juvepena@icloud.com","sammyr5002@gmail.com","nguyen060913@stu.vinschool.edu.vn","camapdangnguyen2021@gmail.com","wafelznutella.mail@gmail.com","cinamonas99@hotmail.com","hamilton.ryan04@gmail.com","avernus2@atomicmail.io","popseecool@gmail.com",
     "deltaeffectsman@gmail.com","jona.klockars@gmail.com","hummusman5@gmail.com","kosepe5482@faxzu.com","lyon.m.ram.1@gmail.com","pranayandchaitnyaagarwal@gmail.com","808broken@gmail.com","geraldominic5@gmail.com","callan.walke@gmail.com","dustinc01@gmail.com","lolharambe33@gmail.com","snowbeast54@gmail.com","viruartt@gmail.com","rinyam1425@gmail.com",
     "milla.h.bell@protonmail.com","toxix0524@gmail.com","toxix0514@gmail.com","cnfans@tutamail.com","joeb2026@proton.me","chrisgameboygd@gmail.com","visonevea011@gmail.com","cp3938191@gmail.com","zach.isdale@gmail.com","carson123isfnaf@gmail.com","ramidak4@gmail.com","lavastrudel@gmail.com","milesferg@icloud.com","browsingtheinterwebs@gmail.com",
-    "iccullghtblu@gmail.com","sethroneatlas@gmail.com","clipriot3@gmail.com","tjw65653@gmail.com","cosmo.parisi.archi@gmail.com","lyradavis8568@gmail.com","narcisooubinabustelo@gmail.com","blake@slipsong.com"].includes(user.email)) return json({price: "Free (early access deal)"}, 200);
-  else {
-    const indexKey = 'spectrodraw-pro-buyers:index';
-    let idxRaw = await env.USERS.get(indexKey);
-    let index = JSON.parse(idxRaw);
-    if (index.includes(user.email)) return json({price: "$40.00"}, 200);
-  }
+    "iccullghtblu@gmail.com","sethroneatlas@gmail.com","clipriot3@gmail.com","tjw65653@gmail.com","cosmo.parisi.archi@gmail.com","lyradavis8568@gmail.com","narcisooubinabustelo@gmail.com","blake@slipsong.com"]
+    .includes(user.email)) return json({price: "Free (early access deal)"}, 200);
+  
+  let idxRaw = await env.USERS.get('spectrodraw-pro-buyers:index');
+  let index = JSON.parse(idxRaw);
+  if (index.includes(user.email)) return json({price: "$40.00"}, 200);
+
+  idxRaw = await env.USERS.get('subscribers');
+  index = JSON.parse(idxRaw).map(x=>x[0]);
+  if (index.includes(user.email)) return json({price: "subscription"}, 200);
+  
   return json({message:"User not in quick database yet"}, 200);
 }//pls when I have time, add a proper KV pair that tracks purchasers
 async function handleSneakPeak(request, env) {

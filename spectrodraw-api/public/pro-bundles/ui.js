@@ -305,6 +305,18 @@ function onToolChange(tool){
     b.style.background =(t===tool&&!d("select"))?"#6d19f4":(shouldHide(t))?"#555":"";
     b.style.cursor =(t===tool&&!d("select"))?"pointer":(shouldHide(t))?"not-allowed":"";
   });
+  shapeButtons.forEach(b => {
+    const s = b.dataset.shape;
+    function shouldHide2(shape) {
+      function e(b){return shape===b;}
+      return (currentTool==="cloner" && (e("image")||e("select"))
+       ||(currentTool==="autotune"    &&(e("image")||e("synth" )))
+       ||(currentTool==="noiseRemover"&& e("image"))
+      );
+    }
+    b.style.background=shouldHide2(s)?"#555":"";
+    b.style.cursor =(shouldHide2(s))?"not-allowed":"";
+  });
   document.getElementById("brushEffectSelect").value=tool;
   updateBrushSettingsDisplay();
   updateBrushPreview();
@@ -334,7 +346,6 @@ function onShapeChange(shape){
   } else if (images.length === 0){
     overlayFile.click();
   }
-  
   function c(b){return currentTool===b;}
   function d(b){return shape===b;}
   if (c("cloner")&&(d("image")||d("stamp"))) onToolChange('fill');
@@ -1256,8 +1267,8 @@ noprmi.addEventListener("input",()=>{noprmi.value = noiseProfileMin = Math.floor
 const noprma = document.getElementById("setNoiseProfileMax")
 noprma.addEventListener("input",()=>{noprma.value = noiseProfileMax = Math.floor(noprma.value);});
 
-function autoSetNoiseProfile() {
-  if (currentTool !== "noiseRemover") return;
+function autoSetNoiseProfile(anyways=false) {
+  if (currentTool !== "noiseRemover"&&!anyways) return;
   const mags = layers[currentLayer].mags;
 
   const BIN_STEP = 8; // skip bins for speed
@@ -1346,7 +1357,7 @@ function autoSetNoiseProfile() {
   noiseProfileMin = 0;
   noiseProfileMax = framesTotal;
   noiseProfile = computeNoiseProfileFromFrames(ch,noiseProfileMin,noiseProfileMax);
-  updateNoiseProfile(falses);
+  updateNoiseProfile(false);
 }
 window.addEventListener("resize",()=>{
   minCol = 0; maxCol = framesTotal;

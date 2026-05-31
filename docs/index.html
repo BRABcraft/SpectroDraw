@@ -513,7 +513,7 @@ body{
   <div class="news-viewport">
     <div class="news-track" id="newsTrack">
       <a style="text-decoration: underline;" href="./events/" class="news-item">
-        🎁 SpectroDraw Pro: Send feedback to enter a $25 giveaway! 🎁
+        🎁 SpectroDraw Pro: Send feedback to enter a $25 giveaway! Ends in <span id="giveawayCountdown">00:00:00</span> 🎁
       </a>
 
       <a style="text-decoration: underline;" href="./buy-pro/" class="news-item">
@@ -577,11 +577,30 @@ body{
     const track = document.getElementById("newsTrack");
     const prevBtn = document.getElementById("newsPrev");
     const nextBtn = document.getElementById("newsNext");
-    if (!track || !prevBtn || !nextBtn) return;
+    if (!track || !nextBtn) return;
 
     const items = track.querySelectorAll(".news-item");
     let index = 0;
     let timer = null;
+
+    const countdownEl = document.getElementById("giveawayCountdown");
+    const target = new Date("2026-06-01T00:00:00-04:00"); // June 1, 2026 in New York time
+
+    function updateCountdown() {
+      if (!countdownEl) return;
+
+      const now = new Date();
+      let diff = target - now;
+
+      if (diff < 0) diff = 0;
+
+      const totalSeconds = Math.floor(diff / 1000);
+      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+      const seconds = String(totalSeconds % 60).padStart(2, "0");
+
+      countdownEl.textContent = `${hours}:${minutes}:${seconds}`;
+    }
 
     function update() {
       track.style.transform = `translateX(-${index * 100}%)`;
@@ -607,16 +626,22 @@ body{
       timer = null;
     }
 
-    nextBtn.addEventListener("click", () => {
-      next();
-      startAutoScroll();
-    });
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => {
+        next();
+        startAutoScroll();
+      });
+    }
 
-    prevBtn.addEventListener("click", () => {
-      prev();
-      startAutoScroll();
-    });
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => {
+        prev();
+        startAutoScroll();
+      });
+    }
 
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
     startAutoScroll();
   })();
 </script>

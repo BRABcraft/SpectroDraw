@@ -126,6 +126,8 @@ function sanitizeUserForStorage(user) {
   
   function setSignupMode(on) {
     isSignup = !!on;
+    const fgpl = document.getElementById('forgot-password-link');
+    if(fgpl)fgpl.style.display = isSignup?'none':'inline-block';
     signupOnlyElems.forEach(el => { el.style.display = isSignup ? 'flex' : 'none'; });
     primaryBtn.textContent = isSignup ? 'Sign up' : 'Sign in';
     googleBtnText.textContent = isSignup ? 'Sign up with Google' : 'Log in with Google';

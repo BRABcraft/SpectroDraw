@@ -257,6 +257,7 @@ const sliderDefs = [
   ['sblurRadius',      'sblurRadiusInput',      'blurRadius'],
   ['samp',             'sampInput',             'amp'            ],
   ['snoiseAgg',        'snoiseAggInput',        'noiseAgg'],
+  ['sselectionAmp',    'sselectionAmpInput',    'selectionAmp'],
   ['sautoTuneStrength','sautoTuneStrengthInput','autoTuneStrength'],
   ['snpo',             'snpoInput',             'anpo'],
   ['sstartOnPitch',    'sstartOnPitchInput',    'aStartOnP'],
@@ -346,6 +347,7 @@ function renderToolEditorSettings(newEffect) {
   if (document.getElementById("effectSettingsToggleBtn").getAttribute("aria-expanded") === "false") return;
   function c(b){return newEffect.tool===b}
   document.getElementById("samplifyDiv")   .style.display=(c("amplifier")||c("sample"))?"flex":"none";
+  document.getElementById("sselectionAmplifyDiv")   .style.display=(c("n/a"))?"flex":"none";
   document.getElementById("snoiseAggDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("ssetNoiseProfileDiv").style.display=(c("noiseRemover"))?"flex":"none";
   document.getElementById("sblurRadiusDiv").style.display=(c("blur"))?"flex":"none";
@@ -461,6 +463,12 @@ async function updateSpriteChannels(){
 async function updateSpriteEffects(spriteId, newEffect) {
   const sprite = getSpriteById(spriteId);
   if (!sprite) return;
+  if (newEffect.tool === "noiseRemover" && newEffect.noiseProfile.length === 0) {
+    autoSetNoiseProfile(true);
+    newEffect.noiseProfile=new Array(...noiseProfile);
+    newEffect.noiseProfileMin=noiseProfileMin;
+    newEffect.noiseProfileMax=noiseProfileMax;
+  }
   let recomputeMin = Infinity, recomputeMax = -Infinity;
   let $s = sprite.ch==="all"?0:sprite.ch, $e = sprite.ch==="all"?layerCount:sprite.ch+1;
   visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
@@ -495,7 +503,7 @@ async function updateSpriteEffects(spriteId, newEffect) {
       forEachSpritePixelInOrder(sigSprite, ch, (x, y, prevMag, prevPhase, prevPan, newMag, newPhase, newPan) => {
         if (x<sprite.maxCol&&x>sprite.minCol) {
           const id = x * specHeight + y;
-          const newPixel = (sprite.effect.shape==="select")?{mag:newMag,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift,pan:newPan}
+          const newPixel = (sprite.effect.shape==="select")?{mag:newMag*sprite.effect.selectionAmp,phase:newPhase*sprite.effect.phaseStrength+sprite.effect.phaseShift,pan:newPan}
           :applyEffectToPixel(z?newMag:prevMag, z?newPhase:prevPhase, z?newPan:prevPan, x, y, newEffect, integral);
           mags[id] = newPixel.mag;
           phases[id] = newPixel.phase;
@@ -567,7 +575,7 @@ function toggleSpriteEnabled(spriteId, enable) {
       // write next values at recorded coords
       forEachSpritePixelInOrder(sprite, ch, (x, y, _prevMag, _prevPhase, _prevPan, nextMag, nextPhase, nextPan) => {
         const id = x * specHeight + y;
-        if (Math.abs(_prevMag-nextMag)<0.002) return;
+        //if (Math.abs(_prevMag-nextMag)<0.002) return;
         mags[id] = nextMag;
         phases[id] = nextPhase;
         pans[id] = nextPan;
@@ -577,7 +585,7 @@ function toggleSpriteEnabled(spriteId, enable) {
       // write prev values back
       forEachSpritePixelInOrder(sprite, ch, (x, y, prevMag, prevPhase, prevPan, nextMag) => {
         const id = x * specHeight + y;
-        if (Math.abs(prevMag-nextMag)<0.002) return;
+        //if (Math.abs(prevMag-nextMag)<0.002) return;
         mags[id] = prevMag;
         phases[id] = prevPhase;
         pans[id] = prevPan;
@@ -792,7 +800,7 @@ function formatSignificantAsSprite(origSprite, sig) {
         for (let yr = 0; yr < colArr.length; yr++) {
           if (!colArr[yr]) continue;
           const yGlobal = clusterY0 + yr;
-          let prevMag = 0, prevPhase = 0, nextMag = 0, nextPhase = 0;
+          let prevMag = 0, prevPhase = 0, nextMag = 0, nextPhase = 0, prevPan = 0, nextPan = 0;
           if (origSprite && origSprite.pixels[ch]) {
             const srcCol = origSprite.pixels[ch].get(xGlobal);
             if (srcCol && Array.isArray(srcCol.ys)) {
@@ -1427,63 +1435,109 @@ function buildCanvasPts(w, h, sid=selectedSpriteId) {
 }
 
 // populate spriteFade[] by sampling the curve per pixel column
-function sampleSpriteFade(w, h, sid=selectedSpriteId) {
+function sampleSpriteFade(w,h, sid = selectedSpriteId) {
   const s = getSpriteById(sid);
-  if (!s) return;
+  if (!s) return null;
 
-  // ensure spriteFade exists and has correct length
-  if (!s.spriteFade || !(s.spriteFade instanceof Float32Array) || s.spriteFade.length !== w) {
-    s.spriteFade = new Float32Array(w);
+  const sampleW = w;
+  const sampleH = h;
+
+  if (!s.spriteFade || !(s.spriteFade instanceof Float32Array) || s.spriteFade.length !== sampleW) {
+    s.spriteFade = new Float32Array(sampleW);
   }
 
-  // now local reference always points to the authoritative array
   const spriteFade = s.spriteFade;
-
-  // clone values into prevSpriteFade (new buffer, not same reference)
   s.prevSpriteFade = new Float32Array(spriteFade);
 
-  const pts = buildCanvasPts(w, h, sid);
-  if (pts.length === 0) {
-    for (let i = 0; i < w; i++) spriteFade[i] = 1.0;
-    return;
+  const pts = buildCanvasPts(sampleW, sampleH, sid);
+  if (!pts || pts.length === 0) {
+    spriteFade.fill(1.0);
+    return spriteFade;
+  }
+  for (let p of pts){
+    
+    const sx = sampleW / fadeCanvas.width;
+    const sy = sampleH / fadeCanvas.height;
+
+    p.mx *= sx;
+    p.my *= sy;
   }
 
-  for (let xi = 0; xi < w; xi++) {
-    const targetX = xi + 0.5; // pixel center
-    if (targetX <= pts[0].x) {
-      const v = 1 - (pts[0].y / h);
-      spriteFade[xi] = Math.max(0, Math.min(1, v));
-      continue;
-    }
-    if (targetX >= pts[pts.length - 1].x) {
-      const v = 1 - (pts[pts.length - 1].y / h);
-      spriteFade[xi] = Math.max(0, Math.min(1, v));
-      continue;
-    }
+  const path = [];
+  const first = pts[0];
+  const start = evalHermiteAt(first, pts[1] || first, 0);
+  path.push({ x: start.X, y: start.Y });
 
-    let found = false;
-    for (let si = 0; si < pts.length - 1; si++) {
-      const p0c = pts[si];
-      const p1c = pts[si + 1];
-      if (targetX + 1 < Math.min(p0c.x, p1c.x) || targetX - 1 > Math.max(p0c.x, p1c.x)) continue;
-      const t = findTForXOnSegment(p0c, p1c, targetX);
-      if (t === null) continue;
-      const { X, Y } = evalHermiteAt(p0c, p1c, t);
-      const v = 1 - (Y / h);
-      spriteFade[xi] = Math.max(0, Math.min(1, v));
-      found = true;
-      break;
-    }
+  for (let si = 0; si < pts.length - 1; si++) {
+    const p0 = pts[si];
+    const p1 = pts[si + 1];
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const dist = Math.hypot(dx, dy);
 
-    if (!found) {
-      let k = 0;
-      while (k < pts.length - 1 && targetX > pts[k + 1].x) k++;
-      const p0 = pts[k], p1 = pts[Math.min(k + 1, pts.length - 1)];
-      const alpha = (targetX - p0.x) / Math.max(1e-6, (p1.x - p0.x));
-      const ly = p0.y * (1 - alpha) + p1.y * alpha;
-      spriteFade[xi] = Math.max(0, Math.min(1, 1 - (ly / h)));
+    const steps = Math.max(8, Math.floor(dist / 6));
+
+    for (let step = 1; step <= steps; step++) {
+      const t = step / steps;
+      const { X, Y } = evalHermiteAt(p0, p1, t);
+      path.push({ x: X, y: Y });
     }
   }
+
+  // Optional: x-sorted copy for debugging only.
+  const pathByX = path.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+
+  spriteFade.fill(NaN);
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i];
+    const b = path[i + 1];
+
+    const x0 = a.x, y0 = a.y;
+    const x1 = b.x, y1 = b.y;
+
+    const minX = Math.min(x0, x1);
+    const maxX = Math.max(x0, x1);
+
+    if (Math.abs(x1 - x0) < 1e-9) {
+      const col = Math.max(0, Math.min(sampleW - 1, Math.round(x0 - 0.5)));
+      const y = (y0 + y1) * 0.5;
+      spriteFade[col] = Math.max(0, Math.min(1, 1 - (y / sampleH)));
+      continue;
+    }
+
+    const startCol = Math.max(0, Math.floor(minX - 0.5));
+    const endCol   = Math.min(sampleW - 1, Math.ceil(maxX - 0.5));
+
+    for (let xi = startCol; xi <= endCol; xi++) {
+      const targetX = xi + 0.5;
+      if (targetX < minX || targetX > maxX) continue;
+
+      const t = (targetX - x0) / (x1 - x0);
+      const y = y0 + (y1 - y0) * t;
+      spriteFade[xi] = Math.max(0, Math.min(1, 1 - (y / sampleH)));
+    }
+  }
+
+  let last = NaN;
+  for (let i = 0; i < sampleW; i++) {
+    if (Number.isFinite(spriteFade[i])) last = spriteFade[i];
+    else if (Number.isFinite(last)) spriteFade[i] = last;
+  }
+
+  last = NaN;
+  for (let i = sampleW - 1; i >= 0; i--) {
+    if (Number.isFinite(spriteFade[i])) last = spriteFade[i];
+    else if (Number.isFinite(last)) spriteFade[i] = last;
+  }
+
+  for (let i = 0; i < sampleW; i++) {
+    if (!Number.isFinite(spriteFade[i])) spriteFade[i] = 1.0;
+    else if (spriteFade[i] < 0) spriteFade[i] = 0;
+    else if (spriteFade[i] > 1) spriteFade[i] = 1;
+  }
+
+  return spriteFade;
 }
 
 
@@ -1586,7 +1640,7 @@ function renderSpriteFade(updateSprite,sid=selectedSpriteId) {
     fcctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
     fcctx.fill();
   }
-  sampleSpriteFade(50, 30);
+  sampleSpriteFade(150, 90);
   // sample into spriteFade per pixel column
   if (updateSprite) {
     processSpriteFade(sid);
@@ -1798,7 +1852,7 @@ const newFadePt = (cx,cy) => {
   let insertAt = s.fadePoints.findIndex(p => p.x > nx);
   if (insertAt === -1) insertAt = s.fadePoints.length;
   s.fadePoints.splice(insertAt, 0, { x: nx, y: ny, mx: 120, my: 0, tLen: 120 });
-  renderSpriteFade();
+  renderSpriteFade(true);
 }
 
 const removeFadePt = (cx,cy) => {
@@ -1809,7 +1863,7 @@ const removeFadePt = (cx,cy) => {
   const nx = cx / w; const ny = 1 - (cy / h);
   
   if (!s.fadePoints.length) {
-    renderSpriteFade();
+    renderSpriteFade(true);
     return;
   }
   let nearestIndex = -1;
@@ -1828,7 +1882,7 @@ const removeFadePt = (cx,cy) => {
   if (nearestDist <= REMOVE_THRESHOLD) {
     s.fadePoints.splice(nearestIndex, 1);
   }
-  renderSpriteFade();
+  renderSpriteFade(true);
 }
 
 // attach events

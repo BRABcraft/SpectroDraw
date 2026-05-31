@@ -55,7 +55,7 @@ function newSprite(opts={}){
   for(let c=0;c<layerCount;c++) pixelmap.push((syncLayers||c==currentLayer)?(new Map()):null);
   currentSprite = {
     id: nextSpriteId++,
-    effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg,
+    effect: {tool: opts.tool??currentTool, brushBrightness, brushSize, brushOpacity, phaseStrength, phaseShift, amp, noiseAgg, selectionAmp:1,
       blurRadius,phaseTexture:phaseTextureEl.value,anpo,aStartOnP,autoTuneStrength,t0,tau,sigma,harmonicCenter,userDelta,
       refPhaseFrame,chirpRate,shape:currentShape,noiseProfileMin,noiseProfileMax,noiseProfile,width:opts.width??0,height:opts.height??0,
       panShift,panStrength,panTexture:document.getElementById("brushPanTexture").value,panBand,magStrength,
@@ -135,6 +135,13 @@ function canvasMouseDown(e,touch) {
   }
   if (!hasSetNoiseProfile) autoSetNoiseProfile();
   const {cx,cy} = getCanvasCoords(e,touch);
+  
+  if (extractingProfile) {
+    extractProfileBtn.click();
+    extractProfile(cx, cy);
+    overlayCanvasPaint();
+    return;
+  }
   prevMouseX = cx; prevMouseY = cy; vr = 1;
   const mags = layers[currentLayer].mags, phases = layers[currentLayer].phases;
   const overlayCanvas = document.getElementById("overlay-"+currentLayer)
@@ -242,6 +249,10 @@ function canvasMouseMove(e,touch,el) {
   if (painting && (movingSprite||changingNoiseProfile||currentShape==="select") || draggingSample!==null) {previewShape(cx, cy);return;}
   if (changingNoiseProfile) return;
   if (zooming) return;
+  if (extractingProfile) {
+    overlayCanvasPaint({cx,cy});
+    return;
+  }
   if (!recording) {
     const hz = getSineFreq(visibleToSpecY(cy));
     const secs = Math.floor((cx+iLow)/(sampleRate/hop)*10000)/10000;
@@ -316,7 +327,6 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
     sineOsc = null;
     sineGain = null;
   }
-  minCol = Infinity; maxCol = -Infinity;
   visited = null;
   painting = false;
   if(currentTool==="cloner"){changingClonerPos=false;updateBrushPreview();const ccp = document.getElementById("changeClonerPosBtn"); ccp.innerText ="Change Reference Point";ccp.classList.toggle('moving', false);}
@@ -330,6 +340,8 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
     }
     return;}
   const { cx, cy } = getCanvasCoords(e,touch);
+  //minCol = Math.floor(Math.min(startX,cx)); maxCol = Math.floor(Math.max(startX,cx));
+  minCol=Infinity,maxCol=-Infinity;
   if (movingSprite) {handleMoveSprite(cx,cy);return;}
   if (currentShape === "select") {createNewSpriteFromSelection(startX, displayYToBin(visibleToSpecY(startY),specHeight,currentLayer), cx, displayYToBin(visibleToSpecY(cy),specHeight,currentLayer)); return;}
   const overlayCanvas = document.getElementById("overlay-"+currentLayer);
@@ -353,17 +365,17 @@ function canvasMouseUp(e,touch) {debugTime = Date.now();
   //   startFrame0 = Math.round((startTime*(sampleRate/hop)) + iLow);
   //   line(startFrame0, cx, visibleToSpecY(cy), visibleToSpecY(cy),brushS);
   // }
-  simpleRestartRender();
+  simpleRestartRender(minCol,maxCol,true);
   drawEQ();
 }
 
 //Restarts render without resetting all canvases
-function simpleRestartRender(min=-1,max=-1){
+function simpleRestartRender(min=-1,max=-1,recomputeAnyways=false){
   startX=startY=null;
   startTime = performance.now();
   audioProcessed = 0;
   let a;
-  a = autoRecomputePCM(min,max);
+  a = autoRecomputePCM(min,max,recomputeAnyways);
   pendingHistory = true;
   pendingPlayAfterRender = true; 
   let startFrame = a.minCol;
@@ -378,24 +390,26 @@ function simpleRestartRender(min=-1,max=-1){
 }
 
 let minCol = Infinity; maxCol = -Infinity;
-function calcMinMaxCol() {
-  if (isFinite(minCol) && isFinite(maxCol)) {return {minCol,maxCol};}
+function calcMinMaxCol(recomputeAnyways=false) {
+  if (isFinite(minCol) && isFinite(maxCol)&&!recomputeAnyways) {return {minCol,maxCol};}
   const mags = layers[currentLayer].mags, snapshotMags = layers[currentLayer].snapshotMags;
   if (snapshotMags === null || snapshotMags.length !== mags.length) {minCol = 0;maxCol=specWidth;return {minCol,maxCol};}
-  const EPS = 1e-2;
   const h = specHeight;
   const total = mags.length;
-  for (let idx = 0; idx < total; idx++) {
+  const lowInterval = isFinite(minCol)?[(minCol-(fftSize/hop))*specHeight,minCol*specHeight]:[0,total/2];
+  const highInterval = isFinite(maxCol)?[maxCol*specHeight,(maxCol+(fftSize/hop))*specHeight]:[total/2,0];
+  function checkPos(idx) {
     const oldM = snapshotMags[idx];
     const newM = mags[idx];
-    if (Math.abs(oldM - newM) > EPS ||
-      Math.abs(layers[currentLayer].snapshotPhases[idx] - layers[currentLayer].phases[idx]) > EPS ||
-      Math.abs(layers[currentLayer].snapshotPans[idx] - layers[currentLayer].pans[idx]) > EPS) {
+    if (Math.abs(oldM - newM) > 0.01 ||
+      Math.abs(layers[currentLayer].snapshotPhases[idx] - layers[currentLayer].phases[idx]) > 0.0001 ||
+      Math.abs(layers[currentLayer].snapshotPans[idx] - layers[currentLayer].pans[idx]) > 0.0001) {
       const col = Math.floor(idx / h);
       if (col < minCol) minCol = col;
       if (col > maxCol) maxCol = col;
     }
   }
+  for (let idx = 0; idx < total; idx++) checkPos(idx);
   if (isFinite(minCol)) {
     minCol = Math.max(0, minCol);
     maxCol = Math.min(specWidth - 1, maxCol);
@@ -406,10 +420,10 @@ function calcMinMaxCol() {
   return {minCol,maxCol};
 }
 
-function autoRecomputePCM(min,max) {
+function autoRecomputePCM(min,max,recomputeAnyways) {
   let minCol, maxCol;
-  if (min == -1) {
-    let a = calcMinMaxCol();
+  if (min == -1 || recomputeAnyways) {
+    let a = calcMinMaxCol(recomputeAnyways);
     minCol=a.minCol;maxCol=a.maxCol;
   } else {
     minCol = min;
@@ -444,22 +458,30 @@ function newHistory() {if (!currentSprite) return;
   for (let ch=$s;ch<$e;ch++){
     let mags = layers[ch].mags, phases = layers[ch].phases, pans=layers[ch].pans;
     let snapshotMags = layers[ch].snapshotMags, snapshotPhases = layers[ch].snapshotPhases, snapshotPans=layers[ch].snapshotPans;
-    const startF = minCol*specHeight;
-    const endF = maxCol*specHeight;
-    let totalDiff = 0;
+    const startF = Math.floor(minCol)*specHeight;
+    const endF = Math.floor(maxCol)*specHeight;
+    let totalDiff = [0,0,0];
     let countDiff = 0;
     for (let idx = startF; idx < endF; idx++) {
       const oldM = snapshotMags[idx] || 0;
       const newM = mags[idx] || 0;
+      const oldPhase = snapshotPhases[idx] || 0;
+      const newPhase = phases[idx] || 0;
+      const oldPan = snapshotPans[idx] || 0;
+      const newPan = pans[idx] || 0;
       const bin = idx%specHeight;
-      if (bin === 0) {countDiff=0; totalDiff=0;}
+      if (bin === 0) {countDiff=0; totalDiff=[0,0,0];}
       countDiff++;
-      totalDiff += Math.abs(oldM - newM);  
-      if (Math.abs(oldM - newM) > Math.min(0.4,(totalDiff/countDiff)*0.2)){
-        const oldPhase = snapshotPhases[idx] || 0;
-        const newPhase = phases[idx] || 0;
-        const oldPan = snapshotPans[idx] || 0;
-        const newPan = pans[idx] || 0;
+      totalDiff[0] += Math.abs(oldM - newM);
+      totalDiff[1] += Math.abs(oldPhase - newPhase);
+      totalDiff[2] += Math.abs(oldPan - newPan);
+      const threshold = (i)=>{return Math.min(0.4, (totalDiff[i] / countDiff) * 0.2);}
+      //console.log(threshold(0));
+      if (
+        Math.abs(oldM - newM) > threshold(0) ||
+        Math.abs(oldPhase - newPhase) > threshold(1) ||
+        Math.abs(oldPan - newPan) > threshold(2)
+      ){
         addPixelToSprite(currentSprite, Math.floor(idx/specHeight), bin, oldM, oldPhase, oldPan, newM, newPhase, newPan, ch);
       }
     }
@@ -795,7 +817,7 @@ async function playFrame(frameX) {
 
   const targetNode = _getPlaybackTarget();
   const gainNode = audioCtx.createGain();
-  gainNode.gain.setValueAtTime(masterVolumeKnob.getValue(), audioCtx.currentTime);
+  gainNode.gain.setValueAtTime(masterVolumeKnob.getValue()*document.getElementById("drawVolume").value, audioCtx.currentTime);
   sourceNode.connect(gainNode);
   gainNode.connect(targetNode);
   sourceStartTime = audioCtx.currentTime - (start / sampleRate);

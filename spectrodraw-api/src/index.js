@@ -104,6 +104,9 @@ export default {
       if (pathname === "/api/submit-buyer-survey" && request.method === "POST") {
         return addCors(await handleSubmitBuyerSurvey(request, user, env), request);
       }
+      if (pathname === '/api/paypal/webhook' && request.method === 'POST') {
+        return handlePayPalWebhook(request, env);
+      }
       if ((request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/spectrodraw-pro/')) {
         const kvBindingName = '__spectrodraw-api-workers_sites_assets'; // <-- confirm this name
         const kv = env && env[kvBindingName];
@@ -1058,9 +1061,8 @@ async function handleMakePurchase(request, user, env) {
 
     const bodyEmail = String(bodyUser?.email || '').trim().toLowerCase();
     const authEmail = String(user?.email || '').trim().toLowerCase();
-
-    // Use the request body account first, since that is the account the UI is on.
     const email = bodyEmail || authEmail;
+    const monthly = !!body?.monthly;
 
     if (!email) return json({ message: 'Missing user email' }, 400);
 
@@ -1073,31 +1075,51 @@ async function handleMakePurchase(request, user, env) {
     }
 
     const now = new Date().toISOString();
+    const purchaseUnixTime = Math.floor(Date.now() / 1000);
     const claimKey = `product:${email}`;
 
     await env.USERS.put(
       claimKey,
       JSON.stringify({
         email,
-        product: "SpectroDraw Pro",
-        price: "$39.99",
-        claimedAt: now
+        product: 'SpectroDraw Pro',
+        price: monthly ? 'subscription' : '$39.99',
+        claimedAt: now,
+        monthly
       })
     );
 
-    const indexKey = 'spectrodraw-pro-buyers:index';
-    let idxRaw = await env.USERS.get(indexKey);
-    let index = [];
-    if (idxRaw) {
-      try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
-      if (!Array.isArray(index)) index = [];
-    }
-    if (!index.includes(email)) {
-      index.push(email);
-      await env.USERS.put(indexKey, JSON.stringify(index));
+    if (monthly) {
+      const subscribersKey = 'subscribers';
+      let raw = await env.USERS.get(subscribersKey);
+      let subscribers = [];
+
+      if (raw) {
+        try {
+          subscribers = JSON.parse(raw);
+        } catch {
+          subscribers = [];
+        }
+        if (!Array.isArray(subscribers)) subscribers = [];
+      }
+
+      subscribers.push([email, purchaseUnixTime]);
+      await env.USERS.put(subscribersKey, JSON.stringify(subscribers));
+    } else {
+      const indexKey = 'spectrodraw-pro-buyers:index';
+      let idxRaw = await env.USERS.get(indexKey);
+      let index = [];
+      if (idxRaw) {
+        try { index = JSON.parse(idxRaw); } catch (e) { index = []; }
+        if (!Array.isArray(index)) index = [];
+      }
+      if (!index.includes(email)) {
+        index.push(email);
+        await env.USERS.put(indexKey, JSON.stringify(index));
+      }
     }
 
-    return json({ claimed: true, email, claimedAt: now }, 201);
+    return json({ claimed: true, email, claimedAt: now, monthly }, 201);
   } catch (err) {
     console.error('handleMakePurchase error:', err);
     return json({ message: err.message || 'Failed to record claim' }, 500);
@@ -1514,5 +1536,48 @@ async function handleSubmitBuyerSurvey(request, user, env) {
   } catch (err) {
     console.error("handleSubmitBuyerSurvey error:", err);
     return json({ message: err.message || "Failed to record survey submission" }, 500);
+  }
+}
+
+
+
+
+
+
+async function handlePayPalWebhook(request, env) {
+  try {
+    const event = await request.json();
+
+    if (event?.event_type !== 'BILLING.SUBSCRIPTION.SUSPENDED') {
+      return json({ ok: true, ignored: true }, 200);
+    }
+
+    const email = String(event?.resource?.subscriber?.email_address || '').trim().toLowerCase();
+    if (!email) {
+      return json({ message: 'Missing subscriber email' }, 400);
+    }
+
+    const subscribersKey = 'subscribers';
+    let subscribersRaw = await env.USERS.get(subscribersKey);
+    let subscribers = [];
+
+    if (subscribersRaw) {
+      try {
+        subscribers = JSON.parse(subscribersRaw);
+      } catch {
+        subscribers = [];
+      }
+    }
+
+    if (!Array.isArray(subscribers)) subscribers = [];
+
+    subscribers = subscribers.filter(([e]) => String(e).trim().toLowerCase() !== email);
+
+    await env.USERS.put(subscribersKey, JSON.stringify(subscribers));
+
+    return json({ ok: true, removed: email }, 200);
+  } catch (err) {
+    console.error('handlePayPalWebhook error:', err);
+    return json({ message: err.message || 'Webhook failed' }, 500);
   }
 }

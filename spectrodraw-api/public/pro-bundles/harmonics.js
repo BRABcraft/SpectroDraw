@@ -142,6 +142,32 @@ harmonicsPreset.addEventListener("input", ()=>{
   } else if (e === "custom") {
     toggleSection(document.getElementById("brushHarmonicsEditorDivToggleBtn"));
   }
+  if (e!=="custon") {
+    const expObj = getExpressionById("brushHarmonicsEditorh3");
+    expObj.expression = defaultExpressions["brushHarmonicsEditorh3"];
+    expObj.lines = expObj.expression.split(/\r\n|\r|\n/);
+    if (getExpressionById("brushHarmonicsEditorh3").showing){hideExpression("brushHarmonicsEditorh3");showExpression("brushHarmonicsEditorh3");}
+  }
   renderHarmonicsCanvas();
   updateBrushPreview();
 });
+
+const extractProfileBtn = document.getElementById("harmonicsExtractProfileBtn");
+extractProfileBtn.addEventListener("click",()=>{
+  extractingProfile = !extractingProfile;
+  extractProfileBtn.classList.toggle('moving',extractingProfile);
+})
+
+function extractProfile(cx, cy) {
+  const f = sampleRate/fftSize;
+  const mags = layers[currentLayer].mags;
+  for (let i=1;i<100;i++) {
+    const bin = Math.floor(invlsc((specHeight-visibleToSpecY(cy))*f,sampleRate/2,logScaleVal[currentLayer])*i/f);
+    if (bin>specHeight) continue;
+    const mag = mags[Math.floor(cx)*specHeight+bin];
+    harmonics[i] = mag/255;
+  }
+  harmonics[99]=0;
+  renderHarmonicsCanvas();
+  updateBrushPreview();
+}

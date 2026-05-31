@@ -12,8 +12,162 @@
 </script>
 <title>Checkout • SpectroDraw</title>
 
-<script src="https://www.paypal.com/sdk/js?client-id=AVws1CI3HIHSFosdInayMN7ZqRgnuV4npmY1K-WEAVoqwAGytasPPpoC5G9JJw-splvCd9fKh7qQ8pYJ&currency=USD&components=buttons"></script>
+<script>
+  const plan = new URLSearchParams(window.location.search).get('plan');
+  const src = plan === 'monthly'
+  //? 'https://www.paypal.com/sdk/js?client-id=AVws1CI3HIHSFosdInayMN7ZqRgnuV4npmY1K-WEAVoqwAGytasPPpoC5G9JJw-splvCd9fKh7qQ8pYJ&vault=true&intent=subscription'
+  ?   'https://www.paypal.com/sdk/js?client-id=Aav5jVmFqcCz1XoQNDPt-x64R-Ldkcx8IDVKBubbVbZVae9hH1BT1hiwqSiPol5qihKvvPYG6_9JfN-9&vault=true&intent=subscription'
+  : 'https://www.paypal.com/sdk/js?client-id=AVws1CI3HIHSFosdInayMN7ZqRgnuV4npmY1K-WEAVoqwAGytasPPpoC5G9JJw-splvCd9fKh7qQ8pYJ&currency=USD&components=buttons';
 
+  const s = document.createElement('script');
+  s.src = src;
+  s.onload = () => {
+    if (!isMonthly) {
+      paypal.Buttons({
+        onClick() {
+          trackEvent('checkout_payment_option_click', {
+            provider: 'paypal'
+          });
+        },
+        async createOrder() {
+          trackEvent('checkout_payment_start', {
+            provider: 'paypal'
+          });
+          const stored = localStorage.getItem('spectrodraw_user');
+
+          const res = await fetch("https://api.spectrodraw.com/api/orders", {
+            method:"POST",
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              cart:[{id:"SPECTRODRAW_PRO", quantity:1}],
+              currency:"USD",
+              user: stored
+            })
+          });
+
+          const data = await res.json();
+          return data.id;
+        },
+
+        async onApprove(data) {
+          trackEvent('checkout_payment_approved', {
+            provider: 'paypal'
+          });
+          const stored = localStorage.getItem('spectrodraw_user');
+
+          const capture = await fetch(
+            `https://api.spectrodraw.com/api/orders/${data.orderID}/capture`,
+            {
+              method:"POST",
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ user: stored })
+            }
+          );
+
+          const payload = await capture.json();
+          const status = payload?.purchase_units?.[0]?.payments?.captures?.[0]?.status;
+
+          if (status !== "COMPLETED") {
+            setError("Payment failed.");
+            return;
+          }
+
+          const email = getCurrentUserEmail();
+
+          setError("");
+
+          if (email) {
+            const ok = await makePurchaseForUser(stored,false);
+            if (!ok) {
+              setError('Payment succeeded but claim failed.');
+              return;
+            }
+
+            setCookie(finishCookie(email), '1', 365);
+            localStorage.removeItem('spectrodraw_pending_purchase');
+            handleLoggedInSuccessFlow();
+          } else {
+            pendingPurchase = { orderID: data.orderID, stored };
+            localStorage.setItem('spectrodraw_pending_purchase', JSON.stringify(pendingPurchase));
+            handleLoggedOutSuccessFlow();
+          }
+        },
+
+        onError(err) {
+          setError("Checkout error.");
+          console.error(err);
+        }
+
+      }).render('#paypal-button-container');
+    } else {
+      const MONTHLY_PLAN_ID = 'P-66T64877110376547NIN2YUI';//'P-1FN57474AA0443411NIN2QOQ';
+
+      paypal.Buttons({
+        onClick() {
+          trackEvent('checkout_payment_option_click', {
+            provider: 'paypal',
+            plan: 'monthly'
+          });
+        },
+
+        createSubscription(data, actions) {
+          trackEvent('checkout_payment_start', {
+            provider: 'paypal',
+            plan: 'monthly'
+          });
+
+          return actions.subscription.create({
+            plan_id: MONTHLY_PLAN_ID
+          });
+        },
+
+        async onApprove(data) {
+          trackEvent('checkout_payment_approved', {
+            provider: 'paypal',
+            plan: 'monthly'
+          });
+
+          const stored = localStorage.getItem('spectrodraw_user');
+          const email = getCurrentUserEmail();
+
+          if (email) {
+            const ok = await makePurchaseForUser(stored,true);
+
+            if (!ok) {
+              setError('Subscription activated but claim failed.');
+              return;
+            }
+
+            setCookie(finishCookie(email), '1', 365);
+            localStorage.removeItem('spectrodraw_pending_purchase');
+            handleLoggedInSuccessFlow();
+
+            trackEvent('start-free-trial', {
+              provider: 'paypal',
+              plan: 'monthly',
+              subscription_id: data.subscriptionID
+            });
+          } else {
+            pendingPurchase = { subscriptionID: data.subscriptionID, stored, plan: 'monthly' };
+            localStorage.setItem('spectrodraw_pending_purchase', JSON.stringify(pendingPurchase));
+            handleLoggedOutSuccessFlow();
+          }
+        },
+
+        onError(err) {
+          setError("Checkout error.");
+          console.error(err);
+        }
+
+      }).render('#paypal-button-container');
+    }
+  };
+  s.onerror = () => {
+    console.error('Failed to load PayPal SDK');
+  };
+  document.head.appendChild(s);
+</script>
+<!-- <script src="https://www.paypal.com/sdk/js?client-id=AVws1CI3HIHSFosdInayMN7ZqRgnuV4npmY1K-WEAVoqwAGytasPPpoC5G9JJw-splvCd9fKh7qQ8pYJ&currency=USD&components=buttons"></script> -->
 <style>
   :root{
     --bg:#f5f7fb;
@@ -525,8 +679,8 @@
             </div>
 
             <div class="row">
-              <button id="toggle-signup" type="button">Have an account? Sign in</button>
-              <a class="small-link" href="/forgot-password" target="_blank" rel="noopener">Forgot password?</a>
+              <button id="toggle-signup" type="button" class="small-link" style="background:none;color:var(--primary);border:none;cursor:pointer;">Have an account? Sign in</button>
+              <a id="forgot-password-link" class="small-link" href="/forgot-password" target="_blank" rel="noopener" style="display:none;">Forgot password?</a>
             </div>
 
             <button id="primary-btn" type="submit" class="primary">Create account</button>
@@ -576,6 +730,9 @@
     }
   }
   trackEvent('checkout_view', { step: 'payment' });
+  const urlParams = new URLSearchParams(window.location.search);
+  const selectedPlan = urlParams.get('plan');
+  const isMonthly = selectedPlan === 'monthly';
 
   let lastTrackedStep = null;
   function trackStepOnce(step) {
@@ -603,6 +760,10 @@
     });
   }
   wireFieldTracking();
+  if (isMonthly) {
+    const priceEl = document.querySelector('.price');
+    if (priceEl) priceEl.textContent = '$7.99 / month';
+  }
   function getCurrentUserEmail() {
     try {
       const raw = localStorage.getItem('spectrodraw_user');
@@ -633,15 +794,19 @@
     }
   } catch {}
 
-  async function makePurchaseForUser(stored) {
+  async function makePurchaseForUser(stored, monthly = false) {
     const claim = await fetch('https://api.spectrodraw.com/api/make-purchase', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: stored })
+      body: JSON.stringify({
+        user: stored,
+        monthly: !!monthly
+      })
     });
+
     const data = await claim.json();
-    console.error(data,stored,claim);
+    console.error(data, stored, claim);
 
     return claim.ok;
   }
@@ -685,7 +850,7 @@
       return;
     }
 
-    const ok = await makePurchaseForUser(stored);
+    const ok = await makePurchaseForUser(stored,isMonthly);
     if (!ok) {
       setError('Payment succeeded but claim failed.');
       return;
@@ -698,22 +863,29 @@
     updateProgress('success');
     showSuccessPage({
       title: 'You’re ready to launch Pro',
-      copy: 'Your purchase is complete. Open Pro from your products page.',
+      copy: `Use this email to access Pro: ${JSON.parse(stored).email}<br>You should probably write it somewhere!`,
       buttonText: 'Launch Pro',
       buttonHref: '../../app/?survey=true'
     });
-    gtag('event', 'purchase', {
-      transaction_id: Date.now().toString(),
-      value: 39.99,
-      currency: 'USD',
-      items: [
-        {
-          item_name: 'SpectroDraw Pro',
-          price: 39.99,
-          quantity: 1
-        }
-      ]
-    });
+    if (isMonthly) {
+      trackEvent('start-free-trial', {
+        provider: 'paypal',
+        plan: 'monthly'
+      });
+    } else {
+      gtag('event', 'purchase', {
+        transaction_id: Date.now().toString(),
+        value: 39.99,
+        currency: 'USD',
+        items: [
+          {
+            item_name: 'SpectroDraw Pro',
+            price: 39.99,
+            quantity: 1
+          }
+        ]
+      });
+    }
   }
 
   function isLoggedIn() {
@@ -753,7 +925,7 @@
     const btn = document.getElementById('launch-btn');
 
     titleEl.textContent = title || 'You’re ready to launch Pro';
-    copyEl.textContent = copy || 'Your purchase is complete.';
+    copyEl.innerHTML = copy || 'Your purchase is complete.';
     btn.textContent = buttonText || 'Launch Pro';
     btn.onclick = () => location.href = buttonHref || '../../app/?survey=true';
 
@@ -874,83 +1046,6 @@
     });
   }
 
-  paypal.Buttons({
-    onClick() {
-      trackEvent('checkout_payment_option_click', {
-        provider: 'paypal'
-      });
-    },
-    async createOrder() {
-      trackEvent('checkout_payment_start', {
-        provider: 'paypal'
-      });
-      const stored = localStorage.getItem('spectrodraw_user');
-
-      const res = await fetch("https://api.spectrodraw.com/api/orders", {
-        method:"POST",
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          cart:[{id:"SPECTRODRAW_PRO", quantity:1}],
-          currency:"USD",
-          user: stored
-        })
-      });
-
-      const data = await res.json();
-      return data.id;
-    },
-
-    async onApprove(data) {
-      trackEvent('checkout_payment_approved', {
-        provider: 'paypal'
-      });
-      const stored = localStorage.getItem('spectrodraw_user');
-
-      const capture = await fetch(
-        `https://api.spectrodraw.com/api/orders/${data.orderID}/capture`,
-        {
-          method:"POST",
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ user: stored })
-        }
-      );
-
-      const payload = await capture.json();
-      const status = payload?.purchase_units?.[0]?.payments?.captures?.[0]?.status;
-
-      if (status !== "COMPLETED") {
-        setError("Payment failed.");
-        return;
-      }
-
-      const email = getCurrentUserEmail();
-
-      setError("");
-
-      if (email) {
-        const ok = await makePurchaseForUser(stored);
-        if (!ok) {
-          setError('Payment succeeded but claim failed.');
-          return;
-        }
-
-        setCookie(finishCookie(email), '1', 365);
-        localStorage.removeItem('spectrodraw_pending_purchase');
-        handleLoggedInSuccessFlow();
-      } else {
-        pendingPurchase = { orderID: data.orderID, stored };
-        localStorage.setItem('spectrodraw_pending_purchase', JSON.stringify(pendingPurchase));
-        handleLoggedOutSuccessFlow();
-      }
-    },
-
-    onError(err) {
-      setError("Checkout error.");
-      console.error(err);
-    }
-
-  }).render('#paypal-button-container');
-
   (async () => {
     updatePurchasingFor();
     if (pendingPurchase) {
@@ -975,7 +1070,7 @@
       updateProgress('success');
       showSuccessPage({
         title: 'You already own SpectroDraw Pro',
-        copy: 'No need to purchase again. Open your products page to launch it.',
+        copy: `Pro is currently active on this account: ${JSON.parse(localStorage.getItem('spectrodraw_user')).email}`,
         buttonText: 'Launch Pro',
         buttonHref: '../../app'
       });

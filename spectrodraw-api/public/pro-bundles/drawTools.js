@@ -608,14 +608,14 @@ function applyEffectToPixel(oldMag, oldPhase, oldPan, x, bin, newEffect, integra
   const _amp = newEffect.amp || amp;
   const newMag =  (tool === "amplifier" || tool === "sample")
                 ? (oldMag * _amp)
-                : (currentTool === "noiseRemover")
+                : (tool === "noiseRemover")
                 ? Math.max(oldMag * (1 - bo) + (oldMag*(1 - (newEffect.noiseAgg * newEffect.noiseProfile[bin]) / oldMag)) * bo,0)
                 : (oldMag * (1 - bo) + mag * bo);
   const type = newEffect.phaseTexture;
   let $phase = computePhaseTexture(type, bin, x+0.5, phase, true);
   const newPhase = (tool === "sample")?(oldPhase+phase):(oldPhase * (1-po) + po * ($phase + phase*2));
   const clampedMag = Math.min(newMag, 255);
-
+  console.log(oldMag,newMag);
   const newPan = computePanTexture(newEffect.panTexture,0.5,newEffect.panStrength,x+0.5,bin,newEffect.panShift,false,newEffect.tool==="amplifier",newEffect.panBand);
   return { mag: oldMag*(1-newEffect.magStrength)+clampedMag*newEffect.magStrength, phase: newPhase, pan: newPan};
 }

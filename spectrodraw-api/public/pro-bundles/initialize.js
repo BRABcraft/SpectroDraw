@@ -162,6 +162,7 @@ let draggingSample = null, dragInsert = false;
 let showToolSettings = true;
 let showEffectSettings = true;
 let harmonics = Array(100).fill(0); harmonics[0]=1;
+let extractingProfile = false;
 let stamps = [
   {name:"Circle Fill",dataUrl:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADIAQMAAACJXwxuAAAABlBMVEVHcEz///+flKJDAAAAAXRSTlMAQObYZgAAAaZJREFUWMPt2E2OgzAMhmGiLrLsETgKR0uO1qNwBJYsEJ5Ff0ISvx7JQq06GraPBHaYKfY3DOW6yKBfo4jMGgQRkV2TSURElh4ucr96uT7k1kl6yEo36283vmSGm3W3Cy9oW4pFJMNj2gelg9QPOoBsejdtR7GSDAXUJUyVLFBaVVyo4HgKdWnH4mIjuXuf0r3XqZEFSjsW10A5udDKTkWXsmMnGYouZY+dzNBOaSh1skI7pSGU0MtOjT5bjYpkaPTZKsuoyAxH8DyEpMj6iyhwP4SgyW6Ldjj344mqZFOuqtxMGVWZTZlUWUxJqqymqCCbT4Iuu0/0FydiSQTJLrmC3FwygsxvkwlkeZskkPVLBUC2f/la+Wt/o5//r//8L9+5v+TnfmU837lzv7TnTgGuOcQz73jmKs/85pkTeer0zLA8Ebvma57WecL37Au8ffDGwluOZ2cyNjDe2njT4+2QN0reQnlz5W3X2JB5q+ZNnLd33vg5JeBkwUgjOMHg1IOTEk5XjESGUxxOfjgt4oTJSKU4yeL0y0jMOGXjZM5I8zgBbFPDH++dG9YL0B0cAAAAAElFTkSuQmCC"},
   {name:"Curve Triangle Fill",dataUrl:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMUAAADFAQMAAADe9qSzAAAABlBMVEVHcEz///+flKJDAAAAAXRSTlMAQObYZgAAARlJREFUWMOd0KEVA1AMQtGOntEySkaIjOB8Kmr7DNhrgE99KB3IBLKBHIoCeYE4ETzbHcgEsoHg2VYgLxCzVCAdyKBsIBeIUF4gZqlAOpBB2UAuEKG8QMxSgTTKBLKBHIoCeShOpFA6kEHZQA5FgTwUJ1IoHcigbCCHIpQXiFkqkEYZlA3kUBTIQzFLBdIog7IoF4hQHopZCqUDGZRFORShPBSzFEqjDMqiHIpQHopZGmVQFuVQHopZCqVRFuVQhGKWQmmURTkUoZilUAZlUYTyUMzSKINyKEIxS6EMyqEIxSyFMiiLIhSzFMqgLIpQzFIog3IoQjFLowzKoTyU31Zjhb+yKEIxS6EMyqE8FBdKoyyKUMzSKItyX2rwhArSbF1kAAAAAElFTkSuQmCC"},
@@ -622,6 +623,21 @@ function overlayCanvasPaint(opts={}) {
       ctx.restore();
     }
   }
+  if (extractingProfile && cx !== undefined && cy !== undefined) {
+    const overlayCanvas = document.getElementById("overlay-"+currentLayer);
+    const ctx = overlayCanvas.getContext("2d");
+    const canvas = document.getElementById("canvas-"+currentLayer);
+    for (let i = 1; i < 100; i++) {
+      const f = sampleRate/fftSize;
+      const freq = invlsc((specHeight-visibleToSpecY(cy))*f,sampleRate/2,logScaleVal[currentLayer])*i;
+      const y = (specHeight-lsc(freq,sampleRate/2,logScaleVal[currentLayer])/f)/specHeight*720;
+      const x = cx/framesTotal*overlayCanvas.width;
+      ctx.beginPath();
+      ctx.fillStyle = "#ff000099";
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
 class Knob {
@@ -645,6 +661,7 @@ class Knob {
     this.name = options.name;
     this.id = this.name.replaceAll(' ', '');
     this.onInput = typeof options.onInput === 'function' ? options.onInput : null;
+    this.onMouseup = typeof options.onMouseup === 'function' ? options.onMouseup : null;
 
     // initial value
     this.value = options.value !== undefined ? options.value : (Array.isArray(this.range) ? this.range[0] : 0);
@@ -709,7 +726,7 @@ class Knob {
       if (n <= 1) return;
 
       // pixels per index step - tweak to change sensitivity
-      const pixelsPerStep = 30;
+      const pixelsPerStep = 10;
 
       // calculate floating index from startIndex + delta/pixelsPerStep
       const idxFloat = this.startIndex + (delta / pixelsPerStep);
@@ -743,7 +760,10 @@ class Knob {
   }
 
   _onPointerUp(e) {
-    if (this.dragging) historyStack[historyIndex].redoValue = this.value;
+    if (this.dragging) {
+      historyStack[historyIndex].redoValue = this.value;
+      if (this.onMouseup) this.onMouseup();
+    }
     this.dragging = false;
   }
 
@@ -885,24 +905,32 @@ const bufferLengthKnob = new Knob(document.getElementById('emptyAudioLength'), {
   bpm:120,
   onInput: (knob)=>{
     emptyAudioLength = knob.value;
+    const nf = emptyAudioLength*sampleRate/hop;
+    iLow *= nf/framesTotal; iHigh *= nf/framesTotal;
+    framesTotal = nf;
+    drawTimeline();
+    setProjectDirty();
+  },
+  onMouseup: ()=>{
     initEmptyPCM(false);
     visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
-    setProjectDirty();
   }
 });
 const hopSizeKnob = new Knob(document.getElementById('hopSize'), {
   name:'Hop',
   type: 'continuous',
-  range: [0,fftSize],
+  range: [16,fftSize],
   value: hop,
   onInput: (knob)=>{
     hop = knob.value;
     minCol = 0; maxCol = Math.floor(sampleRate*emptyAudioLength/hop);
     currentCursorX = timelineCursorX = (currentCursorX/framesTotal)*maxCol;
-    restartRender(false);
+    setProjectDirty();
+  },
+  onMouseup: ()=>{
     drawTimeline();
     overlayCanvasPaint();
-    setProjectDirty();
+    restartRender(false);
   }
 });
 const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
@@ -912,12 +940,14 @@ const fftSizeKnob = new Knob(document.getElementById('fftSize'), {
   value: fftSize,
   onInput: (knob)=>{
     fftSize = knob.value;
-    restartRender(false);
     buildBinDisplayLookup();
     if (hopSizeKnob.range[1]<fftSize){hopSizeKnob.range[1]=fftSize; hopSizeKnob._buildLabels(); hopSizeKnob.render();}
     if (lockHop) {hopSizeKnob.setValue(fftSizeKnob.getValue());}
-    visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
     setProjectDirty();
+  },
+  onMouseup: ()=>{
+    restartRender(false);
+    visited = Array.from({ length: layerCount }, () => new Uint8Array(layers[0].mags.length));
   }
 });
 const masterVolumeKnob = new Knob(document.getElementById('masterVolume'), {
@@ -938,9 +968,13 @@ const sampleRateKnob = new Knob(document.getElementById('sampleRate'), {
     eqBands.forEach(e=>{e.freq*=newSR/sampleRate});
     sampleRate= newSR;
     fHigh=sampleRate/2;
+    setProjectDirty();
+    drawTimeline();
+    drawYAxis();
+  },
+  onMouseup: ()=>{
     simpleRestartRender(0,framesTotal);
     bufferLengthKnob.setValue(framesTotal*hop/sampleRate);
-    setProjectDirty();
-    //bufferLengthKnob.render();
+
   }
 });

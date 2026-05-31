@@ -980,6 +980,7 @@ function setDocked(panel, dockObj){
             </select>
           </div>
           <canvas id="harmonicsEditor" width="280" height="140" style="border:1px solid #ccc; margin-top:10px;"></canvas>
+          <button id="harmonicsExtractProfileBtn" class="leftBtn" style="width:auto;margin-top:5px;">Extract Profile</button>
         </div>
         <div id="chorusDiv">
           <h3 style="font-size:15px;margin:0;margin-left:10px;">Chorus
@@ -1237,7 +1238,7 @@ function setDocked(panel, dockObj){
           <span class="char gt">&gt;</span>
         </button>
         <div>
-          <div class="toolSection-title">Pitch Align</div>
+          <div class="toolSection-title">Melodies</div>
         </div>
       </div>
       <div class="content-wrapper" id="content-4">
@@ -1245,7 +1246,7 @@ function setDocked(panel, dockObj){
           <!--Auto align pitch-->
           <button class="leftBtn" id="alignPitch" title="Auto align pitch (j)">Auto Align Pitch</button>
           <div id="pitchAlignDiv" style="display:none;">
-            <div style="display:flex;flex-direction:row;" title="Base Pitch">
+            <div style="display: flex; align-items: center; box-sizing: border-box; width: 100%; overflow: visible;" title="Base Pitch">
               <label class="h2">Base Hz</label>
               <input id="startOnPitch" style="width:50px;" type="range" min="261.63" max="523.3" step="0.01" value="440">
               <input id="startOnPitchInput" type="number" value="440" min="261.63" max="523.3" step="0.01" style="width:60px;">
@@ -1675,10 +1676,15 @@ function setDocked(panel, dockObj){
               <input id="sblurRadius"  type="range" min="0" max="10" value="1.5" step="0.1">
               <input id="sblurRadiusInput" type="number" value="1.5" min="0" max="10">
           </div>
-          <div class="slider-row" title="Blur Radius" id="samplifyDiv">
+          <div class="slider-row" title="Amplification" id="samplifyDiv">
               <label class="h2">Amplifier</label>
               <input id="samp"  type="range" min="0" max="2" value="2" step="0.01">
               <input id="sampInput" type="number" value="2" min="0" max="2">
+          </div>
+          <div class="slider-row" title="Amplification" id="sselectionAmplifyDiv">
+              <label class="h2">Amplifier</label>
+              <input id="sselectionAmp"  type="range" min="0" max="2" value="1" step="0.01">
+              <input id="sselectionAmpInput" type="number" value="1" min="0" max="2">
           </div>
           <div class="slider-row" title="Noise remover aggressiveness" id="snoiseAggDiv">
               <label class="h2">Aggressiveness</label>
@@ -1783,7 +1789,7 @@ function setDocked(panel, dockObj){
         </div>
         <div id="spriteFadeDiv">
           <h3>
-            Fade
+            Volume envelope
             <button type="button"
                     class="section-toggle"
                     data-target="spriteFadeDiv"

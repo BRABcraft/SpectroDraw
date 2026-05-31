@@ -467,7 +467,7 @@ input[type="range"]{
 
 /* webkit track stays transparent so the input background shows through */
 input[type="range"]::-webkit-slider-runnable-track{
-  height: 3px;
+  height: 3px !important;
   background: transparent;
   border-radius: 999px;
   cursor: pointer;
@@ -475,12 +475,12 @@ input[type="range"]::-webkit-slider-runnable-track{
 
 /* firefox track + progress */
 input[type="range"]::-moz-range-track {
-  height: 3px;
+  height: 3px !important;
   background: #444;
   border-radius: 999px;
 }
 input[type="range"]::-moz-range-progress {
-  height: 3px;
+  height: 3px !important;
   background: #884aee;
   border-radius: 999px;
 }
@@ -581,7 +581,7 @@ select {
 }
 
 /* gradient overlay */
-#moveSpriteBtn::before, #changeClonerPosBtn::before, #setNoiseProfile::before, #ssetNoiseProfile::before, #moveSpritesModeBtn::before, #pianoModeButton::before {
+#moveSpriteBtn::before, #changeClonerPosBtn::before, #setNoiseProfile::before, #ssetNoiseProfile::before, #moveSpritesModeBtn::before, #pianoModeButton::before, #harmonicsExtractProfileBtn::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -591,7 +591,7 @@ select {
 
   z-index: -1;   /* put gradient behind the text */
 }
-#moveSpriteBtn.moving::before, #changeClonerPosBtn.moving::before, #setNoiseProfile.moving::before, #ssetNoiseProfile.moving::before, #moveSpritesModeBtn.moving::before, #pianoModeButton.moving::before {
+#moveSpriteBtn.moving::before, #changeClonerPosBtn.moving::before, #setNoiseProfile.moving::before, #ssetNoiseProfile.moving::before, #moveSpritesModeBtn.moving::before, #pianoModeButton.moving::before, #harmonicsExtractProfileBtn.moving::before {
   opacity: 1;
 }
 .spriteEditorRow {

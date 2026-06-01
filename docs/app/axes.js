@@ -260,68 +260,65 @@ function drawYAxis() {
     const labelX = Math.max(40, yAxis.width - 4);
     const yFactor = specHeight/parseInt(yAxis.style.height); 
     function fToVisY(f) {
-        const h = specHeight;
-        const s = parseFloat(logScaleVal);
-        let bin = f / (sampleRate / fftSize);
-        let cy;
-        if (s <= 1.0000001) {
-            cy = h - 1 - bin;
-        } else {
-            const a = s - 1;
-            const denom = Math.log(1 + a * (h - 1));
-            const t = Math.log(1 + a * bin) / denom;
-            cy = (1 - t) * (h - 1);
-        }
-
-        const fStart = Math.max(0, Math.floor(h * (1 - fHigh / (sampleRate / 2))));
-        const fEnd   = Math.min(h, Math.floor(h * (1 - fLow / (sampleRate / 2))));
-        const viewHeight = fEnd - fStart;
-        const visY = ((cy - fStart) / viewHeight) * h;
-
-        return visY/yFactor/(fftSize/2048);
+      const h = specHeight;
+      const s = parseFloat(logScaleVal);
+      let bin = f / (sampleRate / fftSize);
+      let cy;
+      if (s <= 1.0000001) {
+        cy = h - 1 - bin;
+      } else {
+        const a = s - 1;
+        const denom = Math.log(1 + a * (h - 1));
+        const t = Math.log(1 + a * bin) / denom;
+        cy = (1 - t) * (h - 1);
+      }
+      const fStart = Math.max(0, Math.floor(h * (1 - fHigh / (sampleRate / 2))));
+      const fEnd   = Math.min(h, Math.floor(h * (1 - fLow / (sampleRate / 2))));
+      const viewHeight = fEnd - fStart;
+      const visY = ((cy - fStart) / viewHeight) * h;
+      return visY/yFactor/(fftSize/2048);
     }
     const rect = yAxis.getBoundingClientRect();
     if (useHz) {
-        let lastDrawPos = 9999999;
-        for (let f = 0.859375; f < sampleRate / 2; f *= (Math.pow(2, 1 / 12))) {
-            visY = fToVisY(f);
-            if (Math.abs(visY - lastDrawPos) < (100/fftSize*246)) continue;
-            if (visY < 0 || visY > rect.height) continue;
-            const label = hzToNoteName(f);
-            yctx.save();
-            yctx.scale(1.0, yFactor/(fftSize/2048));
-            yctx.fillText(label, labelX, visY*(fftSize/2048));
-            yctx.restore();
-            lastDrawPos = visY;
-        }
+      let lastDrawPos = 9999999;
+      for (let f = 0.859375; f < sampleRate / 2; f *= (Math.pow(2, 1 / 12))) {
+        visY = fToVisY(f);
+        if (Math.abs(visY - lastDrawPos) < (100/fftSize*246)) continue;
+        const label = hzToNoteName(f);
+        yctx.save();
+        yctx.scale(1.0, yFactor/(fftSize/2048));
+        yctx.fillText(label, labelX, visY*(fftSize/2048));
+        yctx.restore();
+        lastDrawPos = visY;
+      }
     } else {
-        function drawHz(f, visY) {
-            let label = (f / 1000).toFixed(1) + "k";
-            if (f < 1000) label = f.toFixed(0);
-            yctx.save();
-            yctx.scale(1.0, yFactor/(fftSize/2048));
-            yctx.fillText(label, labelX, visY*(fftSize/2048));
-            yctx.restore();
+      function drawHz(f, visY) {
+        let label = (f / 1000).toFixed(1) + "k";
+        if (f < 1000) label = f.toFixed(0);
+        yctx.save();
+        yctx.scale(1.0, yFactor/(fftSize/2048));
+        yctx.fillText(label, labelX, visY*(fftSize/2048));
+        yctx.restore();
+      }
+      let f = 0;
+      let lastDrawPos = 9999999;
+      let visY = 0;
+      while (f < sampleRate/2) {
+        if (Math.abs(visY-lastDrawPos)>(100/fftSize*4000)) {
+          let e = f + interval;
+          while (f<e) {
+            visY = fToVisY(f);
+            drawHz(f,visY);
+            lastDrawPos=visY;
+            f+=interval/8;
+          }
+        } else {
+          lastDrawPos=visY;
+          visY = fToVisY(f);
+          drawHz(f,visY);
+          f+=interval;
         }
-        let f = 0;
-        let lastDrawPos = 9999999;
-        let visY = 0;
-        while (f < sampleRate/2) {
-            if (Math.abs(visY-lastDrawPos)>(100/fftSize*4000)) {
-                let e = f + interval;
-                while (f<e) {
-                    visY = fToVisY(f);
-                    drawHz(f,visY);
-                    lastDrawPos=visY;
-                    f+=interval/8;
-                }
-            } else {
-                lastDrawPos=visY;
-                visY = fToVisY(f);
-                drawHz(f,visY);
-                f+=interval;
-            }
-        }
+      }
     }
 
     const factorVisible = yAxis.height / (sampleRate / 2);

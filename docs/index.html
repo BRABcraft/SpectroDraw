@@ -483,7 +483,7 @@ body{
       <a href="app" class="nav-link">Launch App</a>
       <a href="faq" class="nav-link">FAQ</a>
       <a href="news" class="nav-link">News</a>
-      <a href="events" class="nav-link" style="position: relative;display: inline-block;">Events<span style="position:absolute;bottom:0;right:-8px;width:18px;height:18px;background:red;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;line-height:1;">3</span></a>
+      <a href="events" class="nav-link" style="position: relative;display: inline-block;">Events<!--<span style="position:absolute;bottom:0;right:-8px;width:18px;height:18px;background:red;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;line-height:1;">3</span>--></a>
       <a href="pricing" class="nav-link">Pricing</a>
       <a href="#" id="signup-link" class="nav-link">Sign up</a>
       <a href="#" id="signin-link" class="nav-link">Sign in</a>
@@ -513,7 +513,7 @@ body{
   <div class="news-viewport">
     <div class="news-track" id="newsTrack">
       <a style="text-decoration: underline;" href="./events/" class="news-item">
-        🎁 SpectroDraw Pro: Send feedback to enter a $25 giveaway! Ends in <span id="giveawayCountdown">00:00:00</span> 🎁
+        Come watch the giveaway livestream! Starts in <span id="giveawayCountdown">00:00:00</span> 🎁
       </a>
 
       <a style="text-decoration: underline;" href="./buy-pro/" class="news-item">
@@ -584,7 +584,7 @@ body{
     let timer = null;
 
     const countdownEl = document.getElementById("giveawayCountdown");
-    const target = new Date("2026-06-01T00:00:00-04:00"); // June 1, 2026 in New York time
+    const target = new Date("2026-06-02T16:00:00-04:00"); // June 1, 2026 in New York time
 
     function updateCountdown() {
       if (!countdownEl) return;

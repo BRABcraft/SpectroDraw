@@ -293,6 +293,13 @@ function shouldHide(t){
        ||(t==="noiseRemover"&& d("image")
        ||(d("select")));
 }
+function shouldHide2(shape) {
+  function e(b){return shape===b;}
+  return (currentTool==="cloner" && (e("image")||e("select"))
+    ||(currentTool==="autotune"    &&(e("image")||e("synth" )))
+    ||(currentTool==="noiseRemover"&& e("image"))
+  );
+}
 function onToolChange(tool){
   function c(b){return tool===b;}
   function d(b){return currentShape===b;}
@@ -307,15 +314,8 @@ function onToolChange(tool){
   });
   shapeButtons.forEach(b => {
     const s = b.dataset.shape;
-    function shouldHide2(shape) {
-      function e(b){return shape===b;}
-      return (currentTool==="cloner" && (e("image")||e("select"))
-       ||(currentTool==="autotune"    &&(e("image")||e("synth" )))
-       ||(currentTool==="noiseRemover"&& e("image"))
-      );
-    }
-    b.style.background=shouldHide2(s)?"#555":"";
-    b.style.cursor =(shouldHide2(s))?"not-allowed":"";
+    if (shouldHide2(s)) b.style.background="#555";
+    b.style.cursor =(shouldHide2(s))?"not-allowed":"pointer";
   });
   document.getElementById("brushEffectSelect").value=tool;
   updateBrushSettingsDisplay();
@@ -348,10 +348,10 @@ function onShapeChange(shape){
   }
   function c(b){return currentTool===b;}
   function d(b){return shape===b;}
-  if (c("cloner")&&(d("image")||d("stamp"))) onToolChange('fill');
-  else if (c("autotune")&&(d("image")||d("synth"))) onToolChange('fill');
-  else if (c("noiseRemover")&&d("image")) onToolChange('fill');
-  else onToolChange(currentTool);
+  // if (c("cloner")&&(d("image")||d("stamp"))) onToolChange('fill');
+  // else if (c("autotune")&&(d("image")||d("synth"))) onToolChange('fill');
+  // else if (c("noiseRemover")&&d("image")) onToolChange('fill');
+  onToolChange(currentTool);
   updateBrushSettingsDisplay();
 }
 shapeButtons.forEach(btn => {

@@ -1843,7 +1843,7 @@ function setDocked(panel, dockObj){
                 <input id="subBeatInput" type="number" value="8" min="1" max="24">
               </div>
             </div>
-            <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers">Use Volume Controllers</button>
+            <button class="leftBtn" title="Use volume controllers (Not recommended)" id="useVolumeControllers" style="display:none;">Use Volume Controllers</button>
           </div>
           <div id="AiMidiDiv" style="display:none;">
             <label class="h1">Time Quantize</label>
